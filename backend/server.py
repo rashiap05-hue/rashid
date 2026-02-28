@@ -1066,6 +1066,7 @@ api_router.include_router(cities_router)
 api_router.include_router(ai_router)
 api_router.include_router(payments_router)
 api_router.include_router(sheets_router)
+api_router.include_router(admin_router)
 
 app.include_router(api_router)
 
