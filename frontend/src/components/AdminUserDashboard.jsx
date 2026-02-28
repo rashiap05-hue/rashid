@@ -384,6 +384,14 @@ export default function AdminUserDashboard({ onBack }) {
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2 relative">
                           <button
+                            onClick={() => openEditModal(user)}
+                            className="p-2 hover:bg-green-50 text-green-600 rounded-lg transition-colors"
+                            title="Edit User"
+                            data-testid={`edit-user-${user.id}`}
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button
                             onClick={() => fetchUserDetails(user.id)}
                             className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
                             title="View Details"
@@ -407,6 +415,15 @@ export default function AdminUserDashboard({ onBack }) {
                                 className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden"
                               >
                                 <div className="p-1">
+                                  <button
+                                    onClick={() => openEditModal(user)}
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-green-50 text-green-600 rounded-lg flex items-center gap-2"
+                                  >
+                                    <Edit2 size={14} />
+                                    Edit User
+                                  </button>
+                                  
+                                  <div className="border-t border-gray-100 my-1" />
                                   <div className="px-3 py-2 text-xs font-bold text-gray-400 uppercase">Change Role</div>
                                   {['admin', 'manager', 'agent'].map((role) => (
                                     <button
