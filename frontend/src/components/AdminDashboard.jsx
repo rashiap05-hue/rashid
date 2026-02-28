@@ -24,12 +24,13 @@ export default function AdminDashboard({ onBack, onViewHotel }) {
     setLoading(true);
     try {
       const [proposalsRes, airportsRes, citiesRes, hotelsRes] = await Promise.all([
-        api.get('/proposals'),
-        api.get('/airports'),
-        api.get('/cities'),
-        api.get('/hotels')
+        api.get('/proposals/'),
+        api.get('/airports/'),
+        api.get('/cities/'),
+        api.get('/hotels/')
       ]);
-      setProposals(proposalsRes.data || []);
+      // Handle proposals response (returns array directly)
+      setProposals(Array.isArray(proposalsRes.data) ? proposalsRes.data : []);
       setAirports(airportsRes.data?.airports || []);
       setCities(citiesRes.data?.cities || []);
       setHotels(hotelsRes.data?.hotels || []);
