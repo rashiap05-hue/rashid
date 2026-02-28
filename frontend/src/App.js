@@ -167,7 +167,14 @@ function App() {
                 )}
 
                 {currentView === 'admin' && (
-                  <AdminDashboard onBack={() => setCurrentView('dashboard')} />
+                  <AdminDashboard 
+                    onBack={() => setCurrentView('dashboard')} 
+                    onUsersView={() => setCurrentView('admin-users')}
+                  />
+                )}
+
+                {currentView === 'admin-users' && (
+                  <AdminUserDashboard onBack={() => setCurrentView('admin')} />
                 )}
 
                 {/* AI Chatbot Button */}
