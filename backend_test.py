@@ -144,12 +144,13 @@ class TravoAPITester:
         """Test flight search functionality"""
         print("\n🔍 Testing Flight Search...")
         
-        # Test flight search
+        # Test flight search with return_date for round trip
         search_data = {
             "from_airport": "Dubai (DXB)",
             "to_airport": "Tbilisi (TBS)",
             "depart_date": "2026-04-15",
-            "trip_type": "One-way",
+            "return_date": "2026-04-20",
+            "trip_type": "Round-trip",
             "cabin_class": "Economy"
         }
         
