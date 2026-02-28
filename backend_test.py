@@ -191,7 +191,7 @@ class TravoAPITester:
             ]
         }
         
-        success, response = self.make_request('POST', '/proposals', proposal_data, expected_status=200)
+        success, response = self.make_request('POST', '/proposals/', proposal_data, expected_status=200)
         if success and isinstance(response, dict):
             proposal_id = response.get('id')
             total_price = response.get('total_price')
