@@ -46,6 +46,7 @@ cities_router = APIRouter(prefix="/cities", tags=["Cities"])
 ai_router = APIRouter(prefix="/ai", tags=["AI Features"])
 payments_router = APIRouter(prefix="/payments", tags=["Payments"])
 sheets_router = APIRouter(prefix="/sheets", tags=["Google Sheets"])
+admin_router = APIRouter(prefix="/admin", tags=["Admin"])
 
 security = HTTPBearer(auto_error=False)
 
