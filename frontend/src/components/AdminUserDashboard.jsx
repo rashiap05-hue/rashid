@@ -341,6 +341,12 @@ export default function AdminUserDashboard({ onBack }) {
                               <Mail size={12} />
                               {user.email}
                             </div>
+                            {user.mobile && (
+                              <div className="text-xs text-gray-500 flex items-center gap-1">
+                                <Phone size={12} />
+                                {user.mobile}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
