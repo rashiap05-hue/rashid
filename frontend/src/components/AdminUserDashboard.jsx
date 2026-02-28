@@ -4,7 +4,7 @@ import {
   Users, UserCheck, UserX, Search, RefreshCw, Edit2, Trash2, 
   Shield, ShieldCheck, ShieldX, MoreVertical, X, ChevronRight,
   TrendingUp, DollarSign, FileText, Clock, CheckCircle, AlertCircle,
-  Mail, Building2, Calendar, Activity
+  Mail, Building2, Calendar, Activity, Phone, Save, Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
@@ -19,6 +19,10 @@ export default function AdminUserDashboard({ onBack }) {
   const [userDetails, setUserDetails] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [showActionMenu, setShowActionMenu] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchData();
