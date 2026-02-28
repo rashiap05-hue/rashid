@@ -263,7 +263,7 @@ class TravoAPITester:
             "cities": [{"name": "Dubai", "nights": 2}]
         }
         
-        success, response = self.make_request('POST', '/proposals', proposal_data)
+        success, response = self.make_request('POST', '/proposals/', proposal_data)
         if success and isinstance(response, dict):
             proposal_id = response.get('id')
             
