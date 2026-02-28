@@ -198,7 +198,7 @@ class TravoAPITester:
             self.log_test("Create Proposal", True, f"ID: {proposal_id}, Price: AED {total_price}")
             
             # Test get proposals
-            success, response = self.make_request('GET', '/proposals')
+            success, response = self.make_request('GET', '/proposals/')
             proposals_count = len(response) if isinstance(response, list) else 0
             self.log_test("Get Proposals", success, f"Found {proposals_count} proposals")
             
