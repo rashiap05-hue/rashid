@@ -7,7 +7,7 @@ import {
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
 
-export default function AdminDashboard({ onBack, onViewHotel }) {
+export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   const [proposals, setProposals] = useState([]);
   const [airports, setAirports] = useState([]);
   const [cities, setCities] = useState([]);
