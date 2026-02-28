@@ -37,7 +37,7 @@ export default function FlightDashboard() {
 
   const fetchAirports = async () => {
     try {
-      const response = await api.get('/airports');
+      const response = await api.get('/airports/');
       setAirports(response.data?.airports || []);
     } catch (error) {
       console.error('Error fetching airports:', error);
@@ -46,7 +46,7 @@ export default function FlightDashboard() {
 
   const fetchAllFlights = async () => {
     try {
-      const response = await api.get('/flights');
+      const response = await api.get('/flights/');
       setAllFlights(response.data?.flights || []);
     } catch (error) {
       console.error('Error fetching all flights:', error);
