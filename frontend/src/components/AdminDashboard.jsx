@@ -59,6 +59,19 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   return (
     <div className="min-h-screen bg-[#F0F2F5] font-sans text-[#1A1A1A]" data-testid="admin-dashboard">
       <div className="max-w-7xl mx-auto px-8 py-8">
+        {/* Header with User Management Button */}
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+          <button
+            onClick={onUsersView}
+            data-testid="user-management-button"
+            className="flex items-center gap-2 px-6 py-3 bg-[#002B5B] text-white rounded-xl font-bold hover:bg-[#003d82] transition-colors shadow-lg"
+          >
+            <Users size={20} />
+            User Management
+          </button>
+        </div>
+
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           {[
