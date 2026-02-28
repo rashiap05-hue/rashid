@@ -27,8 +27,8 @@ export default function Dashboard({
   const fetchProposals = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/proposals');
-      setProposals(response.data);
+      const response = await api.get('/proposals/');
+      setProposals(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching proposals:', error);
     } finally {
