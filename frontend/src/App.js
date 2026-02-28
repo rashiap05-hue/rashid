@@ -1,53 +1,195 @@
-import { useEffect } from "react";
-import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import axios from 'axios';
+import '@/App.css';
+
+// Components
+import AuthPage from '@/components/AuthPage';
+import Dashboard from '@/components/Dashboard';
+import Header from '@/components/Header';
+import FitPackageForm from '@/components/FitPackageForm';
+import CustomizeTrip from '@/components/CustomizeTrip';
+import AdminDashboard from '@/components/AdminDashboard';
+import AIChatbot from '@/components/AIChatbot';
+import PaymentSuccess from '@/components/PaymentSuccess';
+import PaymentCancel from '@/components/PaymentCancel';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+export const API = `${BACKEND_URL}/api`;
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
+// Create axios instance
+export const api = axios.create({
+  baseURL: API,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
-  return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
+// Add auth interceptor
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('travo_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [currentView, setCurrentView] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('Home');
+  const [selectedProposalId, setSelectedProposalId] = useState(null);
+  const [pendingProposalData, setPendingProposalData] = useState(null);
+  const [showChatbot, setShowChatbot] = useState(false);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('travo_user');
+    const savedToken = localStorage.getItem('travo_token');
+    if (savedUser && savedToken) {
+      setUser(JSON.parse(savedUser));
+    }
+    setLoading(false);
+  }, []);
+
+  const handleLoginSuccess = (userData, token) => {
+    setUser(userData);
+    localStorage.setItem('travo_user', JSON.stringify(userData));
+    localStorage.setItem('travo_token', token);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('travo_user');
+    localStorage.removeItem('travo_token');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#002B5B]">
+        <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/payment/success"
+          element={<PaymentSuccess />}
+        />
+        <Route
+          path="/payment/cancel"
+          element={<PaymentCancel />}
+        />
+        <Route
+          path="/*"
+          element={
+            !user ? (
+              <AuthPage onLoginSuccess={handleLoginSuccess} />
+            ) : (
+              <div className="min-h-screen bg-gray-50" data-testid="main-app">
+                <Header
+                  user={user}
+                  onLogout={handleLogout}
+                  activeTab={activeTab}
+                  setActiveTab={(tab) => {
+                    setActiveTab(tab);
+                    setCurrentView('dashboard');
+                  }}
+                  currentView={currentView}
+                  onGoHome={() => {
+                    setCurrentView('dashboard');
+                    setActiveTab('Home');
+                  }}
+                  onNewBooking={() => {
+                    setPendingProposalData(null);
+                    setCurrentView('form');
+                  }}
+                  onBack={() => {
+                    if (currentView === 'details' || currentView === 'admin' || currentView === 'form') {
+                      setCurrentView('dashboard');
+                    } else if (currentView === 'customize') {
+                      setCurrentView('form');
+                    }
+                  }}
+                />
+
+                {currentView === 'dashboard' && (
+                  <Dashboard
+                    user={user}
+                    onLogout={handleLogout}
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    onNewProposal={() => {
+                      setPendingProposalData(null);
+                      setCurrentView('form');
+                    }}
+                    onViewProposal={(id) => {
+                      setSelectedProposalId(id);
+                      setCurrentView('details');
+                    }}
+                    onAdminView={() => setCurrentView('admin')}
+                  />
+                )}
+
+                {currentView === 'form' && (
+                  <FitPackageForm
+                    onClose={() => setCurrentView('dashboard')}
+                    initialData={pendingProposalData}
+                    onCreateSuccess={(data) => {
+                      setPendingProposalData(data);
+                      setCurrentView('customize');
+                    }}
+                  />
+                )}
+
+                {currentView === 'customize' && pendingProposalData && (
+                  <CustomizeTrip
+                    data={pendingProposalData}
+                    user={user}
+                    onBack={() => setCurrentView('form')}
+                    onConfirm={async () => {
+                      try {
+                        await api.post('/proposals', {
+                          ...pendingProposalData,
+                          user_id: user.id
+                        });
+                        setCurrentView('dashboard');
+                        setPendingProposalData(null);
+                      } catch (error) {
+                        console.error('Error saving proposal:', error);
+                      }
+                    }}
+                  />
+                )}
+
+                {currentView === 'admin' && (
+                  <AdminDashboard onBack={() => setCurrentView('dashboard')} />
+                )}
+
+                {/* AI Chatbot Button */}
+                <button
+                  data-testid="ai-chatbot-toggle"
+                  onClick={() => setShowChatbot(!showChatbot)}
+                  className="fixed bottom-6 right-6 w-14 h-14 bg-[#002B5B] text-white rounded-full shadow-xl hover:bg-[#003d82] transition-all flex items-center justify-center z-50"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                </button>
+
+                {/* AI Chatbot Modal */}
+                {showChatbot && (
+                  <AIChatbot onClose={() => setShowChatbot(false)} />
+                )}
+              </div>
+            )
+          }
+        />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
