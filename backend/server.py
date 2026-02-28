@@ -61,6 +61,7 @@ class UserCreate(BaseModel):
     password: str
     full_name: str
     company_name: str
+    mobile: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -71,6 +72,7 @@ class UserResponse(BaseModel):
     email: str
     full_name: str
     company_name: str
+    mobile: Optional[str] = None
 
 class TokenResponse(BaseModel):
     access_token: str
