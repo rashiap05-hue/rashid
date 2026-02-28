@@ -776,16 +776,19 @@ async def sync_all_to_sheets():
 # ============= ADMIN ROUTES =============
 
 class UserUpdate(BaseModel):
-    full_name: Optional[str]
-    company_name: Optional[str]
-    role: Optional[str]
-    status: Optional[str]
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    mobile: Optional[str] = None
+    company_name: Optional[str] = None
+    role: Optional[str] = None
+    status: Optional[str] = None
 
 class AdminUserResponse(BaseModel):
     id: str
     email: str
     full_name: str
     company_name: str
+    mobile: Optional[str]
     role: str
     status: str
     created_at: str
