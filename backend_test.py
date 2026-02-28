@@ -196,10 +196,6 @@ class TravoAPITester:
             proposal_id = response.get('id')
             total_price = response.get('total_price')
             self.log_test("Create Proposal", True, f"ID: {proposal_id}, Price: AED {total_price}")
-        elif isinstance(response, list) and len(response) == 0:
-            self.log_test("Create Proposal", False, "API returned empty array instead of proposal object")
-        else:
-            self.log_test("Create Proposal", False, f"Unexpected response: {response}")
             
             # Test get proposals
             success, response = self.make_request('GET', '/proposals')
@@ -214,8 +210,10 @@ class TravoAPITester:
                 # Test update proposal status
                 success, response = self.make_request('PUT', f'/proposals/{proposal_id}/status?status=confirmed')
                 self.log_test("Update Proposal Status", success, "Status updated to confirmed")
+        elif isinstance(response, list) and len(response) == 0:
+            self.log_test("Create Proposal", False, "API returned empty array instead of proposal object")
         else:
-            self.log_test("Create Proposal", False, str(response))
+            self.log_test("Create Proposal", False, f"Unexpected response: {response}")
 
     def test_ai_endpoints(self):
         """Test AI chat functionality"""
