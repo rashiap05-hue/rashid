@@ -36,7 +36,7 @@ export default function FlightSearchModal({ isOpen, onClose, initialFrom, initia
 
   const fetchAirports = async () => {
     try {
-      const response = await api.get('/airports');
+      const response = await api.get('/airports/');
       setAirports(response.data?.airports || []);
     } catch (error) {
       console.error('Error fetching airports:', error);
