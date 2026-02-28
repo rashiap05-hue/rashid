@@ -28,8 +28,8 @@ export default function AdminUserDashboard({ onBack }) {
     setLoading(true);
     try {
       const [usersRes, statsRes] = await Promise.all([
-        api.get('/admin/users/'),
-        api.get('/admin/stats/')
+        api.get('/admin/users'),
+        api.get('/admin/stats')
       ]);
       setUsers(usersRes.data?.users || []);
       setStats(statsRes.data?.stats || null);
@@ -42,7 +42,7 @@ export default function AdminUserDashboard({ onBack }) {
 
   const fetchUserDetails = async (userId) => {
     try {
-      const response = await api.get(`/admin/users/${userId}/`);
+      const response = await api.get(`/admin/users/${userId}`);
       setUserDetails(response.data);
       setShowUserModal(true);
     } catch (error) {
@@ -52,7 +52,7 @@ export default function AdminUserDashboard({ onBack }) {
 
   const updateUserStatus = async (userId, status) => {
     try {
-      await api.post(`/admin/users/${userId}/status/?status=${status}`);
+      await api.post(`/admin/users/${userId}/status?status=${status}`);
       fetchData();
       setShowActionMenu(null);
     } catch (error) {
@@ -62,7 +62,7 @@ export default function AdminUserDashboard({ onBack }) {
 
   const updateUserRole = async (userId, role) => {
     try {
-      await api.post(`/admin/users/${userId}/role/?role=${role}`);
+      await api.post(`/admin/users/${userId}/role?role=${role}`);
       fetchData();
       setShowActionMenu(null);
     } catch (error) {
@@ -73,7 +73,7 @@ export default function AdminUserDashboard({ onBack }) {
   const deleteUser = async (userId) => {
     if (!window.confirm('Are you sure you want to delete this user? This will also delete all their proposals.')) return;
     try {
-      await api.delete(`/admin/users/${userId}/`);
+      await api.delete(`/admin/users/${userId}`);
       fetchData();
     } catch (error) {
       console.error('Error deleting user:', error);
