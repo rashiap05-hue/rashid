@@ -196,6 +196,10 @@ class TravoAPITester:
             proposal_id = response.get('id')
             total_price = response.get('total_price')
             self.log_test("Create Proposal", True, f"ID: {proposal_id}, Price: AED {total_price}")
+        elif isinstance(response, list) and len(response) == 0:
+            self.log_test("Create Proposal", False, "API returned empty array instead of proposal object")
+        else:
+            self.log_test("Create Proposal", False, f"Unexpected response: {response}")
             
             # Test get proposals
             success, response = self.make_request('GET', '/proposals')
