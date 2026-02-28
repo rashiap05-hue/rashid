@@ -84,6 +84,36 @@ export default function AdminUserDashboard({ onBack }) {
     }
   };
 
+  const openEditModal = (user) => {
+    setEditingUser(user);
+    setEditFormData({
+      full_name: user.full_name || '',
+      email: user.email || '',
+      mobile: user.mobile || '',
+      company_name: user.company_name || ''
+    });
+    setShowEditModal(true);
+    setShowActionMenu(null);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    
+    setSaving(true);
+    try {
+      await api.put(`/admin/users/${editingUser.id}`, editFormData);
+      setShowEditModal(false);
+      setEditingUser(null);
+      fetchData();
+    } catch (error) {
+      console.error('Error updating user:', error);
+      alert('Failed to update user. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
       user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
