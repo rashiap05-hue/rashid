@@ -93,3 +93,26 @@ Migrate and enhance a Google AI Studio B2B Travel Platform (Travo DMC) with:
 3. Add PayPal payment option
 4. Implement invoice generation
 5. Add email notification system
+
+## Update: Feb 28, 2026 - Admin User Dashboard Added
+
+### New Features Implemented
+- [x] Admin User Dashboard component (`AdminUserDashboard.jsx`)
+- [x] Backend admin routes (`/api/admin/*`)
+  - GET `/api/admin/users` - List all users with enriched stats
+  - GET `/api/admin/users/{id}` - Get detailed user info
+  - PUT `/api/admin/users/{id}` - Update user details
+  - DELETE `/api/admin/users/{id}` - Delete user
+  - GET `/api/admin/stats` - Platform-wide statistics
+  - POST `/api/admin/users/{id}/role` - Change user role
+  - POST `/api/admin/users/{id}/status` - Change user status
+
+### Admin Dashboard Features
+- Total platform statistics (users, proposals, revenue, bookings)
+- User list with search and filters
+- Filter by: All Users, Active, Suspended, Admins
+- View detailed user information modal
+- Change user roles (Admin, Manager, Agent)
+- Change user status (Active, Suspended, Inactive)
+- Delete users with confirmation
+- Real-time stats enrichment (proposals count, total value per user)
