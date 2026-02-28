@@ -10,6 +10,7 @@ import Header from '@/components/Header';
 import FitPackageForm from '@/components/FitPackageForm';
 import CustomizeTrip from '@/components/CustomizeTrip';
 import AdminDashboard from '@/components/AdminDashboard';
+import AdminUserDashboard from '@/components/AdminUserDashboard';
 import AIChatbot from '@/components/AIChatbot';
 import PaymentSuccess from '@/components/PaymentSuccess';
 import PaymentCancel from '@/components/PaymentCancel';
