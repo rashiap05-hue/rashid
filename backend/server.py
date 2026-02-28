@@ -1,15 +1,19 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends, Query
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+from pydantic import BaseModel, Field, EmailStr
+from typing import List, Optional, Dict, Any
 import uuid
-from datetime import datetime, timezone
-
+from datetime import datetime, timezone, timedelta
+import jwt
+import bcrypt
+from emergentintegrations.llm.chat import LlmChat, UserMessage
+from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionResponse, CheckoutStatusResponse, CheckoutSessionRequest
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -19,70 +23,917 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
-app = FastAPI()
+# JWT Configuration
+JWT_SECRET = os.environ.get('JWT_SECRET', 'travo-dmc-secret-key-2026')
+JWT_ALGORITHM = 'HS256'
+JWT_EXPIRATION_HOURS = 24
 
-# Create a router with the /api prefix
+# API Keys
+EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
+
+# Create the main app
+app = FastAPI(title="Travo DMC B2B Travel Platform API")
+
+# Create routers
 api_router = APIRouter(prefix="/api")
+auth_router = APIRouter(prefix="/auth", tags=["Authentication"])
+proposals_router = APIRouter(prefix="/proposals", tags=["Proposals"])
+flights_router = APIRouter(prefix="/flights", tags=["Flights"])
+hotels_router = APIRouter(prefix="/hotels", tags=["Hotels"])
+airports_router = APIRouter(prefix="/airports", tags=["Airports"])
+cities_router = APIRouter(prefix="/cities", tags=["Cities"])
+ai_router = APIRouter(prefix="/ai", tags=["AI Features"])
+payments_router = APIRouter(prefix="/payments", tags=["Payments"])
+sheets_router = APIRouter(prefix="/sheets", tags=["Google Sheets"])
 
+security = HTTPBearer(auto_error=False)
 
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# ============= MODELS =============
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: str
+    company_name: str
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    full_name: str
+    company_name: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+class RoomData(BaseModel):
+    adults: int = 2
+    children: List[Dict[str, str]] = []
+
+class CityStop(BaseModel):
+    name: str
+    nights: int
+
+class ProposalCreate(BaseModel):
+    leaving_from: str
+    nationality: str
+    leaving_on: str
+    star_rating: str
+    add_transfers: bool = True
+    room_data: List[RoomData]
+    cities: List[CityStop]
+
+class ProposalResponse(BaseModel):
+    id: str
+    user_id: Optional[str]
+    leaving_from: str
+    nationality: str
+    leaving_on: str
+    star_rating: str
+    add_transfers: bool
+    room_data: List[Dict]
+    cities: List[Dict]
+    status: str = "pending"
+    total_price: Optional[float]
+    created_at: str
+
+class FlightCreate(BaseModel):
+    airline: str
+    flight_number: str
+    departure_airport: str
+    arrival_airport: str
+    departure_time: str
+    arrival_time: str
+    departure_date: str
+    arrival_day_offset: str = "0"
+    price: str
+    cabin_class: str = "Economy"
+    duration: str
+    logo: Optional[str]
+
+class FlightSearch(BaseModel):
+    from_airport: Optional[str]
+    to_airport: Optional[str]
+    depart_date: Optional[str]
+    return_date: Optional[str]
+    trip_type: str = "One-way"
+    cabin_class: str = "Economy"
+
+class HotelRoom(BaseModel):
+    id: str
+    name: str
+    type: str
+    bed_type: str
+    view: str
+    size: str
+    price: float
+    original_price: float
+    currency: str = "AED"
+    amenities: List[str]
+    refundable: bool
+    refundable_until: Optional[str]
+    meals: str
+    images: List[str]
+
+class HotelCreate(BaseModel):
+    name: str
+    city: str
+    country: str
+    address: str
+    description: str
+    star_rating: int
+    rating_score: float
+    rating_text: str
+    review_count: int
+    images: List[str]
+    amenities: List[str]
+    detailed_ratings: Dict[str, float]
+    what_to_know: List[Dict]
+    rooms: List[Dict]
+
+class AirportCreate(BaseModel):
+    name: str
+    code: str
+    city: str
+    country: str
+
+class CityCreate(BaseModel):
+    name: str
+    country: str
+    image: Optional[str]
+
+class ChatMessage(BaseModel):
+    message: str
+    session_id: Optional[str]
+
+class TripRecommendationRequest(BaseModel):
+    preferences: str
+    budget: Optional[str]
+    duration: Optional[str]
+    travelers: Optional[int]
+
+class ItineraryRequest(BaseModel):
+    cities: List[CityStop]
+    interests: Optional[str]
+    travelers: int = 2
+
+class PaymentCreate(BaseModel):
+    proposal_id: str
+    amount: float
+    currency: str = "AED"
+    payment_method: str = "stripe"
+
+# ============= HELPERS =============
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password: str, hashed: str) -> bool:
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+def create_token(user_id: str) -> str:
+    payload = {
+        "sub": user_id,
+        "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRATION_HOURS),
+        "iat": datetime.now(timezone.utc)
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        user = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+async def get_optional_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if not credentials:
+        return None
+    try:
+        return await get_current_user(credentials)
+    except:
+        return None
+
+# ============= AUTH ROUTES =============
+
+@auth_router.post("/signup", response_model=TokenResponse)
+async def signup(user_data: UserCreate):
+    existing = await db.users.find_one({"email": user_data.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
     
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    user_id = str(uuid.uuid4())
+    user_doc = {
+        "id": user_id,
+        "email": user_data.email,
+        "password": hash_password(user_data.password),
+        "full_name": user_data.full_name,
+        "company_name": user_data.company_name,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.users.insert_one(user_doc)
+    
+    token = create_token(user_id)
+    return TokenResponse(
+        access_token=token,
+        user=UserResponse(id=user_id, email=user_data.email, full_name=user_data.full_name, company_name=user_data.company_name)
+    )
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+@auth_router.post("/login", response_model=TokenResponse)
+async def login(credentials: UserLogin):
+    user = await db.users.find_one({"email": credentials.email})
+    if not user or not verify_password(credentials.password, user["password"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    token = create_token(user["id"])
+    return TokenResponse(
+        access_token=token,
+        user=UserResponse(id=user["id"], email=user["email"], full_name=user["full_name"], company_name=user["company_name"])
+    )
 
-# Add your routes to the router instead of directly to app
+@auth_router.get("/me", response_model=UserResponse)
+async def get_me(user: dict = Depends(get_current_user)):
+    return UserResponse(**user)
+
+# ============= PROPOSALS ROUTES =============
+
+@proposals_router.post("/", response_model=ProposalResponse)
+async def create_proposal(proposal: ProposalCreate, user: dict = Depends(get_optional_user)):
+    proposal_id = str(uuid.uuid4())
+    
+    # Calculate mock price
+    total_nights = sum(c.nights for c in proposal.cities)
+    base_price = 500 * total_nights
+    room_count = len(proposal.room_data)
+    total_price = base_price * room_count
+    
+    doc = {
+        "id": proposal_id,
+        "user_id": user["id"] if user else None,
+        "leaving_from": proposal.leaving_from,
+        "nationality": proposal.nationality,
+        "leaving_on": proposal.leaving_on,
+        "star_rating": proposal.star_rating,
+        "add_transfers": proposal.add_transfers,
+        "room_data": [r.model_dump() for r in proposal.room_data],
+        "cities": [c.model_dump() for c in proposal.cities],
+        "status": "pending",
+        "total_price": total_price,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.proposals.insert_one(doc)
+    return ProposalResponse(**doc)
+
+@proposals_router.get("/", response_model=List[ProposalResponse])
+async def get_proposals(user: dict = Depends(get_optional_user)):
+    query = {} if not user else {"user_id": user["id"]}
+    proposals = await db.proposals.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return [ProposalResponse(**p) for p in proposals]
+
+@proposals_router.get("/{proposal_id}", response_model=ProposalResponse)
+async def get_proposal(proposal_id: str):
+    proposal = await db.proposals.find_one({"id": proposal_id}, {"_id": 0})
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    return ProposalResponse(**proposal)
+
+@proposals_router.put("/{proposal_id}/status")
+async def update_proposal_status(proposal_id: str, status: str):
+    result = await db.proposals.update_one({"id": proposal_id}, {"$set": {"status": status}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    return {"success": True}
+
+@proposals_router.delete("/{proposal_id}")
+async def delete_proposal(proposal_id: str, user: dict = Depends(get_current_user)):
+    result = await db.proposals.delete_one({"id": proposal_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    return {"success": True}
+
+# ============= FLIGHTS ROUTES =============
+
+@flights_router.get("/")
+async def get_flights():
+    flights = await db.flights.find({}, {"_id": 0}).to_list(1000)
+    return {"success": True, "flights": flights}
+
+@flights_router.post("/")
+async def create_flight(flight: FlightCreate):
+    flight_id = str(uuid.uuid4())
+    doc = {"id": flight_id, **flight.model_dump()}
+    await db.flights.insert_one(doc)
+    return {"success": True, "id": flight_id}
+
+@flights_router.post("/search")
+async def search_flights(search: FlightSearch):
+    query = {}
+    if search.from_airport:
+        from_code = search.from_airport.split('(')[1].split(')')[0] if '(' in search.from_airport else search.from_airport
+        query["departure_airport"] = from_code
+    if search.to_airport:
+        to_code = search.to_airport.split('(')[1].split(')')[0] if '(' in search.to_airport else search.to_airport
+        query["arrival_airport"] = to_code
+    if search.cabin_class:
+        query["cabin_class"] = search.cabin_class
+    
+    flights = await db.flights.find(query, {"_id": 0}).to_list(100)
+    
+    # Return mock data if no flights found
+    if not flights:
+        airlines = ["Emirates", "FlyDubai", "Qatar Airways", "Turkish Airlines", "Air India"]
+        flights = []
+        for i, airline in enumerate(airlines):
+            base_price = 800 + (i * 150)
+            flights.append({
+                "id": f"mock-{i}-{datetime.now().timestamp()}",
+                "airline": airline,
+                "logo": airline[:2].upper(),
+                "departure_airport": search.from_airport.split('(')[1].split(')')[0] if search.from_airport and '(' in search.from_airport else "DXB",
+                "arrival_airport": search.to_airport.split('(')[1].split(')')[0] if search.to_airport and '(' in search.to_airport else "TBS",
+                "departure_time": f"{8 + i:02d}:30",
+                "arrival_time": f"{11 + i:02d}:45",
+                "duration": "3h 15m",
+                "price": str(base_price),
+                "type": "Non-stop",
+                "cabin_class": search.cabin_class or "Economy"
+            })
+    
+    return {"success": True, "flights": flights}
+
+@flights_router.put("/{flight_id}")
+async def update_flight(flight_id: str, flight: FlightCreate):
+    result = await db.flights.update_one({"id": flight_id}, {"$set": flight.model_dump()})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Flight not found")
+    return {"success": True}
+
+@flights_router.delete("/{flight_id}")
+async def delete_flight(flight_id: str):
+    result = await db.flights.delete_one({"id": flight_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Flight not found")
+    return {"success": True}
+
+# ============= HOTELS ROUTES =============
+
+@hotels_router.get("/")
+async def get_hotels():
+    hotels = await db.hotels.find({}, {"_id": 0}).to_list(1000)
+    return {"success": True, "hotels": hotels}
+
+@hotels_router.get("/{hotel_id}")
+async def get_hotel(hotel_id: str):
+    hotel = await db.hotels.find_one({"id": hotel_id}, {"_id": 0})
+    if not hotel:
+        raise HTTPException(status_code=404, detail="Hotel not found")
+    return {"success": True, "hotel": hotel}
+
+@hotels_router.post("/")
+async def create_hotel(hotel: HotelCreate):
+    hotel_id = str(uuid.uuid4())
+    doc = {"id": hotel_id, **hotel.model_dump()}
+    await db.hotels.insert_one(doc)
+    return {"success": True, "id": hotel_id}
+
+@hotels_router.put("/{hotel_id}")
+async def update_hotel(hotel_id: str, hotel: HotelCreate):
+    result = await db.hotels.update_one({"id": hotel_id}, {"$set": hotel.model_dump()})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Hotel not found")
+    return {"success": True}
+
+@hotels_router.delete("/{hotel_id}")
+async def delete_hotel(hotel_id: str):
+    result = await db.hotels.delete_one({"id": hotel_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Hotel not found")
+    return {"success": True}
+
+# ============= AIRPORTS ROUTES =============
+
+@airports_router.get("/")
+async def get_airports():
+    airports = await db.airports.find({}, {"_id": 0}).to_list(2000)
+    return {"success": True, "airports": airports}
+
+@airports_router.post("/")
+async def create_airport(airport: AirportCreate):
+    airport_id = str(uuid.uuid4())
+    doc = {"id": airport_id, **airport.model_dump()}
+    await db.airports.insert_one(doc)
+    return {"success": True, "id": airport_id}
+
+@airports_router.put("/{airport_id}")
+async def update_airport(airport_id: str, airport: AirportCreate):
+    result = await db.airports.update_one({"id": airport_id}, {"$set": airport.model_dump()})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Airport not found")
+    return {"success": True}
+
+@airports_router.delete("/{airport_id}")
+async def delete_airport(airport_id: str):
+    result = await db.airports.delete_one({"id": airport_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Airport not found")
+    return {"success": True}
+
+# ============= CITIES ROUTES =============
+
+@cities_router.get("/")
+async def get_cities():
+    cities = await db.cities.find({}, {"_id": 0}).to_list(500)
+    return {"success": True, "cities": cities}
+
+@cities_router.post("/")
+async def create_city(city: CityCreate):
+    city_id = str(uuid.uuid4())
+    doc = {"id": city_id, **city.model_dump()}
+    await db.cities.insert_one(doc)
+    return {"success": True, "id": city_id}
+
+@cities_router.put("/{city_id}")
+async def update_city(city_id: str, city: CityCreate):
+    result = await db.cities.update_one({"id": city_id}, {"$set": city.model_dump()})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="City not found")
+    return {"success": True}
+
+@cities_router.delete("/{city_id}")
+async def delete_city(city_id: str):
+    result = await db.cities.delete_one({"id": city_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="City not found")
+    return {"success": True}
+
+# ============= AI ROUTES =============
+
+@ai_router.post("/chat")
+async def ai_chat(message: ChatMessage):
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="AI service not configured")
+    
+    session_id = message.session_id or str(uuid.uuid4())
+    
+    # Get chat history from DB
+    history = await db.chat_history.find({"session_id": session_id}, {"_id": 0}).sort("created_at", 1).to_list(50)
+    
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=session_id,
+        system_message="""You are Travo AI, an intelligent travel assistant for Travo DMC B2B Travel Platform. 
+You help travel agents with:
+- Travel recommendations and destination information
+- Package suggestions based on preferences
+- Answering questions about hotels, flights, and activities
+- Providing local insights and travel tips
+Be professional, helpful, and knowledgeable about global destinations."""
+    ).with_model("gemini", "gemini-3-flash-preview")
+    
+    user_msg = UserMessage(text=message.message)
+    response = await chat.send_message(user_msg)
+    
+    # Save to history
+    await db.chat_history.insert_one({
+        "session_id": session_id,
+        "role": "user",
+        "content": message.message,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    await db.chat_history.insert_one({
+        "session_id": session_id,
+        "role": "assistant",
+        "content": response,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {"success": True, "response": response, "session_id": session_id}
+
+@ai_router.post("/recommendations")
+async def get_recommendations(request: TripRecommendationRequest):
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="AI service not configured")
+    
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=str(uuid.uuid4()),
+        system_message="""You are a travel recommendation expert. Provide detailed, personalized travel recommendations.
+Format your response as JSON with this structure:
+{
+  "destinations": [
+    {
+      "name": "City, Country",
+      "description": "Brief description",
+      "highlights": ["highlight1", "highlight2"],
+      "best_time": "Best time to visit",
+      "estimated_budget": "Budget range"
+    }
+  ],
+  "tips": ["tip1", "tip2"]
+}"""
+    ).with_model("gemini", "gemini-3-flash-preview")
+    
+    prompt = f"""Based on these preferences, suggest travel destinations:
+Preferences: {request.preferences}
+Budget: {request.budget or 'Flexible'}
+Duration: {request.duration or 'Any'}
+Travelers: {request.travelers or 2}
+
+Provide 3-5 destination recommendations."""
+
+    user_msg = UserMessage(text=prompt)
+    response = await chat.send_message(user_msg)
+    
+    return {"success": True, "recommendations": response}
+
+@ai_router.post("/itinerary")
+async def generate_itinerary(request: ItineraryRequest):
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="AI service not configured")
+    
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=str(uuid.uuid4()),
+        system_message="""You are a professional travel itinerary planner. Create detailed day-by-day itineraries.
+Format your response as a structured itinerary with:
+- Day-by-day activities
+- Recommended hotels
+- Local restaurants
+- Travel tips
+- Estimated costs"""
+    ).with_model("gemini", "gemini-3-flash-preview")
+    
+    cities_info = "\n".join([f"- {c.name}: {c.nights} nights" for c in request.cities])
+    prompt = f"""Create a detailed travel itinerary for:
+Cities & Duration:
+{cities_info}
+
+Interests: {request.interests or 'General sightseeing, culture, food'}
+Number of travelers: {request.travelers}
+
+Provide a comprehensive day-by-day itinerary."""
+
+    user_msg = UserMessage(text=prompt)
+    response = await chat.send_message(user_msg)
+    
+    return {"success": True, "itinerary": response}
+
+@ai_router.get("/chat/history/{session_id}")
+async def get_chat_history(session_id: str):
+    history = await db.chat_history.find({"session_id": session_id}, {"_id": 0}).sort("created_at", 1).to_list(100)
+    return {"success": True, "history": history}
+
+# ============= PAYMENTS ROUTES =============
+
+@payments_router.post("/stripe/checkout")
+async def create_stripe_checkout(request: Request, proposal_id: str, origin_url: str):
+    if not STRIPE_API_KEY:
+        raise HTTPException(status_code=500, detail="Stripe not configured")
+    
+    # Get proposal
+    proposal = await db.proposals.find_one({"id": proposal_id}, {"_id": 0})
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    
+    amount = float(proposal.get("total_price", 0))
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Invalid amount")
+    
+    host_url = str(request.base_url).rstrip('/')
+    webhook_url = f"{host_url}/api/payments/webhook/stripe"
+    
+    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    
+    success_url = f"{origin_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{origin_url}/payment/cancel"
+    
+    checkout_request = CheckoutSessionRequest(
+        amount=amount,
+        currency="aed",
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={"proposal_id": proposal_id}
+    )
+    
+    session = await stripe_checkout.create_checkout_session(checkout_request)
+    
+    # Create payment transaction record
+    await db.payment_transactions.insert_one({
+        "id": str(uuid.uuid4()),
+        "session_id": session.session_id,
+        "proposal_id": proposal_id,
+        "amount": amount,
+        "currency": "AED",
+        "payment_method": "stripe",
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {"success": True, "url": session.url, "session_id": session.session_id}
+
+@payments_router.get("/stripe/status/{session_id}")
+async def get_stripe_status(session_id: str):
+    if not STRIPE_API_KEY:
+        raise HTTPException(status_code=500, detail="Stripe not configured")
+    
+    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url="")
+    status = await stripe_checkout.get_checkout_status(session_id)
+    
+    # Update transaction status
+    await db.payment_transactions.update_one(
+        {"session_id": session_id},
+        {"$set": {"status": status.payment_status, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    # Update proposal status if paid
+    if status.payment_status == "paid":
+        transaction = await db.payment_transactions.find_one({"session_id": session_id})
+        if transaction:
+            await db.proposals.update_one(
+                {"id": transaction["proposal_id"]},
+                {"$set": {"status": "confirmed", "payment_status": "paid"}}
+            )
+    
+    return {
+        "success": True,
+        "status": status.status,
+        "payment_status": status.payment_status,
+        "amount_total": status.amount_total,
+        "currency": status.currency
+    }
+
+@payments_router.post("/webhook/stripe")
+async def stripe_webhook(request: Request):
+    if not STRIPE_API_KEY:
+        return {"status": "not configured"}
+    
+    body = await request.body()
+    signature = request.headers.get("Stripe-Signature")
+    
+    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url="")
+    
+    try:
+        webhook_response = await stripe_checkout.handle_webhook(body, signature)
+        
+        if webhook_response.payment_status == "paid":
+            await db.payment_transactions.update_one(
+                {"session_id": webhook_response.session_id},
+                {"$set": {"status": "paid", "updated_at": datetime.now(timezone.utc).isoformat()}}
+            )
+            
+            transaction = await db.payment_transactions.find_one({"session_id": webhook_response.session_id})
+            if transaction:
+                await db.proposals.update_one(
+                    {"id": transaction["proposal_id"]},
+                    {"$set": {"status": "confirmed", "payment_status": "paid"}}
+                )
+        
+        return {"status": "processed"}
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
+        return {"status": "error"}
+
+# PayPal endpoints (mocked - requires user to provide credentials)
+@payments_router.post("/paypal/checkout")
+async def create_paypal_checkout(proposal_id: str, origin_url: str):
+    # This is a placeholder - needs PayPal credentials
+    proposal = await db.proposals.find_one({"id": proposal_id}, {"_id": 0})
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    
+    return {
+        "success": False, 
+        "message": "PayPal integration requires PAYPAL_CLIENT_ID and PAYPAL_SECRET in environment variables",
+        "setup_instructions": "Please provide your PayPal sandbox/live credentials"
+    }
+
+# ============= GOOGLE SHEETS ROUTES (MOCKED) =============
+
+@sheets_router.get("/status")
+async def sheets_status():
+    """Check if Google Sheets is configured"""
+    google_client_id = os.environ.get('GOOGLE_CLIENT_ID')
+    if not google_client_id:
+        return {
+            "configured": False,
+            "message": "Google Sheets sync requires Google OAuth credentials",
+            "instructions": "Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in environment"
+        }
+    return {"configured": True}
+
+@sheets_router.post("/sync/proposals")
+async def sync_proposals_to_sheets():
+    """Sync proposals to Google Sheets (mocked)"""
+    proposals = await db.proposals.find({}, {"_id": 0}).to_list(1000)
+    return {
+        "success": True,
+        "message": "Google Sheets sync requires OAuth setup. Data prepared for sync.",
+        "data_count": len(proposals),
+        "sample_data": proposals[:5] if proposals else []
+    }
+
+@sheets_router.post("/sync/all")
+async def sync_all_to_sheets():
+    """Sync all data to Google Sheets (mocked)"""
+    proposals = await db.proposals.find({}, {"_id": 0}).to_list(1000)
+    users = await db.users.find({}, {"_id": 0, "password": 0}).to_list(1000)
+    flights = await db.flights.find({}, {"_id": 0}).to_list(1000)
+    
+    return {
+        "success": True,
+        "message": "Google Sheets sync requires OAuth setup. Data prepared for sync.",
+        "summary": {
+            "proposals": len(proposals),
+            "users": len(users),
+            "flights": len(flights)
+        }
+    }
+
+# ============= ROOT ROUTES =============
+
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Travo DMC B2B Travel Platform API", "version": "2.0.0"}
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
+@api_router.get("/health")
+async def health_check():
+    return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
+# ============= SEED DATA FUNCTION =============
 
-# Include the router in the main app
+async def seed_initial_data():
+    """Seed initial airports, cities, and hotels"""
+    
+    # Check if data already exists
+    airports_count = await db.airports.count_documents({})
+    if airports_count > 0:
+        logger.info("Data already seeded")
+        return
+    
+    logger.info("Seeding initial data...")
+    
+    # Seed major airports
+    airports = [
+        {"code": "DXB", "name": "Dubai International Airport", "city": "Dubai", "country": "United Arab Emirates"},
+        {"code": "TBS", "name": "Tbilisi International Airport", "city": "Tbilisi", "country": "Georgia"},
+        {"code": "LHR", "name": "Heathrow Airport", "city": "London", "country": "United Kingdom"},
+        {"code": "JFK", "name": "John F. Kennedy International Airport", "city": "New York", "country": "USA"},
+        {"code": "CDG", "name": "Charles de Gaulle Airport", "city": "Paris", "country": "France"},
+        {"code": "FRA", "name": "Frankfurt Airport", "city": "Frankfurt", "country": "Germany"},
+        {"code": "SIN", "name": "Changi Airport", "city": "Singapore", "country": "Singapore"},
+        {"code": "HND", "name": "Haneda Airport", "city": "Tokyo", "country": "Japan"},
+        {"code": "IST", "name": "Istanbul Airport", "city": "Istanbul", "country": "Turkey"},
+        {"code": "BOM", "name": "Chhatrapati Shivaji International Airport", "city": "Mumbai", "country": "India"},
+        {"code": "DEL", "name": "Indira Gandhi International Airport", "city": "Delhi", "country": "India"},
+        {"code": "AUH", "name": "Abu Dhabi International Airport", "city": "Abu Dhabi", "country": "United Arab Emirates"},
+        {"code": "DOH", "name": "Hamad International Airport", "city": "Doha", "country": "Qatar"},
+    ]
+    
+    for airport in airports:
+        airport["id"] = str(uuid.uuid4())
+    await db.airports.insert_many(airports)
+    
+    # Seed major cities
+    cities = [
+        {"name": "Dubai", "country": "United Arab Emirates"},
+        {"name": "Abu Dhabi", "country": "United Arab Emirates"},
+        {"name": "Tbilisi", "country": "Georgia"},
+        {"name": "Batumi", "country": "Georgia"},
+        {"name": "London", "country": "United Kingdom"},
+        {"name": "Paris", "country": "France"},
+        {"name": "New York", "country": "USA"},
+        {"name": "Tokyo", "country": "Japan"},
+        {"name": "Singapore", "country": "Singapore"},
+        {"name": "Istanbul", "country": "Turkey"},
+        {"name": "Mumbai", "country": "India"},
+        {"name": "Delhi", "country": "India"},
+        {"name": "Bangkok", "country": "Thailand"},
+        {"name": "Bali", "country": "Indonesia"},
+    ]
+    
+    for city in cities:
+        city["id"] = str(uuid.uuid4())
+    await db.cities.insert_many(cities)
+    
+    # Seed sample hotels
+    hotels = [
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Courtyard by Marriott Baku",
+            "city": "Baku",
+            "country": "Azerbaijan",
+            "address": "300-303 Quarter, Nasimi District, Baku",
+            "description": "A stay at Courtyard by Marriott Baku places you in the heart of Baku.",
+            "star_rating": 4,
+            "rating_score": 9.2,
+            "rating_text": "Wonderful",
+            "review_count": 107,
+            "images": ["https://picsum.photos/seed/baku1/1200/800"],
+            "amenities": ["Pool", "Spa", "Beach Access", "Free WiFi", "Fitness Center"],
+            "detailed_ratings": {"cleanliness": 4.7, "service": 4.6, "comfort": 4.7},
+            "what_to_know": [],
+            "rooms": [
+                {
+                    "id": "R001",
+                    "name": "Superior Room",
+                    "type": "Superior",
+                    "bed_type": "1 King",
+                    "view": "City View",
+                    "size": "30 sqm",
+                    "price": 1861,
+                    "original_price": 1918,
+                    "currency": "AED",
+                    "amenities": ["Free WiFi", "TV", "Minibar"],
+                    "refundable": True,
+                    "meals": "No meals included",
+                    "images": []
+                }
+            ]
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Burj Al Arab Jumeirah",
+            "city": "Dubai",
+            "country": "United Arab Emirates",
+            "address": "Jumeirah St, Dubai",
+            "description": "The distinctive sail-shaped silhouette of Burj Al Arab Jumeirah.",
+            "star_rating": 7,
+            "rating_score": 9.8,
+            "rating_text": "Exceptional",
+            "review_count": 2540,
+            "images": ["https://picsum.photos/seed/burj1/1200/800"],
+            "amenities": ["Pool", "Spa", "Beach Access", "Free WiFi", "Butler Service"],
+            "detailed_ratings": {"cleanliness": 4.9, "service": 5.0, "comfort": 4.9},
+            "what_to_know": [],
+            "rooms": [
+                {
+                    "id": "R002",
+                    "name": "Deluxe Marina Suite",
+                    "type": "Suite",
+                    "bed_type": "1 King",
+                    "view": "Marina View",
+                    "size": "170 sqm",
+                    "price": 5500,
+                    "original_price": 6000,
+                    "currency": "AED",
+                    "amenities": ["Butler Service", "Hermes Amenities"],
+                    "refundable": False,
+                    "meals": "Breakfast Included",
+                    "images": []
+                }
+            ]
+        }
+    ]
+    
+    await db.hotels.insert_many(hotels)
+    logger.info("Initial data seeded successfully")
+
+# ============= APP SETUP =============
+
+# Include all routers
+api_router.include_router(auth_router)
+api_router.include_router(proposals_router)
+api_router.include_router(flights_router)
+api_router.include_router(hotels_router)
+api_router.include_router(airports_router)
+api_router.include_router(cities_router)
+api_router.include_router(ai_router)
+api_router.include_router(payments_router)
+api_router.include_router(sheets_router)
+
 app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+@app.on_event("startup")
+async def startup_event():
+    await seed_initial_data()
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
