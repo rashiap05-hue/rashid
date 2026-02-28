@@ -116,3 +116,24 @@ Migrate and enhance a Google AI Studio B2B Travel Platform (Travo DMC) with:
 - Change user status (Active, Suspended, Inactive)
 - Delete users with confirmation
 - Real-time stats enrichment (proposals count, total value per user)
+
+## Update: Feb 28, 2026 - Admin User Edit Feature Added
+
+### New Features Implemented
+- [x] Edit User Modal with fields:
+  - Full Name (editable)
+  - Email Address (editable)  
+  - Mobile Number (editable - new field)
+  - Company Name (editable)
+- [x] Green Edit button on each user row
+- [x] Edit option in action menu dropdown
+- [x] Mobile field added to User model in backend
+- [x] PUT /api/admin/users/{id} endpoint updated to support all fields
+
+### User Flow
+1. Admin navigates to User Management
+2. Clicks green Edit (pencil) icon on any user row
+3. Edit User modal opens with pre-filled data
+4. Admin modifies Name, Email, Mobile, or Company
+5. Clicks "Save Changes" to update
+6. User list refreshes with updated data
