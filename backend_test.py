@@ -350,6 +350,7 @@ class TravoAPITester:
             self.test_ai_endpoints()
             self.test_payment_endpoints()
             self.test_sheets_endpoints()
+            self.test_admin_endpoints()
         else:
             print("❌ Skipping remaining tests due to authentication failure")
         
