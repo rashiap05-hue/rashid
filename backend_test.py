@@ -298,6 +298,44 @@ class TravoAPITester:
         else:
             self.log_test("Sheets Sync Proposals", False, str(response))
 
+    def test_admin_endpoints(self):
+        """Test Admin endpoints"""
+        print("\n🔍 Testing Admin Endpoints...")
+        
+        # Test admin stats
+        success, response = self.make_request('GET', '/admin/stats')
+        if success and isinstance(response, dict):
+            stats = response.get('stats', {})
+            total_users = stats.get('total_users', 0)
+            total_proposals = stats.get('total_proposals', 0)
+            confirmed_proposals = stats.get('confirmed_proposals', 0)
+            total_revenue = stats.get('total_revenue', 0)
+            self.log_test("Admin Stats", True, f"Users: {total_users}, Proposals: {total_proposals}, Confirmed: {confirmed_proposals}, Revenue: AED {total_revenue}")
+        else:
+            self.log_test("Admin Stats", False, str(response))
+        
+        # Test get all users
+        success, response = self.make_request('GET', '/admin/users')
+        if success and isinstance(response, dict):
+            users = response.get('users', [])
+            users_count = len(users)
+            self.log_test("Admin Get All Users", True, f"Found {users_count} users")
+            
+            # Test user details if users exist
+            if users and len(users) > 0:
+                first_user = users[0]
+                user_id = first_user.get('id')
+                if user_id:
+                    success, response = self.make_request('GET', f'/admin/users/{user_id}')
+                    if success and isinstance(response, dict):
+                        user_data = response.get('user', {})
+                        user_stats = response.get('stats', {})
+                        self.log_test("Admin Get User Details", True, f"User: {user_data.get('full_name')}, Proposals: {user_stats.get('proposals_count', 0)}")
+                    else:
+                        self.log_test("Admin Get User Details", False, str(response))
+        else:
+            self.log_test("Admin Get All Users", False, str(response))
+
     def run_all_tests(self):
         """Run all API tests"""
         print("🚀 Starting Travo DMC API Tests...")
