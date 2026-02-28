@@ -252,6 +252,7 @@ async def signup(user_data: UserCreate):
         "password": hash_password(user_data.password),
         "full_name": user_data.full_name,
         "company_name": user_data.company_name,
+        "mobile": user_data.mobile,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.users.insert_one(user_doc)
@@ -259,7 +260,7 @@ async def signup(user_data: UserCreate):
     token = create_token(user_id)
     return TokenResponse(
         access_token=token,
-        user=UserResponse(id=user_id, email=user_data.email, full_name=user_data.full_name, company_name=user_data.company_name)
+        user=UserResponse(id=user_id, email=user_data.email, full_name=user_data.full_name, company_name=user_data.company_name, mobile=user_data.mobile)
     )
 
 @auth_router.post("/login", response_model=TokenResponse)
@@ -271,7 +272,7 @@ async def login(credentials: UserLogin):
     token = create_token(user["id"])
     return TokenResponse(
         access_token=token,
-        user=UserResponse(id=user["id"], email=user["email"], full_name=user["full_name"], company_name=user["company_name"])
+        user=UserResponse(id=user["id"], email=user["email"], full_name=user["full_name"], company_name=user["company_name"], mobile=user.get("mobile"))
     )
 
 @auth_router.get("/me", response_model=UserResponse)
