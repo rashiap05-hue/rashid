@@ -324,6 +324,14 @@ async def get_proposal(proposal_id: str):
         raise HTTPException(status_code=404, detail="Proposal not found")
     return ProposalResponse(**proposal)
 
+@proposals_router.put("/{proposal_id}")
+async def update_proposal(proposal_id: str, proposal: ProposalCreate):
+    update_data = proposal.model_dump(exclude_unset=True)
+    result = await db.proposals.update_one({"id": proposal_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    return {"success": True}
+
 @proposals_router.put("/{proposal_id}/status")
 async def update_proposal_status(proposal_id: str, status: str):
     result = await db.proposals.update_one({"id": proposal_id}, {"$set": {"status": status}})
