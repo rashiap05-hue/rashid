@@ -973,7 +973,7 @@ async def health_check():
 async def seed_initial_data():
     """Seed initial airports, cities, and hotels"""
     
-    # Check if airports data needs updating - AIRPORTS_DATA has 630 entries
+    # Check if airports data needs updating - AIRPORTS_DATA has 452 entries
     airports_count = await db.airports.count_documents({})
     expected_airports = len(AIRPORTS_DATA)
     
