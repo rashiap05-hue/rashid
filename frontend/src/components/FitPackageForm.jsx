@@ -558,13 +558,15 @@ export default function FitPackageForm({ onClose, onCreateSuccess, initialData }
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">Nationality*</label>
                   <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" size={16} />
                     <select 
-                      className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-gray-300 outline-none text-sm bg-white appearance-none"
+                      className="w-full pl-10 pr-8 py-2 border border-gray-200 rounded focus:ring-2 focus:ring-[#002B5B] focus:border-transparent outline-none text-sm bg-white appearance-none"
                       value={nationality}
                       onChange={(e) => setNationality(e.target.value)}
+                      data-testid="nationality-select"
                     >
-                      {NATIONALITIES.map((nat) => (
-                        <option key={nat} value={nat}>{nat}</option>
+                      {ALL_COUNTRIES.map((country) => (
+                        <option key={country} value={country}>{country}</option>
                       ))}
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
@@ -576,7 +578,8 @@ export default function FitPackageForm({ onClose, onCreateSuccess, initialData }
                     selected={leavingOn}
                     onChange={(date) => setLeavingOn(date)}
                     dateFormat="dd MMM yyyy"
-                    className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-gray-300 outline-none text-sm"
+                    minDate={new Date()}
+                    className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-2 focus:ring-[#002B5B] focus:border-transparent outline-none text-sm"
                     data-testid="date-picker"
                   />
                 </div>
