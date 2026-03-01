@@ -383,7 +383,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
 
             {activeTab === 'cities' && (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {cities.map((city, i) => (
+                {filteredCities.map((city, i) => (
                   <div key={city.id || i} className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                     <div className="flex items-center gap-3">
                       <MapPin className="text-green-500" size={20} />
@@ -399,7 +399,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
 
             {activeTab === 'hotels' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {hotels.map((hotel, i) => (
+                {filteredHotels.map((hotel, i) => (
                   <div 
                     key={hotel.id || i} 
                     className="bg-gray-50 p-6 rounded-xl border border-gray-100 cursor-pointer hover:shadow-md transition-all"
