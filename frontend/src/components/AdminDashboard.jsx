@@ -664,35 +664,63 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
 
             {activeTab === 'airports' && (
               <div>
-                {/* Airport-specific search */}
-                <div className="mb-6">
-                  <div className="relative w-full max-w-md">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input 
-                      type="text" 
-                      placeholder="Search by name, code, city or country..."
-                      value={airportSearch}
-                      onChange={(e) => handleAirportSearch(e.target.value)}
-                      data-testid="airport-search-input"
-                      className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent outline-none text-sm font-medium"
-                    />
+                {/* Airport-specific search and Add button */}
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <div className="relative w-full max-w-md">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                      <input 
+                        type="text" 
+                        placeholder="Search by name, code, city or country..."
+                        value={airportSearch}
+                        onChange={(e) => handleAirportSearch(e.target.value)}
+                        data-testid="airport-search-input"
+                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent outline-none text-sm font-medium"
+                      />
+                    </div>
+                    <div className="mt-2 text-sm text-gray-500">
+                      Showing {airports.length} of {airportPagination.total} airports
+                    </div>
                   </div>
-                  <div className="mt-2 text-sm text-gray-500">
-                    Showing {airports.length} of {airportPagination.total} airports
-                  </div>
+                  <button
+                    onClick={() => openEditModal('airport')}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-colors"
+                    data-testid="add-airport-button"
+                  >
+                    <Plus size={18} />
+                    Add Airport
+                  </button>
                 </div>
 
                 {/* Airports Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                   {airports.map((airport, i) => (
-                    <div key={airport.id || i} className="bg-gray-50 p-4 rounded-xl border border-gray-100 hover:shadow-md transition-all" data-testid={`airport-card-${airport.code}`}>
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <span className="font-bold text-purple-600 text-sm">{airport.code}</span>
+                    <div key={airport.id || i} className="bg-gray-50 p-4 rounded-xl border border-gray-100 hover:shadow-md transition-all group" data-testid={`airport-card-${airport.code}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <span className="font-bold text-purple-600 text-sm">{airport.code}</span>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-gray-800 text-sm truncate">{airport.name}</div>
+                            <div className="text-xs text-gray-500">{airport.city}, {airport.country}</div>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <div className="font-bold text-gray-800 text-sm truncate">{airport.name}</div>
-                          <div className="text-xs text-gray-500">{airport.city}, {airport.country}</div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                          <button 
+                            onClick={() => openEditModal('airport', airport)}
+                            className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                            data-testid={`edit-airport-${airport.code}`}
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button 
+                            onClick={() => deleteAirport(airport.id)}
+                            className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
+                            data-testid={`delete-airport-${airport.code}`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </div>
                     </div>
