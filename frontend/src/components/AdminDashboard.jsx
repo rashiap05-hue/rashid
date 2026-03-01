@@ -568,7 +568,18 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
 
             {/* Content based on active tab */}
             {activeTab === 'proposals' && (
-              <div className="overflow-x-auto">
+              <div>
+                <div className="flex justify-end mb-4">
+                  <button
+                    onClick={() => openEditModal('proposal')}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-colors"
+                    data-testid="add-proposal-button"
+                  >
+                    <Plus size={18} />
+                    Add Proposal
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="text-left border-b border-gray-100">
@@ -626,12 +637,17 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                           </td>
                           <td className="py-5 px-4 text-right">
                             <div className="flex justify-end gap-2">
-                              <button className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors">
+                              <button 
+                                onClick={() => openEditModal('proposal', p)}
+                                className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                                data-testid={`edit-proposal-${p.id}`}
+                              >
                                 <Edit2 size={16} />
                               </button>
                               <button 
                                 onClick={() => deleteProposal(p.id)}
                                 className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
+                                data-testid={`delete-proposal-${p.id}`}
                               >
                                 <Trash2 size={16} />
                               </button>
@@ -642,6 +658,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     )}
                   </tbody>
                 </table>
+              </div>
               </div>
             )}
 
