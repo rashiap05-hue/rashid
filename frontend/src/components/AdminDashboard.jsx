@@ -486,6 +486,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] font-sans text-[#1A1A1A]" data-testid="admin-dashboard">
+      <EditModal />
       <div className="max-w-7xl mx-auto px-8 py-8">
         {/* Header with User Management Button */}
         <div className="flex justify-between items-center mb-8">
