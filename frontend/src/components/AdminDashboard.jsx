@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Database, Users, FileText, Settings, Search, RefreshCw,
   Edit2, Trash2, CheckCircle, XCircle, MapPin, Plane, Building2, X,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Plus, Save
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
@@ -25,6 +25,11 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
     pages: 0
   });
   const [airportSearch, setAirportSearch] = useState('');
+
+  // Edit modal states
+  const [editModal, setEditModal] = useState({ open: false, type: null, data: null });
+  const [editForm, setEditForm] = useState({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchData();
