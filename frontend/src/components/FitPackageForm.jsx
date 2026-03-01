@@ -277,6 +277,117 @@ function AirportAutocomplete({ value, onChange, placeholder = "Search airport...
   );
 }
 
+// City Autocomplete Component
+function CityAutocomplete({ value, onChange, placeholder = "Search city...", index }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(value || '');
+  const [cities, setCities] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const containerRef = useRef(null);
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    setSearchTerm(value || '');
+  }, [value]);
+
+  const searchCities = async (query) => {
+    if (!query || query.length < 2) {
+      setCities([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await api.get(`/cities?search=${encodeURIComponent(query)}&limit=10`);
+      setCities(res.data?.cities || []);
+    } catch (error) {
+      console.error('Error searching cities:', error);
+      setCities([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const query = e.target.value;
+    setSearchTerm(query);
+    onChange(query);
+    setIsOpen(true);
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      searchCities(query);
+    }, 300);
+  };
+
+  const selectCity = (city) => {
+    setSearchTerm(city.name);
+    onChange(city.name, city);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative flex-1" ref={containerRef}>
+      <div className="relative">
+        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+        <input
+          type="text"
+          placeholder={placeholder}
+          value={searchTerm}
+          onChange={handleInputChange}
+          onFocus={() => setIsOpen(true)}
+          data-testid={`city-input-${index}`}
+          className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded focus:ring-2 focus:ring-[#002B5B] focus:border-transparent outline-none text-sm"
+        />
+        {loading && (
+          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" size={16} />
+        )}
+      </div>
+
+      <AnimatePresence>
+        {isOpen && cities.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute z-[130] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-[200px] overflow-y-auto"
+          >
+            {cities.map((city) => (
+              <button
+                key={city.id || city.name}
+                type="button"
+                onClick={() => selectCity(city)}
+                className="w-full px-4 py-3 text-left hover:bg-green-50 transition-colors flex items-center gap-3 border-b border-gray-50 last:border-0"
+                data-testid={`city-option-${city.name}`}
+              >
+                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <MapPin className="text-green-600" size={14} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-gray-800 text-sm">{city.name}</div>
+                  <div className="text-xs text-gray-500">{city.country}</div>
+                </div>
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function FitPackageForm({ onClose, onCreateSuccess, initialData }) {
   const [cities, setCities] = useState(initialData?.rawCities || [{ id: '1', name: '', nights: 1 }]);
   const [leavingFrom, setLeavingFrom] = useState(initialData?.leaving_from || '');
