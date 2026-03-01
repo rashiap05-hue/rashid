@@ -214,3 +214,19 @@ Migrate and enhance a Google AI Studio B2B Travel Platform (Travo DMC) with:
 - [x] Searches across 1,543 airports in the database
 - [x] Added plane icon and improved styling
 - [x] Added validation for departure airport selection
+
+#### City Autocomplete for "City Name" Field (P0 - Completed)
+- [x] Created `CityAutocomplete` component with real-time search
+- [x] Connected to `/api/cities?search=` endpoint with debounced API calls
+- [x] Shows dropdown with city details (location icon, name, country)
+- [x] Added search functionality to cities API endpoint
+
+#### Nationality Dropdown Update (P0 - Completed)
+- [x] Expanded from 14 countries to all 195 countries worldwide
+- [x] Added globe icon to the nationality field
+- [x] Alphabetically sorted country list
+
+#### Date Picker Enhancement (P0 - Completed)
+- [x] Added `minDate={new Date()}` to disable past dates
+- [x] Only today and future dates are selectable
+- [x] Ensures valid flight search entries
