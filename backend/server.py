@@ -439,12 +439,46 @@ async def delete_hotel(hotel_id: str):
 
 # ============= AIRPORTS ROUTES =============
 
-@airports_router.get("/")
-async def get_airports():
-    airports = await db.airports.find({}, {"_id": 0}).to_list(2000)
-    return {"success": True, "airports": airports}
+@airports_router.get("")
+async def get_airports(
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(50, ge=1, le=100, description="Items per page"),
+    search: str = Query("", description="Search term for airport name, code, city or country")
+):
+    """Get airports with pagination and search"""
+    skip = (page - 1) * limit
+    
+    # Build search query
+    query = {}
+    if search:
+        search_regex = {"$regex": search, "$options": "i"}
+        query = {
+            "$or": [
+                {"name": search_regex},
+                {"code": search_regex},
+                {"city": search_regex},
+                {"country": search_regex}
+            ]
+        }
+    
+    # Get total count for pagination
+    total = await db.airports.count_documents(query)
+    
+    # Get paginated results
+    airports = await db.airports.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+    
+    return {
+        "success": True, 
+        "airports": airports,
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": (total + limit - 1) // limit
+        }
+    }
 
-@airports_router.post("/")
+@airports_router.post("")
 async def create_airport(airport: AirportCreate):
     airport_id = str(uuid.uuid4())
     doc = {"id": airport_id, **airport.model_dump()}
