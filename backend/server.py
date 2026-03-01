@@ -978,7 +978,7 @@ async def seed_initial_data():
     expected_airports = len(AIRPORTS_DATA)
     
     # If we have significantly fewer airports than expected, reseed
-    if airports_count < expected_airports - 10:
+    if airports_count < expected_airports - 50:
         logger.info(f"Found {airports_count} airports, expected {expected_airports}. Reseeding airport database...")
         
         # Clear existing airports and reseed with comprehensive data
