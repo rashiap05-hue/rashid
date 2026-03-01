@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Calendar, Users, MapPin, ChevronDown, Loader2 } from 'lucide-react';
+import { X, Plus, Calendar, Users, MapPin, ChevronDown, Loader2, Plane, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import { api } from '@/App';
 
 const NATIONALITIES = [
   "United Arab Emirates", "India", "United Kingdom", "USA", "Germany", "France", 
