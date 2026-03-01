@@ -284,7 +284,7 @@ async def get_me(user: dict = Depends(get_current_user)):
 
 # ============= PROPOSALS ROUTES =============
 
-@proposals_router.post("/", response_model=ProposalResponse)
+@proposals_router.post("", response_model=ProposalResponse)
 async def create_proposal(proposal: ProposalCreate, user: dict = Depends(get_optional_user)):
     proposal_id = str(uuid.uuid4())
     
@@ -311,7 +311,7 @@ async def create_proposal(proposal: ProposalCreate, user: dict = Depends(get_opt
     await db.proposals.insert_one(doc)
     return ProposalResponse(**doc)
 
-@proposals_router.get("/", response_model=List[ProposalResponse])
+@proposals_router.get("", response_model=List[ProposalResponse])
 async def get_proposals(user: dict = Depends(get_optional_user)):
     query = {} if not user else {"user_id": user["id"]}
     proposals = await db.proposals.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
@@ -340,12 +340,12 @@ async def delete_proposal(proposal_id: str, user: dict = Depends(get_current_use
 
 # ============= FLIGHTS ROUTES =============
 
-@flights_router.get("/")
+@flights_router.get("")
 async def get_flights():
     flights = await db.flights.find({}, {"_id": 0}).to_list(1000)
     return {"success": True, "flights": flights}
 
-@flights_router.post("/")
+@flights_router.post("")
 async def create_flight(flight: FlightCreate):
     flight_id = str(uuid.uuid4())
     doc = {"id": flight_id, **flight.model_dump()}
@@ -404,7 +404,7 @@ async def delete_flight(flight_id: str):
 
 # ============= HOTELS ROUTES =============
 
-@hotels_router.get("/")
+@hotels_router.get("")
 async def get_hotels():
     hotels = await db.hotels.find({}, {"_id": 0}).to_list(1000)
     return {"success": True, "hotels": hotels}
@@ -416,7 +416,7 @@ async def get_hotel(hotel_id: str):
         raise HTTPException(status_code=404, detail="Hotel not found")
     return {"success": True, "hotel": hotel}
 
-@hotels_router.post("/")
+@hotels_router.post("")
 async def create_hotel(hotel: HotelCreate):
     hotel_id = str(uuid.uuid4())
     doc = {"id": hotel_id, **hotel.model_dump()}
@@ -501,12 +501,12 @@ async def delete_airport(airport_id: str):
 
 # ============= CITIES ROUTES =============
 
-@cities_router.get("/")
+@cities_router.get("")
 async def get_cities():
     cities = await db.cities.find({}, {"_id": 0}).to_list(500)
     return {"success": True, "cities": cities}
 
-@cities_router.post("/")
+@cities_router.post("")
 async def create_city(city: CityCreate):
     city_id = str(uuid.uuid4())
     doc = {"id": city_id, **city.model_dump()}
@@ -960,7 +960,7 @@ async def update_user_status(user_id: str, status: str):
 
 # ============= ROOT ROUTES =============
 
-@api_router.get("/")
+@api_router.get("")
 async def root():
     return {"message": "Travo DMC B2B Travel Platform API", "version": "2.0.0"}
 
