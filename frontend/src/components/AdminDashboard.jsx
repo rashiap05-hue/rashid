@@ -279,20 +279,105 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
             )}
 
             {activeTab === 'airports' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {airports.slice(0, 20).map((airport, i) => (
-                  <div key={airport.id || i} className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <span className="font-bold text-purple-600">{airport.code}</span>
-                      </div>
-                      <div>
-                        <div className="font-bold text-gray-800 text-sm">{airport.name}</div>
-                        <div className="text-xs text-gray-500">{airport.city}, {airport.country}</div>
+              <div>
+                {/* Airport-specific search */}
+                <div className="mb-6">
+                  <div className="relative w-full max-w-md">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input 
+                      type="text" 
+                      placeholder="Search by name, code, city or country..."
+                      value={airportSearch}
+                      onChange={(e) => handleAirportSearch(e.target.value)}
+                      data-testid="airport-search-input"
+                      className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent outline-none text-sm font-medium"
+                    />
+                  </div>
+                  <div className="mt-2 text-sm text-gray-500">
+                    Showing {airports.length} of {airportPagination.total} airports
+                  </div>
+                </div>
+
+                {/* Airports Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                  {airports.map((airport, i) => (
+                    <div key={airport.id || i} className="bg-gray-50 p-4 rounded-xl border border-gray-100 hover:shadow-md transition-all" data-testid={`airport-card-${airport.code}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <span className="font-bold text-purple-600 text-sm">{airport.code}</span>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-gray-800 text-sm truncate">{airport.name}</div>
+                          <div className="text-xs text-gray-500">{airport.city}, {airport.country}</div>
+                        </div>
                       </div>
                     </div>
+                  ))}
+                </div>
+
+                {/* Pagination Controls */}
+                {airportPagination.pages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-6" data-testid="airport-pagination">
+                    <button
+                      onClick={() => handleAirportPageChange(airportPagination.page - 1)}
+                      disabled={airportPagination.page === 1}
+                      className={cn(
+                        "p-2 rounded-lg transition-colors",
+                        airportPagination.page === 1 
+                          ? "text-gray-300 cursor-not-allowed" 
+                          : "text-gray-600 hover:bg-gray-100"
+                      )}
+                      data-testid="airport-prev-page"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                    
+                    {/* Page numbers */}
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, airportPagination.pages) }, (_, i) => {
+                        let pageNum;
+                        if (airportPagination.pages <= 5) {
+                          pageNum = i + 1;
+                        } else if (airportPagination.page <= 3) {
+                          pageNum = i + 1;
+                        } else if (airportPagination.page >= airportPagination.pages - 2) {
+                          pageNum = airportPagination.pages - 4 + i;
+                        } else {
+                          pageNum = airportPagination.page - 2 + i;
+                        }
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => handleAirportPageChange(pageNum)}
+                            className={cn(
+                              "w-10 h-10 rounded-lg text-sm font-bold transition-colors",
+                              pageNum === airportPagination.page
+                                ? "bg-[#002B5B] text-white"
+                                : "text-gray-600 hover:bg-gray-100"
+                            )}
+                            data-testid={`airport-page-${pageNum}`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      onClick={() => handleAirportPageChange(airportPagination.page + 1)}
+                      disabled={airportPagination.page === airportPagination.pages}
+                      className={cn(
+                        "p-2 rounded-lg transition-colors",
+                        airportPagination.page === airportPagination.pages 
+                          ? "text-gray-300 cursor-not-allowed" 
+                          : "text-gray-600 hover:bg-gray-100"
+                      )}
+                      data-testid="airport-next-page"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
                   </div>
-                ))}
+                )}
               </div>
             )}
 
