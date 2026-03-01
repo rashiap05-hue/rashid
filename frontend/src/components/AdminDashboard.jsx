@@ -794,18 +794,48 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
             )}
 
             {activeTab === 'cities' && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {filteredCities.map((city, i) => (
-                  <div key={city.id || i} className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                    <div className="flex items-center gap-3">
-                      <MapPin className="text-green-500" size={20} />
-                      <div>
-                        <div className="font-bold text-gray-800">{city.name}</div>
-                        <div className="text-xs text-gray-500">{city.country}</div>
+              <div>
+                <div className="flex justify-end mb-4">
+                  <button
+                    onClick={() => openEditModal('city')}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-colors"
+                    data-testid="add-city-button"
+                  >
+                    <Plus size={18} />
+                    Add City
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {filteredCities.map((city, i) => (
+                    <div key={city.id || i} className="bg-gray-50 p-4 rounded-xl border border-gray-100 hover:shadow-md transition-all group">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <MapPin className="text-green-500" size={20} />
+                          <div>
+                            <div className="font-bold text-gray-800">{city.name}</div>
+                            <div className="text-xs text-gray-500">{city.country}</div>
+                          </div>
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={() => openEditModal('city', city)}
+                            className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                            data-testid={`edit-city-${city.id}`}
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button 
+                            onClick={() => deleteCity(city.id)}
+                            className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
+                            data-testid={`delete-city-${city.id}`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
 
