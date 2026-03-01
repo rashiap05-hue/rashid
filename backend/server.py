@@ -973,12 +973,13 @@ async def health_check():
 async def seed_initial_data():
     """Seed initial airports, cities, and hotels"""
     
-    # Check if airports data needs updating
+    # Check if airports data needs updating - AIRPORTS_DATA has 630 entries
     airports_count = await db.airports.count_documents({})
+    expected_airports = len(AIRPORTS_DATA)
     
-    # If we have less than 100 airports, reseed with the full dataset
-    if airports_count < 100:
-        logger.info(f"Found only {airports_count} airports. Seeding full airport database...")
+    # If we have significantly fewer airports than expected, reseed
+    if airports_count < expected_airports - 10:
+        logger.info(f"Found {airports_count} airports, expected {expected_airports}. Reseeding airport database...")
         
         # Clear existing airports and reseed with comprehensive data
         await db.airports.delete_many({})
@@ -999,7 +1000,7 @@ async def seed_initial_data():
             await db.airports.insert_many(airports_to_insert)
             logger.info(f"Seeded {len(airports_to_insert)} airports successfully")
     else:
-        logger.info(f"Airports database already has {airports_count} entries")
+        logger.info(f"Airports database has {airports_count} entries (expected: {expected_airports})")
     
     # Check if cities data needs seeding
     cities_count = await db.cities.count_documents({})
