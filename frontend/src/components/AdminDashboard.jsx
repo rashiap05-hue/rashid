@@ -138,7 +138,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           {[
             { label: 'Total Proposals', value: proposals.length, icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
-            { label: 'Airports in DB', value: airports.length, icon: Plane, color: 'text-purple-600', bg: 'bg-purple-50' },
+            { label: 'Airports in DB', value: airportPagination.total || airports.length, icon: Plane, color: 'text-purple-600', bg: 'bg-purple-50' },
             { label: 'Cities in DB', value: cities.length, icon: MapPin, color: 'text-green-600', bg: 'bg-green-50' },
             { label: 'Hotels in DB', value: hotels.length, icon: Building2, color: 'text-orange-600', bg: 'bg-orange-50' },
           ].map((stat, i) => (
