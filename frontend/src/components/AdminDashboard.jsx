@@ -840,39 +840,69 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
             )}
 
             {activeTab === 'hotels' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {filteredHotels.map((hotel, i) => (
-                  <div 
-                    key={hotel.id || i} 
-                    className="bg-gray-50 p-6 rounded-xl border border-gray-100 cursor-pointer hover:shadow-md transition-all"
-                    onClick={() => onViewHotel && onViewHotel(hotel)}
+              <div>
+                <div className="flex justify-end mb-4">
+                  <button
+                    onClick={() => openEditModal('hotel')}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-colors"
+                    data-testid="add-hotel-button"
                   >
-                    <div className="flex gap-4">
-                      <img 
-                        src={hotel.images?.[0] || 'https://via.placeholder.com/100'} 
-                        alt={hotel.name}
-                        className="w-24 h-24 rounded-lg object-cover"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="font-bold text-gray-800">{hotel.name}</div>
-                            <div className="text-xs text-gray-500">{hotel.city}, {hotel.country}</div>
+                    <Plus size={18} />
+                    Add Hotel
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {filteredHotels.map((hotel, i) => (
+                    <div 
+                      key={hotel.id || i} 
+                      className="bg-gray-50 p-6 rounded-xl border border-gray-100 hover:shadow-md transition-all group"
+                    >
+                      <div className="flex gap-4">
+                        <img 
+                          src={hotel.images?.[0] || 'https://via.placeholder.com/100'} 
+                          alt={hotel.name}
+                          className="w-24 h-24 rounded-lg object-cover cursor-pointer"
+                          onClick={() => onViewHotel && onViewHotel(hotel)}
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between">
+                            <div className="cursor-pointer" onClick={() => onViewHotel && onViewHotel(hotel)}>
+                              <div className="font-bold text-gray-800">{hotel.name}</div>
+                              <div className="text-xs text-gray-500">{hotel.city}, {hotel.country}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1 bg-green-100 px-2 py-1 rounded">
+                                <span className="text-green-600 font-bold text-sm">{hotel.rating_score}</span>
+                              </div>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); openEditModal('hotel', hotel); }}
+                                  className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                                  data-testid={`edit-hotel-${hotel.id}`}
+                                >
+                                  <Edit2 size={14} />
+                                </button>
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); deleteHotel(hotel.id); }}
+                                  className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
+                                  data-testid={`delete-hotel-${hotel.id}`}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1 bg-green-100 px-2 py-1 rounded">
-                            <span className="text-green-600 font-bold text-sm">{hotel.rating_score}</span>
+                          <div className="flex items-center gap-2 mt-2">
+                            {Array.from({ length: hotel.star_rating || 4 }).map((_, j) => (
+                              <span key={j} className="text-yellow-400">★</span>
+                            ))}
                           </div>
+                          <div className="text-xs text-gray-500 mt-2 line-clamp-2">{hotel.description}</div>
                         </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          {Array.from({ length: hotel.star_rating || 4 }).map((_, j) => (
-                            <span key={j} className="text-yellow-400">★</span>
-                          ))}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-2 line-clamp-2">{hotel.description}</div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
