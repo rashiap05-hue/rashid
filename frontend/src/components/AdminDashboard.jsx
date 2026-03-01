@@ -98,6 +98,16 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
     p.nationality?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const filteredCities = cities.filter(c =>
+    c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.country?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredHotels = hotels.filter(h =>
+    h.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    h.city?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const deleteProposal = async (id) => {
     if (!window.confirm('Are you sure you want to delete this proposal?')) return;
     try {
