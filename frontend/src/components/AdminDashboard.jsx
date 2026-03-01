@@ -123,6 +123,367 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
     }
   };
 
+  // Open edit modal
+  const openEditModal = (type, data = null) => {
+    setEditModal({ open: true, type, data });
+    if (data) {
+      setEditForm({ ...data });
+    } else {
+      // Default values for new items
+      if (type === 'proposal') setEditForm({ leaving_from: '', nationality: '', leaving_on: '', star_rating: 3, status: 'pending' });
+      if (type === 'airport') setEditForm({ code: '', name: '', city: '', country: '' });
+      if (type === 'city') setEditForm({ name: '', country: '' });
+      if (type === 'hotel') setEditForm({ name: '', city: '', country: '', star_rating: 4, rating_score: 8.0, description: '' });
+    }
+  };
+
+  // Close edit modal
+  const closeEditModal = () => {
+    setEditModal({ open: false, type: null, data: null });
+    setEditForm({});
+  };
+
+  // Save edited item
+  const saveEdit = async () => {
+    setSaving(true);
+    try {
+      const { type, data } = editModal;
+      
+      if (type === 'proposal') {
+        if (data) {
+          await api.put(`/proposals/${data.id}`, editForm);
+          setProposals(proposals.map(p => p.id === data.id ? { ...p, ...editForm } : p));
+        } else {
+          const res = await api.post('/proposals', editForm);
+          setProposals([...proposals, { id: res.data.id, ...editForm }]);
+        }
+      } else if (type === 'airport') {
+        if (data) {
+          await api.put(`/airports/${data.id}`, editForm);
+          setAirports(airports.map(a => a.id === data.id ? { ...a, ...editForm } : a));
+        } else {
+          const res = await api.post('/airports', editForm);
+          setAirports([...airports, { id: res.data.id, ...editForm }]);
+          setAirportPagination(prev => ({ ...prev, total: prev.total + 1 }));
+        }
+      } else if (type === 'city') {
+        if (data) {
+          await api.put(`/cities/${data.id}`, editForm);
+          setCities(cities.map(c => c.id === data.id ? { ...c, ...editForm } : c));
+        } else {
+          const res = await api.post('/cities', editForm);
+          setCities([...cities, { id: res.data.id, ...editForm }]);
+        }
+      } else if (type === 'hotel') {
+        if (data) {
+          await api.put(`/hotels/${data.id}`, editForm);
+          setHotels(hotels.map(h => h.id === data.id ? { ...h, ...editForm } : h));
+        } else {
+          const res = await api.post('/hotels', editForm);
+          setHotels([...hotels, { id: res.data.id, ...editForm }]);
+        }
+      }
+      
+      closeEditModal();
+    } catch (error) {
+      console.error('Error saving:', error);
+      alert('Error saving changes. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Delete handlers
+  const deleteAirport = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this airport?')) return;
+    try {
+      await api.delete(`/airports/${id}`);
+      setAirports(airports.filter(a => a.id !== id));
+      setAirportPagination(prev => ({ ...prev, total: prev.total - 1 }));
+    } catch (error) {
+      console.error('Error deleting airport:', error);
+    }
+  };
+
+  const deleteCity = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this city?')) return;
+    try {
+      await api.delete(`/cities/${id}`);
+      setCities(cities.filter(c => c.id !== id));
+    } catch (error) {
+      console.error('Error deleting city:', error);
+    }
+  };
+
+  const deleteHotel = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this hotel?')) return;
+    try {
+      await api.delete(`/hotels/${id}`);
+      setHotels(hotels.filter(h => h.id !== id));
+    } catch (error) {
+      console.error('Error deleting hotel:', error);
+    }
+  };
+
+  // Edit Modal Component
+  const EditModal = () => {
+    if (!editModal.open) return null;
+    
+    const { type, data } = editModal;
+    const isNew = !data;
+    
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={closeEditModal}>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold text-gray-900">
+              {isNew ? 'Add New' : 'Edit'} {type.charAt(0).toUpperCase() + type.slice(1)}
+            </h3>
+            <button onClick={closeEditModal} className="p-2 hover:bg-gray-100 rounded-lg">
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {type === 'proposal' && (
+              <>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">Leaving From</label>
+                  <input
+                    type="text"
+                    value={editForm.leaving_from || ''}
+                    onChange={(e) => setEditForm({ ...editForm, leaving_from: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    data-testid="edit-proposal-leaving-from"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">Nationality</label>
+                  <input
+                    type="text"
+                    value={editForm.nationality || ''}
+                    onChange={(e) => setEditForm({ ...editForm, nationality: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    data-testid="edit-proposal-nationality"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">Leaving On</label>
+                  <input
+                    type="date"
+                    value={editForm.leaving_on || ''}
+                    onChange={(e) => setEditForm({ ...editForm, leaving_on: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    data-testid="edit-proposal-leaving-on"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Star Rating</label>
+                    <select
+                      value={editForm.star_rating || 3}
+                      onChange={(e) => setEditForm({ ...editForm, star_rating: parseInt(e.target.value) })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-proposal-star-rating"
+                    >
+                      {[1,2,3,4,5].map(n => <option key={n} value={n}>{n} Star</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Status</label>
+                    <select
+                      value={editForm.status || 'pending'}
+                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-proposal-status"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {type === 'airport' && (
+              <>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">IATA Code</label>
+                  <input
+                    type="text"
+                    value={editForm.code || ''}
+                    onChange={(e) => setEditForm({ ...editForm, code: e.target.value.toUpperCase() })}
+                    maxLength={3}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent uppercase"
+                    data-testid="edit-airport-code"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">Airport Name</label>
+                  <input
+                    type="text"
+                    value={editForm.name || ''}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    data-testid="edit-airport-name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">City</label>
+                  <input
+                    type="text"
+                    value={editForm.city || ''}
+                    onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    data-testid="edit-airport-city"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">Country</label>
+                  <input
+                    type="text"
+                    value={editForm.country || ''}
+                    onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    data-testid="edit-airport-country"
+                  />
+                </div>
+              </>
+            )}
+
+            {type === 'city' && (
+              <>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">City Name</label>
+                  <input
+                    type="text"
+                    value={editForm.name || ''}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    data-testid="edit-city-name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">Country</label>
+                  <input
+                    type="text"
+                    value={editForm.country || ''}
+                    onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    data-testid="edit-city-country"
+                  />
+                </div>
+              </>
+            )}
+
+            {type === 'hotel' && (
+              <>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">Hotel Name</label>
+                  <input
+                    type="text"
+                    value={editForm.name || ''}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    data-testid="edit-hotel-name"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">City</label>
+                    <input
+                      type="text"
+                      value={editForm.city || ''}
+                      onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-hotel-city"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Country</label>
+                    <input
+                      type="text"
+                      value={editForm.country || ''}
+                      onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-hotel-country"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Star Rating</label>
+                    <select
+                      value={editForm.star_rating || 4}
+                      onChange={(e) => setEditForm({ ...editForm, star_rating: parseInt(e.target.value) })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-hotel-star-rating"
+                    >
+                      {[1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n} Star</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Rating Score</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      step="0.1"
+                      value={editForm.rating_score || 8.0}
+                      onChange={(e) => setEditForm({ ...editForm, rating_score: parseFloat(e.target.value) })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-hotel-rating-score"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">Description</label>
+                  <textarea
+                    value={editForm.description || ''}
+                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent resize-none"
+                    data-testid="edit-hotel-description"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={closeEditModal}
+              className="flex-1 px-4 py-3 border border-gray-200 rounded-xl font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={saveEdit}
+              disabled={saving}
+              className="flex-1 px-4 py-3 bg-[#002B5B] text-white rounded-xl font-bold hover:bg-[#003d82] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              data-testid="save-edit-button"
+            >
+              {saving ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Save size={18} />
+                  {isNew ? 'Create' : 'Save Changes'}
+                </>
+              )}
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#F0F2F5] font-sans text-[#1A1A1A]" data-testid="admin-dashboard">
       <div className="max-w-7xl mx-auto px-8 py-8">
