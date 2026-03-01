@@ -34,7 +34,7 @@ export default function AIChatbot({ onClose }) {
     setIsLoading(true);
 
     try {
-      const response = await api.post('/ai/chat/', {
+      const response = await api.post('/ai/chat', {
         message: userMessage,
         session_id: sessionId
       });

@@ -36,7 +36,7 @@ export default function FlightSearchModal({ isOpen, onClose, initialFrom, initia
 
   const fetchAirports = async () => {
     try {
-      const response = await api.get('/airports/');
+      const response = await api.get('/airports');
       setAirports(response.data?.airports || []);
     } catch (error) {
       console.error('Error fetching airports:', error);
@@ -56,7 +56,7 @@ export default function FlightSearchModal({ isOpen, onClose, initialFrom, initia
     setLoading(true);
     setSearched(true);
     try {
-      const response = await api.post('/flights/search/', {
+      const response = await api.post('/flights/search', {
         from_airport: from,
         to_airport: to,
         depart_date: departDate?.toISOString().split('T')[0],
