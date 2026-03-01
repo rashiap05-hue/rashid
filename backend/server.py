@@ -176,7 +176,7 @@ class AirportCreate(BaseModel):
 class CityCreate(BaseModel):
     name: str
     country: str
-    image: Optional[str]
+    image: Optional[str] = None
 
 class ChatMessage(BaseModel):
     message: str
