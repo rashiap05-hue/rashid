@@ -967,100 +967,111 @@ async def seed_initial_data():
     else:
         logger.info(f"Airports database already has {airports_count} entries")
     
-    # Seed major cities
-    cities = [
-        {"name": "Dubai", "country": "United Arab Emirates"},
-        {"name": "Abu Dhabi", "country": "United Arab Emirates"},
-        {"name": "Tbilisi", "country": "Georgia"},
-        {"name": "Batumi", "country": "Georgia"},
-        {"name": "London", "country": "United Kingdom"},
-        {"name": "Paris", "country": "France"},
-        {"name": "New York", "country": "USA"},
-        {"name": "Tokyo", "country": "Japan"},
-        {"name": "Singapore", "country": "Singapore"},
-        {"name": "Istanbul", "country": "Turkey"},
-        {"name": "Mumbai", "country": "India"},
-        {"name": "Delhi", "country": "India"},
-        {"name": "Bangkok", "country": "Thailand"},
-        {"name": "Bali", "country": "Indonesia"},
-    ]
+    # Check if cities data needs seeding
+    cities_count = await db.cities.count_documents({})
+    if cities_count == 0:
+        logger.info("Seeding cities...")
+        # Seed major cities
+        cities = [
+            {"name": "Dubai", "country": "United Arab Emirates"},
+            {"name": "Abu Dhabi", "country": "United Arab Emirates"},
+            {"name": "Tbilisi", "country": "Georgia"},
+            {"name": "Batumi", "country": "Georgia"},
+            {"name": "London", "country": "United Kingdom"},
+            {"name": "Paris", "country": "France"},
+            {"name": "New York", "country": "USA"},
+            {"name": "Tokyo", "country": "Japan"},
+            {"name": "Singapore", "country": "Singapore"},
+            {"name": "Istanbul", "country": "Turkey"},
+            {"name": "Mumbai", "country": "India"},
+            {"name": "Delhi", "country": "India"},
+            {"name": "Bangkok", "country": "Thailand"},
+            {"name": "Bali", "country": "Indonesia"},
+        ]
+        
+        for city in cities:
+            city["id"] = str(uuid.uuid4())
+        await db.cities.insert_many(cities)
+        logger.info(f"Seeded {len(cities)} cities")
     
-    for city in cities:
-        city["id"] = str(uuid.uuid4())
-    await db.cities.insert_many(cities)
+    # Check if hotels data needs seeding
+    hotels_count = await db.hotels.count_documents({})
+    if hotels_count == 0:
+        logger.info("Seeding hotels...")
+        # Seed sample hotels
+        hotels = [
+            {
+                "id": str(uuid.uuid4()),
+                "name": "Courtyard by Marriott Baku",
+                "city": "Baku",
+                "country": "Azerbaijan",
+                "address": "300-303 Quarter, Nasimi District, Baku",
+                "description": "A stay at Courtyard by Marriott Baku places you in the heart of Baku.",
+                "star_rating": 4,
+                "rating_score": 9.2,
+                "rating_text": "Wonderful",
+                "review_count": 107,
+                "images": ["https://picsum.photos/seed/baku1/1200/800"],
+                "amenities": ["Pool", "Spa", "Beach Access", "Free WiFi", "Fitness Center"],
+                "detailed_ratings": {"cleanliness": 4.7, "service": 4.6, "comfort": 4.7},
+                "what_to_know": [],
+                "rooms": [
+                    {
+                        "id": "R001",
+                        "name": "Superior Room",
+                        "type": "Superior",
+                        "bed_type": "1 King",
+                        "view": "City View",
+                        "size": "30 sqm",
+                        "price": 1861,
+                        "original_price": 1918,
+                        "currency": "AED",
+                        "amenities": ["Free WiFi", "TV", "Minibar"],
+                        "refundable": True,
+                        "meals": "No meals included",
+                        "images": []
+                    }
+                ]
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "name": "Burj Al Arab Jumeirah",
+                "city": "Dubai",
+                "country": "United Arab Emirates",
+                "address": "Jumeirah St, Dubai",
+                "description": "The distinctive sail-shaped silhouette of Burj Al Arab Jumeirah.",
+                "star_rating": 7,
+                "rating_score": 9.8,
+                "rating_text": "Exceptional",
+                "review_count": 2540,
+                "images": ["https://picsum.photos/seed/burj1/1200/800"],
+                "amenities": ["Pool", "Spa", "Beach Access", "Free WiFi", "Butler Service"],
+                "detailed_ratings": {"cleanliness": 4.9, "service": 5.0, "comfort": 4.9},
+                "what_to_know": [],
+                "rooms": [
+                    {
+                        "id": "R002",
+                        "name": "Deluxe Marina Suite",
+                        "type": "Suite",
+                        "bed_type": "1 King",
+                        "view": "Marina View",
+                        "size": "170 sqm",
+                        "price": 5500,
+                        "original_price": 6000,
+                        "currency": "AED",
+                        "amenities": ["Butler Service", "Hermes Amenities"],
+                        "refundable": False,
+                        "meals": "Breakfast Included",
+                        "images": []
+                    }
+                ]
+            }
+        ]
+        
+        await db.hotels.insert_many(hotels)
+        logger.info(f"Seeded {len(hotels)} hotels")
     
-    # Seed sample hotels
-    hotels = [
-        {
-            "id": str(uuid.uuid4()),
-            "name": "Courtyard by Marriott Baku",
-            "city": "Baku",
-            "country": "Azerbaijan",
-            "address": "300-303 Quarter, Nasimi District, Baku",
-            "description": "A stay at Courtyard by Marriott Baku places you in the heart of Baku.",
-            "star_rating": 4,
-            "rating_score": 9.2,
-            "rating_text": "Wonderful",
-            "review_count": 107,
-            "images": ["https://picsum.photos/seed/baku1/1200/800"],
-            "amenities": ["Pool", "Spa", "Beach Access", "Free WiFi", "Fitness Center"],
-            "detailed_ratings": {"cleanliness": 4.7, "service": 4.6, "comfort": 4.7},
-            "what_to_know": [],
-            "rooms": [
-                {
-                    "id": "R001",
-                    "name": "Superior Room",
-                    "type": "Superior",
-                    "bed_type": "1 King",
-                    "view": "City View",
-                    "size": "30 sqm",
-                    "price": 1861,
-                    "original_price": 1918,
-                    "currency": "AED",
-                    "amenities": ["Free WiFi", "TV", "Minibar"],
-                    "refundable": True,
-                    "meals": "No meals included",
-                    "images": []
-                }
-            ]
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "name": "Burj Al Arab Jumeirah",
-            "city": "Dubai",
-            "country": "United Arab Emirates",
-            "address": "Jumeirah St, Dubai",
-            "description": "The distinctive sail-shaped silhouette of Burj Al Arab Jumeirah.",
-            "star_rating": 7,
-            "rating_score": 9.8,
-            "rating_text": "Exceptional",
-            "review_count": 2540,
-            "images": ["https://picsum.photos/seed/burj1/1200/800"],
-            "amenities": ["Pool", "Spa", "Beach Access", "Free WiFi", "Butler Service"],
-            "detailed_ratings": {"cleanliness": 4.9, "service": 5.0, "comfort": 4.9},
-            "what_to_know": [],
-            "rooms": [
-                {
-                    "id": "R002",
-                    "name": "Deluxe Marina Suite",
-                    "type": "Suite",
-                    "bed_type": "1 King",
-                    "view": "Marina View",
-                    "size": "170 sqm",
-                    "price": 5500,
-                    "original_price": 6000,
-                    "currency": "AED",
-                    "amenities": ["Butler Service", "Hermes Amenities"],
-                    "refundable": False,
-                    "meals": "Breakfast Included",
-                    "images": []
-                }
-            ]
-        }
-    ]
-    
-    await db.hotels.insert_many(hotels)
-    logger.info("Initial data seeded successfully")
+    logger.info("Data seeding check complete")
 
 # ============= APP SETUP =============
 
