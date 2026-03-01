@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Database, Users, FileText, Settings, Search, RefreshCw,
-  Edit2, Trash2, CheckCircle, XCircle, MapPin, Plane, Building2, X
+  Edit2, Trash2, CheckCircle, XCircle, MapPin, Plane, Building2, X,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
@@ -15,29 +16,80 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('proposals');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Pagination state for airports
+  const [airportPagination, setAirportPagination] = useState({
+    page: 1,
+    limit: 50,
+    total: 0,
+    pages: 0
+  });
+  const [airportSearch, setAirportSearch] = useState('');
 
   useEffect(() => {
     fetchData();
   }, []);
 
+  // Fetch airports when page or search changes
+  useEffect(() => {
+    if (activeTab === 'airports') {
+      fetchAirports();
+    }
+  }, [airportPagination.page, airportSearch, activeTab]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [proposalsRes, airportsRes, citiesRes, hotelsRes] = await Promise.all([
-        api.get('/proposals/'),
-        api.get('/airports/'),
-        api.get('/cities/'),
-        api.get('/hotels/')
+      const [proposalsRes, citiesRes, hotelsRes] = await Promise.all([
+        api.get('/proposals'),
+        api.get('/cities'),
+        api.get('/hotels')
       ]);
       // Handle proposals response (returns array directly)
       setProposals(Array.isArray(proposalsRes.data) ? proposalsRes.data : []);
-      setAirports(airportsRes.data?.airports || []);
       setCities(citiesRes.data?.cities || []);
       setHotels(hotelsRes.data?.hotels || []);
+      
+      // Fetch airports separately with pagination
+      await fetchAirports();
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAirports = async () => {
+    try {
+      const params = new URLSearchParams({
+        page: airportPagination.page.toString(),
+        limit: airportPagination.limit.toString()
+      });
+      if (airportSearch) {
+        params.append('search', airportSearch);
+      }
+      const res = await api.get(`/airports?${params.toString()}`);
+      setAirports(res.data?.airports || []);
+      if (res.data?.pagination) {
+        setAirportPagination(prev => ({
+          ...prev,
+          total: res.data.pagination.total,
+          pages: res.data.pagination.pages
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching airports:', error);
+    }
+  };
+
+  const handleAirportSearch = (value) => {
+    setAirportSearch(value);
+    setAirportPagination(prev => ({ ...prev, page: 1 })); // Reset to page 1 on search
+  };
+
+  const handleAirportPageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= airportPagination.pages) {
+      setAirportPagination(prev => ({ ...prev, page: newPage }));
     }
   };
 
