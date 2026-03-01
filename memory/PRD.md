@@ -143,13 +143,13 @@ Migrate and enhance a Google AI Studio B2B Travel Platform (Travo DMC) with:
 ### Completed Tasks
 
 #### 1. Airports Database Update (P0 - Completed)
-- [x] Seeded comprehensive airport database with **452 international airports**
-- [x] Data sourced from `/app/backend/airports_data.py` covering:
-  - Africa: Algeria, Egypt, Morocco, Tunisia, South Africa, Kenya, Nigeria, Ethiopia, Tanzania, Ghana, Mauritius, Seychelles
-  - Americas: Caribbean, Central America, Canada, Mexico, USA, South America
-  - Asia: Middle East (UAE, Saudi Arabia, Qatar, Kuwait, Bahrain, Oman, Jordan, Lebanon, Israel, Turkey, Iran), Caucasus, Central Asia, South Asia, Southeast Asia, East Asia
-  - Europe: Western, Southern, Central, Northern, Eastern
-  - Oceania: Australia, New Zealand, Pacific Islands
+- [x] Seeded comprehensive airport database with **1,277 unique international airports**
+- [x] Data sourced from user-provided file covering all continents:
+  - **Africa**: Algeria, Egypt, Libya, Morocco, Sudan, Tunisia, Western/Central/Southern/Eastern Africa
+  - **Americas**: Caribbean (35+ islands), Central America (7 countries), North America (USA, Canada, Mexico, Greenland), South America (12 countries)
+  - **Asia**: Central Asia (Kazakhstan, Kyrgyzstan, Tajikistan, Turkmenistan, Uzbekistan), Eastern Asia (China 100+, Japan, Korea, Taiwan, Hong Kong, Macau, Mongolia), Southern Asia (Bangladesh, Bhutan, India 50+, Maldives, Nepal, Pakistan, Sri Lanka), Southeast Asia (11 countries), Southwest Asia & Middle East (20+ countries)
+  - **Europe**: Western (BeNeLux, France, Ireland, UK), Central (Austria, Czech, Germany, Hungary, Poland, Slovakia, Switzerland), Southern (Croatia, Greece, Italy, Malta, Portugal, Slovenia, Spain), Eastern (15 countries), Nordic (Baltics, Denmark, Finland, Iceland, Norway, Sweden)
+  - **Oceania**: Australia, New Zealand, Pacific Islands (15+ territories)
 
 #### 2. Airports Pagination (P0 - Completed)  
 - [x] Backend: Updated `GET /api/airports` endpoint with pagination params:
