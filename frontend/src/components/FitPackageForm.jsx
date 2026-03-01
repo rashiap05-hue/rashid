@@ -499,16 +499,12 @@ export default function FitPackageForm({ onClose, onCreateSuccess, initialData }
                         <div className="w-1 h-1 bg-gray-300 rounded-full" />
                       </div>
                     </div>
-                    <div className="flex-1 relative">
-                      <input 
-                        type="text"
-                        placeholder="City Name"
-                        value={city.name}
-                        onChange={(e) => updateCity(city.id, 'name', e.target.value)}
-                        data-testid={`city-input-${index}`}
-                        className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-gray-300 outline-none text-sm"
-                      />
-                    </div>
+                    <CityAutocomplete
+                      value={city.name}
+                      onChange={(name) => updateCity(city.id, 'name', name)}
+                      placeholder="Search city..."
+                      index={index}
+                    />
                     <div className="w-32 relative">
                       <select 
                         className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-gray-300 outline-none text-sm appearance-none bg-white font-medium"
