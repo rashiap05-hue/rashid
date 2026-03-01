@@ -136,6 +136,128 @@ function TravelerPicker({ rooms, onUpdate }) {
   );
 }
 
+// Airport Autocomplete Component
+function AirportAutocomplete({ value, onChange, placeholder = "Search airport..." }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(value || '');
+  const [airports, setAirports] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const containerRef = useRef(null);
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    setSearchTerm(value || '');
+  }, [value]);
+
+  const searchAirports = async (query) => {
+    if (!query || query.length < 2) {
+      setAirports([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await api.get(`/airports?search=${encodeURIComponent(query)}&limit=10`);
+      setAirports(res.data?.airports || []);
+    } catch (error) {
+      console.error('Error searching airports:', error);
+      setAirports([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const query = e.target.value;
+    setSearchTerm(query);
+    setIsOpen(true);
+
+    // Debounce API calls
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      searchAirports(query);
+    }, 300);
+  };
+
+  const selectAirport = (airport) => {
+    const displayValue = `${airport.city} (${airport.code})`;
+    setSearchTerm(displayValue);
+    onChange(displayValue, airport);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <div className="relative">
+        <Plane className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+        <input
+          type="text"
+          placeholder={placeholder}
+          value={searchTerm}
+          onChange={handleInputChange}
+          onFocus={() => setIsOpen(true)}
+          data-testid="leaving-from-input"
+          className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded focus:ring-2 focus:ring-[#002B5B] focus:border-transparent outline-none text-sm"
+        />
+        {loading && (
+          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" size={16} />
+        )}
+      </div>
+
+      <AnimatePresence>
+        {isOpen && airports.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute z-[130] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-[250px] overflow-y-auto"
+          >
+            {airports.map((airport) => (
+              <button
+                key={airport.id || airport.code}
+                type="button"
+                onClick={() => selectAirport(airport)}
+                className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors flex items-center gap-3 border-b border-gray-50 last:border-0"
+                data-testid={`airport-option-${airport.code}`}
+              >
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span className="font-bold text-purple-600 text-xs">{airport.code}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-gray-800 text-sm truncate">{airport.name}</div>
+                  <div className="text-xs text-gray-500">{airport.city}, {airport.country}</div>
+                </div>
+              </button>
+            ))}
+          </motion.div>
+        )}
+        {isOpen && searchTerm.length >= 2 && !loading && airports.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute z-[130] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl p-4 text-center text-gray-500 text-sm"
+          >
+            No airports found for "{searchTerm}"
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function FitPackageForm({ onClose, onCreateSuccess, initialData }) {
   const [cities, setCities] = useState(initialData?.rawCities || [{ id: '1', name: '', nights: 1 }]);
   const [leavingFrom, setLeavingFrom] = useState(initialData?.leaving_from || 'Dubai');
