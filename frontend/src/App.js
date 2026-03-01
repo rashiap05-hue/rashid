@@ -8,7 +8,7 @@ import AuthPage from '@/components/AuthPage';
 import Dashboard from '@/components/Dashboard';
 import Header from '@/components/Header';
 import FitPackageForm from '@/components/FitPackageForm';
-import CustomizeTrip from '@/components/CustomizeTrip';
+import TripBuilder from '@/components/TripBuilder';
 import AdminDashboard from '@/components/AdminDashboard';
 import AdminUserDashboard from '@/components/AdminUserDashboard';
 import AIChatbot from '@/components/AIChatbot';
