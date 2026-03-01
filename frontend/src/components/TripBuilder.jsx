@@ -740,6 +740,179 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
 
             {/* Day-by-Day Itinerary */}
             <h2 className="text-xl font-bold text-gray-800 mb-4">Your Itinerary</h2>
+            
+            {/* Hotel Stay Sections for each city */}
+            {cities.map((city, cityIndex) => {
+              const cityHotel = selectedHotels[city.name];
+              const cityStartDate = new Date(startDate);
+              // Calculate check-in date based on previous cities
+              for (let i = 0; i < cityIndex; i++) {
+                cityStartDate.setDate(cityStartDate.getDate() + (cities[i].nights || 1));
+              }
+              const cityEndDate = new Date(cityStartDate);
+              cityEndDate.setDate(cityEndDate.getDate() + (city.nights || 1));
+              
+              return (
+                <div key={cityIndex} className="mb-6">
+                  {/* Stay Header */}
+                  <div className="bg-[#E8F4F8] px-6 py-3 rounded-t-xl">
+                    <h3 className="text-lg font-bold text-[#002B5B]">
+                      Stay in {city.name} {city.nights} night{city.nights > 1 ? 's' : ''}
+                    </h3>
+                  </div>
+                  
+                  {/* Hotel Card */}
+                  {cityHotel ? (
+                    <div className="bg-white rounded-b-xl border border-gray-200 border-t-0">
+                      <div className="p-6">
+                        <div className="flex gap-6">
+                          {/* Hotel Image */}
+                          <img 
+                            src={cityHotel.images?.[0] || 'https://via.placeholder.com/160x120?text=Hotel'} 
+                            alt={cityHotel.name}
+                            className="w-40 h-32 object-cover rounded-lg flex-shrink-0"
+                          />
+                          
+                          {/* Hotel Details */}
+                          <div className="flex-1">
+                            {/* Stars */}
+                            <div className="flex items-center gap-1 mb-1">
+                              {Array.from({ length: cityHotel.star_rating || 4 }).map((_, i) => (
+                                <Star key={i} className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                              ))}
+                            </div>
+                            
+                            {/* Hotel Name */}
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-lg font-bold text-[#002B5B]">{cityHotel.name}</h4>
+                              <button className="text-xs text-gray-500 border border-gray-300 px-2 py-0.5 rounded hover:bg-gray-50">
+                                view
+                              </button>
+                            </div>
+                            
+                            {/* Address */}
+                            <p className="text-sm text-blue-600 mt-1">{cityHotel.address || `${cityHotel.city}, ${cityHotel.country}`}</p>
+                            
+                            {/* Rating */}
+                            <div className="flex items-center gap-2 mt-2">
+                              <div className="bg-[#002B5B] text-white px-2 py-1 rounded font-bold text-sm">
+                                {cityHotel.rating_score || 8.2}
+                              </div>
+                              <div>
+                                <span className="font-bold text-gray-800">{cityHotel.rating_text || 'Very Good'}</span>
+                                <span className="text-sm text-gray-500 ml-1">{cityHotel.review_count || 45} ratings</span>
+                              </div>
+                            </div>
+                            
+                            {/* Check-in / Check-out */}
+                            <div className="flex items-center gap-8 mt-4 text-sm">
+                              <div>
+                                <p className="text-gray-500">Check-in</p>
+                                <p className="font-bold text-gray-800">03:00 PM {formatDate(cityStartDate)}</p>
+                              </div>
+                              <div className="h-8 w-px bg-gray-200" />
+                              <div>
+                                <p className="text-gray-500">Check-out</p>
+                                <p className="font-bold text-gray-800">12:00 PM {formatDate(cityEndDate)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Selected Room Info */}
+                        <div className="mt-4 space-y-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Check className="w-5 h-5 text-green-500" />
+                            <span className="text-gray-700">Selected Room: <strong>1 x {cityHotel.selectedRoom?.name || 'Standard Room'}, {cityHotel.selectedRoom?.bed_type || 'Twin Beds'}</strong></span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <Check className="w-5 h-5 text-green-500" />
+                            <span className="text-gray-700">{cityHotel.selectedRoom?.meals || 'Bed and Breakfast'}, No Extra Bed</span>
+                          </div>
+                          <p className="text-orange-500 font-medium text-sm ml-7">Fully refundable before check-in</p>
+                        </div>
+                        
+                        {/* Selected Meals */}
+                        <div className="mt-4 pt-4 border-t border-gray-100">
+                          <h5 className="font-bold text-gray-800 mb-2">Selected Meals at Hotel</h5>
+                          <div className="flex items-center gap-2 text-sm">
+                            <Check className="w-5 h-5 text-green-500" />
+                            <span className="text-gray-700">Breakfast</span>
+                          </div>
+                          <p className="text-green-600 font-medium text-sm ml-7">Included</p>
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 mt-6">
+                          <button 
+                            onClick={() => {
+                              setActiveHotelCity(city.name);
+                              setShowHotelModal(true);
+                            }}
+                            className="bg-[#8B4513] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#723a0f] transition-all"
+                          >
+                            Change Room
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setActiveHotelCity(city.name);
+                              setShowHotelModal(true);
+                            }}
+                            className="bg-[#8B4513] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#723a0f] transition-all"
+                          >
+                            Change Hotel
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {/* What to know section */}
+                      <button className="w-full px-6 py-3 text-left text-sm text-gray-600 border-t border-gray-100 hover:bg-gray-50 flex items-center gap-2">
+                        <Info size={16} />
+                        What to know about this hotel
+                      </button>
+                      
+                      {/* Info notice */}
+                      <div className="bg-amber-50 px-6 py-4 border-t border-amber-100 rounded-b-xl">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                          <p className="text-sm text-amber-800">
+                            Room in {cityHotel.name} is probably a twin bed room, which means 2 single beds will be provided. Are you sure about this room?
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-white rounded-b-xl border border-gray-200 border-t-0 p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <Hotel className="text-gray-400" size={24} />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-500">No Hotel Selected</p>
+                            <p className="text-sm text-gray-400">Check-in: {formatDate(cityStartDate)} • Check-out: {formatDate(cityEndDate)}</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            setActiveHotelCity(city.name);
+                            setShowHotelModal(true);
+                          }}
+                          className="bg-[#002B5B] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#003d82] transition-all flex items-center gap-2"
+                          data-testid={`add-hotel-${city.name}`}
+                        >
+                          <Hotel size={18} />
+                          Add Hotel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Day-by-Day Details */}
+            <h2 className="text-xl font-bold text-gray-800 mb-4 mt-8">Daily Itinerary</h2>
             {itinerary.map((day, index) => (
               <DayCard
                 key={index}
