@@ -414,13 +414,13 @@ export default function FitPackageForm({ onClose, onCreateSuccess, initialData }
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">Leaving From</label>
-                  <input 
-                    type="text"
-                    placeholder="Dubai"
+                  <AirportAutocomplete
                     value={leavingFrom}
-                    onChange={(e) => setLeavingFrom(e.target.value)}
-                    data-testid="leaving-from-input"
-                    className="w-full px-3 py-2 border border-gray-200 rounded focus:ring-1 focus:ring-gray-300 outline-none text-sm"
+                    onChange={(displayValue, airport) => {
+                      setLeavingFrom(displayValue);
+                      setSelectedAirport(airport);
+                    }}
+                    placeholder="Search airport or city..."
                   />
                 </div>
                 <div className="space-y-1.5">
