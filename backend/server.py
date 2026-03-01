@@ -510,8 +510,22 @@ async def delete_airport(airport_id: str):
 # ============= CITIES ROUTES =============
 
 @cities_router.get("")
-async def get_cities():
-    cities = await db.cities.find({}, {"_id": 0}).to_list(500)
+async def get_cities(
+    search: str = Query("", description="Search term for city name or country"),
+    limit: int = Query(500, ge=1, le=500, description="Max items to return")
+):
+    """Get cities with optional search"""
+    query = {}
+    if search:
+        search_regex = {"$regex": search, "$options": "i"}
+        query = {
+            "$or": [
+                {"name": search_regex},
+                {"country": search_regex}
+            ]
+        }
+    
+    cities = await db.cities.find(query, {"_id": 0}).limit(limit).to_list(limit)
     return {"success": True, "cities": cities}
 
 @cities_router.post("")
