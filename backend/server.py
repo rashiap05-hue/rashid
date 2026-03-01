@@ -32,8 +32,11 @@ JWT_EXPIRATION_HOURS = 24
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
 
-# Create the main app
-app = FastAPI(title="Travo DMC B2B Travel Platform API")
+# Import airports data
+from airports_data import AIRPORTS_DATA
+
+# Create the main app - disable redirect_slashes for consistent routing
+app = FastAPI(title="Travo DMC B2B Travel Platform API", redirect_slashes=False)
 
 # Create routers
 api_router = APIRouter(prefix="/api")
@@ -936,34 +939,33 @@ async def health_check():
 async def seed_initial_data():
     """Seed initial airports, cities, and hotels"""
     
-    # Check if data already exists
+    # Check if airports data needs updating
     airports_count = await db.airports.count_documents({})
-    if airports_count > 0:
-        logger.info("Data already seeded")
-        return
     
-    logger.info("Seeding initial data...")
-    
-    # Seed major airports
-    airports = [
-        {"code": "DXB", "name": "Dubai International Airport", "city": "Dubai", "country": "United Arab Emirates"},
-        {"code": "TBS", "name": "Tbilisi International Airport", "city": "Tbilisi", "country": "Georgia"},
-        {"code": "LHR", "name": "Heathrow Airport", "city": "London", "country": "United Kingdom"},
-        {"code": "JFK", "name": "John F. Kennedy International Airport", "city": "New York", "country": "USA"},
-        {"code": "CDG", "name": "Charles de Gaulle Airport", "city": "Paris", "country": "France"},
-        {"code": "FRA", "name": "Frankfurt Airport", "city": "Frankfurt", "country": "Germany"},
-        {"code": "SIN", "name": "Changi Airport", "city": "Singapore", "country": "Singapore"},
-        {"code": "HND", "name": "Haneda Airport", "city": "Tokyo", "country": "Japan"},
-        {"code": "IST", "name": "Istanbul Airport", "city": "Istanbul", "country": "Turkey"},
-        {"code": "BOM", "name": "Chhatrapati Shivaji International Airport", "city": "Mumbai", "country": "India"},
-        {"code": "DEL", "name": "Indira Gandhi International Airport", "city": "Delhi", "country": "India"},
-        {"code": "AUH", "name": "Abu Dhabi International Airport", "city": "Abu Dhabi", "country": "United Arab Emirates"},
-        {"code": "DOH", "name": "Hamad International Airport", "city": "Doha", "country": "Qatar"},
-    ]
-    
-    for airport in airports:
-        airport["id"] = str(uuid.uuid4())
-    await db.airports.insert_many(airports)
+    # If we have less than 100 airports, reseed with the full dataset
+    if airports_count < 100:
+        logger.info(f"Found only {airports_count} airports. Seeding full airport database...")
+        
+        # Clear existing airports and reseed with comprehensive data
+        await db.airports.delete_many({})
+        
+        # Add IDs to each airport from the comprehensive AIRPORTS_DATA
+        airports_to_insert = []
+        for airport in AIRPORTS_DATA:
+            airport_doc = {
+                "id": str(uuid.uuid4()),
+                "code": airport["code"],
+                "name": airport["name"],
+                "city": airport["city"],
+                "country": airport["country"]
+            }
+            airports_to_insert.append(airport_doc)
+        
+        if airports_to_insert:
+            await db.airports.insert_many(airports_to_insert)
+            logger.info(f"Seeded {len(airports_to_insert)} airports successfully")
+    else:
+        logger.info(f"Airports database already has {airports_count} entries")
     
     # Seed major cities
     cities = [
