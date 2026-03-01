@@ -286,26 +286,117 @@ function DayCard({ day, date, city, activities, isFirst, isLast, onAddActivity, 
 
               {/* Hotel Stay */}
               {hotel ? (
-                <div className="flex items-center gap-4 p-4 bg-green-50 rounded-xl border border-green-100">
-                  <img 
-                    src={hotel.images?.[0] || 'https://via.placeholder.com/80'} 
-                    alt={hotel.name}
-                    className="w-20 h-20 object-cover rounded-lg"
-                  />
-                  <div className="flex-1">
-                    <p className="font-bold text-gray-800">{hotel.name}</p>
-                    <p className="text-sm text-gray-500">{hotel.selectedRoom?.name || 'Standard Room'}</p>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                      <Coffee size={12} /> Breakfast Included
-                      <Wifi size={12} /> Free WiFi
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="p-6">
+                    <div className="flex gap-6">
+                      {/* Hotel Image */}
+                      <img 
+                        src={hotel.images?.[0] || 'https://via.placeholder.com/160x120?text=Hotel'} 
+                        alt={hotel.name}
+                        className="w-40 h-32 object-cover rounded-lg flex-shrink-0"
+                      />
+                      
+                      {/* Hotel Details */}
+                      <div className="flex-1">
+                        {/* Stars */}
+                        <div className="flex items-center gap-1 mb-1">
+                          {Array.from({ length: hotel.star_rating || 4 }).map((_, i) => (
+                            <Star key={i} className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                          ))}
+                        </div>
+                        
+                        {/* Hotel Name */}
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-lg font-bold text-[#002B5B]">{hotel.name}</h4>
+                          <button className="text-xs text-gray-500 border border-gray-300 px-2 py-0.5 rounded hover:bg-gray-50">
+                            view
+                          </button>
+                        </div>
+                        
+                        {/* Address */}
+                        <p className="text-sm text-blue-600 mt-1">{hotel.address || `${hotel.city}, ${hotel.country}`}</p>
+                        
+                        {/* Rating */}
+                        <div className="flex items-center gap-2 mt-2">
+                          <div className="bg-[#002B5B] text-white px-2 py-1 rounded font-bold text-sm">
+                            {hotel.rating_score || 8.5}
+                          </div>
+                          <div>
+                            <span className="font-bold text-gray-800">{hotel.rating_text || 'Very Good'}</span>
+                            <span className="text-sm text-gray-500 ml-1">{hotel.review_count || 45} ratings</span>
+                          </div>
+                        </div>
+                        
+                        {/* Check-in / Check-out */}
+                        <div className="flex items-center gap-8 mt-4 text-sm">
+                          <div>
+                            <p className="text-gray-500">Check-in</p>
+                            <p className="font-bold text-gray-800">03:00 PM {hotel.checkIn || date}</p>
+                          </div>
+                          <div className="h-8 w-px bg-gray-200" />
+                          <div>
+                            <p className="text-gray-500">Check-out</p>
+                            <p className="font-bold text-gray-800">12:00 PM {hotel.checkOut || date}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Selected Room Info */}
+                    <div className="mt-4 space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Check className="w-5 h-5 text-green-500" />
+                        <span className="text-gray-700">Selected Room: <strong>1 x {hotel.selectedRoom?.name || 'Standard Room'}, {hotel.selectedRoom?.bed_type || 'Twin Beds'}</strong></span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Check className="w-5 h-5 text-green-500" />
+                        <span className="text-gray-700">{hotel.selectedRoom?.meals || 'Bed and Breakfast'}, No Extra Bed</span>
+                      </div>
+                      <p className="text-orange-500 font-medium text-sm ml-7">Fully refundable before check-in</p>
+                    </div>
+                    
+                    {/* Selected Meals */}
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <h5 className="font-bold text-gray-800 mb-2">Selected Meals at Hotel</h5>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Check className="w-5 h-5 text-green-500" />
+                        <span className="text-gray-700">Breakfast</span>
+                      </div>
+                      <p className="text-green-600 font-medium text-sm ml-7">Included</p>
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 mt-6">
+                      <button 
+                        onClick={onChangeHotel}
+                        className="bg-[#8B4513] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#723a0f] transition-all"
+                      >
+                        Change Room
+                      </button>
+                      <button 
+                        onClick={onChangeHotel}
+                        className="bg-[#8B4513] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#723a0f] transition-all"
+                      >
+                        Change Hotel
+                      </button>
                     </div>
                   </div>
-                  <button 
-                    onClick={onChangeHotel}
-                    className="text-[#002B5B] font-medium text-sm hover:underline"
-                  >
-                    Change Hotel
+                  
+                  {/* What to know section */}
+                  <button className="w-full px-6 py-3 text-left text-sm text-gray-600 border-t border-gray-100 hover:bg-gray-50 flex items-center gap-2">
+                    <Info size={16} />
+                    What to know about this hotel
                   </button>
+                  
+                  {/* Info notice */}
+                  <div className="bg-amber-50 px-6 py-4 border-t border-amber-100">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-amber-800">
+                        Room in {hotel.name} is probably a twin bed room, which means 2 single beds will be provided. Are you sure about this room?
+                      </p>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
