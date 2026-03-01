@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plane, Hotel, MapPin, Calendar, Users, ChevronDown, ChevronRight, 
   Plus, X, Check, Star, Clock, Coffee, Wifi, Car, Edit2, Loader2,
-  CreditCard, Save, ArrowRight, Sun, Moon, Utensils, Camera
+  CreditCard, Save, ArrowRight, Sun, Moon, Utensils, Camera, Info, AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
