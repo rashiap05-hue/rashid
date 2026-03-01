@@ -292,6 +292,11 @@ export default function FitPackageForm({ onClose, onCreateSuccess, initialData }
       setErrors(['Please enter a city name for all stops.']);
       return;
     }
+
+    if (!leavingFrom.trim()) {
+      setErrors(['Please select a departure airport.']);
+      return;
+    }
     
     setErrors([]);
     setIsCalculating(true);
@@ -306,6 +311,7 @@ export default function FitPackageForm({ onClose, onCreateSuccess, initialData }
         cities: cities.map(c => ({ name: c.name, nights: c.nights })),
         rawCities: cities,
         leaving_from: leavingFrom,
+        leaving_from_airport: selectedAirport,
         leaving_on: leavingOn.toISOString().split('T')[0],
         nationality,
         room_data: roomData,
