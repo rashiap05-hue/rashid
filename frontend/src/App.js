@@ -147,21 +147,13 @@ function App() {
                 )}
 
                 {currentView === 'customize' && pendingProposalData && (
-                  <CustomizeTrip
+                  <TripBuilder
                     data={pendingProposalData}
                     user={user}
                     onBack={() => setCurrentView('form')}
                     onConfirm={async () => {
-                      try {
-                        await api.post('/proposals', {
-                          ...pendingProposalData,
-                          user_id: user.id
-                        });
-                        setCurrentView('dashboard');
-                        setPendingProposalData(null);
-                      } catch (error) {
-                        console.error('Error saving proposal:', error);
-                      }
+                      setCurrentView('dashboard');
+                      setPendingProposalData(null);
                     }}
                   />
                 )}
