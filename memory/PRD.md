@@ -370,3 +370,30 @@ All 5 seeded transfers now include:
 - Max bags: 2-5
 - Supplier names: Emirates Transfers LLC, Georgia Tours Co., VIP Cars Dubai, Budget Shuttles LLC
 - Supplier costs for margin calculation
+
+## Update: March 2, 2026 - Bug Fix: Edit Modal Input Lag
+
+### Issue
+When editing any item in Admin Dashboard (Cities, Airports, Hotels, Transfers, Proposals), the input fields were losing focus and becoming unresponsive after typing.
+
+### Root Cause
+The `EditModal` was defined as a nested functional component inside `AdminDashboard`. Every time the parent re-rendered (including on each keystroke when `editForm` state changed), React created a NEW `EditModal` function reference, causing the modal to unmount and remount, losing input focus.
+
+### Fix Applied
+1. **Converted `EditModal` component to `renderEditModal` function** - Instead of defining a component, we now use a render function that returns JSX directly
+2. **Added `useCallback` for `handleFieldChange`** - Memoized the field change handler to prevent unnecessary re-renders
+3. **Updated all `onChange` handlers** - Changed from inline `setEditForm({ ...editForm, field: value })` to `handleFieldChange('field', value)`
+
+### Files Modified
+- `/app/frontend/src/components/AdminDashboard.jsx`:
+  - Line 1: Added `useCallback` to imports
+  - Line 226: Added `handleFieldChange` using `useCallback`
+  - Lines 277-738: Changed from `EditModal` component to `renderEditModal` function
+  - Line 742: Changed `<EditModal />` to `{renderEditModal()}`
+  - All input `onChange` handlers updated to use `handleFieldChange`
+
+### Test Results (iteration_6.json)
+- **Status:** FIXED AND VERIFIED
+- **Frontend:** 100% pass rate
+- All edit modals (Cities, Airports, Hotels, Transfers) accept text input without lag or focus loss
+- Add new item functionality works correctly
