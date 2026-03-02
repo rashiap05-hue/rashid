@@ -116,6 +116,12 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
     h.city?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const filteredTransfers = transfers.filter(t =>
+    t.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.from_location?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const deleteProposal = async (id) => {
     if (!window.confirm('Are you sure you want to delete this proposal?')) return;
     try {
