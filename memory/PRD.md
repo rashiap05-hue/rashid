@@ -397,3 +397,60 @@ The `EditModal` was defined as a nested functional component inside `AdminDashbo
 - **Frontend:** 100% pass rate
 - All edit modals (Cities, Airports, Hotels, Transfers) accept text input without lag or focus loss
 - Add new item functionality works correctly
+
+## Update: March 2, 2026 - Supplier Dashboard Feature
+
+### Feature Overview
+Created a dedicated Supplier Dashboard at `/supplier-dashboard` for transfer suppliers to manage their business.
+
+### Features Implemented
+
+#### 1. Dashboard Access
+- Separate route at `/supplier-dashboard`
+- Link added in footer "Quick Links"
+- Auto-selects supplier based on user's company name
+- Supplier dropdown for switching between suppliers (demo mode)
+
+#### 2. Overview Tab
+- Stats cards: Total Transfers, Total Bookings, Total Earnings, Completed
+- Recent Activity section showing latest bookings
+- "Generate Sample Bookings" button for testing
+
+#### 3. Transfers Tab
+- Grid display of supplier's transfers
+- Transfer cards show: type badge, vehicle type, from/to locations, duration, bags, cost, sale price, availability
+- Edit functionality (limited fields): Duration, Confirmation Time, Pick-up Times, Description, Available
+
+#### 4. Bookings Tab
+- List of bookings for supplier's transfers
+- Search by customer name, email, or transfer
+- Filter by status: All, Pending, Confirmed, Completed, Cancelled
+- Action buttons:
+  - Pending: Accept / Reject
+  - Confirmed: Mark Complete
+- Booking details: customer info, date, time, passengers, notes, earnings
+
+#### 5. Earnings Tab
+- Summary cards: Total Earnings, Pending Earnings, Completed Bookings
+- Earnings breakdown by transfer
+
+### Backend API Endpoints (Lines 1060-1220)
+- `GET /api/supplier/dashboard` - Dashboard stats and data
+- `GET /api/supplier/transfers` - Supplier's transfers
+- `PUT /api/supplier/transfers/{id}` - Update transfer (limited fields)
+- `GET /api/supplier/bookings` - Supplier's bookings with optional status filter
+- `POST /api/supplier/bookings/{id}/status` - Update booking status
+- `GET /api/supplier/earnings` - Earnings summary and breakdown
+- `POST /api/supplier/bookings/create-sample` - Generate test bookings
+
+### Files Created/Modified
+- `/app/frontend/src/components/SupplierDashboard.jsx` - New component
+- `/app/frontend/src/App.js` - Added route for /supplier-dashboard
+- `/app/frontend/src/components/Dashboard.jsx` - Added footer link
+- `/app/backend/server.py` - Added supplier_router with all endpoints
+
+### Test Results (iteration_7.json)
+- **Backend:** 100% (15/15 tests passed)
+- **Frontend:** 100% (all features working)
+- All booking status workflows verified
+- Supplier authorization properly validates transfer ownership
