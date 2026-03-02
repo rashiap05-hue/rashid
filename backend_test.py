@@ -11,7 +11,7 @@ from datetime import datetime, date
 from typing import Dict, Any, Optional
 
 # Public endpoint from frontend .env
-BACKEND_URL = "https://dmc-platform.preview.emergentagent.com"
+BACKEND_URL = "https://travo-dmc-preview.preview.emergentagent.com"
 API_BASE = f"{BACKEND_URL}/api"
 
 class TravoAPITester:
