@@ -358,7 +358,7 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
 }
 
 // Day Card Component
-function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, onAddActivity, onChangeHotel, hotel }) {
+function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, onAddActivity, onChangeHotel, hotel, onSelectArrivalTransfer, onSelectDepartureTransfer, selectedArrivalTransfer, selectedDepartureTransfer }) {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -401,10 +401,22 @@ function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, on
                   </div>
                   <div className="flex-1">
                     <p className="font-bold text-gray-800">Arrival at {city}</p>
-                    <p className="text-sm text-gray-500">Transfer from airport to hotel</p>
+                    {selectedArrivalTransfer ? (
+                      <div className="mt-1">
+                        <p className="text-sm text-green-600 font-medium">{selectedArrivalTransfer.title}</p>
+                        <p className="text-xs text-gray-500">{selectedArrivalTransfer.vehicle_type} • {selectedArrivalTransfer.duration} • {selectedArrivalTransfer.price} AED</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">Transfer from airport to hotel</p>
+                    )}
                   </div>
-                  <button className="text-[#002B5B] font-medium text-sm hover:underline">
-                    Update Details
+                  <button 
+                    onClick={() => onSelectArrivalTransfer && onSelectArrivalTransfer(city)}
+                    className="bg-[#002B5B] text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#003d82] transition-all flex items-center gap-2"
+                    data-testid="select-arrival-transfer"
+                  >
+                    <Car size={16} />
+                    {selectedArrivalTransfer ? 'Change' : 'Select Transfer'}
                   </button>
                 </div>
               )}
@@ -417,10 +429,22 @@ function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, on
                   </div>
                   <div className="flex-1">
                     <p className="font-bold text-gray-800">Return Flight - Departure from {city}</p>
-                    <p className="text-sm text-gray-500">Check-out from hotel & transfer to airport</p>
+                    {selectedDepartureTransfer ? (
+                      <div className="mt-1">
+                        <p className="text-sm text-green-600 font-medium">{selectedDepartureTransfer.title}</p>
+                        <p className="text-xs text-gray-500">{selectedDepartureTransfer.vehicle_type} • {selectedDepartureTransfer.duration} • {selectedDepartureTransfer.price} AED</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">Check-out from hotel & transfer to airport</p>
+                    )}
                   </div>
-                  <button className="text-[#002B5B] font-medium text-sm hover:underline">
-                    Update Details
+                  <button 
+                    onClick={() => onSelectDepartureTransfer && onSelectDepartureTransfer(city)}
+                    className="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-orange-600 transition-all flex items-center gap-2"
+                    data-testid="select-departure-transfer"
+                  >
+                    <Car size={16} />
+                    {selectedDepartureTransfer ? 'Change' : 'Select Transfer'}
                   </button>
                 </div>
               )}
@@ -525,6 +549,80 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [noStayCities, setNoStayCities] = useState({});
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Transfer state
+  const [availableTransfers, setAvailableTransfers] = useState([]);
+  const [selectedArrivalTransfer, setSelectedArrivalTransfer] = useState(null);
+  const [selectedDepartureTransfer, setSelectedDepartureTransfer] = useState(null);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferModalType, setTransferModalType] = useState('arrival'); // 'arrival' or 'departure'
+  const [transferCity, setTransferCity] = useState(null);
+
+  // Fetch transfers for the destination country
+  useEffect(() => {
+    const fetchTransfers = async () => {
+      try {
+        // Get the first city to determine the country
+        const destinationCity = data?.cities?.[0]?.name;
+        if (!destinationCity) return;
+        
+        // Fetch city details to get the country
+        const cityRes = await api.get(`/cities?search=${encodeURIComponent(destinationCity)}`);
+        const cityData = cityRes.data?.cities?.[0];
+        const country = cityData?.country;
+        
+        if (country) {
+          // Fetch transfers for this city
+          const transferRes = await api.get(`/transfers?city=${encodeURIComponent(destinationCity)}`);
+          let transfers = transferRes.data?.transfers || [];
+          
+          // If no transfers for specific city, try fetching by country match
+          if (transfers.length === 0) {
+            const allTransfersRes = await api.get('/transfers');
+            const allTransfers = allTransfersRes.data?.transfers || [];
+            // Filter transfers that are in cities of the same country
+            // For now, we'll use city-based matching since transfers have city field
+            transfers = allTransfers.filter(t => {
+              const transferCity = t.city?.toLowerCase() || '';
+              const destCity = destinationCity.toLowerCase();
+              // Match by city name or country-related keywords
+              return transferCity.includes(destCity) || 
+                     destCity.includes(transferCity) ||
+                     transferCity.includes(country.toLowerCase().split(' ')[0]);
+            });
+            
+            // If still no matches, show all transfers from the same general region
+            if (transfers.length === 0) {
+              transfers = allTransfers;
+            }
+          }
+          
+          setAvailableTransfers(transfers);
+        }
+      } catch (error) {
+        console.error('Error fetching transfers:', error);
+      }
+    };
+    
+    fetchTransfers();
+  }, [data?.cities]);
+
+  // Open transfer selection modal
+  const openTransferModal = (type, city) => {
+    setTransferModalType(type);
+    setTransferCity(city);
+    setShowTransferModal(true);
+  };
+
+  // Select a transfer
+  const handleSelectTransfer = (transfer) => {
+    if (transferModalType === 'arrival') {
+      setSelectedArrivalTransfer(transfer);
+    } else {
+      setSelectedDepartureTransfer(transfer);
+    }
+    setShowTransferModal(false);
+  };
 
   // Handle hotel option selection
   const handleChangeHotel = (cityName) => {
@@ -628,20 +726,28 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     });
 
     const flightPrice = selectedFlight ? parseFloat(selectedFlight.price?.replace(',', '') || 0) : 0;
+    const arrivalTransferPrice = selectedArrivalTransfer?.price || 0;
+    const departureTransferPrice = selectedDepartureTransfer?.price || 0;
+    const transferTotal = arrivalTransferPrice + departureTransferPrice;
+    
     const adultsCount = data?.room_data?.reduce((acc, r) => acc + r.adults, 0) || 2;
     const childrenCount = data?.room_data?.reduce((acc, r) => acc + r.children?.length, 0) || 0;
     
-    const pricePerAdult = Math.round((hotelTotal + flightPrice) / adultsCount);
+    const subtotal = hotelTotal + flightPrice + transferTotal;
+    const pricePerAdult = Math.round(subtotal / adultsCount);
     const pricePerChild = Math.round(pricePerAdult * 0.7); // 30% discount for children
 
     return {
       hotelTotal,
       flightPrice,
+      transferTotal,
+      arrivalTransferPrice,
+      departureTransferPrice,
       pricePerAdult,
       pricePerChild,
       adultsCount,
       childrenCount,
-      total: hotelTotal + flightPrice
+      total: subtotal
     };
   };
 
@@ -746,6 +852,185 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         onNoStay={handleNoStay}
         onSearch={handleSearchHotel}
       />
+
+      {/* Transfer Selection Modal */}
+      <AnimatePresence>
+        {showTransferModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowTransferModal(false)}
+            />
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white w-full max-w-4xl max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            >
+              {/* Header */}
+              <div className={cn(
+                "px-6 py-4 flex items-center justify-between",
+                transferModalType === 'arrival' 
+                  ? "bg-gradient-to-r from-[#002B5B] to-[#004080]" 
+                  : "bg-gradient-to-r from-orange-500 to-orange-600"
+              )}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                    <Car className="text-white" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">
+                      {transferModalType === 'arrival' ? 'Select Arrival Transfer' : 'Select Departure Transfer'}
+                    </h3>
+                    <p className="text-white/80 text-sm">
+                      {transferModalType === 'arrival' 
+                        ? `Airport to hotel transfer in ${transferCity}`
+                        : `Hotel to airport transfer from ${transferCity}`
+                      }
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowTransferModal(false)}
+                  className="w-10 h-10 bg-white/20 hover:bg-white/30 text-white rounded-full flex items-center justify-center transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Transfer List */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {availableTransfers.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Car size={48} className="mx-auto text-gray-300 mb-4" />
+                    <p className="text-gray-500 font-medium">No transfers available for this destination</p>
+                    <p className="text-gray-400 text-sm mt-2">Please contact support to arrange transfer</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {availableTransfers.map((transfer) => (
+                      <motion.div
+                        key={transfer.id}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleSelectTransfer(transfer)}
+                        className={cn(
+                          "p-5 rounded-xl border-2 cursor-pointer transition-all",
+                          (transferModalType === 'arrival' && selectedArrivalTransfer?.id === transfer.id) ||
+                          (transferModalType === 'departure' && selectedDepartureTransfer?.id === transfer.id)
+                            ? "border-green-500 bg-green-50"
+                            : "border-gray-200 hover:border-[#002B5B] hover:shadow-md bg-white"
+                        )}
+                        data-testid={`transfer-option-${transfer.id}`}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              "text-[10px] font-bold uppercase px-2 py-0.5 rounded",
+                              transfer.transfer_type === 'Luxury' ? 'bg-amber-100 text-amber-700' :
+                              transfer.transfer_type === 'Shared' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'
+                            )}>
+                              {transfer.transfer_type}
+                            </span>
+                            {transfer.vehicle_type && (
+                              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+                                {transfer.vehicle_type}
+                              </span>
+                            )}
+                          </div>
+                          {((transferModalType === 'arrival' && selectedArrivalTransfer?.id === transfer.id) ||
+                            (transferModalType === 'departure' && selectedDepartureTransfer?.id === transfer.id)) && (
+                            <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                              <Check className="text-white" size={14} />
+                            </div>
+                          )}
+                        </div>
+                        
+                        <h4 className="font-bold text-gray-800 text-sm mb-2 line-clamp-2">{transfer.title}</h4>
+                        
+                        <div className="space-y-1.5 text-xs text-gray-500 mb-3">
+                          <div className="flex items-center gap-2">
+                            <MapPin size={12} className="text-green-500 flex-shrink-0" />
+                            <span className="truncate">{transfer.from_location}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin size={12} className="text-red-500 flex-shrink-0" />
+                            <span className="truncate">{transfer.to_location}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                          <div className="flex items-center gap-3 text-xs text-gray-400">
+                            <div className="flex items-center gap-1">
+                              <Clock size={12} />
+                              <span>{transfer.duration}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Users size={12} />
+                              <span>{transfer.max_bags || 2} bags</span>
+                            </div>
+                          </div>
+                          <div className="text-lg font-bold text-[#002B5B]">
+                            {transfer.price} <span className="text-xs font-normal text-gray-500">AED</span>
+                          </div>
+                        </div>
+                        
+                        {transfer.pickup_times && transfer.pickup_times.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <p className="text-xs text-gray-400 mb-1">Pick-up times:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {transfer.pickup_times.slice(0, 4).map((time, idx) => (
+                                <span key={idx} className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">
+                                  {time}
+                                </span>
+                              ))}
+                              {transfer.pickup_times.length > 4 && (
+                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                                  +{transfer.pickup_times.length - 4} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+                <div className="text-sm text-gray-500">
+                  {availableTransfers.length} transfer option{availableTransfers.length !== 1 ? 's' : ''} available
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setShowTransferModal(false)}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => setShowTransferModal(false)}
+                    className={cn(
+                      "px-6 py-2 rounded-xl font-bold text-white transition-colors",
+                      transferModalType === 'arrival'
+                        ? "bg-[#002B5B] hover:bg-[#003d82]"
+                        : "bg-orange-500 hover:bg-orange-600"
+                    )}
+                  >
+                    Confirm Selection
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Progress Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
@@ -1024,6 +1309,10 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                   setActiveHotelCity(day.city);
                   setShowHotelModal(true);
                 }}
+                onSelectArrivalTransfer={(city) => openTransferModal('arrival', city)}
+                onSelectDepartureTransfer={(city) => openTransferModal('departure', city)}
+                selectedArrivalTransfer={selectedArrivalTransfer}
+                selectedDepartureTransfer={selectedDepartureTransfer}
               />
             ))}
           </div>
@@ -1085,16 +1374,36 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                 <div className="border-t pt-4">
                   <h4 className="font-bold text-gray-800 mb-3">Price Breakdown</h4>
                   <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Price per adult ({pricing.adultsCount})</span>
-                      <span className="font-medium">AED {pricing.pricePerAdult.toLocaleString()}</span>
-                    </div>
-                    {pricing.childrenCount > 0 && (
+                    {pricing.hotelTotal > 0 && (
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Price per child ({pricing.childrenCount})</span>
-                        <span className="font-medium">AED {pricing.pricePerChild.toLocaleString()}</span>
+                        <span className="text-gray-600">Hotels</span>
+                        <span className="font-medium">AED {pricing.hotelTotal.toLocaleString()}</span>
                       </div>
                     )}
+                    {pricing.flightPrice > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Flights</span>
+                        <span className="font-medium">AED {pricing.flightPrice.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {pricing.transferTotal > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Transfers</span>
+                        <span className="font-medium">AED {pricing.transferTotal.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="pt-2 border-t border-dashed">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Price per adult ({pricing.adultsCount})</span>
+                        <span className="font-medium">AED {pricing.pricePerAdult.toLocaleString()}</span>
+                      </div>
+                      {pricing.childrenCount > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Price per child ({pricing.childrenCount})</span>
+                          <span className="font-medium">AED {pricing.pricePerChild.toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
                     <div className="flex justify-between text-green-600">
                       <span>Discount</span>
                       <span>- AED 0</span>
