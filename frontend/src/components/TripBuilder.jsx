@@ -699,6 +699,17 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         checkOut={formatDate(new Date(startDate.getTime() + totalNights * 24 * 60 * 60 * 1000))}
         nights={cities.find(c => c.name === activeHotelCity)?.nights || 1}
         onSelect={handleHotelSelect}
+        searchQuery={hotelSearchQuery}
+      />
+
+      {/* Hotel Options Modal (Change Hotel choices) */}
+      <HotelOptionsModal
+        isOpen={showHotelOptions}
+        onClose={() => setShowHotelOptions(false)}
+        city={activeHotelCity}
+        onViewAll={handleViewAllHotels}
+        onNoStay={handleNoStay}
+        onSearch={handleSearchHotel}
       />
 
       {/* Progress Header */}
