@@ -46,15 +46,17 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [proposalsRes, citiesRes, hotelsRes] = await Promise.all([
+      const [proposalsRes, citiesRes, hotelsRes, transfersRes] = await Promise.all([
         api.get('/proposals'),
         api.get('/cities'),
-        api.get('/hotels')
+        api.get('/hotels'),
+        api.get('/transfers')
       ]);
       // Handle proposals response (returns array directly)
       setProposals(Array.isArray(proposalsRes.data) ? proposalsRes.data : []);
       setCities(citiesRes.data?.cities || []);
       setHotels(hotelsRes.data?.hotels || []);
+      setTransfers(transfersRes.data?.transfers || []);
       
       // Fetch airports separately with pagination
       await fetchAirports();
