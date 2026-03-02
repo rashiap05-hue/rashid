@@ -483,10 +483,41 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [selectedFlight, setSelectedFlight] = useState(null);
   const [showFlightSearch, setShowFlightSearch] = useState(false);
   const [showHotelModal, setShowHotelModal] = useState(false);
+  const [showHotelOptions, setShowHotelOptions] = useState(false);
   const [selectedHotels, setSelectedHotels] = useState({});
   const [activeHotelCity, setActiveHotelCity] = useState(null);
+  const [hotelSearchQuery, setHotelSearchQuery] = useState('');
+  const [noStayCities, setNoStayCities] = useState({});
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Handle hotel option selection
+  const handleChangeHotel = (cityName) => {
+    setActiveHotelCity(cityName);
+    setShowHotelOptions(true);
+  };
+
+  const handleViewAllHotels = () => {
+    setShowHotelOptions(false);
+    setHotelSearchQuery('');
+    setShowHotelModal(true);
+  };
+
+  const handleNoStay = () => {
+    setNoStayCities(prev => ({ ...prev, [activeHotelCity]: true }));
+    setSelectedHotels(prev => {
+      const newHotels = { ...prev };
+      delete newHotels[activeHotelCity];
+      return newHotels;
+    });
+    setShowHotelOptions(false);
+  };
+
+  const handleSearchHotel = (query) => {
+    setHotelSearchQuery(query);
+    setShowHotelOptions(false);
+    setShowHotelModal(true);
+  };
 
   // Calculate trip details
   const cities = data?.cities || [];
