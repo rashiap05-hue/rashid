@@ -192,6 +192,14 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
           const res = await api.post('/hotels', editForm);
           setHotels([...hotels, { id: res.data.id, ...editForm }]);
         }
+      } else if (type === 'transfer') {
+        if (data) {
+          await api.put(`/transfers/${data.id}`, editForm);
+          setTransfers(transfers.map(t => t.id === data.id ? { ...t, ...editForm } : t));
+        } else {
+          const res = await api.post('/transfers', editForm);
+          setTransfers([...transfers, { id: res.data.id, ...editForm }]);
+        }
       }
       
       closeEditModal();
