@@ -291,7 +291,7 @@ function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, on
               )}
 
               {/* Hotel Stay Reference (only for non-departure days) */}
-              {!isDeparture && (
+              {!isDeparture && hotel && (
                 <div className="flex items-center gap-4 p-4 bg-green-50 rounded-xl border border-green-100">
                   <img 
                     src={hotel.images?.[0] || 'https://via.placeholder.com/80'} 
@@ -304,7 +304,9 @@ function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, on
                   </div>
                   <Check className="text-green-500" size={20} />
                 </div>
-              ) : (
+              )}
+              
+              {!isDeparture && !hotel && (
                 <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
                   <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
                     <Hotel className="text-gray-400" size={20} />
@@ -322,21 +324,23 @@ function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, on
                 </div>
               )}
 
-              {/* Meals */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                  <Sun className="text-yellow-500" size={16} />
-                  <span className="text-sm text-gray-600">Breakfast: {hotel ? 'Included' : 'Not included'}</span>
+              {/* Meals (only for non-departure days) */}
+              {!isDeparture && (
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                    <Sun className="text-yellow-500" size={16} />
+                    <span className="text-sm text-gray-600">Breakfast: {hotel ? 'Included' : 'Not included'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                    <Utensils className="text-orange-500" size={16} />
+                    <span className="text-sm text-gray-600">Lunch: Not included</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                    <Moon className="text-purple-500" size={16} />
+                    <span className="text-sm text-gray-600">Dinner: Not included</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                  <Utensils className="text-orange-500" size={16} />
-                  <span className="text-sm text-gray-600">Lunch: Not included</span>
-                </div>
-                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                  <Moon className="text-purple-500" size={16} />
-                  <span className="text-sm text-gray-600">Dinner: Not included</span>
-                </div>
-              </div>
+              )}
 
               {/* Activities */}
               {activities?.length > 0 && (
