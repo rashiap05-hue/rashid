@@ -585,10 +585,10 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           <div className="mt-2 flex items-center gap-4 text-sm text-gray-600">
             <span className="flex items-center gap-1">
               <Calendar size={14} />
-              {formatDate(startDate)}
+              {formatShortDate(startDate)} - {formatShortDate(returnDate)}
             </span>
             <span>•</span>
-            <span>{totalNights} nights</span>
+            <span>{totalNights} night{totalNights > 1 ? 's' : ''} / {totalDays} days</span>
             <span>•</span>
             <span className="flex items-center gap-1">
               <Users size={14} />
