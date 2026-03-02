@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Database, Users, FileText, Settings, Search, RefreshCw,
@@ -169,6 +169,11 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
     setEditForm({});
   };
 
+  // Generic field change handler - prevents input lag
+  const handleFieldChange = useCallback((field, value) => {
+    setEditForm(prev => ({ ...prev, [field]: value }));
+  }, []);
+
   // Save edited item
   const saveEdit = async () => {
     setSaving(true);
@@ -269,19 +274,23 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
     }
   };
 
-  // Edit Modal Component
-  const EditModal = () => {
+  // Determine modal type and if it's a new item
+  const modalType = editModal.type;
+  const isNewItem = !editModal.data;
+
+  // Render edit modal content inline
+  const renderEditModal = () => {
     if (!editModal.open) return null;
     
-    const { type, data } = editModal;
-    const isNew = !data;
+    const type = editModal.type;
+    const isNew = !editModal.data;
     
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={closeEditModal}>
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl"
+          className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex justify-between items-center mb-6">
@@ -301,7 +310,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   <input
                     type="text"
                     value={editForm.leaving_from || ''}
-                    onChange={(e) => setEditForm({ ...editForm, leaving_from: e.target.value })}
+                    onChange={(e) => handleFieldChange('leaving_from', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                     data-testid="edit-proposal-leaving-from"
                   />
@@ -311,7 +320,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   <input
                     type="text"
                     value={editForm.nationality || ''}
-                    onChange={(e) => setEditForm({ ...editForm, nationality: e.target.value })}
+                    onChange={(e) => handleFieldChange('nationality', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                     data-testid="edit-proposal-nationality"
                   />
@@ -321,7 +330,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   <input
                     type="date"
                     value={editForm.leaving_on || ''}
-                    onChange={(e) => setEditForm({ ...editForm, leaving_on: e.target.value })}
+                    onChange={(e) => handleFieldChange('leaving_on', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                     data-testid="edit-proposal-leaving-on"
                   />
@@ -331,7 +340,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     <label className="block text-sm font-bold text-gray-600 mb-1">Star Rating</label>
                     <select
                       value={editForm.star_rating || 3}
-                      onChange={(e) => setEditForm({ ...editForm, star_rating: parseInt(e.target.value) })}
+                      onChange={(e) => handleFieldChange('star_rating', parseInt(e.target.value))}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                       data-testid="edit-proposal-star-rating"
                     >
@@ -342,7 +351,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     <label className="block text-sm font-bold text-gray-600 mb-1">Status</label>
                     <select
                       value={editForm.status || 'pending'}
-                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                      onChange={(e) => handleFieldChange('status', e.target.value)}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                       data-testid="edit-proposal-status"
                     >
@@ -362,7 +371,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   <input
                     type="text"
                     value={editForm.code || ''}
-                    onChange={(e) => setEditForm({ ...editForm, code: e.target.value.toUpperCase() })}
+                    onChange={(e) => handleFieldChange('code', e.target.value.toUpperCase())}
                     maxLength={3}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent uppercase"
                     data-testid="edit-airport-code"
@@ -373,7 +382,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   <input
                     type="text"
                     value={editForm.name || ''}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    onChange={(e) => handleFieldChange('name', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                     data-testid="edit-airport-name"
                   />
@@ -383,7 +392,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   <input
                     type="text"
                     value={editForm.city || ''}
-                    onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                    onChange={(e) => handleFieldChange('city', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                     data-testid="edit-airport-city"
                   />
@@ -393,7 +402,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   <input
                     type="text"
                     value={editForm.country || ''}
-                    onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
+                    onChange={(e) => handleFieldChange('country', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                     data-testid="edit-airport-country"
                   />
@@ -408,7 +417,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   <input
                     type="text"
                     value={editForm.name || ''}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    onChange={(e) => handleFieldChange('name', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                     data-testid="edit-city-name"
                   />
@@ -418,7 +427,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   <input
                     type="text"
                     value={editForm.country || ''}
-                    onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
+                    onChange={(e) => handleFieldChange('country', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                     data-testid="edit-city-country"
                   />
@@ -433,7 +442,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   <input
                     type="text"
                     value={editForm.name || ''}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    onChange={(e) => handleFieldChange('name', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                     data-testid="edit-hotel-name"
                   />
@@ -444,7 +453,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     <input
                       type="text"
                       value={editForm.city || ''}
-                      onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                      onChange={(e) => handleFieldChange('city', e.target.value)}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                       data-testid="edit-hotel-city"
                     />
@@ -454,7 +463,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     <input
                       type="text"
                       value={editForm.country || ''}
-                      onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
+                      onChange={(e) => handleFieldChange('country', e.target.value)}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                       data-testid="edit-hotel-country"
                     />
@@ -465,7 +474,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     <label className="block text-sm font-bold text-gray-600 mb-1">Star Rating</label>
                     <select
                       value={editForm.star_rating || 4}
-                      onChange={(e) => setEditForm({ ...editForm, star_rating: parseInt(e.target.value) })}
+                      onChange={(e) => handleFieldChange('star_rating', parseInt(e.target.value))}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                       data-testid="edit-hotel-star-rating"
                     >
@@ -480,7 +489,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                       max="10"
                       step="0.1"
                       value={editForm.rating_score || 8.0}
-                      onChange={(e) => setEditForm({ ...editForm, rating_score: parseFloat(e.target.value) })}
+                      onChange={(e) => handleFieldChange('rating_score', parseFloat(e.target.value))}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                       data-testid="edit-hotel-rating-score"
                     />
@@ -490,7 +499,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   <label className="block text-sm font-bold text-gray-600 mb-1">Description</label>
                   <textarea
                     value={editForm.description || ''}
-                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    onChange={(e) => handleFieldChange('description', e.target.value)}
                     rows={3}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent resize-none"
                     data-testid="edit-hotel-description"
@@ -506,7 +515,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   <input
                     type="text"
                     value={editForm.title || ''}
-                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                    onChange={(e) => handleFieldChange('title', e.target.value)}
                     placeholder="e.g., Private from Dubai International Airport"
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                     data-testid="edit-transfer-title"
@@ -518,7 +527,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     <input
                       type="text"
                       value={editForm.from_location || ''}
-                      onChange={(e) => setEditForm({ ...editForm, from_location: e.target.value })}
+                      onChange={(e) => handleFieldChange('from_location', e.target.value)}
                       placeholder="Airport or hotel name"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                       data-testid="edit-transfer-from"
@@ -529,7 +538,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     <input
                       type="text"
                       value={editForm.to_location || ''}
-                      onChange={(e) => setEditForm({ ...editForm, to_location: e.target.value })}
+                      onChange={(e) => handleFieldChange('to_location', e.target.value)}
                       placeholder="Hotel or destination"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                       data-testid="edit-transfer-to"
@@ -542,7 +551,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     <input
                       type="text"
                       value={editForm.city || ''}
-                      onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                      onChange={(e) => handleFieldChange('city', e.target.value)}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                       data-testid="edit-transfer-city"
                     />
@@ -551,7 +560,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     <label className="block text-sm font-bold text-gray-600 mb-1">Vehicle Type</label>
                     <select
                       value={editForm.vehicle_type || 'Sedan'}
-                      onChange={(e) => setEditForm({ ...editForm, vehicle_type: e.target.value })}
+                      onChange={(e) => handleFieldChange('vehicle_type', e.target.value)}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                       data-testid="edit-transfer-vehicle-type"
                     >
@@ -569,7 +578,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     <label className="block text-sm font-bold text-gray-600 mb-1">Transfer Type</label>
                     <select
                       value={editForm.transfer_type || 'Private'}
-                      onChange={(e) => setEditForm({ ...editForm, transfer_type: e.target.value })}
+                      onChange={(e) => handleFieldChange('transfer_type', e.target.value)}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                       data-testid="edit-transfer-type"
                     >
@@ -583,7 +592,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     <input
                       type="text"
                       value={editForm.duration || ''}
-                      onChange={(e) => setEditForm({ ...editForm, duration: e.target.value })}
+                      onChange={(e) => handleFieldChange('duration', e.target.value)}
                       placeholder="e.g., 1 hrs"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                       data-testid="edit-transfer-duration"
@@ -596,7 +605,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                       min="0"
                       max="20"
                       value={editForm.max_bags || 2}
-                      onChange={(e) => setEditForm({ ...editForm, max_bags: parseInt(e.target.value) })}
+                      onChange={(e) => handleFieldChange('max_bags', parseInt(e.target.value))}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                       data-testid="edit-transfer-max-bags"
                     />
@@ -609,7 +618,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                       type="number"
                       min="0"
                       value={editForm.price || 0}
-                      onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) })}
+                      onChange={(e) => handleFieldChange('price', parseFloat(e.target.value))}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                       data-testid="edit-transfer-price"
                     />
@@ -619,7 +628,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     <input
                       type="text"
                       value={editForm.confirmation_time || ''}
-                      onChange={(e) => setEditForm({ ...editForm, confirmation_time: e.target.value })}
+                      onChange={(e) => handleFieldChange('confirmation_time', e.target.value)}
                       placeholder="e.g., 4 hrs"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                       data-testid="edit-transfer-confirmation"
@@ -631,7 +640,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   <input
                     type="text"
                     value={Array.isArray(editForm.pickup_times) ? editForm.pickup_times.join(', ') : (editForm.pickup_times || '')}
-                    onChange={(e) => setEditForm({ ...editForm, pickup_times: e.target.value.split(',').map(t => t.trim()).filter(t => t) })}
+                    onChange={(e) => handleFieldChange('pickup_times', e.target.value.split(',').map(t => t.trim()).filter(t => t))}
                     placeholder="e.g., 06:00, 09:00, 12:00, 15:00, 18:00, 21:00"
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                     data-testid="edit-transfer-pickup-times"
@@ -641,7 +650,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   <label className="block text-sm font-bold text-gray-600 mb-1">Description</label>
                   <textarea
                     value={editForm.description || ''}
-                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    onChange={(e) => handleFieldChange('description', e.target.value)}
                     rows={2}
                     placeholder="Transfer details and what's included..."
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent resize-none"
@@ -661,7 +670,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                       <input
                         type="text"
                         value={editForm.supplier_name || ''}
-                        onChange={(e) => setEditForm({ ...editForm, supplier_name: e.target.value })}
+                        onChange={(e) => handleFieldChange('supplier_name', e.target.value)}
                         placeholder="Enter supplier name"
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                         data-testid="edit-transfer-supplier-name"
@@ -673,7 +682,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                         type="number"
                         min="0"
                         value={editForm.supplier_cost || 0}
-                        onChange={(e) => setEditForm({ ...editForm, supplier_cost: parseFloat(e.target.value) })}
+                        onChange={(e) => handleFieldChange('supplier_cost', parseFloat(e.target.value))}
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                         data-testid="edit-transfer-supplier-cost"
                       />
@@ -690,7 +699,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   <input
                     type="checkbox"
                     checked={editForm.is_available !== false}
-                    onChange={(e) => setEditForm({ ...editForm, is_available: e.target.checked })}
+                    onChange={(e) => handleFieldChange('is_available', e.target.checked)}
                     className="w-5 h-5 rounded border-gray-300 text-[#002B5B] focus:ring-[#002B5B]"
                     data-testid="edit-transfer-available"
                   />
@@ -718,7 +727,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
               ) : (
                 <>
                   <Save size={18} />
-                  {isNew ? 'Create' : 'Save Changes'}
+                  {isNewItem ? 'Create' : 'Save Changes'}
                 </>
               )}
             </button>
@@ -730,7 +739,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] font-sans text-[#1A1A1A]" data-testid="admin-dashboard">
-      <EditModal />
+      {renderEditModal()}
       <div className="max-w-7xl mx-auto px-8 py-8">
         {/* Header with User Management Button */}
         <div className="flex justify-between items-center mb-8">
