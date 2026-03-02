@@ -143,6 +143,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
       if (type === 'airport') setEditForm({ code: '', name: '', city: '', country: '' });
       if (type === 'city') setEditForm({ name: '', country: '' });
       if (type === 'hotel') setEditForm({ name: '', city: '', country: '', star_rating: 4, rating_score: 8.0, description: '' });
+      if (type === 'transfer') setEditForm({ title: '', from_location: '', to_location: '', price: 0, description: '', duration: '1 hrs', confirmation_time: '4 hrs', transfer_type: 'Private', city: '', is_available: true });
     }
   };
 
