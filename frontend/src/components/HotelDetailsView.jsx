@@ -330,9 +330,24 @@ function RoomCategory({ category, rooms, onSelectRoom, nights }) {
 
 // Search Bar Component
 function SearchBar({ checkIn, checkOut, rooms, nationality, onSearch }) {
+  // Convert date string to yyyy-MM-dd format for date input
+  const formatDateForInput = (dateStr) => {
+    if (!dateStr) return '';
+    // If already in yyyy-MM-dd format, return as is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    // Try to parse and format
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return '';
+      return date.toISOString().split('T')[0];
+    } catch {
+      return '';
+    }
+  };
+
   const [searchParams, setSearchParams] = useState({
-    checkIn: checkIn || '',
-    checkOut: checkOut || '',
+    checkIn: formatDateForInput(checkIn),
+    checkOut: formatDateForInput(checkOut),
     rooms: rooms || '1 room, 2 adults',
     nationality: nationality || 'United Arab Emirates'
   });
