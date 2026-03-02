@@ -379,19 +379,30 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   // Calculate trip details
   const cities = data?.cities || [];
   const totalNights = cities.reduce((acc, c) => acc + (c.nights || 1), 0);
+  const totalDays = totalNights + 1; // Days = Nights + 1 (departure day)
   
   // Format date
   let startDate = new Date(data?.leaving_on || new Date());
+  
+  // Calculate return date (departure date + total nights)
+  const returnDate = new Date(startDate);
+  returnDate.setDate(returnDate.getDate() + totalNights);
+  
   const formatDate = (date) => {
     return date.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
   };
+  
+  const formatShortDate = (date) => {
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  };
 
-  // Generate itinerary days
+  // Generate itinerary days - including departure day
   const generateItinerary = () => {
     const days = [];
     let currentDate = new Date(startDate);
     let dayNumber = 1;
     
+    // Generate days for each city's nights
     cities.forEach((city, cityIndex) => {
       for (let night = 0; night < (city.nights || 1); night++) {
         days.push({
@@ -401,6 +412,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           cityIndex,
           isFirst: dayNumber === 1,
           isLast: false,
+          isDeparture: false,
           hotel: selectedHotels[city.name]
         });
         currentDate.setDate(currentDate.getDate() + 1);
@@ -408,9 +420,19 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       }
     });
 
-    // Add departure day
+    // Add departure day (the day after the last night)
     if (days.length > 0) {
-      days[days.length - 1].isLast = true;
+      const lastCity = cities[cities.length - 1];
+      days.push({
+        day: dayNumber,
+        date: formatDate(currentDate),
+        city: lastCity?.name || 'Destination',
+        cityIndex: cities.length - 1,
+        isFirst: false,
+        isLast: true,
+        isDeparture: true,
+        hotel: null
+      });
     }
 
     return days;
