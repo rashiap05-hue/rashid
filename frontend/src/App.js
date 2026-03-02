@@ -11,6 +11,7 @@ import FitPackageForm from '@/components/FitPackageForm';
 import TripBuilder from '@/components/TripBuilder';
 import AdminDashboard from '@/components/AdminDashboard';
 import AdminUserDashboard from '@/components/AdminUserDashboard';
+import SupplierDashboard from '@/components/SupplierDashboard';
 import AIChatbot from '@/components/AIChatbot';
 import PaymentSuccess from '@/components/PaymentSuccess';
 import PaymentCancel from '@/components/PaymentCancel';
@@ -83,6 +84,19 @@ function App() {
         <Route
           path="/payment/cancel"
           element={<PaymentCancel />}
+        />
+        <Route
+          path="/supplier-dashboard"
+          element={
+            user ? (
+              <SupplierDashboard 
+                user={user} 
+                onBack={() => window.location.href = '/'} 
+              />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
         />
         <Route
           path="/*"
