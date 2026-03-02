@@ -330,3 +330,43 @@ Created comprehensive trip customization page that appears after "Create Trip Pa
 
 ### Files Modified
 - `/app/frontend/src/components/AdminDashboard.jsx` - Added Transfers tab content panel (lines 1058-1155)
+
+## Update: March 2, 2026 - Enhanced Transfer Fields
+
+### New Fields Added to Transfer Management
+
+#### Backend Model Updates (`/app/backend/server.py`)
+- `vehicle_type`: String (Sedan, SUV, Van, Minibus, Luxury Car, Coach)
+- `pickup_times`: Array of time strings (e.g., ["06:00", "09:00", "12:00"])
+- `max_bags`: Integer (number of bags allowed)
+- `supplier_name`: String (for supplier dashboard)
+- `supplier_cost`: Float (cost from supplier for margin calculation)
+
+#### Frontend Updates (`/app/frontend/src/components/AdminDashboard.jsx`)
+
+**Add/Edit Form Enhancements:**
+- Vehicle Type dropdown (6 options)
+- Max Bags number input
+- Pick-up Times comma-separated input
+- Supplier Information section with:
+  - Supplier Name text input
+  - Supplier Cost number input
+  - Auto-calculated margin display (price - cost)
+
+**Transfer Card Display Enhancements:**
+- Vehicle Type badge (gray background)
+- Bags count with briefcase icon
+- Pick-up times count indicator
+- Pick-up time badges (first 4 shown, "+X more" for additional)
+- Supplier info row showing:
+  - Supplier name with building icon (purple)
+  - Supplier cost
+  - Profit margin in green (e.g., "+23")
+
+### Database Seeding Updated
+All 5 seeded transfers now include:
+- Vehicle types: Sedan, SUV, Luxury Car, Minibus
+- Pick-up times arrays
+- Max bags: 2-5
+- Supplier names: Emirates Transfers LLC, Georgia Tours Co., VIP Cars Dubai, Budget Shuttles LLC
+- Supplier costs for margin calculation

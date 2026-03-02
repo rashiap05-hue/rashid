@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Database, Users, FileText, Settings, Search, RefreshCw,
   Edit2, Trash2, CheckCircle, XCircle, MapPin, Plane, Building2, X,
-  ChevronLeft, ChevronRight, Plus, Save, Car, Clock, DollarSign
+  ChevronLeft, ChevronRight, Plus, Save, Car, Clock, DollarSign, Briefcase
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
@@ -143,7 +143,23 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
       if (type === 'airport') setEditForm({ code: '', name: '', city: '', country: '' });
       if (type === 'city') setEditForm({ name: '', country: '' });
       if (type === 'hotel') setEditForm({ name: '', city: '', country: '', star_rating: 4, rating_score: 8.0, description: '' });
-      if (type === 'transfer') setEditForm({ title: '', from_location: '', to_location: '', price: 0, description: '', duration: '1 hrs', confirmation_time: '4 hrs', transfer_type: 'Private', city: '', is_available: true });
+      if (type === 'transfer') setEditForm({ 
+        title: '', 
+        from_location: '', 
+        to_location: '', 
+        price: 0, 
+        description: '', 
+        duration: '1 hrs', 
+        confirmation_time: '4 hrs', 
+        transfer_type: 'Private', 
+        city: '', 
+        is_available: true,
+        vehicle_type: 'Sedan',
+        pickup_times: [],
+        max_bags: 2,
+        supplier_name: '',
+        supplier_cost: 0
+      });
     }
   };
 
@@ -532,15 +548,20 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">Price (AED)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={editForm.price || 0}
-                      onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) })}
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Vehicle Type</label>
+                    <select
+                      value={editForm.vehicle_type || 'Sedan'}
+                      onChange={(e) => setEditForm({ ...editForm, vehicle_type: e.target.value })}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-                      data-testid="edit-transfer-price"
-                    />
+                      data-testid="edit-transfer-vehicle-type"
+                    >
+                      <option value="Sedan">Sedan</option>
+                      <option value="SUV">SUV</option>
+                      <option value="Van">Van</option>
+                      <option value="Minibus">Minibus</option>
+                      <option value="Luxury Car">Luxury Car</option>
+                      <option value="Coach">Coach</option>
+                    </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
@@ -569,7 +590,32 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">Confirmation</label>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Max Bags</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="20"
+                      value={editForm.max_bags || 2}
+                      onChange={(e) => setEditForm({ ...editForm, max_bags: parseInt(e.target.value) })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-transfer-max-bags"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Price (AED)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editForm.price || 0}
+                      onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-transfer-price"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Confirmation Time</label>
                     <input
                       type="text"
                       value={editForm.confirmation_time || ''}
@@ -581,16 +627,65 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   </div>
                 </div>
                 <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">Pick-up Times (comma-separated)</label>
+                  <input
+                    type="text"
+                    value={Array.isArray(editForm.pickup_times) ? editForm.pickup_times.join(', ') : (editForm.pickup_times || '')}
+                    onChange={(e) => setEditForm({ ...editForm, pickup_times: e.target.value.split(',').map(t => t.trim()).filter(t => t) })}
+                    placeholder="e.g., 06:00, 09:00, 12:00, 15:00, 18:00, 21:00"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    data-testid="edit-transfer-pickup-times"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-bold text-gray-600 mb-1">Description</label>
                   <textarea
                     value={editForm.description || ''}
                     onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                    rows={3}
+                    rows={2}
                     placeholder="Transfer details and what's included..."
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent resize-none"
                     data-testid="edit-transfer-description"
                   />
                 </div>
+                
+                {/* Supplier Information Section */}
+                <div className="border-t border-gray-200 pt-4 mt-2">
+                  <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                    <Building2 size={16} className="text-purple-500" />
+                    Supplier Information
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-600 mb-1">Supplier Name</label>
+                      <input
+                        type="text"
+                        value={editForm.supplier_name || ''}
+                        onChange={(e) => setEditForm({ ...editForm, supplier_name: e.target.value })}
+                        placeholder="Enter supplier name"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                        data-testid="edit-transfer-supplier-name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-600 mb-1">Supplier Cost (AED)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editForm.supplier_cost || 0}
+                        onChange={(e) => setEditForm({ ...editForm, supplier_cost: parseFloat(e.target.value) })}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                        data-testid="edit-transfer-supplier-cost"
+                      />
+                    </div>
+                  </div>
+                  {editForm.price > 0 && editForm.supplier_cost > 0 && (
+                    <div className="mt-2 text-sm text-gray-500">
+                      Margin: <span className="font-bold text-green-600">{(editForm.price - editForm.supplier_cost).toFixed(2)} AED</span> ({((editForm.price - editForm.supplier_cost) / editForm.price * 100).toFixed(1)}%)
+                    </div>
+                  )}
+                </div>
+                
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -1092,7 +1187,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                         data-testid={`transfer-card-${transfer.id}`}
                       >
                         <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                               transfer.transfer_type === 'Luxury' ? 'bg-amber-100' :
                               transfer.transfer_type === 'Shared' ? 'bg-blue-100' : 'bg-teal-100'
@@ -1102,13 +1197,18 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                                 transfer.transfer_type === 'Shared' ? 'text-blue-600' : 'text-teal-600'
                               }`} size={20} />
                             </div>
-                            <div>
+                            <div className="flex flex-col gap-1">
                               <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
                                 transfer.transfer_type === 'Luxury' ? 'bg-amber-100 text-amber-700' :
                                 transfer.transfer_type === 'Shared' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'
                               }`}>
                                 {transfer.transfer_type}
                               </span>
+                              {transfer.vehicle_type && (
+                                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-gray-200 text-gray-600">
+                                  {transfer.vehicle_type}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1142,6 +1242,36 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                           </div>
                         </div>
                         
+                        {/* Vehicle Info Row */}
+                        <div className="flex items-center gap-3 mt-3 text-xs text-gray-500">
+                          <div className="flex items-center gap-1" title="Max Bags">
+                            <Briefcase size={12} />
+                            <span>{transfer.max_bags || 2} bags</span>
+                          </div>
+                          {transfer.pickup_times && transfer.pickup_times.length > 0 && (
+                            <div className="flex items-center gap-1" title="Pick-up Times">
+                              <Clock size={12} />
+                              <span>{transfer.pickup_times.length} times</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Pickup Times Display */}
+                        {transfer.pickup_times && transfer.pickup_times.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {transfer.pickup_times.slice(0, 4).map((time, idx) => (
+                              <span key={idx} className="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">
+                                {time}
+                              </span>
+                            ))}
+                            {transfer.pickup_times.length > 4 && (
+                              <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium">
+                                +{transfer.pickup_times.length - 4} more
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        
                         <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-200">
                           <div className="flex items-center gap-4">
                             <div className="flex items-center gap-1 text-xs text-gray-500">
@@ -1158,6 +1288,26 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                             <span className="font-bold text-green-600">{transfer.price} AED</span>
                           </div>
                         </div>
+                        
+                        {/* Supplier Info (Admin only) */}
+                        {transfer.supplier_name && (
+                          <div className="mt-2 pt-2 border-t border-dashed border-gray-200 flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1 text-purple-600">
+                              <Building2 size={12} />
+                              <span className="font-medium">{transfer.supplier_name}</span>
+                            </div>
+                            {transfer.supplier_cost > 0 && (
+                              <span className="text-gray-500">
+                                Cost: <span className="font-medium">{transfer.supplier_cost} AED</span>
+                                {transfer.price > transfer.supplier_cost && (
+                                  <span className="text-green-600 ml-1">
+                                    (+{(transfer.price - transfer.supplier_cost).toFixed(0)})
+                                  </span>
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        )}
                         
                         {!transfer.is_available && (
                           <div className="mt-2 px-2 py-1 bg-red-50 rounded text-xs text-red-600 font-bold text-center">

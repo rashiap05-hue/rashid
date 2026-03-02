@@ -197,6 +197,12 @@ class TransferCreate(BaseModel):
     city: str
     extras: Optional[List[TransferExtra]] = []
     is_available: bool = True
+    # New fields
+    vehicle_type: str = "Sedan"  # Sedan, SUV, Van, Minibus, Luxury Car, Coach
+    pickup_times: Optional[List[str]] = []  # e.g., ["06:00", "09:00", "12:00", "15:00", "18:00", "21:00"]
+    max_bags: int = 2  # Number of bags allowed
+    supplier_name: Optional[str] = None  # For supplier dashboard
+    supplier_cost: Optional[float] = None  # Cost from supplier (for margin calculation)
 
 class ChatMessage(BaseModel):
     message: str
@@ -1215,6 +1221,11 @@ async def seed_initial_data():
                 "confirmation_time": "4 hrs",
                 "transfer_type": "Private",
                 "city": "Dubai",
+                "vehicle_type": "Sedan",
+                "pickup_times": ["06:00", "09:00", "12:00", "15:00", "18:00", "21:00"],
+                "max_bags": 3,
+                "supplier_name": "Emirates Transfers LLC",
+                "supplier_cost": 65,
                 "extras": [
                     {"name": "Half Day English Speaking Guide (4 hours)", "price": 330, "duration": "4 hrs"},
                     {"name": "Full Day English Speaking Guide (8 hours)", "price": 550, "duration": "8 hrs"}
@@ -1232,6 +1243,11 @@ async def seed_initial_data():
                 "confirmation_time": "4 hrs",
                 "transfer_type": "Private",
                 "city": "Tbilisi",
+                "vehicle_type": "Sedan",
+                "pickup_times": ["08:00", "12:00", "16:00", "20:00"],
+                "max_bags": 2,
+                "supplier_name": "Georgia Tours Co.",
+                "supplier_cost": 30,
                 "extras": [
                     {"name": "English Speaking Guide (4 hours)", "price": 120, "duration": "4 hrs"}
                 ],
@@ -1248,6 +1264,11 @@ async def seed_initial_data():
                 "confirmation_time": "2 hrs",
                 "transfer_type": "Luxury",
                 "city": "Dubai",
+                "vehicle_type": "Luxury Car",
+                "pickup_times": ["00:00", "03:00", "06:00", "09:00", "12:00", "15:00", "18:00", "21:00"],
+                "max_bags": 4,
+                "supplier_name": "VIP Cars Dubai",
+                "supplier_cost": 180,
                 "extras": [
                     {"name": "VIP Meet & Greet with Porter", "price": 75, "duration": "30 mins"},
                     {"name": "Full Day Chauffeur Service", "price": 800, "duration": "8 hrs"}
@@ -1265,6 +1286,11 @@ async def seed_initial_data():
                 "confirmation_time": "6 hrs",
                 "transfer_type": "Shared",
                 "city": "Dubai",
+                "vehicle_type": "Minibus",
+                "pickup_times": ["07:00", "10:00", "13:00", "16:00", "19:00", "22:00"],
+                "max_bags": 2,
+                "supplier_name": "Budget Shuttles LLC",
+                "supplier_cost": 20,
                 "extras": [],
                 "is_available": True
             },
@@ -1279,6 +1305,11 @@ async def seed_initial_data():
                 "confirmation_time": "4 hrs",
                 "transfer_type": "Private",
                 "city": "Dubai",
+                "vehicle_type": "SUV",
+                "pickup_times": ["06:00", "08:00", "10:00", "14:00", "18:00"],
+                "max_bags": 5,
+                "supplier_name": "Emirates Transfers LLC",
+                "supplier_cost": 130,
                 "extras": [
                     {"name": "Abu Dhabi City Tour Add-on", "price": 150, "duration": "3 hrs"}
                 ],
