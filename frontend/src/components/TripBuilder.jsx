@@ -959,20 +959,17 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                             <Hotel className="text-gray-400" size={24} />
                           </div>
                           <div>
-                            <p className="font-medium text-gray-500">No Hotel Selected</p>
+                            <p className="font-medium text-gray-500">{noStayCities[city.name] ? 'No stay required' : 'No Hotel Selected'}</p>
                             <p className="text-sm text-gray-400">Check-in: {formatDate(cityStartDate)} • Check-out: {formatDate(cityEndDate)}</p>
                           </div>
                         </div>
                         <button 
-                          onClick={() => {
-                            setActiveHotelCity(city.name);
-                            setShowHotelModal(true);
-                          }}
+                          onClick={() => handleChangeHotel(city.name)}
                           className="bg-[#002B5B] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#003d82] transition-all flex items-center gap-2"
                           data-testid={`add-hotel-${city.name}`}
                         >
                           <Hotel size={18} />
-                          Add Hotel
+                          {noStayCities[city.name] ? 'Change' : 'Add Hotel'}
                         </button>
                       </div>
                     </div>
