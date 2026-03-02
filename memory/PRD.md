@@ -454,3 +454,49 @@ Created a dedicated Supplier Dashboard at `/supplier-dashboard` for transfer sup
 - **Frontend:** 100% (all features working)
 - All booking status workflows verified
 - Supplier authorization properly validates transfer ownership
+
+## Update: March 2, 2026 - Transfer Selection in Trip Builder
+
+### Feature Overview
+Connected Transfers Management data to Trip Builder's Arrival and Departure days. Transfers are now filtered by the destination city selected in Create Trip Package form.
+
+### User Flow
+1. User creates trip package with destination city (e.g., Dubai)
+2. In Trip Builder, Day 1 shows "Select Transfer" button for Arrival
+3. Return Day shows "Select Transfer" button for Departure
+4. Clicking opens Transfer Selection Modal with transfers filtered by destination city
+5. Selected transfer appears on day card with details (title, vehicle type, price)
+6. Transfer costs are added to total price breakdown
+
+### Implementation Details
+
+#### Backend
+- `/api/transfers?city=Dubai` endpoint filters transfers by city
+- Returns only transfers where city matches destination
+
+#### Frontend (`TripBuilder.jsx`)
+- **Lines 512-580:** Added state for `availableTransfers`, `selectedArrivalTransfer`, `selectedDepartureTransfer`
+- **Lines 535-575:** `useEffect` fetches transfers filtered by destination city
+- **Lines 580-600:** `openTransferModal` and `handleSelectTransfer` functions
+- **Lines 361-465:** Updated `DayCard` with transfer selection buttons
+  - Day 1: Blue "Select Transfer" button for arrival
+  - Return Day: Orange "Select Transfer" button for departure
+  - Selected transfer shows title, vehicle type, duration, price
+- **Lines 920-1070:** `TransferSelectionModal` component
+  - Grid of transfer cards with type badges (Private/Shared/Luxury)
+  - Vehicle type, from/to locations, duration, bags, price
+  - Pick-up times display
+  - Checkmark for selected transfer
+- **Lines 733-758:** Updated `calculatePricing` to include transfer costs
+- **Lines 1385-1415:** Updated price breakdown to show Hotels, Flights, Transfers separately
+
+### Test Results (iteration_8.json)
+- **Backend:** 100% (9/9 tests passed)
+  - City filter works correctly
+  - Only destination city transfers shown
+- **Frontend:** 100%
+  - City autocomplete shows country
+  - Transfer buttons on Day 1 and Return Day
+  - Modal filters by destination city
+  - Selected transfer displays on day card
+  - Transfer price in total
