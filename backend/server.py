@@ -569,6 +569,57 @@ async def delete_city(city_id: str):
         raise HTTPException(status_code=404, detail="City not found")
     return {"success": True}
 
+# ============= TRANSFERS ROUTES =============
+
+@transfers_router.get("")
+async def get_transfers(
+    city: str = Query("", description="Filter by city"),
+    search: str = Query("", description="Search term"),
+    limit: int = Query(100, ge=1, le=500)
+):
+    """Get transfers with optional filters"""
+    query = {}
+    if city:
+        query["city"] = {"$regex": city, "$options": "i"}
+    if search:
+        search_regex = {"$regex": search, "$options": "i"}
+        query["$or"] = [
+            {"title": search_regex},
+            {"from_location": search_regex},
+            {"to_location": search_regex}
+        ]
+    
+    transfers = await db.transfers.find(query, {"_id": 0}).limit(limit).to_list(limit)
+    return {"success": True, "transfers": transfers}
+
+@transfers_router.get("/{transfer_id}")
+async def get_transfer(transfer_id: str):
+    transfer = await db.transfers.find_one({"id": transfer_id}, {"_id": 0})
+    if not transfer:
+        raise HTTPException(status_code=404, detail="Transfer not found")
+    return {"success": True, "transfer": transfer}
+
+@transfers_router.post("")
+async def create_transfer(transfer: TransferCreate):
+    transfer_id = str(uuid.uuid4())
+    doc = {"id": transfer_id, **transfer.model_dump(), "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.transfers.insert_one(doc)
+    return {"success": True, "id": transfer_id}
+
+@transfers_router.put("/{transfer_id}")
+async def update_transfer(transfer_id: str, transfer: TransferCreate):
+    result = await db.transfers.update_one({"id": transfer_id}, {"$set": transfer.model_dump()})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Transfer not found")
+    return {"success": True}
+
+@transfers_router.delete("/{transfer_id}")
+async def delete_transfer(transfer_id: str):
+    result = await db.transfers.delete_one({"id": transfer_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Transfer not found")
+    return {"success": True}
+
 # ============= AI ROUTES =============
 
 @ai_router.post("/chat")
