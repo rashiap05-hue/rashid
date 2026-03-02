@@ -1055,6 +1055,121 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                 </div>
               </div>
             )}
+
+            {activeTab === 'transfers' && (
+              <div>
+                <div className="flex justify-end mb-4">
+                  <button
+                    onClick={() => openEditModal('transfer')}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-colors"
+                    data-testid="add-transfer-button"
+                  >
+                    <Plus size={18} />
+                    Add Transfer
+                  </button>
+                </div>
+                
+                {loading ? (
+                  <div className="py-20 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-10 h-10 border-4 border-[#002B5B] border-t-transparent rounded-full animate-spin" />
+                      <span className="font-bold text-gray-400">Loading transfers...</span>
+                    </div>
+                  </div>
+                ) : filteredTransfers.length === 0 ? (
+                  <div className="py-20 text-center">
+                    <div className="flex flex-col items-center gap-4 opacity-30">
+                      <Car size={48} />
+                      <span className="font-bold">No transfers found</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredTransfers.map((transfer, i) => (
+                      <div 
+                        key={transfer.id || i} 
+                        className="bg-gray-50 p-5 rounded-xl border border-gray-100 hover:shadow-md transition-all group"
+                        data-testid={`transfer-card-${transfer.id}`}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                              transfer.transfer_type === 'Luxury' ? 'bg-amber-100' :
+                              transfer.transfer_type === 'Shared' ? 'bg-blue-100' : 'bg-teal-100'
+                            }`}>
+                              <Car className={`${
+                                transfer.transfer_type === 'Luxury' ? 'text-amber-600' :
+                                transfer.transfer_type === 'Shared' ? 'text-blue-600' : 'text-teal-600'
+                              }`} size={20} />
+                            </div>
+                            <div>
+                              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
+                                transfer.transfer_type === 'Luxury' ? 'bg-amber-100 text-amber-700' :
+                                transfer.transfer_type === 'Shared' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'
+                              }`}>
+                                {transfer.transfer_type}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={() => openEditModal('transfer', transfer)}
+                              className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                              data-testid={`edit-transfer-${transfer.id}`}
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button 
+                              onClick={() => deleteTransfer(transfer.id)}
+                              className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
+                              data-testid={`delete-transfer-${transfer.id}`}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <h3 className="font-bold text-gray-800 text-sm mb-2 line-clamp-1">{transfer.title}</h3>
+                        
+                        <div className="space-y-2 text-xs text-gray-600">
+                          <div className="flex items-center gap-2">
+                            <MapPin size={14} className="text-green-500 flex-shrink-0" />
+                            <span className="truncate">{transfer.from_location}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin size={14} className="text-red-500 flex-shrink-0" />
+                            <span className="truncate">{transfer.to_location}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-200">
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              <Clock size={12} />
+                              <span>{transfer.duration}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              <MapPin size={12} />
+                              <span>{transfer.city}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <DollarSign size={14} className="text-green-600" />
+                            <span className="font-bold text-green-600">{transfer.price} AED</span>
+                          </div>
+                        </div>
+                        
+                        {!transfer.is_available && (
+                          <div className="mt-2 px-2 py-1 bg-red-50 rounded text-xs text-red-600 font-bold text-center">
+                            Unavailable
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
