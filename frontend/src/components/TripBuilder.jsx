@@ -110,30 +110,49 @@ function HotelOptionsModal({ isOpen, onClose, city, onViewAll, onNoStay, onSearc
 }
 
 // Hotel Selection Modal Component
-function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights, onSelect }) {
+function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights, onSelect, searchQuery = '' }) {
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedHotel, setSelectedHotel] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'detail'
+  const [filterQuery, setFilterQuery] = useState(searchQuery);
 
   useEffect(() => {
     if (isOpen) {
+      setFilterQuery(searchQuery);
       fetchHotels();
     }
-  }, [isOpen, city]);
+  }, [isOpen, city, searchQuery]);
 
   const fetchHotels = async () => {
     setLoading(true);
     try {
       const res = await api.get('/hotels');
-      // Filter or show all hotels
-      setHotels(res.data?.hotels || []);
+      let hotelList = res.data?.hotels || [];
+      
+      // Filter by search query if provided
+      if (searchQuery) {
+        hotelList = hotelList.filter(h => 
+          h.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          h.city?.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
+      
+      setHotels(hotelList);
     } catch (error) {
       console.error('Error fetching hotels:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  // Filter hotels based on current filter query
+  const filteredHotels = filterQuery 
+    ? hotels.filter(h => 
+        h.name?.toLowerCase().includes(filterQuery.toLowerCase()) ||
+        h.city?.toLowerCase().includes(filterQuery.toLowerCase())
+      )
+    : hotels;
 
   const handleSelectHotel = (hotel, room) => {
     onSelect({
