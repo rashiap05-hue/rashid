@@ -500,3 +500,56 @@ Connected Transfers Management data to Trip Builder's Arrival and Departure days
   - Modal filters by destination city
   - Selected transfer displays on day card
   - Transfer price in total
+
+## Update: March 2, 2026 - Enhanced Hotels Management & City Filtering
+
+### Feature 1: Enhanced Admin Dashboard Hotels Management
+
+Based on the hotel PDF analysis, added comprehensive hotel fields:
+
+#### New Fields in HotelCreate Model
+- `address` - Full hotel address
+- `check_in_time` - Format HH:MM (default 14:00)
+- `check_out_time` - Format HH:MM (default 12:00)
+- `year_built` - Optional year
+- `total_rooms` - Number of rooms
+- `highlights` - Array of hotel highlights (e.g., "Walking distance to metro")
+- `board_types` - Array: RO (Room Only), BB (B&B), HB (Half Board), FB (Full Board)
+- `cancellation_policy` - Flexible/Moderate/Strict/Non-refundable
+- `supplier_name` - Hotel supplier/chain name
+- `supplier_cost_per_night` - Cost from supplier for margin calculation
+
+#### Enhanced Hotel Edit Form
+- Address input field
+- Check-in/Check-out time pickers
+- Total Rooms number input
+- Board Types checkboxes (RO, BB, HB, FB)
+- Amenities comma-separated input
+- Highlights comma-separated input
+- Cancellation Policy dropdown
+- Supplier Information section (name + cost/night)
+
+#### Seeded Hotels with Full Data
+1. **Dubai (3 hotels):**
+   - Burj Al Arab Jumeirah (7-star, 9.8 rating)
+   - JW Marriott Marquis Dubai (5-star, 9.1 rating)
+   - Atlantis The Palm (5-star, 9.0 rating)
+2. **Baku:** Courtyard by Marriott Baku (4-star, 9.2 rating)
+3. **Tbilisi:** Iveria Inn Hotel (4-star, 8.5 rating)
+
+### Feature 2: Hotels Filtered by City in Trip Builder
+
+- `/api/hotels?city=Dubai` returns only Dubai hotels
+- Trip Builder fetches hotels filtered by destination city
+- When Dubai is selected in Create Trip Package form, only Dubai hotels appear in hotel selection
+- Non-destination hotels are automatically hidden
+
+### Test Results (iteration_9.json)
+- **Backend:** 100% (20/20 tests passed)
+  - City filter works with case-insensitive matching
+  - All new hotel fields verified
+  - Rooms array with room types and pricing
+- **Frontend:** 100%
+  - Admin Dashboard hotel edit form shows all 15 fields
+  - Trip Builder correctly filters hotels by destination city
+  - Dubai selection shows 3 Dubai hotels, hides Baku/Tbilisi hotels
