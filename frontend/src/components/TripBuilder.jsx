@@ -223,22 +223,27 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
 }
 
 // Day Card Component
-function DayCard({ day, date, city, activities, isFirst, isLast, onAddActivity, onChangeHotel, hotel }) {
+function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, onAddActivity, onChangeHotel, hotel }) {
   const [expanded, setExpanded] = useState(true);
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
       <button 
         onClick={() => setExpanded(!expanded)}
-        className="w-full px-6 py-4 flex items-center justify-between bg-gradient-to-r from-[#002B5B] to-[#004080] text-white"
+        className={cn(
+          "w-full px-6 py-4 flex items-center justify-between text-white",
+          isDeparture 
+            ? "bg-gradient-to-r from-orange-500 to-orange-600" 
+            : "bg-gradient-to-r from-[#002B5B] to-[#004080]"
+        )}
       >
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center font-bold">
             {day}
           </div>
           <div className="text-left">
-            <h3 className="font-bold">{date}</h3>
-            <p className="text-sm text-blue-200">{city}</p>
+            <h3 className="font-bold">{isDeparture ? `${date} - Return Day` : date}</h3>
+            <p className={cn("text-sm", isDeparture ? "text-orange-100" : "text-blue-200")}>{city}</p>
           </div>
         </div>
         <ChevronDown className={cn("transition-transform", expanded && "rotate-180")} />
@@ -253,7 +258,7 @@ function DayCard({ day, date, city, activities, isFirst, isLast, onAddActivity, 
             className="overflow-hidden"
           >
             <div className="p-6 space-y-4">
-              {/* Arrival/Departure */}
+              {/* Arrival on Day 1 */}
               {isFirst && (
                 <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
                   <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -269,14 +274,15 @@ function DayCard({ day, date, city, activities, isFirst, isLast, onAddActivity, 
                 </div>
               )}
 
-              {isLast && (
+              {/* Departure Day (Return) */}
+              {isDeparture && (
                 <div className="flex items-center gap-4 p-4 bg-orange-50 rounded-xl border border-orange-100">
                   <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
                     <Plane className="text-orange-600 rotate-45" size={20} />
                   </div>
                   <div className="flex-1">
-                    <p className="font-bold text-gray-800">Departure from {city}</p>
-                    <p className="text-sm text-gray-500">Transfer from hotel to airport</p>
+                    <p className="font-bold text-gray-800">Return Flight - Departure from {city}</p>
+                    <p className="text-sm text-gray-500">Check-out from hotel & transfer to airport</p>
                   </div>
                   <button className="text-[#002B5B] font-medium text-sm hover:underline">
                     Update Details
@@ -284,8 +290,8 @@ function DayCard({ day, date, city, activities, isFirst, isLast, onAddActivity, 
                 </div>
               )}
 
-              {/* Hotel Stay Reference */}
-              {hotel ? (
+              {/* Hotel Stay Reference (only for non-departure days) */}
+              {!isDeparture && (
                 <div className="flex items-center gap-4 p-4 bg-green-50 rounded-xl border border-green-100">
                   <img 
                     src={hotel.images?.[0] || 'https://via.placeholder.com/80'} 
