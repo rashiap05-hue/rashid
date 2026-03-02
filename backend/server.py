@@ -1199,6 +1199,96 @@ async def seed_initial_data():
         await db.hotels.insert_many(hotels)
         logger.info(f"Seeded {len(hotels)} hotels")
     
+    # Check if transfers data needs seeding
+    transfers_count = await db.transfers.count_documents({})
+    if transfers_count == 0:
+        logger.info("Seeding transfers...")
+        transfers = [
+            {
+                "id": str(uuid.uuid4()),
+                "title": "Private from Dubai International Airport",
+                "from_location": "Dubai International Airport (DXB)",
+                "to_location": "Admiral Plaza Hotel, Dubai",
+                "price": 88,
+                "description": "You will be met by our representative at the Airport Arrival Terminal. Look for a name board with your name on it. Our representative will assist you with your luggage and escort you to your private vehicle.",
+                "duration": "1 hrs",
+                "confirmation_time": "4 hrs",
+                "transfer_type": "Private",
+                "city": "Dubai",
+                "extras": [
+                    {"name": "Half Day English Speaking Guide (4 hours)", "price": 330, "duration": "4 hrs"},
+                    {"name": "Full Day English Speaking Guide (8 hours)", "price": 550, "duration": "8 hrs"}
+                ],
+                "is_available": True
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "title": "Private from Tbilisi International Airport",
+                "from_location": "Tbilisi International Airport (TBS)",
+                "to_location": "Iveria Inn Hotel, Tbilisi",
+                "price": 45,
+                "description": "Meet and greet service at Tbilisi Airport. Our professional driver will hold a name board and escort you to a comfortable private vehicle for transfer to your hotel.",
+                "duration": "45 mins",
+                "confirmation_time": "4 hrs",
+                "transfer_type": "Private",
+                "city": "Tbilisi",
+                "extras": [
+                    {"name": "English Speaking Guide (4 hours)", "price": 120, "duration": "4 hrs"}
+                ],
+                "is_available": True
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "title": "Luxury Transfer from Dubai Airport",
+                "from_location": "Dubai International Airport (DXB)",
+                "to_location": "Burj Al Arab Hotel, Dubai",
+                "price": 250,
+                "description": "Premium luxury transfer service with a Mercedes S-Class or similar. Includes complimentary water and WiFi. Our chauffeur will meet you at arrivals.",
+                "duration": "1 hrs",
+                "confirmation_time": "2 hrs",
+                "transfer_type": "Luxury",
+                "city": "Dubai",
+                "extras": [
+                    {"name": "VIP Meet & Greet with Porter", "price": 75, "duration": "30 mins"},
+                    {"name": "Full Day Chauffeur Service", "price": 800, "duration": "8 hrs"}
+                ],
+                "is_available": True
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "title": "Shared Airport Transfer - Dubai",
+                "from_location": "Dubai International Airport (DXB)",
+                "to_location": "Downtown Dubai Hotels",
+                "price": 35,
+                "description": "Economical shared shuttle service from Dubai Airport to major downtown hotels. Air-conditioned vehicle with professional driver.",
+                "duration": "1.5 hrs",
+                "confirmation_time": "6 hrs",
+                "transfer_type": "Shared",
+                "city": "Dubai",
+                "extras": [],
+                "is_available": True
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "title": "Private Transfer to Abu Dhabi",
+                "from_location": "Dubai City Hotels",
+                "to_location": "Abu Dhabi City Hotels",
+                "price": 180,
+                "description": "Comfortable inter-city transfer from Dubai to Abu Dhabi. Private vehicle with English-speaking driver. Highway tolls included.",
+                "duration": "1.5 hrs",
+                "confirmation_time": "4 hrs",
+                "transfer_type": "Private",
+                "city": "Dubai",
+                "extras": [
+                    {"name": "Abu Dhabi City Tour Add-on", "price": 150, "duration": "3 hrs"}
+                ],
+                "is_available": True
+            }
+        ]
+        
+        await db.transfers.insert_many(transfers)
+        logger.info(f"Seeded {len(transfers)} transfers")
+    
     logger.info("Data seeding check complete")
 
 # ============= APP SETUP =============
