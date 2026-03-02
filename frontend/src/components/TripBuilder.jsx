@@ -342,8 +342,8 @@ function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, on
                 </div>
               )}
 
-              {/* Activities */}
-              {activities?.length > 0 && (
+              {/* Activities (only for non-departure days) */}
+              {!isDeparture && activities?.length > 0 && (
                 <div className="space-y-2">
                   {activities.map((activity, i) => (
                     <div key={i} className="flex items-center gap-4 p-4 bg-purple-50 rounded-xl border border-purple-100">
@@ -360,14 +360,16 @@ function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, on
                 </div>
               )}
 
-              {/* Add Activity Button */}
-              <button 
-                onClick={onAddActivity}
-                className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 font-medium hover:border-[#002B5B] hover:text-[#002B5B] transition-all flex items-center justify-center gap-2"
-              >
-                <Plus size={18} />
-                Add Activity in {city}
-              </button>
+              {/* Add Activity Button (only for non-departure days) */}
+              {!isDeparture && (
+                <button 
+                  onClick={onAddActivity}
+                  className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 font-medium hover:border-[#002B5B] hover:text-[#002B5B] transition-all flex items-center justify-center gap-2"
+                >
+                  <Plus size={18} />
+                  Add Activity in {city}
+                </button>
+              )}
             </div>
           </motion.div>
         )}
