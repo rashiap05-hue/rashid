@@ -243,6 +243,16 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
     }
   };
 
+  const deleteTransfer = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this transfer?')) return;
+    try {
+      await api.delete(`/transfers/${id}`);
+      setTransfers(transfers.filter(t => t.id !== id));
+    } catch (error) {
+      console.error('Error deleting transfer:', error);
+    }
+  };
+
   // Edit Modal Component
   const EditModal = () => {
     if (!editModal.open) return null;
