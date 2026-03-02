@@ -651,12 +651,13 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           {[
             { label: 'Total Proposals', value: proposals.length, icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
             { label: 'Airports in DB', value: airportPagination.total || airports.length, icon: Plane, color: 'text-purple-600', bg: 'bg-purple-50' },
             { label: 'Cities in DB', value: cities.length, icon: MapPin, color: 'text-green-600', bg: 'bg-green-50' },
             { label: 'Hotels in DB', value: hotels.length, icon: Building2, color: 'text-orange-600', bg: 'bg-orange-50' },
+            { label: 'Transfers in DB', value: transfers.length, icon: Car, color: 'text-teal-600', bg: 'bg-teal-50' },
           ].map((stat, i) => (
             <div key={i} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm" data-testid={`stat-${i}`}>
               <div className="flex justify-between items-start mb-4">
@@ -674,14 +675,14 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         {/* Main Content Area */}
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Tabs */}
-          <div className="flex border-b border-gray-100">
-            {['proposals', 'airports', 'cities', 'hotels'].map((tab) => (
+          <div className="flex border-b border-gray-100 overflow-x-auto">
+            {['proposals', 'airports', 'cities', 'hotels', 'transfers'].map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 data-testid={`tab-${tab}`}
                 className={cn(
-                  "px-8 py-5 font-bold text-sm transition-all relative capitalize",
+                  "px-8 py-5 font-bold text-sm transition-all relative capitalize whitespace-nowrap",
                   activeTab === tab ? "text-[#002B5B]" : "text-gray-400 hover:text-gray-600"
                 )}
               >
