@@ -921,19 +921,13 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                         {/* Action Buttons */}
                         <div className="flex gap-3 mt-6">
                           <button 
-                            onClick={() => {
-                              setActiveHotelCity(city.name);
-                              setShowHotelModal(true);
-                            }}
+                            onClick={() => handleChangeHotel(city.name)}
                             className="bg-[#8B4513] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#723a0f] transition-all"
                           >
                             Change Room
                           </button>
                           <button 
-                            onClick={() => {
-                              setActiveHotelCity(city.name);
-                              setShowHotelModal(true);
-                            }}
+                            onClick={() => handleChangeHotel(city.name)}
                             className="bg-[#8B4513] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#723a0f] transition-all"
                           >
                             Change Hotel
