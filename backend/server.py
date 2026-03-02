@@ -178,6 +178,25 @@ class CityCreate(BaseModel):
     country: str
     image: Optional[str] = None
 
+class TransferExtra(BaseModel):
+    name: str
+    description: Optional[str] = None
+    price: float
+    duration: Optional[str] = None
+
+class TransferCreate(BaseModel):
+    title: str
+    from_location: str
+    to_location: str
+    price: float
+    description: str
+    duration: str = "1 hrs"
+    confirmation_time: str = "4 hrs"
+    transfer_type: str = "Private"  # Private, Shared, Luxury
+    city: str
+    extras: Optional[List[TransferExtra]] = []
+    is_available: bool = True
+
 class ChatMessage(BaseModel):
     message: str
     session_id: Optional[str]
