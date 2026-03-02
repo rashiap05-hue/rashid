@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Database, Users, FileText, Settings, Search, RefreshCw,
   Edit2, Trash2, CheckCircle, XCircle, MapPin, Plane, Building2, X,
-  ChevronLeft, ChevronRight, Plus, Save
+  ChevronLeft, ChevronRight, Plus, Save, Car, Clock, DollarSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
@@ -13,6 +13,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   const [airports, setAirports] = useState([]);
   const [cities, setCities] = useState([]);
   const [hotels, setHotels] = useState([]);
+  const [transfers, setTransfers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('proposals');
   const [searchTerm, setSearchTerm] = useState('');
