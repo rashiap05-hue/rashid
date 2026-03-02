@@ -142,7 +142,24 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
       if (type === 'proposal') setEditForm({ leaving_from: '', nationality: '', leaving_on: '', star_rating: 3, status: 'pending' });
       if (type === 'airport') setEditForm({ code: '', name: '', city: '', country: '' });
       if (type === 'city') setEditForm({ name: '', country: '' });
-      if (type === 'hotel') setEditForm({ name: '', city: '', country: '', star_rating: 4, rating_score: 8.0, description: '' });
+      if (type === 'hotel') setEditForm({ 
+        name: '', 
+        address: '',
+        city: '', 
+        country: '', 
+        star_rating: 4, 
+        rating_score: 8.0, 
+        description: '',
+        check_in_time: '14:00',
+        check_out_time: '12:00',
+        total_rooms: null,
+        amenities: [],
+        highlights: [],
+        board_types: ['RO', 'BB'],
+        cancellation_policy: 'Flexible',
+        supplier_name: '',
+        supplier_cost_per_night: null
+      });
       if (type === 'transfer') setEditForm({ 
         title: '', 
         from_location: '', 
@@ -447,6 +464,17 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     data-testid="edit-hotel-name"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">Address</label>
+                  <input
+                    type="text"
+                    value={editForm.address || ''}
+                    onChange={(e) => handleFieldChange('address', e.target.value)}
+                    placeholder="Full hotel address"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    data-testid="edit-hotel-address"
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-bold text-gray-600 mb-1">City</label>
@@ -469,7 +497,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-bold text-gray-600 mb-1">Star Rating</label>
                     <select
@@ -494,16 +522,142 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                       data-testid="edit-hotel-rating-score"
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Total Rooms</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editForm.total_rooms || ''}
+                      onChange={(e) => handleFieldChange('total_rooms', parseInt(e.target.value) || null)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-hotel-total-rooms"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Check-in Time</label>
+                    <input
+                      type="time"
+                      value={editForm.check_in_time || '14:00'}
+                      onChange={(e) => handleFieldChange('check_in_time', e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-hotel-checkin"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Check-out Time</label>
+                    <input
+                      type="time"
+                      value={editForm.check_out_time || '12:00'}
+                      onChange={(e) => handleFieldChange('check_out_time', e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-hotel-checkout"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">Board Types Available</label>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {['RO', 'BB', 'HB', 'FB'].map((board) => (
+                      <label key={board} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                        <input
+                          type="checkbox"
+                          checked={(editForm.board_types || []).includes(board)}
+                          onChange={(e) => {
+                            const current = editForm.board_types || [];
+                            if (e.target.checked) {
+                              handleFieldChange('board_types', [...current, board]);
+                            } else {
+                              handleFieldChange('board_types', current.filter(b => b !== board));
+                            }
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                        <span className="text-sm font-medium text-gray-700">
+                          {board === 'RO' ? 'Room Only' : board === 'BB' ? 'B&B' : board === 'HB' ? 'Half Board' : 'Full Board'}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">Amenities (comma-separated)</label>
+                  <input
+                    type="text"
+                    value={Array.isArray(editForm.amenities) ? editForm.amenities.join(', ') : (editForm.amenities || '')}
+                    onChange={(e) => handleFieldChange('amenities', e.target.value.split(',').map(a => a.trim()).filter(a => a))}
+                    placeholder="e.g., Free WiFi, Pool, Spa, Gym, Restaurant"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    data-testid="edit-hotel-amenities"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">Highlights (comma-separated)</label>
+                  <input
+                    type="text"
+                    value={Array.isArray(editForm.highlights) ? editForm.highlights.join(', ') : (editForm.highlights || '')}
+                    onChange={(e) => handleFieldChange('highlights', e.target.value.split(',').map(h => h.trim()).filter(h => h))}
+                    placeholder="e.g., Walking distance to metro, Free parking"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    data-testid="edit-hotel-highlights"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">Cancellation Policy</label>
+                  <select
+                    value={editForm.cancellation_policy || 'Flexible'}
+                    onChange={(e) => handleFieldChange('cancellation_policy', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    data-testid="edit-hotel-cancellation"
+                  >
+                    <option value="Flexible">Flexible - Free cancellation</option>
+                    <option value="Moderate">Moderate - Free cancellation until 3 days before</option>
+                    <option value="Strict">Strict - Free cancellation until 7 days before</option>
+                    <option value="Non-refundable">Non-refundable</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-600 mb-1">Description</label>
                   <textarea
                     value={editForm.description || ''}
                     onChange={(e) => handleFieldChange('description', e.target.value)}
-                    rows={3}
+                    rows={2}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent resize-none"
                     data-testid="edit-hotel-description"
                   />
+                </div>
+                
+                {/* Supplier Information */}
+                <div className="border-t border-gray-200 pt-4 mt-2">
+                  <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                    <Building2 size={16} className="text-purple-500" />
+                    Supplier Information
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-600 mb-1">Supplier Name</label>
+                      <input
+                        type="text"
+                        value={editForm.supplier_name || ''}
+                        onChange={(e) => handleFieldChange('supplier_name', e.target.value)}
+                        placeholder="e.g., Marriott Hotels"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                        data-testid="edit-hotel-supplier-name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-600 mb-1">Supplier Cost/Night (AED)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editForm.supplier_cost_per_night || ''}
+                        onChange={(e) => handleFieldChange('supplier_cost_per_night', parseFloat(e.target.value) || null)}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                        data-testid="edit-hotel-supplier-cost"
+                      />
+                    </div>
+                  </div>
                 </div>
               </>
             )}

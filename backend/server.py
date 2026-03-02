@@ -156,17 +156,27 @@ class HotelCreate(BaseModel):
     name: str
     city: str
     country: str
-    address: str
-    description: str
-    star_rating: int
-    rating_score: float
-    rating_text: str
-    review_count: int
-    images: List[str]
-    amenities: List[str]
-    detailed_ratings: Dict[str, float]
-    what_to_know: List[Dict]
-    rooms: List[Dict]
+    address: str = ""
+    description: str = ""
+    star_rating: int = 4
+    rating_score: float = 8.0
+    rating_text: str = "Very Good"
+    review_count: int = 0
+    images: List[str] = []
+    amenities: List[str] = []
+    detailed_ratings: Dict[str, float] = {}
+    what_to_know: List[Dict] = []
+    rooms: List[Dict] = []
+    # New fields based on PDF analysis
+    check_in_time: str = "14:00"
+    check_out_time: str = "12:00"
+    year_built: Optional[int] = None
+    total_rooms: Optional[int] = None
+    highlights: List[str] = []  # e.g., "Walking distance to metro", "Free WiFi"
+    board_types: List[str] = ["RO", "BB"]  # RO=Room Only, BB=Bed&Breakfast, HB=Half Board, FB=Full Board
+    cancellation_policy: str = "Flexible"
+    supplier_name: Optional[str] = None
+    supplier_cost_per_night: Optional[float] = None
 
 class AirportCreate(BaseModel):
     name: str
@@ -439,8 +449,23 @@ async def delete_flight(flight_id: str):
 # ============= HOTELS ROUTES =============
 
 @hotels_router.get("")
-async def get_hotels():
-    hotels = await db.hotels.find({}, {"_id": 0}).to_list(1000)
+async def get_hotels(city: Optional[str] = None, country: Optional[str] = None, search: Optional[str] = None):
+    query = {}
+    
+    if city:
+        query["city"] = {"$regex": city, "$options": "i"}
+    
+    if country:
+        query["country"] = {"$regex": country, "$options": "i"}
+    
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"city": {"$regex": search, "$options": "i"}},
+            {"country": {"$regex": search, "$options": "i"}}
+        ]
+    
+    hotels = await db.hotels.find(query, {"_id": 0}).to_list(1000)
     return {"success": True, "hotels": hotels}
 
 @hotels_router.get("/{hotel_id}")
@@ -1352,29 +1377,71 @@ async def seed_initial_data():
                 "city": "Baku",
                 "country": "Azerbaijan",
                 "address": "300-303 Quarter, Nasimi District, Baku",
-                "description": "A stay at Courtyard by Marriott Baku places you in the heart of Baku.",
+                "description": "A stay at Courtyard by Marriott Baku places you in the heart of Baku, within a 15-minute walk of Heydar Aliyev Palace and 28 Mall. This upscale hotel is 1.6 mi from Sabir Park.",
                 "star_rating": 4,
                 "rating_score": 9.2,
                 "rating_text": "Wonderful",
                 "review_count": 107,
                 "images": ["https://picsum.photos/seed/baku1/1200/800"],
-                "amenities": ["Pool", "Spa", "Beach Access", "Free WiFi", "Fitness Center"],
-                "detailed_ratings": {"cleanliness": 4.7, "service": 4.6, "comfort": 4.7},
+                "amenities": ["Free WiFi", "Fitness Center", "Business Center", "Concierge", "Laundry", "Free Parking", "Restaurant"],
+                "detailed_ratings": {"cleanliness": 4.7, "service": 4.6, "comfort": 4.7, "condition": 4.7, "amenities": 4.6},
                 "what_to_know": [],
+                "check_in_time": "15:00",
+                "check_out_time": "12:00",
+                "year_built": 2015,
+                "total_rooms": 365,
+                "highlights": ["Walking distance to 28 May metro station", "Free self parking", "24-hour fitness center", "11 meeting rooms"],
+                "board_types": ["RO", "BB"],
+                "cancellation_policy": "Free cancellation until 2 days before check-in",
+                "supplier_name": "Marriott Hotels",
+                "supplier_cost_per_night": 120,
                 "rooms": [
                     {
                         "id": "R001",
-                        "name": "Superior Room",
+                        "name": "Superior Room - City View",
                         "type": "Superior",
                         "bed_type": "1 King",
                         "view": "City View",
                         "size": "30 sqm",
-                        "price": 1861,
-                        "original_price": 1918,
+                        "price": 465,
+                        "original_price": 480,
                         "currency": "AED",
-                        "amenities": ["Free WiFi", "TV", "Minibar"],
+                        "amenities": ["Free WiFi", "LED TV", "Minibar", "Work Desk", "Hair Dryer"],
                         "refundable": True,
-                        "meals": "No meals included",
+                        "refundable_until": "2 days before",
+                        "meals": "Room Only",
+                        "images": []
+                    },
+                    {
+                        "id": "R002",
+                        "name": "Superior Room - Garden View",
+                        "type": "Superior",
+                        "bed_type": "2 Twin",
+                        "view": "Garden View",
+                        "size": "30 sqm",
+                        "price": 495,
+                        "original_price": 510,
+                        "currency": "AED",
+                        "amenities": ["Free WiFi", "LED TV", "Minibar", "Work Desk"],
+                        "refundable": True,
+                        "refundable_until": "2 days before",
+                        "meals": "Breakfast Included",
+                        "images": []
+                    },
+                    {
+                        "id": "R003",
+                        "name": "Junior Suite - Garden View",
+                        "type": "Suite",
+                        "bed_type": "1 King + Sofa",
+                        "view": "Garden View",
+                        "size": "52 sqm",
+                        "price": 750,
+                        "original_price": 800,
+                        "currency": "AED",
+                        "amenities": ["Free WiFi", "LED TV", "Minibar", "Living Area", "Bathrobes"],
+                        "refundable": True,
+                        "refundable_until": "3 days before",
+                        "meals": "Breakfast Included",
                         "images": []
                     }
                 ]
@@ -1384,29 +1451,245 @@ async def seed_initial_data():
                 "name": "Burj Al Arab Jumeirah",
                 "city": "Dubai",
                 "country": "United Arab Emirates",
-                "address": "Jumeirah St, Dubai",
-                "description": "The distinctive sail-shaped silhouette of Burj Al Arab Jumeirah.",
+                "address": "Jumeirah Beach Road, Dubai",
+                "description": "The distinctive sail-shaped silhouette of Burj Al Arab Jumeirah is more than just a stunning hotel, it is a symbol of modern Dubai. Rising on its own island, the architectural marvel features luxurious suites with panoramic views.",
                 "star_rating": 7,
                 "rating_score": 9.8,
                 "rating_text": "Exceptional",
                 "review_count": 2540,
                 "images": ["https://picsum.photos/seed/burj1/1200/800"],
-                "amenities": ["Pool", "Spa", "Beach Access", "Free WiFi", "Butler Service"],
-                "detailed_ratings": {"cleanliness": 4.9, "service": 5.0, "comfort": 4.9},
+                "amenities": ["Private Beach", "9 Restaurants", "Spa", "Pool", "Butler Service", "Helipad", "Rolls-Royce Fleet"],
+                "detailed_ratings": {"cleanliness": 5.0, "service": 5.0, "comfort": 4.9, "location": 4.9, "amenities": 5.0},
                 "what_to_know": [],
+                "check_in_time": "15:00",
+                "check_out_time": "12:00",
+                "year_built": 1999,
+                "total_rooms": 202,
+                "highlights": ["Private beach", "Personal butler", "Rolls-Royce transfer available", "Located on private island"],
+                "board_types": ["RO", "BB", "HB", "FB"],
+                "cancellation_policy": "Non-refundable - contact hotel for special requests",
+                "supplier_name": "Jumeirah Hotels",
+                "supplier_cost_per_night": 4500,
                 "rooms": [
                     {
-                        "id": "R002",
-                        "name": "Deluxe Marina Suite",
+                        "id": "R004",
+                        "name": "Deluxe One Bedroom Suite",
                         "type": "Suite",
                         "bed_type": "1 King",
-                        "view": "Marina View",
+                        "view": "Arabian Gulf View",
                         "size": "170 sqm",
                         "price": 5500,
                         "original_price": 6000,
                         "currency": "AED",
-                        "amenities": ["Butler Service", "Hermes Amenities"],
+                        "amenities": ["Butler Service", "Hermes Amenities", "Jacuzzi", "Private Cinema"],
                         "refundable": False,
+                        "meals": "Breakfast Included",
+                        "images": []
+                    },
+                    {
+                        "id": "R005",
+                        "name": "Panoramic Suite",
+                        "type": "Suite",
+                        "bed_type": "1 King",
+                        "view": "Panoramic Arabian Gulf",
+                        "size": "330 sqm",
+                        "price": 12000,
+                        "original_price": 13500,
+                        "currency": "AED",
+                        "amenities": ["2 Floors", "Butler Service", "In-suite Dining", "Private Bar"],
+                        "refundable": False,
+                        "meals": "Full Board",
+                        "images": []
+                    }
+                ]
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "name": "JW Marriott Marquis Dubai",
+                "city": "Dubai",
+                "country": "United Arab Emirates",
+                "address": "Business Bay, Sheikh Zayed Road, Dubai",
+                "description": "JW Marriott Marquis Hotel Dubai is one of the world's tallest hotels, featuring 1,608 spacious rooms and suites with stunning views of the Dubai skyline, Creek, and Arabian Gulf.",
+                "star_rating": 5,
+                "rating_score": 9.1,
+                "rating_text": "Wonderful",
+                "review_count": 4250,
+                "images": ["https://picsum.photos/seed/jwmarriott/1200/800"],
+                "amenities": ["Pool", "Spa", "Fitness Center", "14 Restaurants", "Free WiFi", "Business Center"],
+                "detailed_ratings": {"cleanliness": 4.8, "service": 4.7, "comfort": 4.8, "location": 4.6, "amenities": 4.8},
+                "what_to_know": [],
+                "check_in_time": "15:00",
+                "check_out_time": "12:00",
+                "year_built": 2012,
+                "total_rooms": 1608,
+                "highlights": ["World's tallest hotel", "Direct metro access", "14 dining venues", "Saray Spa"],
+                "board_types": ["RO", "BB", "HB"],
+                "cancellation_policy": "Free cancellation until 24 hours before check-in",
+                "supplier_name": "Marriott Hotels",
+                "supplier_cost_per_night": 350,
+                "rooms": [
+                    {
+                        "id": "R006",
+                        "name": "Deluxe Room - City View",
+                        "type": "Deluxe",
+                        "bed_type": "1 King or 2 Twin",
+                        "view": "City View",
+                        "size": "42 sqm",
+                        "price": 650,
+                        "original_price": 720,
+                        "currency": "AED",
+                        "amenities": ["Free WiFi", "Nespresso Machine", "Rain Shower", "Marble Bathroom"],
+                        "refundable": True,
+                        "refundable_until": "24 hours before",
+                        "meals": "Room Only",
+                        "images": []
+                    },
+                    {
+                        "id": "R007",
+                        "name": "Executive Room - Gulf View",
+                        "type": "Executive",
+                        "bed_type": "1 King",
+                        "view": "Arabian Gulf",
+                        "size": "42 sqm",
+                        "price": 850,
+                        "original_price": 950,
+                        "currency": "AED",
+                        "amenities": ["Lounge Access", "Free WiFi", "Complimentary Breakfast", "Evening Cocktails"],
+                        "refundable": True,
+                        "refundable_until": "24 hours before",
+                        "meals": "Breakfast Included",
+                        "images": []
+                    }
+                ]
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "name": "Atlantis The Palm",
+                "city": "Dubai",
+                "country": "United Arab Emirates",
+                "address": "Crescent Road, The Palm, Dubai",
+                "description": "Atlantis, The Palm is a majestic 5-star resort located at the apex of the Palm Jumeirah, with stunning views of the Arabian Gulf. Home to one of the world's largest waterparks.",
+                "star_rating": 5,
+                "rating_score": 9.0,
+                "rating_text": "Superb",
+                "review_count": 8750,
+                "images": ["https://picsum.photos/seed/atlantis/1200/800"],
+                "amenities": ["Aquaventure Waterpark", "Lost Chambers Aquarium", "23 Restaurants", "Private Beach", "Spa", "Dolphin Bay"],
+                "detailed_ratings": {"cleanliness": 4.7, "service": 4.6, "comfort": 4.8, "location": 4.9, "amenities": 4.9},
+                "what_to_know": [],
+                "check_in_time": "15:00",
+                "check_out_time": "11:00",
+                "year_built": 2008,
+                "total_rooms": 1548,
+                "highlights": ["Free Aquaventure access", "Lost Chambers Aquarium", "Celebrity chef restaurants", "Private beach"],
+                "board_types": ["RO", "BB", "HB", "FB"],
+                "cancellation_policy": "Free cancellation until 3 days before check-in",
+                "supplier_name": "Atlantis Resorts",
+                "supplier_cost_per_night": 800,
+                "rooms": [
+                    {
+                        "id": "R008",
+                        "name": "Palm King Room",
+                        "type": "Deluxe",
+                        "bed_type": "1 King",
+                        "view": "Palm View",
+                        "size": "45 sqm",
+                        "price": 1200,
+                        "original_price": 1400,
+                        "currency": "AED",
+                        "amenities": ["Free Aquaventure", "Free WiFi", "Minibar", "Balcony"],
+                        "refundable": True,
+                        "refundable_until": "3 days before",
+                        "meals": "Room Only",
+                        "images": []
+                    },
+                    {
+                        "id": "R009",
+                        "name": "Ocean King Room",
+                        "type": "Deluxe",
+                        "bed_type": "1 King",
+                        "view": "Ocean View",
+                        "size": "45 sqm",
+                        "price": 1500,
+                        "original_price": 1700,
+                        "currency": "AED",
+                        "amenities": ["Free Aquaventure", "Free WiFi", "Ocean View Balcony"],
+                        "refundable": True,
+                        "refundable_until": "3 days before",
+                        "meals": "Breakfast Included",
+                        "images": []
+                    },
+                    {
+                        "id": "R010",
+                        "name": "Underwater Suite",
+                        "type": "Suite",
+                        "bed_type": "1 King",
+                        "view": "Ambassador Lagoon",
+                        "size": "165 sqm",
+                        "price": 8500,
+                        "original_price": 9500,
+                        "currency": "AED",
+                        "amenities": ["Floor-to-ceiling aquarium", "Butler Service", "Private Beach Cabana"],
+                        "refundable": False,
+                        "meals": "Full Board",
+                        "images": []
+                    }
+                ]
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "name": "Iveria Inn Hotel",
+                "city": "Tbilisi",
+                "country": "Georgia",
+                "address": "Rose Revolution Square, Tbilisi",
+                "description": "Iveria Inn Hotel is located in the heart of Tbilisi, offering comfortable accommodations with views of the historic old town and the Mtkvari River.",
+                "star_rating": 4,
+                "rating_score": 8.5,
+                "rating_text": "Very Good",
+                "review_count": 320,
+                "images": ["https://picsum.photos/seed/iveria/1200/800"],
+                "amenities": ["Free WiFi", "Restaurant", "Bar", "Fitness Center", "Concierge"],
+                "detailed_ratings": {"cleanliness": 4.4, "service": 4.5, "comfort": 4.3, "location": 4.8, "amenities": 4.2},
+                "what_to_know": [],
+                "check_in_time": "14:00",
+                "check_out_time": "12:00",
+                "year_built": 2010,
+                "total_rooms": 120,
+                "highlights": ["City center location", "Walking distance to old town", "Rooftop bar", "River views"],
+                "board_types": ["RO", "BB"],
+                "cancellation_policy": "Free cancellation until 2 days before check-in",
+                "supplier_name": "Georgian Hotels Group",
+                "supplier_cost_per_night": 80,
+                "rooms": [
+                    {
+                        "id": "R011",
+                        "name": "Standard Room - City View",
+                        "type": "Standard",
+                        "bed_type": "1 Queen",
+                        "view": "City View",
+                        "size": "25 sqm",
+                        "price": 180,
+                        "original_price": 200,
+                        "currency": "AED",
+                        "amenities": ["Free WiFi", "TV", "Minibar", "Safe"],
+                        "refundable": True,
+                        "refundable_until": "2 days before",
+                        "meals": "Room Only",
+                        "images": []
+                    },
+                    {
+                        "id": "R012",
+                        "name": "Deluxe Room - River View",
+                        "type": "Deluxe",
+                        "bed_type": "1 King",
+                        "view": "River View",
+                        "size": "32 sqm",
+                        "price": 250,
+                        "original_price": 280,
+                        "currency": "AED",
+                        "amenities": ["Free WiFi", "TV", "Minibar", "Bathrobe", "Slippers"],
+                        "refundable": True,
+                        "refundable_until": "2 days before",
                         "meals": "Breakfast Included",
                         "images": []
                     }

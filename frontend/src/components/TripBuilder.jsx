@@ -127,14 +127,15 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
   const fetchHotels = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/hotels');
+      // Fetch hotels filtered by city
+      const cityParam = city ? `?city=${encodeURIComponent(city)}` : '';
+      const res = await api.get(`/hotels${cityParam}`);
       let hotelList = res.data?.hotels || [];
       
-      // Filter by search query if provided
+      // Additional search filter if provided
       if (searchQuery) {
         hotelList = hotelList.filter(h => 
-          h.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          h.city?.toLowerCase().includes(searchQuery.toLowerCase())
+          h.name?.toLowerCase().includes(searchQuery.toLowerCase())
         );
       }
       
