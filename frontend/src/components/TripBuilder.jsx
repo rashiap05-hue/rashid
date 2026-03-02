@@ -9,6 +9,7 @@ import {
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
 import FlightSearchModal from './FlightSearchModal';
+import HotelDetailsView from './HotelDetailsView';
 
 // Hotel Options Modal Component (Choose how to change hotel)
 function HotelOptionsModal({ isOpen, onClose, city, onViewAll, onNoStay, onSearch }) {
@@ -287,70 +288,15 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
               )}
             </div>
           ) : (
-            /* Hotel Detail View */
-            <div>
-              <button 
-                onClick={() => setViewMode('list')}
-                className="flex items-center gap-2 text-[#002B5B] font-medium mb-4 hover:underline"
-              >
-                ← Back to all hotels
-              </button>
-              
-              {selectedHotel && (
-                <div>
-                  <div className="flex gap-4 mb-6">
-                    <img 
-                      src={selectedHotel.images?.[0] || 'https://via.placeholder.com/400x250?text=Hotel'} 
-                      alt={selectedHotel.name}
-                      className="w-96 h-60 object-cover rounded-xl"
-                    />
-                    <div className="flex-1">
-                      <h2 className="text-2xl font-bold text-gray-800">{selectedHotel.name}</h2>
-                      <div className="flex items-center gap-2 mt-2">
-                        {Array.from({ length: selectedHotel.star_rating || 4 }).map((_, i) => (
-                          <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />
-                        ))}
-                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded font-bold text-sm ml-2">
-                          {selectedHotel.rating_score || 8.5}
-                        </span>
-                      </div>
-                      <p className="text-gray-500 mt-2">{selectedHotel.address || `${selectedHotel.city}, ${selectedHotel.country}`}</p>
-                      <p className="text-gray-600 mt-4 text-sm">{selectedHotel.description}</p>
-                    </div>
-                  </div>
-
-                  <h3 className="text-lg font-bold text-gray-800 mb-4">Available Rooms</h3>
-                  <div className="space-y-3">
-                    {(selectedHotel.rooms || [{ id: 'default', name: 'Standard Room', price: 1800, type: 'Standard' }]).map((room) => (
-                      <div 
-                        key={room.id}
-                        className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex justify-between items-center"
-                      >
-                        <div>
-                          <h4 className="font-bold text-gray-800">{room.name}</h4>
-                          <p className="text-sm text-gray-500">{room.bed_type || '1 King Bed'} • {room.size || '30 sqm'}</p>
-                          <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                            <span className="flex items-center gap-1"><Wifi size={12} /> Free WiFi</span>
-                            <span className="flex items-center gap-1"><Coffee size={12} /> {room.meals || 'Breakfast Included'}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-[#002B5B]">AED {(room.price || 1800) * nights}</p>
-                          <p className="text-xs text-gray-500 mb-2">for {nights} nights</p>
-                          <button 
-                            onClick={() => handleSelectHotel(selectedHotel, room)}
-                            className="bg-[#002B5B] text-white px-6 py-2 rounded-lg font-bold text-sm hover:bg-[#003d82] transition-all"
-                            data-testid={`select-room-${room.id}`}
-                          >
-                            Select
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            /* Hotel Detail View - Using HotelDetailsView Component */
+            <HotelDetailsView
+              hotel={selectedHotel}
+              onBack={() => setViewMode('list')}
+              onSelectRoom={(room) => handleSelectHotel(selectedHotel, room)}
+              checkIn={checkIn}
+              checkOut={checkOut}
+              nights={nights}
+            />
           )}
         </div>
       </motion.div>
