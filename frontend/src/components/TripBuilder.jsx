@@ -196,6 +196,22 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
+          {/* Search Filter */}
+          {viewMode === 'list' && (
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search hotels by name..."
+                  value={filterQuery}
+                  onChange={(e) => setFilterQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent outline-none text-sm"
+                />
+              </div>
+            </div>
+          )}
+          
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
               <Loader2 className="w-10 h-10 text-[#002B5B] animate-spin" />
@@ -203,13 +219,13 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
             </div>
           ) : viewMode === 'list' ? (
             <div className="space-y-4">
-              {hotels.length === 0 ? (
+              {filteredHotels.length === 0 ? (
                 <div className="text-center py-10 text-gray-500">
                   <Hotel className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                  <p className="font-medium">No hotels available for this destination</p>
+                  <p className="font-medium">{filterQuery ? `No hotels found for "${filterQuery}"` : 'No hotels available for this destination'}</p>
                 </div>
               ) : (
-                hotels.map((hotel) => (
+                filteredHotels.map((hotel) => (
                   <div 
                     key={hotel.id}
                     className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all cursor-pointer"
