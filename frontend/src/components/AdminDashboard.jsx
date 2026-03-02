@@ -482,6 +482,127 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                 </div>
               </>
             )}
+
+            {type === 'transfer' && (
+              <>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={editForm.title || ''}
+                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                    placeholder="e.g., Private from Dubai International Airport"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    data-testid="edit-transfer-title"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">From Location</label>
+                    <input
+                      type="text"
+                      value={editForm.from_location || ''}
+                      onChange={(e) => setEditForm({ ...editForm, from_location: e.target.value })}
+                      placeholder="Airport or hotel name"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-transfer-from"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">To Location</label>
+                    <input
+                      type="text"
+                      value={editForm.to_location || ''}
+                      onChange={(e) => setEditForm({ ...editForm, to_location: e.target.value })}
+                      placeholder="Hotel or destination"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-transfer-to"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">City</label>
+                    <input
+                      type="text"
+                      value={editForm.city || ''}
+                      onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-transfer-city"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Price (AED)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editForm.price || 0}
+                      onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-transfer-price"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Transfer Type</label>
+                    <select
+                      value={editForm.transfer_type || 'Private'}
+                      onChange={(e) => setEditForm({ ...editForm, transfer_type: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-transfer-type"
+                    >
+                      <option value="Private">Private</option>
+                      <option value="Shared">Shared</option>
+                      <option value="Luxury">Luxury</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Duration</label>
+                    <input
+                      type="text"
+                      value={editForm.duration || ''}
+                      onChange={(e) => setEditForm({ ...editForm, duration: e.target.value })}
+                      placeholder="e.g., 1 hrs"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-transfer-duration"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Confirmation</label>
+                    <input
+                      type="text"
+                      value={editForm.confirmation_time || ''}
+                      onChange={(e) => setEditForm({ ...editForm, confirmation_time: e.target.value })}
+                      placeholder="e.g., 4 hrs"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-transfer-confirmation"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">Description</label>
+                  <textarea
+                    value={editForm.description || ''}
+                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    rows={3}
+                    placeholder="Transfer details and what's included..."
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent resize-none"
+                    data-testid="edit-transfer-description"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={editForm.is_available !== false}
+                    onChange={(e) => setEditForm({ ...editForm, is_available: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-300 text-[#002B5B] focus:ring-[#002B5B]"
+                    data-testid="edit-transfer-available"
+                  />
+                  <label className="text-sm font-bold text-gray-600">Transfer Available</label>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="flex gap-3 mt-6">
