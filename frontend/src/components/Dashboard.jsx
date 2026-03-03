@@ -7,6 +7,7 @@ import {
 import { cn } from '@/lib/utils';
 import FlightDashboard from './FlightDashboard';
 import ActivitiesDashboard from './ActivitiesDashboard';
+import MyProposals from './MyProposals';
 import { api } from '@/App';
 
 export default function Dashboard({ 
@@ -50,6 +51,14 @@ export default function Dashboard({
             <FlightDashboard />
           ) : activeTab === 'Activities' ? (
             <ActivitiesDashboard />
+          ) : activeTab === 'My Leads' || activeTab === 'My Proposals' ? (
+            <MyProposals 
+              onViewProposal={onViewProposal}
+              onEditProposal={(proposal) => {
+                // Handle edit - could navigate to trip builder with proposal data
+                if (onViewProposal) onViewProposal(proposal);
+              }}
+            />
           ) : (
             <main className="max-w-7xl mx-auto px-6 py-8">
               {activeTab === 'Home' ? (
@@ -128,44 +137,6 @@ export default function Dashboard({
                       </motion.div>
                     ))}
                   </div>
-
-                  {/* Recent Proposals */}
-                  {proposals.length > 0 && (
-                    <section className="mb-12">
-                      <h3 className="text-xl font-bold text-[#002B5B] mb-6">Recent Proposals</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {proposals.slice(0, 3).map((proposal) => (
-                          <div
-                            key={proposal.id}
-                            className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm cursor-pointer hover:shadow-md transition-all"
-                            onClick={() => onViewProposal && onViewProposal(proposal.id)}
-                            data-testid={`proposal-${proposal.id}`}
-                          >
-                            <div className="flex justify-between items-start mb-4">
-                              <div>
-                                <div className="font-bold text-gray-800">{proposal.leaving_from}</div>
-                                <div className="text-sm text-gray-500">{proposal.leaving_on}</div>
-                              </div>
-                              <span className={cn(
-                                "px-2 py-1 rounded-full text-xs font-bold",
-                                proposal.status === 'confirmed' ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'
-                              )}>
-                                {proposal.status}
-                              </span>
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {proposal.cities?.map(c => c.name).join(' → ')}
-                            </div>
-                            {proposal.total_price && (
-                              <div className="mt-3 text-lg font-bold text-[#002B5B]">
-                                AED {proposal.total_price.toLocaleString()}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-                  )}
 
                   {/* Banner Section */}
                   <div className="relative rounded-2xl overflow-hidden mb-12 h-[400px]">

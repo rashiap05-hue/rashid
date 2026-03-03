@@ -202,9 +202,10 @@ export default function Header({
                           key={sub.name}
                           className="w-full text-left px-4 py-3 text-sm hover:bg-[#444444] transition-colors border-b border-white/10 last:border-0"
                           onClick={() => {
-                            setActiveTab(item.name);
+                            setActiveTab(sub.name);
                             setOpenDropdown(null);
                           }}
+                          data-testid={`nav-sub-${sub.name.toLowerCase().replace(/\s+/g, '-')}`}
                         >
                           {sub.name}
                         </button>
