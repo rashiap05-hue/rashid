@@ -1,0 +1,146 @@
+{
+  "summary": "Activities Management integration with Trip Builder (Customize Your Trip) - ALL TESTS PASSED. Activities modal opens from 'Add Activity in [City]' button, activities are correctly filtered by city (only Dubai activities shown for Dubai trip), activity selection toggles correctly, multiple activities can be added per day, selected activities appear in day card with images/badges/timing/price, activities shown in Trip Summary sidebar with individual prices, total pricing includes activities correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "activities_modal_opens": {
+      "status": "PASS",
+      "details": "Clicking '+ Add Activity in Dubai' button opens modal with 'Activities in Dubai' header"
+    },
+    "activities_filtered_by_city": {
+      "status": "PASS",
+      "details": "Only Dubai activities shown (3 activities: Desert Safari, Burj Khalifa, Dubai City Tour) - API uses regex city filter"
+    },
+    "activity_selection_toggle": {
+      "status": "PASS",
+      "test_flow": [
+        "Initial: 0 activities selected for this day",
+        "Select 1st: 1 activity selected for this day",
+        "Select 2nd: 2 activities selected for this day",
+        "Deselect 1st: 1 activity selected for this day",
+        "Re-select 1st + select 3rd: 3 activities selected for this day"
+      ]
+    },
+    "activity_cards_display": {
+      "status": "PASS",
+      "elements_shown": [
+        "Activity image",
+        "Category badge (Adventure, Sightseeing)",
+        "Transfer type badge (Private)",
+        "Start times (e.g., 'Starts at 14:30, 15:00')",
+        "Duration (e.g., '6 hours')",
+        "Languages (e.g., 'English, Arabic')",
+        "Inclusions badges (e.g., 'Hotel pickup and drop-off', '4x4 Land Cruiser')",
+        "Price with currency (e.g., '$ 250 AED')",
+        "Rating (e.g., '4.8')"
+      ]
+    },
+    "selected_activities_in_day_card": {
+      "status": "PASS",
+      "details": "Activities appear in day card (purple background) with image, name, category/transfer badges, timing info, and price"
+    },
+    "selected_activities_in_trip_summary": {
+      "status": "PASS",
+      "details": "Trip Summary sidebar shows 'Activities' section with 'Day 1 - Dubai' and all selected activities with individual prices"
+    },
+    "activities_pricing_calculation": {
+      "status": "PASS",
+      "test_data": {
+        "burj_khalifa": "AED 180",
+        "desert_safari": "AED 250",
+        "dubai_city_tour": "AED 120",
+        "total_activities": "AED 550",
+        "price_breakdown_shows": "Activities: AED 550"
+      }
+    },
+    "multiple_activities_per_day": {
+      "status": "PASS",
+      "details": "Successfully added 3 activities to single day"
+    }
+  },
+  "activities_in_database": [
+    {
+      "name": "Desert Safari with BBQ Dinner",
+      "city": "Dubai",
+      "category": "Adventure",
+      "transfer_type": "Private",
+      "price": 250,
+      "start_times": ["14:30", "15:00"],
+      "languages": ["English", "Arabic"]
+    },
+    {
+      "name": "Burj Khalifa At The Top",
+      "city": "Dubai",
+      "category": "Sightseeing",
+      "transfer_type": "Private",
+      "price": 180,
+      "start_times": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"],
+      "languages": ["English", "Arabic", "Chinese"]
+    },
+    {
+      "name": "Dubai City Tour",
+      "city": "Dubai",
+      "category": "Sightseeing",
+      "transfer_type": "Private",
+      "price": 120,
+      "start_times": ["08:30", "14:00"],
+      "languages": ["English", "Arabic", "Russian"]
+    }
+  ],
+  "test_flow_used": [
+    "1. Login with admin@travo.com / admin123",
+    "2. Click 'Book FIT Package'",
+    "3. Fill destination: Dubai, Leaving From: DXB, Star rating: 4",
+    "4. Click 'Create Proposal' -> Trip Builder page loads",
+    "5. Scroll down to Day 1 -> Click '+ Add Activity in Dubai'",
+    "6. Activities modal opens with 3 Dubai activities",
+    "7. Test selection toggle: select, deselect, re-select",
+    "8. Select multiple activities (3 total)",
+    "9. Click 'Done' -> Activities appear in day card",
+    "10. Verify Trip Summary shows activities with prices",
+    "11. Verify Price Breakdown shows 'Activities: AED 550'",
+    "12. Verify Total includes activities pricing"
+  ],
+  "api_endpoint_tested": {
+    "endpoint": "GET /api/activities?city=Dubai",
+    "response_count": 3,
+    "filtering": "Regex case-insensitive city match"
+  },
+  "test_report_links": [
+    "/app/frontend/src/components/TripBuilder.jsx"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ActivitiesModal component properly filters activities by city from API",
+    "Activity selection state uses key format 'city_day' for multi-day support",
+    "handleSelectActivity properly toggles selection (adds if not exists, removes if exists)",
+    "Activity pricing correctly added to calculatePricing function",
+    "Day card displays activities with all relevant info (image, badges, timing, price)",
+    "Trip Summary sidebar shows activities grouped by day with individual prices"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A - frontend only testing",
+    "frontend": "100% - All 7 features tested and passed"
+  },
+  "test_credentials": {
+    "email": "admin@travo.com",
+    "password": "admin123"
+  },
+  "seed_data_verified": {
+    "dubai_activities_count": 3
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false
+  },
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Activities Management integration with Trip Builder fully tested. Key flow: Login -> Book FIT Package -> Fill form with Dubai -> Create Proposal -> Trip Builder page -> Click 'Add Activity in Dubai' -> Activities modal shows 3 Dubai activities -> Select activities -> Done -> Activities appear in day card and Trip Summary with pricing. API endpoint: GET /api/activities?city=Dubai. Activity selection toggles correctly, multiple activities per day work, pricing calculation correct."
+}

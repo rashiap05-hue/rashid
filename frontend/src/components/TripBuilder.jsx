@@ -4,12 +4,262 @@ import {
   Plane, Hotel, MapPin, Calendar, Users, ChevronDown, ChevronRight, 
   Plus, X, Check, Star, Clock, Coffee, Wifi, Car, Edit2, Loader2,
   CreditCard, Save, ArrowRight, Sun, Moon, Utensils, Camera, Info, AlertCircle,
-  List, Ban, Search, DollarSign
+  List, Ban, Search, DollarSign, Globe, Compass, Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
 import FlightSearchModal from './FlightSearchModal';
 import HotelDetailsView from './HotelDetailsView';
+
+// Activities Modal Component - Shows activities filtered by city
+function ActivitiesModal({ isOpen, onClose, city, onSelectActivity, selectedActivities = [] }) {
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (isOpen && city) {
+      fetchActivities();
+    }
+  }, [isOpen, city]);
+
+  const fetchActivities = async () => {
+    setLoading(true);
+    try {
+      // Fetch activities filtered by city
+      const res = await api.get(`/activities?city=${encodeURIComponent(city)}`);
+      let activityList = res.data?.activities || [];
+      
+      // If no activities for the specific city, try broader search
+      if (activityList.length === 0) {
+        const allRes = await api.get('/activities');
+        const allActivities = allRes.data?.activities || [];
+        // Filter by city name match (case-insensitive)
+        activityList = allActivities.filter(a => 
+          a.city?.toLowerCase().includes(city.toLowerCase()) ||
+          city.toLowerCase().includes(a.city?.toLowerCase() || '')
+        );
+      }
+      
+      // Filter only available activities
+      activityList = activityList.filter(a => a.available !== false);
+      
+      setActivities(activityList);
+    } catch (error) {
+      console.error('Error fetching activities:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter activities by search query
+  const filteredActivities = searchQuery
+    ? activities.filter(a =>
+        a.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        a.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        a.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : activities;
+
+  // Check if an activity is already selected
+  const isSelected = (activityId) => {
+    return selectedActivities.some(a => a.id === activityId);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative bg-white w-full max-w-5xl max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="bg-gradient-to-r from-pink-600 to-purple-600 text-white px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold">Activities in {city}</h2>
+            <p className="text-pink-100 text-sm">Select activities for your trip</p>
+          </div>
+          <button 
+            onClick={onClose}
+            className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <input
+              type="text"
+              placeholder="Search activities by name or category..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+              data-testid="activity-search-input"
+            />
+          </div>
+        </div>
+
+        {/* Activity List */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="animate-spin text-pink-500" size={40} />
+              <p className="mt-4 text-gray-500 font-medium">Loading activities...</p>
+            </div>
+          ) : filteredActivities.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Compass size={48} className="text-gray-300 mb-4" />
+              <p className="font-medium text-gray-500">
+                {searchQuery 
+                  ? `No activities found for "${searchQuery}"`
+                  : `No activities available in ${city}`
+                }
+              </p>
+              <p className="text-sm text-gray-400 mt-2">
+                Try searching for a different activity or check back later
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredActivities.map((activity) => {
+                const selected = isSelected(activity.id);
+                return (
+                  <motion.div
+                    key={activity.id}
+                    whileHover={{ scale: 1.01 }}
+                    className={cn(
+                      "bg-white rounded-xl border-2 overflow-hidden cursor-pointer transition-all",
+                      selected 
+                        ? "border-pink-500 ring-2 ring-pink-200" 
+                        : "border-gray-200 hover:border-pink-300"
+                    )}
+                    onClick={() => onSelectActivity(activity)}
+                    data-testid={`activity-option-${activity.id}`}
+                  >
+                    <div className="flex">
+                      {/* Activity Image */}
+                      <div className="w-32 h-32 flex-shrink-0 relative">
+                        <img
+                          src={activity.images?.[0] || 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400'}
+                          alt={activity.name}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute top-2 left-2 flex flex-col gap-1">
+                          <span className="bg-pink-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
+                            {activity.category || 'Activity'}
+                          </span>
+                          {activity.transfer_type && (
+                            <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
+                              {activity.transfer_type}
+                            </span>
+                          )}
+                        </div>
+                        {selected && (
+                          <div className="absolute inset-0 bg-pink-500/30 flex items-center justify-center">
+                            <div className="bg-pink-500 text-white rounded-full p-2">
+                              <Check size={20} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Activity Details */}
+                      <div className="flex-1 p-4">
+                        <h3 className="font-bold text-gray-800 line-clamp-1">{activity.name}</h3>
+                        
+                        {/* Timing */}
+                        {activity.start_times?.length > 0 && (
+                          <div className="flex items-center gap-1 text-xs text-blue-600 mt-1">
+                            <Clock size={10} />
+                            <span>Starts at {activity.start_times.slice(0, 2).join(', ')} ({activity.duration})</span>
+                          </div>
+                        )}
+                        
+                        {/* Languages */}
+                        {activity.languages?.length > 0 && (
+                          <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                            <Globe size={10} />
+                            <span>{activity.languages.slice(0, 2).join(', ')}</span>
+                          </div>
+                        )}
+                        
+                        {/* Closed Days */}
+                        {activity.closed_days?.length > 0 && (
+                          <div className="text-xs text-red-500 mt-1">
+                            Closed on {activity.closed_days.join(', ')}
+                          </div>
+                        )}
+
+                        {/* Inclusions */}
+                        {activity.inclusions?.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {activity.inclusions.slice(0, 2).map((inc, i) => (
+                              <span key={i} className="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded">
+                                {inc}
+                              </span>
+                            ))}
+                            {activity.inclusions.length > 2 && (
+                              <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                                +{activity.inclusions.length - 2}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Price */}
+                        <div className="flex items-center justify-between mt-3">
+                          <div className="flex items-center gap-1">
+                            <DollarSign size={14} className="text-green-600" />
+                            <span className="font-bold text-green-600">{activity.price}</span>
+                            <span className="text-xs text-gray-500">{activity.currency || 'AED'}</span>
+                          </div>
+                          {activity.rating && (
+                            <div className="flex items-center gap-1 text-xs bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded">
+                              <Star size={10} className="fill-yellow-400" />
+                              <span>{activity.rating}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+          <p className="text-sm text-gray-500">
+            {selectedActivities.length} activit{selectedActivities.length !== 1 ? 'ies' : 'y'} selected for this day
+          </p>
+          <button
+            onClick={onClose}
+            className="px-6 py-2 bg-pink-600 text-white rounded-lg font-bold hover:bg-pink-700 transition-colors"
+          >
+            Done
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
 
 // Hotel Options Modal Component (Choose how to change hotel)
 function HotelOptionsModal({ isOpen, onClose, city, onViewAll, onNoStay, onSearch }) {
@@ -313,7 +563,7 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
 }
 
 // Day Card Component
-function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, onAddActivity, onChangeHotel, hotel, onSelectArrivalTransfer, onSelectDepartureTransfer, selectedArrivalTransfer, selectedDepartureTransfer }) {
+function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, onAddActivity, onRemoveActivity, onChangeHotel, hotel, onSelectArrivalTransfer, onSelectDepartureTransfer, selectedArrivalTransfer, selectedDepartureTransfer }) {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -460,15 +710,48 @@ function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, on
               {!isDeparture && activities?.length > 0 && (
                 <div className="space-y-2">
                   {activities.map((activity, i) => (
-                    <div key={i} className="flex items-center gap-4 p-4 bg-purple-50 rounded-xl border border-purple-100">
-                      <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <Camera className="text-purple-600" size={20} />
+                    <div key={activity.id || i} className="flex items-center gap-4 p-4 bg-purple-50 rounded-xl border border-purple-100 group">
+                      {/* Activity Image */}
+                      <img 
+                        src={activity.images?.[0] || 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=100'}
+                        alt={activity.name}
+                        className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-800 line-clamp-1">{activity.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] bg-pink-100 text-pink-600 px-2 py-0.5 rounded-full font-medium">
+                            {activity.category || 'Activity'}
+                          </span>
+                          {activity.transfer_type && (
+                            <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+                              {activity.transfer_type}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {activity.start_times?.length > 0 
+                            ? `${activity.start_times[0]} • ${activity.duration}`
+                            : activity.duration
+                          }
+                          {activity.languages?.length > 0 && ` • ${activity.languages[0]}`}
+                        </p>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-bold text-gray-800">{activity.name}</p>
-                        <p className="text-sm text-gray-500">{activity.duration}</p>
+                      <div className="text-right flex-shrink-0">
+                        <span className="font-bold text-green-600">AED {activity.price}</span>
+                        {onRemoveActivity && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRemoveActivity(activity.id);
+                            }}
+                            className="ml-2 p-1.5 text-red-500 hover:bg-red-100 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Remove activity"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
-                      <span className="font-bold text-[#002B5B]">AED {activity.price}</span>
                     </div>
                   ))}
                 </div>
@@ -478,7 +761,8 @@ function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, on
               {!isDeparture && (
                 <button 
                   onClick={onAddActivity}
-                  className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 font-medium hover:border-[#002B5B] hover:text-[#002B5B] transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3 border-2 border-dashed border-pink-200 rounded-xl text-pink-500 font-medium hover:border-pink-500 hover:bg-pink-50 transition-all flex items-center justify-center gap-2"
+                  data-testid={`add-activity-day-${day}`}
                 >
                   <Plus size={18} />
                   Add Activity in {city}
@@ -505,6 +789,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [changeRoomHotel, setChangeRoomHotel] = useState(null); // Hotel to show room options for
+  
+  // Activities state
+  const [showActivitiesModal, setShowActivitiesModal] = useState(false);
+  const [activeActivityCity, setActiveActivityCity] = useState(null);
+  const [activeActivityDay, setActiveActivityDay] = useState(null);
+  const [selectedActivities, setSelectedActivities] = useState({}); // { "city_day": [activities] }
   
   // Transfer state
   const [availableTransfers, setAvailableTransfers] = useState([]);
@@ -620,6 +910,44 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     setShowHotelModal(true);
   };
 
+  // Handle activity selection
+  const handleAddActivity = (cityName, dayNumber) => {
+    setActiveActivityCity(cityName);
+    setActiveActivityDay(dayNumber);
+    setShowActivitiesModal(true);
+  };
+
+  const handleSelectActivity = (activity) => {
+    const key = `${activeActivityCity}_${activeActivityDay}`;
+    setSelectedActivities(prev => {
+      const currentActivities = prev[key] || [];
+      // Check if already selected - if so, remove it
+      const existingIndex = currentActivities.findIndex(a => a.id === activity.id);
+      if (existingIndex >= 0) {
+        // Remove activity
+        const newActivities = currentActivities.filter(a => a.id !== activity.id);
+        return { ...prev, [key]: newActivities };
+      } else {
+        // Add activity
+        return { ...prev, [key]: [...currentActivities, activity] };
+      }
+    });
+  };
+
+  const handleRemoveActivity = (cityName, dayNumber, activityId) => {
+    const key = `${cityName}_${dayNumber}`;
+    setSelectedActivities(prev => ({
+      ...prev,
+      [key]: (prev[key] || []).filter(a => a.id !== activityId)
+    }));
+  };
+
+  // Get activities for a specific day
+  const getActivitiesForDay = (cityName, dayNumber) => {
+    const key = `${cityName}_${dayNumber}`;
+    return selectedActivities[key] || [];
+  };
+
   // Calculate trip details
   const cities = data?.cities || [];
   const totalNights = cities.reduce((acc, c) => acc + (c.nights || 1), 0);
@@ -698,10 +1026,18 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     const departureTransferPrice = selectedDepartureTransfer?.price || 0;
     const transferTotal = arrivalTransferPrice + departureTransferPrice;
     
+    // Calculate activities total
+    let activitiesTotal = 0;
+    Object.values(selectedActivities).forEach(dayActivities => {
+      dayActivities.forEach(activity => {
+        activitiesTotal += activity.price || 0;
+      });
+    });
+    
     const adultsCount = data?.room_data?.reduce((acc, r) => acc + r.adults, 0) || 2;
     const childrenCount = data?.room_data?.reduce((acc, r) => acc + r.children?.length, 0) || 0;
     
-    const subtotal = hotelTotal + flightPrice + transferTotal;
+    const subtotal = hotelTotal + flightPrice + transferTotal + activitiesTotal;
     const pricePerAdult = Math.round(subtotal / adultsCount);
     const pricePerChild = Math.round(pricePerAdult * 0.7); // 30% discount for children
 
@@ -709,6 +1045,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       hotelTotal,
       flightPrice,
       transferTotal,
+      activitiesTotal,
       arrivalTransferPrice,
       departureTransferPrice,
       pricePerAdult,
@@ -1304,7 +1641,9 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
               <DayCard
                 key={index}
                 {...day}
-                onAddActivity={() => {}}
+                activities={getActivitiesForDay(day.city, day.day)}
+                onAddActivity={() => handleAddActivity(day.city, day.day)}
+                onRemoveActivity={(activityId) => handleRemoveActivity(day.city, day.day, activityId)}
                 onChangeHotel={() => {
                   setActiveHotelCity(day.city);
                   setShowHotelModal(true);
@@ -1381,6 +1720,31 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                   </div>
                 )}
 
+                {/* Selected Activities */}
+                {Object.entries(selectedActivities).some(([_, acts]) => acts.length > 0) && (
+                  <div>
+                    <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                      <Compass size={16} className="text-pink-600" />
+                      Activities
+                    </h4>
+                    {Object.entries(selectedActivities).map(([key, activities]) => {
+                      if (activities.length === 0) return null;
+                      const [city, day] = key.split('_');
+                      return (
+                        <div key={key} className="mb-3 p-3 bg-pink-50 rounded-lg">
+                          <p className="text-xs font-medium text-pink-600 mb-1">Day {day} - {city}</p>
+                          {activities.map(activity => (
+                            <div key={activity.id} className="flex justify-between items-center py-1">
+                              <span className="text-sm text-gray-600 line-clamp-1 flex-1">{activity.name}</span>
+                              <span className="text-sm font-bold text-pink-600 ml-2">AED {activity.price}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {/* Pricing Breakdown */}
                 <div className="border-t pt-4">
                   <h4 className="font-bold text-gray-800 mb-3">Price Breakdown</h4>
@@ -1401,6 +1765,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Transfers</span>
                         <span className="font-medium">AED {pricing.transferTotal.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {pricing.activitiesTotal > 0 && (
+                      <div className="flex justify-between text-pink-600">
+                        <span>Activities</span>
+                        <span className="font-medium">AED {pricing.activitiesTotal.toLocaleString()}</span>
                       </div>
                     )}
                     <div className="pt-2 border-t border-dashed">
@@ -1472,6 +1842,19 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           </button>
         </div>
       </div>
+
+      {/* Activities Modal */}
+      <AnimatePresence>
+        {showActivitiesModal && (
+          <ActivitiesModal
+            isOpen={showActivitiesModal}
+            onClose={() => setShowActivitiesModal(false)}
+            city={activeActivityCity}
+            selectedActivities={getActivitiesForDay(activeActivityCity, activeActivityDay)}
+            onSelectActivity={handleSelectActivity}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
