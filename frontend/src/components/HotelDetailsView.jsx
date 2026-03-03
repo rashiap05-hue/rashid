@@ -467,8 +467,59 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
     );
   }
 
+  // Get rooms from either room_types (new format) or rooms (legacy format)
+  const getAllRooms = () => {
+    // First check for room_types with rate_plans (new format)
+    if (hotel.room_types && hotel.room_types.length > 0) {
+      // Convert room_types to display format
+      return hotel.room_types.flatMap(roomType => {
+        // If room type has rate plans, create a room entry for each rate plan
+        if (roomType.rate_plans && roomType.rate_plans.length > 0) {
+          return roomType.rate_plans.map((ratePlan, idx) => ({
+            id: ratePlan.id || `${roomType.id}_${idx}`,
+            name: roomType.name || 'Standard Room',
+            type: roomType.category || 'Standard',
+            bed_type: roomType.bed_configuration?.join(', ') || '1 King',
+            view: roomType.view_type || 'City View',
+            size: roomType.room_size ? `${roomType.room_size} ${roomType.size_unit || 'sqm'}` : '30 sqm',
+            price: ratePlan.price || 0,
+            original_price: ratePlan.supplier_cost || null,
+            currency: ratePlan.currency || 'AED',
+            amenities: roomType.amenities || [],
+            refundable: ratePlan.refund_policy === 'Refundable',
+            refundable_until: ratePlan.refund_deadline || '24 hours before',
+            meals: ratePlan.meal_plan || 'Room Only',
+            images: roomType.images || [],
+            rate_plan: ratePlan,
+            room_type: roomType
+          }));
+        }
+        // If no rate plans, create a single room entry
+        return [{
+          id: roomType.id || `room_${Date.now()}`,
+          name: roomType.name || 'Standard Room',
+          type: roomType.category || 'Standard',
+          bed_type: roomType.bed_configuration?.join(', ') || '1 King',
+          view: roomType.view_type || 'City View',
+          size: roomType.room_size ? `${roomType.room_size} ${roomType.size_unit || 'sqm'}` : '30 sqm',
+          price: 0,
+          currency: 'AED',
+          amenities: roomType.amenities || [],
+          refundable: true,
+          meals: 'Room Only',
+          images: roomType.images || [],
+          room_type: roomType
+        }];
+      });
+    }
+    // Fall back to legacy rooms format
+    return hotel.rooms || [];
+  };
+
+  const allRooms = getAllRooms();
+
   // Group rooms by type
-  const roomsByCategory = (hotel.rooms || []).reduce((acc, room) => {
+  const roomsByCategory = allRooms.reduce((acc, room) => {
     const category = room.type || 'Standard';
     if (!acc[category]) acc[category] = [];
     acc[category].push(room);
@@ -681,7 +732,7 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
             <div className="py-8">
               <h3 className="text-lg font-bold mb-4">All Room Types</h3>
               <div className="space-y-4">
-                {(hotel.rooms || []).map((room, idx) => (
+                {allRooms.map((room, idx) => (
                   <div key={idx} className="p-4 border border-gray-200 rounded-lg">
                     <h4 className="font-bold">{room.name}</h4>
                     <p className="text-sm text-gray-500">{room.bed_type} • {room.size} • {room.view}</p>
@@ -692,6 +743,9 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
                     </div>
                   </div>
                 ))}
+                {allRooms.length === 0 && (
+                  <p className="text-gray-500 text-center py-8">No rooms defined for this hotel</p>
+                )}
               </div>
             </div>
           )}

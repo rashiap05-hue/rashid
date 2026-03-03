@@ -667,3 +667,35 @@ A major enhancement to the Hotel Management system implementing photo uploads, r
 - `/app/frontend/src/components/AdminDashboard.jsx` (Updated hotel cards & modal)
 - `/app/backend/server.py` (Upload endpoints, enhanced models)
 - `/app/backend/tests/test_hotel_management.py` (NEW - 10 test cases)
+
+
+## Update: March 3, 2026 - Trip Builder Room Types Integration Fix
+
+### Bug Fix: "No room options available" in Trip Builder
+
+Fixed an issue where the HotelDetailsView component was only checking for the new `room_types` format and not falling back to the legacy `rooms` array when `room_types` was empty.
+
+#### Problem
+Hotels in the database were using the legacy `rooms` array format instead of the new `room_types` with `rate_plans`. The HotelDetailsView component would show "No room options available" because the `room_types` array was empty.
+
+#### Solution
+Updated `/app/frontend/src/components/HotelDetailsView.jsx` to:
+1. Check for `room_types` array first (new format with rate plans)
+2. If `room_types` is empty or undefined, fall back to legacy `rooms` array
+3. Convert either format to a unified display format for the UI
+4. Support both formats seamlessly
+
+#### Changes Made
+1. **Removed "Supplier Information"** from Hotel Basic Info tab (as requested)
+2. **Updated Rate Plans** - Added "Supplier Name" and renamed "Original Price" to "Supplier Cost/Night"
+3. **Fixed Room Types display** in Trip Builder - Now shows rooms from both formats
+
+#### Verification
+- Tested with Tbilisi hotel (Iveria Inn Hotel) which uses legacy `rooms` format
+- Both Standard Room (AED 180) and Deluxe Room (AED 250) now display correctly
+- Room details show: meal plan, amenities, taxes, refund policy, select button
+
+### Files Modified
+- `/app/frontend/src/components/HotelDetailsView.jsx` - Added `getAllRooms()` function with format fallback
+- `/app/frontend/src/components/HotelEditForm.jsx` - Removed supplier section, updated rate plan fields
+- `/app/frontend/src/components/TripBuilder.jsx` - Added DollarSign icon import, enhanced price display
