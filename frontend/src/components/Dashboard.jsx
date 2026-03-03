@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import FlightDashboard from './FlightDashboard';
+import ActivitiesDashboard from './ActivitiesDashboard';
 import { api } from '@/App';
 
 export default function Dashboard({ 
@@ -47,6 +48,8 @@ export default function Dashboard({
         >
           {activeTab === 'Flights' || activeTab === 'Flight Search' ? (
             <FlightDashboard />
+          ) : activeTab === 'Activities' ? (
+            <ActivitiesDashboard />
           ) : (
             <main className="max-w-7xl mx-auto px-6 py-8">
               {activeTab === 'Home' ? (
