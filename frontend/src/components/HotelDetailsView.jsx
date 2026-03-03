@@ -367,91 +367,6 @@ function RoomCategory({ category, rooms, onSelectRoom, nights }) {
   );
 }
 
-// Search Bar Component
-function SearchBar({ checkIn, checkOut, rooms, nationality, onSearch }) {
-  // Convert date string to yyyy-MM-dd format for date input
-  const formatDateForInput = (dateStr) => {
-    if (!dateStr) return '';
-    // If already in yyyy-MM-dd format, return as is
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-    // Try to parse and format
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return '';
-      return date.toISOString().split('T')[0];
-    } catch {
-      return '';
-    }
-  };
-
-  const [searchParams, setSearchParams] = useState({
-    checkIn: formatDateForInput(checkIn),
-    checkOut: formatDateForInput(checkOut),
-    rooms: rooms || '1 room, 2 adults',
-    nationality: nationality || 'United Arab Emirates'
-  });
-
-  return (
-    <div className="bg-gray-50 rounded-xl p-4 flex items-end gap-4 flex-wrap">
-      <div className="flex-1 min-w-[150px]">
-        <label className="block text-sm font-medium text-gray-600 mb-1">Check-in</label>
-        <div className="relative">
-          <input
-            type="date"
-            value={searchParams.checkIn}
-            onChange={(e) => setSearchParams({ ...searchParams, checkIn: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-          />
-        </div>
-      </div>
-      <div className="flex-1 min-w-[150px]">
-        <label className="block text-sm font-medium text-gray-600 mb-1">Check-out</label>
-        <div className="relative">
-          <input
-            type="date"
-            value={searchParams.checkOut}
-            onChange={(e) => setSearchParams({ ...searchParams, checkOut: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-          />
-        </div>
-      </div>
-      <div className="flex-1 min-w-[150px]">
-        <label className="block text-sm font-medium text-gray-600 mb-1">Number of rooms</label>
-        <select
-          value={searchParams.rooms}
-          onChange={(e) => setSearchParams({ ...searchParams, rooms: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-        >
-          <option>1 room, 2 adults</option>
-          <option>1 room, 3 adults</option>
-          <option>2 rooms, 4 adults</option>
-        </select>
-      </div>
-      <div className="flex-1 min-w-[150px]">
-        <label className="block text-sm font-medium text-gray-600 mb-1">Nationality</label>
-        <select
-          value={searchParams.nationality}
-          onChange={(e) => setSearchParams({ ...searchParams, nationality: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-        >
-          <option>United Arab Emirates</option>
-          <option>United States</option>
-          <option>United Kingdom</option>
-          <option>India</option>
-          <option>Other</option>
-        </select>
-      </div>
-      <button
-        onClick={() => onSearch && onSearch(searchParams)}
-        className="px-8 py-2 bg-[#002B5B] text-white rounded-lg font-bold hover:bg-[#003d82] transition-colors"
-        data-testid="search-rooms-button"
-      >
-        Search
-      </button>
-    </div>
-  );
-}
-
 // Main Hotel Details View Component
 export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn, checkOut, nights = 4 }) {
   const [activeTab, setActiveTab] = useState('available');
@@ -590,15 +505,6 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
 
             {/* What to Know */}
             <WhatToKnow highlights={hotel.highlights} hotel={hotel} />
-
-            {/* Search Bar */}
-            <div className="mt-6">
-              <SearchBar 
-                checkIn={checkIn} 
-                checkOut={checkOut}
-                onSearch={(params) => console.log('Search:', params)}
-              />
-            </div>
           </div>
 
           {/* Right Column - Ratings */}
