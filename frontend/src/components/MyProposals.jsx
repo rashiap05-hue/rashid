@@ -1,126 +1,55 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
-  Search, MapPin, Calendar, Users, DollarSign, Clock, 
-  Filter, ChevronDown, Eye, Edit2, Trash2, Loader2,
-  FileText, CheckCircle, XCircle, AlertCircle, Plane
+  Search, Calendar, ChevronDown, ChevronLeft, ChevronRight, 
+  Eye, Trash2, Loader2, Filter, ArrowUpDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
 
-// Status Badge Component
-function StatusBadge({ status }) {
-  const statusConfig = {
-    pending: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Pending' },
-    confirmed: { bg: 'bg-green-100', text: 'text-green-700', label: 'Confirmed' },
-    cancelled: { bg: 'bg-red-100', text: 'text-red-700', label: 'Cancelled' },
-    completed: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Completed' },
-  };
-  
-  const config = statusConfig[status] || statusConfig.pending;
-  
-  return (
-    <span className={cn("px-3 py-1 rounded-full text-xs font-bold", config.bg, config.text)}>
-      {config.label}
-    </span>
-  );
-}
+// Format date helper
+const formatDate = (dateStr) => {
+  if (!dateStr) return '-';
+  const date = new Date(dateStr);
+  const options = { day: '2-digit', month: 'short', year: 'numeric' };
+  return date.toLocaleDateString('en-GB', options);
+};
 
-// Proposal Card Component
-function ProposalCard({ proposal, onView, onEdit, onDelete }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all group"
-    >
-      <div className="p-6">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h3 className="font-bold text-lg text-[#002B5B]">
-              {proposal.leaving_from || 'Unknown Airport'}
-              {proposal.leaving_from_code && ` (${proposal.leaving_from_code})`}
-            </h3>
-            <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-              <Calendar size={14} />
-              <span>{proposal.leaving_on || 'No date'}</span>
-            </div>
-          </div>
-          <StatusBadge status={proposal.status} />
-        </div>
+const formatDateTime = (dateStr) => {
+  if (!dateStr) return '-';
+  const date = new Date(dateStr);
+  const dateOptions = { day: '2-digit', month: 'short', year: 'numeric' };
+  const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: true };
+  return `${date.toLocaleDateString('en-GB', dateOptions)} at ${date.toLocaleTimeString('en-US', timeOptions)}`;
+};
 
-        {/* Destination Cities */}
-        <div className="mb-4">
-          <div className="flex items-center gap-2 text-gray-600">
-            <MapPin size={16} className="text-pink-500" />
-            <span className="font-medium">
-              {proposal.cities?.map(c => c.name).join(' → ') || 'No destinations'}
-            </span>
-          </div>
-        </div>
-
-        {/* Trip Details */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <Users size={14} />
-            <span>{proposal.room_data?.reduce((acc, r) => acc + r.adults, 0) || 2} Adults</span>
-            {proposal.room_data?.reduce((acc, r) => acc + (r.children?.length || 0), 0) > 0 && (
-              <span>, {proposal.room_data.reduce((acc, r) => acc + (r.children?.length || 0), 0)} Children</span>
-            )}
-          </div>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <Clock size={14} />
-            <span>
-              {proposal.cities?.reduce((acc, c) => acc + (c.nights || 0), 0) || 0} Nights
-            </span>
-          </div>
-        </div>
-
-        {/* Price */}
-        {proposal.total_price && (
-          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-            <span className="text-sm text-gray-500">Total Package</span>
-            <span className="text-2xl font-bold text-[#D4A853]">
-              AED {proposal.total_price.toLocaleString()}
-            </span>
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
-          <button
-            onClick={() => onView(proposal)}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#002B5B] text-white rounded-lg font-medium hover:bg-[#003d82] transition-colors"
-          >
-            <Eye size={16} />
-            View
-          </button>
-          <button
-            onClick={() => onEdit(proposal)}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
-          >
-            <Edit2 size={16} />
-          </button>
-          <button
-            onClick={() => onDelete(proposal.id)}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg font-medium hover:bg-red-100 transition-colors"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
+// Generate proposal number
+const generateProposalNumber = (id) => {
+  if (!id) return '-';
+  // Take last 7 characters of ID or generate a number
+  return id.slice(-7).toUpperCase();
+};
 
 // Main My Proposals Component
 export default function MyProposals({ onViewProposal, onEditProposal }) {
   const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('newest');
+  
+  // Filter states
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [selectedDesk, setSelectedDesk] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [destinationSearch, setDestinationSearch] = useState('');
+  const [selectedMarket, setSelectedMarket] = useState('');
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  
+  // Sorting
+  const [sortField, setSortField] = useState('created_at');
+  const [sortDirection, setSortDirection] = useState('desc');
 
   useEffect(() => {
     fetchProposals();
@@ -150,155 +79,389 @@ export default function MyProposals({ onViewProposal, onEditProposal }) {
     }
   };
 
-  // Filter and sort proposals
-  const filteredProposals = proposals
-    .filter(p => {
-      const matchesSearch = !searchQuery || 
-        p.leaving_from?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.cities?.some(c => c.name?.toLowerCase().includes(searchQuery.toLowerCase()));
-      
-      const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
-      
-      return matchesSearch && matchesStatus;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'newest') {
-        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-      } else if (sortBy === 'oldest') {
-        return new Date(a.created_at || 0) - new Date(b.created_at || 0);
-      } else if (sortBy === 'price-high') {
-        return (b.total_price || 0) - (a.total_price || 0);
-      } else if (sortBy === 'price-low') {
-        return (a.total_price || 0) - (b.total_price || 0);
-      }
-      return 0;
-    });
-
-  // Stats
-  const stats = {
-    total: proposals.length,
-    pending: proposals.filter(p => p.status === 'pending').length,
-    confirmed: proposals.filter(p => p.status === 'confirmed').length,
-    totalValue: proposals.reduce((acc, p) => acc + (p.total_price || 0), 0)
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
   };
 
-  return (
-    <div className="min-h-screen bg-[#F8F9FA]" data-testid="my-proposals-page">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#002B5B] to-[#004080] text-white py-8 px-6">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl font-bold mb-2">My Proposals</h1>
-          <p className="text-white/70">Manage and track all your trip proposals</p>
-          
-          {/* Stats Cards */}
-          <div className="grid grid-cols-4 gap-4 mt-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <p className="text-white/70 text-sm">Total Proposals</p>
-              <p className="text-2xl font-bold">{stats.total}</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <p className="text-white/70 text-sm">Pending</p>
-              <p className="text-2xl font-bold text-yellow-300">{stats.pending}</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <p className="text-white/70 text-sm">Confirmed</p>
-              <p className="text-2xl font-bold text-green-300">{stats.confirmed}</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <p className="text-white/70 text-sm">Total Value</p>
-              <p className="text-2xl font-bold text-[#D4A853]">AED {stats.totalValue.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
+  // Filter proposals
+  const filteredProposals = proposals.filter(p => {
+    // Date filter
+    if (dateFrom) {
+      const proposalDate = new Date(p.created_at || p.leaving_on);
+      const fromDate = new Date(dateFrom);
+      if (proposalDate < fromDate) return false;
+    }
+    if (dateTo) {
+      const proposalDate = new Date(p.created_at || p.leaving_on);
+      const toDate = new Date(dateTo);
+      if (proposalDate > toDate) return false;
+    }
+    
+    // Customer search
+    if (customerSearch) {
+      const searchLower = customerSearch.toLowerCase();
+      const customerName = (p.customer_name || p.sent_by || '').toLowerCase();
+      const customerEmail = (p.customer_email || '').toLowerCase();
+      if (!customerName.includes(searchLower) && !customerEmail.includes(searchLower)) {
+        return false;
+      }
+    }
+    
+    // Destination search
+    if (destinationSearch) {
+      const searchLower = destinationSearch.toLowerCase();
+      const destinations = p.cities?.map(c => c.name?.toLowerCase()).join(' ') || '';
+      if (!destinations.includes(searchLower)) return false;
+    }
+    
+    return true;
+  });
+
+  // Sort proposals
+  const sortedProposals = [...filteredProposals].sort((a, b) => {
+    let aVal, bVal;
+    
+    switch (sortField) {
+      case 'proposal_number':
+        aVal = a.id || '';
+        bVal = b.id || '';
+        break;
+      case 'created_at':
+        aVal = new Date(a.created_at || 0);
+        bVal = new Date(b.created_at || 0);
+        break;
+      case 'travel_date':
+        aVal = new Date(a.leaving_on || 0);
+        bVal = new Date(b.leaving_on || 0);
+        break;
+      case 'price':
+        aVal = a.total_price || 0;
+        bVal = b.total_price || 0;
+        break;
+      default:
+        aVal = a[sortField] || '';
+        bVal = b[sortField] || '';
+    }
+    
+    if (sortDirection === 'asc') {
+      return aVal > bVal ? 1 : -1;
+    } else {
+      return aVal < bVal ? 1 : -1;
+    }
+  });
+
+  // Paginate
+  const totalPages = Math.ceil(sortedProposals.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedProposals = sortedProposals.slice(startIndex, startIndex + itemsPerPage);
+
+  // Column header component
+  const SortableHeader = ({ field, label }) => (
+    <th 
+      className="px-4 py-3 text-left text-sm font-bold text-gray-700 cursor-pointer hover:bg-gray-100 whitespace-nowrap"
+      onClick={() => handleSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        <ArrowUpDown size={14} className={cn(
+          "text-gray-400",
+          sortField === field && "text-[#002B5B]"
+        )} />
       </div>
+    </th>
+  );
+
+  return (
+    <div className="min-h-screen bg-white p-6" data-testid="my-proposals-page">
+      {/* Header */}
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">Proposals</h1>
 
       {/* Filters */}
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex gap-4 items-center">
-          {/* Search */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search by destination or airport..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-              data-testid="proposals-search"
-            />
-          </div>
-          
-          {/* Status Filter */}
-          <div className="relative">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="appearance-none pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#002B5B] focus:border-transparent bg-white"
-              data-testid="status-filter"
-            >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="completed">Completed</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-          </div>
-          
-          {/* Sort By */}
-          <div className="relative">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="appearance-none pl-4 pr-10 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#002B5B] focus:border-transparent bg-white"
-              data-testid="sort-filter"
-            >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="price-high">Price: High to Low</option>
-              <option value="price-low">Price: Low to High</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
-          </div>
+      <div className="flex flex-wrap items-center gap-3 mb-6 bg-gray-50 p-4 rounded-lg">
+        {/* Date From */}
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+            data-testid="date-from"
+          />
+          <span className="text-gray-400">-</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+            data-testid="date-to"
+          />
         </div>
+
+        {/* Desk Filter */}
+        <div className="relative">
+          <select
+            value={selectedDesk}
+            onChange={(e) => setSelectedDesk(e.target.value)}
+            className="appearance-none px-4 py-2 pr-8 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#002B5B] focus:border-transparent bg-white"
+            data-testid="desk-filter"
+          >
+            <option value="">Any Desk</option>
+            <option value="desk1">Desk 1</option>
+            <option value="desk2">Desk 2</option>
+          </select>
+          <ChevronDown size={16} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        </div>
+
+        {/* Customer Search */}
+        <input
+          type="text"
+          value={customerSearch}
+          onChange={(e) => setCustomerSearch(e.target.value)}
+          placeholder="Customer Name/Email"
+          className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#002B5B] focus:border-transparent w-48"
+          data-testid="customer-search"
+        />
+
+        {/* Destination Search */}
+        <input
+          type="text"
+          value={destinationSearch}
+          onChange={(e) => setDestinationSearch(e.target.value)}
+          placeholder="Destination"
+          className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#002B5B] focus:border-transparent w-36"
+          data-testid="destination-search"
+        />
+
+        {/* Market Filter */}
+        <div className="relative">
+          <select
+            value={selectedMarket}
+            onChange={(e) => setSelectedMarket(e.target.value)}
+            className="appearance-none px-4 py-2 pr-8 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#002B5B] focus:border-transparent bg-white"
+            data-testid="market-filter"
+          >
+            <option value="">Any Market</option>
+            <option value="uae">UAE</option>
+            <option value="india">India</option>
+            <option value="europe">Europe</option>
+          </select>
+          <ChevronDown size={16} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        </div>
+
+        {/* Show Proposals Button */}
+        <button
+          onClick={fetchProposals}
+          className="px-6 py-2 bg-[#002B5B] text-white rounded-lg font-medium hover:bg-[#003d82] transition-colors"
+          data-testid="show-proposals-btn"
+        >
+          Show Proposals
+        </button>
       </div>
 
-      {/* Proposals Grid */}
-      <div className="max-w-7xl mx-auto px-6 pb-12">
+      {/* Table */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="animate-spin text-[#002B5B]" size={48} />
-            <p className="mt-4 text-gray-500 font-medium">Loading proposals...</p>
-          </div>
-        ) : filteredProposals.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-200">
-            <FileText size={64} className="text-gray-300 mb-4" />
-            <p className="font-bold text-gray-500 text-xl">No proposals found</p>
-            <p className="text-gray-400 mt-2">
-              {searchQuery || statusFilter !== 'all' 
-                ? 'Try adjusting your search or filters'
-                : 'Create your first trip proposal to get started'
-              }
-            </p>
+            <Loader2 className="animate-spin text-[#002B5B]" size={40} />
+            <p className="mt-4 text-gray-500">Loading proposals...</p>
           </div>
         ) : (
-          <>
-            <p className="text-sm text-gray-500 mb-4">
-              Showing {filteredProposals.length} of {proposals.length} proposals
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProposals.map((proposal) => (
-                <ProposalCard
-                  key={proposal.id}
-                  proposal={proposal}
-                  onView={onViewProposal}
-                  onEdit={onEditProposal}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </div>
-          </>
+          <div className="overflow-x-auto">
+            <table className="w-full" data-testid="proposals-table">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <SortableHeader field="proposal_number" label="Proposal #" />
+                  <SortableHeader field="sent_by" label="Sent By" />
+                  <SortableHeader field="customer" label="Customer" />
+                  <SortableHeader field="created_at" label="Created At" />
+                  <SortableHeader field="expected_booking" label="Expected Booking Date" />
+                  <SortableHeader field="proposal_name" label="Proposal Name" />
+                  <SortableHeader field="from" label="From" />
+                  <SortableHeader field="travel_date" label="Travel Date" />
+                  <SortableHeader field="price" label="Price Quoted" />
+                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700"></th>
+                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700"></th>
+                </tr>
+                {/* Filter Row */}
+                <tr className="bg-white border-b border-gray-100">
+                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
+                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
+                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
+                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
+                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
+                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
+                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
+                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
+                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
+                  <td className="px-4 py-2"></td>
+                  <td className="px-4 py-2"></td>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedProposals.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className="px-4 py-12 text-center text-gray-500">
+                      No proposals found
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedProposals.map((proposal) => {
+                    const adultsCount = proposal.room_data?.reduce((acc, r) => acc + (r.adults || 0), 0) || 2;
+                    const childrenCount = proposal.room_data?.reduce((acc, r) => acc + (r.children?.length || 0), 0) || 0;
+                    const nightsCount = proposal.cities?.reduce((acc, c) => acc + (c.nights || 0), 0) || 1;
+                    const destinations = proposal.cities?.map(c => c.name).join(', ') || '-';
+                    
+                    return (
+                      <tr 
+                        key={proposal.id} 
+                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                        data-testid={`proposal-row-${proposal.id}`}
+                      >
+                        {/* Proposal # */}
+                        <td className="px-4 py-4 text-sm text-gray-800 font-medium">
+                          {generateProposalNumber(proposal.id)}
+                        </td>
+                        
+                        {/* Sent By */}
+                        <td className="px-4 py-4 text-sm text-gray-600">
+                          {proposal.sent_by || proposal.created_by || 'Admin'}
+                        </td>
+                        
+                        {/* Customer */}
+                        <td className="px-4 py-4 text-sm text-gray-600">
+                          {proposal.customer_name || proposal.client_name || '-'}
+                        </td>
+                        
+                        {/* Created At */}
+                        <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          {formatDateTime(proposal.created_at)}
+                        </td>
+                        
+                        {/* Expected Booking Date */}
+                        <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          {formatDate(proposal.expected_booking_date) || '-'}
+                        </td>
+                        
+                        {/* Proposal Name */}
+                        <td className="px-4 py-4">
+                          <div className="text-sm text-gray-800 font-medium">
+                            {proposal.proposal_name || `Trip to ${proposal.cities?.[0]?.name || 'Unknown'}`}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {destinations}
+                          </div>
+                        </td>
+                        
+                        {/* From */}
+                        <td className="px-4 py-4 text-sm text-gray-600">
+                          {proposal.leaving_from || proposal.leaving_from_code || '-'}
+                        </td>
+                        
+                        {/* Travel Date */}
+                        <td className="px-4 py-4">
+                          <div className="text-sm text-gray-800">
+                            {formatDate(proposal.leaving_on)}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {nightsCount} night{nightsCount !== 1 ? 's' : ''}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {adultsCount}A {childrenCount > 0 ? `${childrenCount}C` : ''}
+                          </div>
+                        </td>
+                        
+                        {/* Price Quoted */}
+                        <td className="px-4 py-4 text-sm font-medium text-gray-800 whitespace-nowrap">
+                          AED {(proposal.total_price || 0).toLocaleString()}
+                        </td>
+                        
+                        {/* Delete */}
+                        <td className="px-4 py-4">
+                          <button
+                            onClick={() => handleDelete(proposal.id)}
+                            className="text-red-500 hover:text-red-700 text-sm font-medium hover:underline"
+                            data-testid={`delete-proposal-${proposal.id}`}
+                          >
+                            delete
+                          </button>
+                        </td>
+                        
+                        {/* View Proposal */}
+                        <td className="px-4 py-4">
+                          <button
+                            onClick={() => onViewProposal && onViewProposal(proposal)}
+                            className="text-[#002B5B] hover:text-[#004080] text-sm font-medium hover:underline whitespace-nowrap"
+                            data-testid={`view-proposal-${proposal.id}`}
+                          >
+                            View Proposal
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between mt-4 px-2">
+        <p className="text-sm text-gray-600">
+          Showing {startIndex + 1} - {Math.min(startIndex + itemsPerPage, sortedProposals.length)} of {sortedProposals.length} results
+        </p>
+        
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className={cn(
+              "flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors",
+              currentPage === 1 
+                ? "text-gray-400 cursor-not-allowed" 
+                : "text-gray-600 hover:bg-gray-100"
+            )}
+          >
+            <ChevronLeft size={16} />
+            Previous
+          </button>
+          
+          {/* Page Numbers */}
+          {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(page => (
+            <button
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              className={cn(
+                "w-8 h-8 rounded-full text-sm font-medium transition-colors",
+                currentPage === page 
+                  ? "bg-gray-600 text-white" 
+                  : "text-gray-600 hover:bg-gray-100"
+              )}
+            >
+              {page}
+            </button>
+          ))}
+          
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages || totalPages === 0}
+            className={cn(
+              "flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors",
+              currentPage === totalPages || totalPages === 0
+                ? "text-gray-400 cursor-not-allowed" 
+                : "text-gray-600 hover:bg-gray-100"
+            )}
+          >
+            Next
+            <ChevronRight size={16} />
+          </button>
+        </div>
       </div>
     </div>
   );
