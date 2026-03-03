@@ -111,7 +111,7 @@ function HotelOptionsModal({ isOpen, onClose, city, onViewAll, onNoStay, onSearc
 }
 
 // Hotel Selection Modal Component
-function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights, onSelect, searchQuery = '' }) {
+function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights, onSelect, searchQuery = '', initialHotel = null }) {
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedHotel, setSelectedHotel] = useState(null);
@@ -121,9 +121,17 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
   useEffect(() => {
     if (isOpen) {
       setFilterQuery(searchQuery);
+      // If initialHotel is provided, show room options directly
+      if (initialHotel) {
+        setSelectedHotel(initialHotel);
+        setViewMode('detail');
+      } else {
+        setSelectedHotel(null);
+        setViewMode('list');
+      }
       fetchHotels();
     }
-  }, [isOpen, city, searchQuery]);
+  }, [isOpen, city, searchQuery, initialHotel]);
 
   const fetchHotels = async () => {
     setLoading(true);
@@ -496,6 +504,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [noStayCities, setNoStayCities] = useState({});
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [changeRoomHotel, setChangeRoomHotel] = useState(null); // Hotel to show room options for
   
   // Transfer state
   const [availableTransfers, setAvailableTransfers] = useState([]);
@@ -574,12 +583,24 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   // Handle hotel option selection
   const handleChangeHotel = (cityName) => {
     setActiveHotelCity(cityName);
+    setChangeRoomHotel(null); // Clear any change room hotel
     setShowHotelOptions(true);
+  };
+
+  // Handle Change Room - directly show room options for the selected hotel
+  const handleChangeRoom = (cityName) => {
+    const currentHotel = selectedHotels[cityName];
+    if (currentHotel) {
+      setActiveHotelCity(cityName);
+      setChangeRoomHotel(currentHotel); // Set the hotel to show room options for
+      setShowHotelModal(true);
+    }
   };
 
   const handleViewAllHotels = () => {
     setShowHotelOptions(false);
     setHotelSearchQuery('');
+    setChangeRoomHotel(null); // Clear change room hotel when viewing all
     setShowHotelModal(true);
   };
 
@@ -781,13 +802,17 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       {/* Hotel Selection Modal */}
       <HotelSelectionModal
         isOpen={showHotelModal}
-        onClose={() => setShowHotelModal(false)}
+        onClose={() => {
+          setShowHotelModal(false);
+          setChangeRoomHotel(null); // Clear change room hotel on close
+        }}
         city={activeHotelCity}
         checkIn={formatDate(startDate)}
         checkOut={formatDate(new Date(startDate.getTime() + totalNights * 24 * 60 * 60 * 1000))}
         nights={cities.find(c => c.name === activeHotelCity)?.nights || 1}
         onSelect={handleHotelSelect}
         searchQuery={hotelSearchQuery}
+        initialHotel={changeRoomHotel}
       />
 
       {/* Hotel Options Modal (Change Hotel choices) */}
@@ -1214,14 +1239,16 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                         {/* Action Buttons */}
                         <div className="flex gap-3 mt-6">
                           <button 
-                            onClick={() => handleChangeHotel(city.name)}
+                            onClick={() => handleChangeRoom(city.name)}
                             className="bg-[#8B4513] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#723a0f] transition-all"
+                            data-testid={`change-room-${city.name}`}
                           >
                             Change Room
                           </button>
                           <button 
                             onClick={() => handleChangeHotel(city.name)}
                             className="bg-[#8B4513] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#723a0f] transition-all"
+                            data-testid={`change-hotel-${city.name}`}
                           >
                             Change Hotel
                           </button>
