@@ -43,8 +43,9 @@ function ImageUploader({ images = [], onImagesChange, uploadType = 'hotel', enti
         });
         
         if (res.data.url) {
-          // Construct full URL
-          const fullUrl = `${API.replace('/api', '')}${res.data.url}`;
+          // Construct full URL - API returns /api/static/... which goes through the proxy
+          const baseUrl = API.replace('/api', '');
+          const fullUrl = `${baseUrl}${res.data.url}`;
           newImages.push(fullUrl);
         }
       } catch (error) {

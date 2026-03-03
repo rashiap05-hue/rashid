@@ -46,9 +46,6 @@ UPLOADS_DIR.mkdir(exist_ok=True)
 # Create the main app - disable redirect_slashes for consistent routing
 app = FastAPI(title="Travo DMC B2B Travel Platform API", redirect_slashes=False)
 
-# Mount static files for uploads
-app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
-
 # Create routers
 api_router = APIRouter(prefix="/api")
 auth_router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -1368,8 +1365,8 @@ async def upload_hotel_image(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
     
-    # Return the URL path
-    image_url = f"/uploads/hotels/{filename}"
+    # Return the URL path - use /api/static so it goes through the proxy
+    image_url = f"/api/static/hotels/{filename}"
     return {"success": True, "url": image_url, "filename": filename}
 
 @uploads_router.post("/room-image")
@@ -1396,8 +1393,8 @@ async def upload_room_image(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
     
-    # Return the URL path
-    image_url = f"/uploads/rooms/{filename}"
+    # Return the URL path - use /api/static so it goes through the proxy
+    image_url = f"/api/static/rooms/{filename}"
     return {"success": True, "url": image_url, "filename": filename}
 
 @uploads_router.delete("/image")
@@ -1960,6 +1957,11 @@ api_router.include_router(uploads_router)
 
 app.include_router(api_router)
 
+# Mount static files for uploads - support both /api/static (for proxy) and direct paths
+app.mount("/api/static", StaticFiles(directory=str(UPLOADS_DIR)), name="static_uploads")
+# Also mount at /uploads for backwards compatibility with existing URLs
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads_compat")
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -1971,6 +1973,34 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     await seed_initial_data()
+    await migrate_image_urls()
+
+async def migrate_image_urls():
+    """Migrate old /uploads/ URLs to /api/static/ URLs"""
+    hotels_collection = db.hotels
+    
+    # Find all hotels with old URL format
+    hotels = await hotels_collection.find({}).to_list(length=1000)
+    
+    for hotel in hotels:
+        updated = False
+        new_images = []
+        
+        for img in hotel.get('images', []):
+            if '/uploads/' in img and '/api/static/' not in img:
+                # Replace /uploads/ with /api/static/
+                new_img = img.replace('/uploads/', '/api/static/')
+                new_images.append(new_img)
+                updated = True
+            else:
+                new_images.append(img)
+        
+        if updated:
+            await hotels_collection.update_one(
+                {"_id": hotel["_id"]},
+                {"$set": {"images": new_images}}
+            )
+            logger.info(f"Migrated image URLs for hotel: {hotel.get('name', 'unknown')}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
