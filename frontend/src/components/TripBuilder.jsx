@@ -4,7 +4,7 @@ import {
   Plane, Hotel, MapPin, Calendar, Users, ChevronDown, ChevronRight, 
   Plus, X, Check, Star, Clock, Coffee, Wifi, Car, Edit2, Loader2,
   CreditCard, Save, ArrowRight, Sun, Moon, Utensils, Camera, Info, AlertCircle,
-  List, Ban, Search
+  List, Ban, Search, DollarSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
@@ -1170,19 +1170,45 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                           </div>
                           <div className="flex items-center gap-2 text-sm">
                             <Check className="w-5 h-5 text-green-500" />
-                            <span className="text-gray-700">{cityHotel.selectedRoom?.meals || 'Bed and Breakfast'}, No Extra Bed</span>
+                            <span className="text-gray-700">
+                              {cityHotel.selectedRoom?.rate_plan?.meal_plan || cityHotel.selectedRoom?.meals || 'Bed and Breakfast'}, No Extra Bed
+                            </span>
                           </div>
-                          <p className="text-orange-500 font-medium text-sm ml-7">Fully refundable before check-in</p>
+                          {cityHotel.selectedRoom?.rate_plan?.refund_policy === 'Refundable' ? (
+                            <p className="text-orange-500 font-medium text-sm ml-7">
+                              {cityHotel.selectedRoom?.rate_plan?.refund_deadline || 'Fully refundable before check-in'}
+                            </p>
+                          ) : (
+                            <p className="text-red-500 font-medium text-sm ml-7">Non-refundable</p>
+                          )}
+                          {/* Price per night */}
+                          <div className="flex items-center gap-2 text-sm mt-2 pt-2 border-t border-gray-100">
+                            <DollarSign className="w-5 h-5 text-green-600" />
+                            <span className="text-gray-700">
+                              Price: <strong className="text-[#002B5B]">AED {(cityHotel.selectedRoom?.price || 0).toLocaleString()}</strong> / night
+                              <span className="text-gray-400 ml-2">x {city.nights} nights = </span>
+                              <strong className="text-[#002B5B]">AED {((cityHotel.selectedRoom?.price || 0) * city.nights).toLocaleString()}</strong>
+                            </span>
+                          </div>
                         </div>
                         
                         {/* Selected Meals */}
                         <div className="mt-4 pt-4 border-t border-gray-100">
                           <h5 className="font-bold text-gray-800 mb-2">Selected Meals at Hotel</h5>
-                          <div className="flex items-center gap-2 text-sm">
-                            <Check className="w-5 h-5 text-green-500" />
-                            <span className="text-gray-700">Breakfast</span>
-                          </div>
-                          <p className="text-green-600 font-medium text-sm ml-7">Included</p>
+                          {cityHotel.selectedRoom?.rate_plan?.meal_plan && cityHotel.selectedRoom?.rate_plan?.meal_plan !== 'Room Only' ? (
+                            <>
+                              <div className="flex items-center gap-2 text-sm">
+                                <Check className="w-5 h-5 text-green-500" />
+                                <span className="text-gray-700">{cityHotel.selectedRoom.rate_plan.meal_plan}</span>
+                              </div>
+                              {cityHotel.selectedRoom.rate_plan.meal_details && (
+                                <p className="text-gray-500 text-xs ml-7">{cityHotel.selectedRoom.rate_plan.meal_details}</p>
+                              )}
+                              <p className="text-green-600 font-medium text-sm ml-7">Included</p>
+                            </>
+                          ) : (
+                            <p className="text-gray-500 text-sm">No meals included (Room Only)</p>
+                          )}
                         </div>
                         
                         {/* Action Buttons */}
@@ -1308,10 +1334,21 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                       Hotels
                     </h4>
                     {Object.entries(selectedHotels).map(([city, hotel]) => (
-                      <div key={city} className="mb-3">
+                      <div key={city} className="mb-3 p-3 bg-gray-50 rounded-lg">
                         <p className="text-sm font-medium text-gray-800">{city}</p>
                         <p className="text-sm text-gray-600">{hotel.name}</p>
                         <p className="text-xs text-gray-500">{hotel.selectedRoom?.name}</p>
+                        {hotel.selectedRoom?.rate_plan && (
+                          <div className="mt-1 text-xs">
+                            <span className="text-purple-600">{hotel.selectedRoom.rate_plan.meal_plan}</span>
+                            {hotel.selectedRoom.rate_plan.supplier_name && (
+                              <span className="text-gray-400 ml-2">({hotel.selectedRoom.rate_plan.supplier_name})</span>
+                            )}
+                          </div>
+                        )}
+                        <p className="text-sm font-bold text-[#002B5B] mt-1">
+                          AED {(hotel.selectedRoom?.price || 0).toLocaleString()} x {hotel.nights || 1} night{(hotel.nights || 1) > 1 ? 's' : ''}
+                        </p>
                       </div>
                     ))}
                   </div>

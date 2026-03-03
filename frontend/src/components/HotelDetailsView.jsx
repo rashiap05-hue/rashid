@@ -198,9 +198,26 @@ function WhatToKnow({ highlights, hotel }) {
 function RoomOption({ room, onSelect, nights = 4 }) {
   const [expanded, setExpanded] = useState(false);
   
-  const totalPrice = room.price * nights;
-  const originalTotal = room.original_price ? room.original_price * nights : null;
-  const hasDiscount = originalTotal && originalTotal > totalPrice;
+  // Use rate plan price if available, otherwise use room price
+  const ratePlan = room.rate_plan || (room.rate_plans?.[0] || null);
+  const price = ratePlan?.price || room.price || 0;
+  const supplierCost = ratePlan?.supplier_cost || room.supplier_cost || null;
+  
+  const totalPrice = price * nights;
+  const originalTotal = supplierCost ? supplierCost * nights : null;
+  const hasDiscount = originalTotal && originalTotal < totalPrice;
+  
+  // Create enhanced room object with rate plan data
+  const handleSelect = () => {
+    const enhancedRoom = {
+      ...room,
+      price: price,
+      rate_plan: ratePlan,
+      supplier_cost: supplierCost,
+      supplier_name: ratePlan?.supplier_name || ''
+    };
+    onSelect(enhancedRoom);
+  };
 
   return (
     <div className="border border-gray-200 rounded-lg p-4 hover:border-[#002B5B] transition-colors">
@@ -227,31 +244,53 @@ function RoomOption({ room, onSelect, nights = 4 }) {
                   <Info size={16} />
                 </button>
               </h4>
-              <p className="text-sm text-gray-500 mt-1">{room.meals || 'No meals included'}</p>
+              <p className="text-sm text-gray-500 mt-1">
+                {ratePlan?.meal_plan || room.meals || 'No meals included'}
+                {ratePlan?.supplier_name && (
+                  <span className="ml-2 text-purple-600 text-xs">({ratePlan.supplier_name})</span>
+                )}
+              </p>
             </div>
             <div className="text-right">
-              {hasDiscount && (
-                <div className="text-sm text-gray-400 line-through">AED {originalTotal.toLocaleString()}</div>
+              {supplierCost && (
+                <div className="text-xs text-purple-500">Supplier: AED {(supplierCost * nights).toLocaleString()}</div>
               )}
               <div className="text-xl font-bold text-gray-800">AED {totalPrice.toLocaleString()}</div>
-              <div className="text-xs text-gray-500">total price</div>
+              <div className="text-xs text-gray-500">total price ({nights} nights)</div>
             </div>
           </div>
 
           {/* Inclusions */}
           <ul className="mt-2 text-xs text-gray-500 space-y-0.5">
-            <li>• {room.meals === 'Room Only' || !room.meals ? 'Room Only' : room.meals}</li>
-            <li>• Tourism Tax (PRPN - amt)</li>
-            <li>• City tax(Amount)</li>
-            <li>• Sales tax</li>
+            <li>• {ratePlan?.meal_plan || room.meals || 'Room Only'}</li>
+            {ratePlan?.inclusions?.length > 0 ? (
+              ratePlan.inclusions.map((inclusion, idx) => (
+                <li key={idx}>• {inclusion}</li>
+              ))
+            ) : (
+              room.amenities?.slice(0, 3).map((amenity, idx) => (
+                <li key={idx}>• {amenity}</li>
+              ))
+            )}
+            {ratePlan?.taxes?.length > 0 ? (
+              ratePlan.taxes.map((tax, idx) => (
+                <li key={`tax-${idx}`}>• {tax}</li>
+              ))
+            ) : (
+              <>
+                <li>• Tourism Tax (PRPN - amt)</li>
+                <li>• City tax(Amount)</li>
+                <li>• Sales tax</li>
+              </>
+            )}
           </ul>
 
           {/* Refundable Status & Actions */}
           <div className="flex items-center justify-between mt-3">
             <div>
-              {room.refundable ? (
+              {(ratePlan?.refund_policy === 'Refundable' || room.refundable) ? (
                 <span className="text-xs text-teal-600">
-                  Fully refundable before {room.refundable_until || '11 Mar'}
+                  {ratePlan?.refund_deadline || `Fully refundable before ${room.refundable_until || '11 Mar'}`}
                 </span>
               ) : (
                 <span className="text-xs text-orange-600">Non-refundable</span>
@@ -263,7 +302,7 @@ function RoomOption({ room, onSelect, nights = 4 }) {
                 <div className="text-xs text-[#002B5B] hover:underline cursor-pointer">Block and pay later</div>
               </div>
               <button
-                onClick={() => onSelect(room)}
+                onClick={handleSelect}
                 className="px-4 py-2 border border-gray-300 rounded text-sm font-medium hover:bg-gray-50 transition-colors"
                 data-testid={`select-room-${room.id}`}
               >

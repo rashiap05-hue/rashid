@@ -166,7 +166,8 @@ function RatePlanEditor({ ratePlans = [], onChange }) {
       id: `rp_${Date.now()}`,
       name: 'Room Only',
       price: 0,
-      original_price: null,
+      supplier_cost: null,
+      supplier_name: '',
       currency: 'AED',
       meal_plan: 'Room Only',
       meal_details: '',
@@ -223,6 +224,11 @@ function RatePlanEditor({ ratePlans = [], onChange }) {
                     <span className="ml-2 text-sm text-gray-500">
                       AED {plan.price?.toLocaleString() || 0}
                     </span>
+                    {plan.supplier_name && (
+                      <span className="ml-2 text-xs text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">
+                        {plan.supplier_name}
+                      </span>
+                    )}
                   </div>
                   <span className={cn(
                     "text-[10px] px-2 py-0.5 rounded font-medium",
@@ -280,23 +286,13 @@ function RatePlanEditor({ ratePlans = [], onChange }) {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Price (AED)</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Selling Price (AED)</label>
                           <input
                             type="number"
                             value={plan.price || ''}
                             onChange={(e) => updateRatePlan(idx, 'price', parseFloat(e.target.value) || 0)}
-                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Original Price</label>
-                          <input
-                            type="number"
-                            value={plan.original_price || ''}
-                            onChange={(e) => updateRatePlan(idx, 'original_price', parseFloat(e.target.value) || null)}
-                            placeholder="Optional"
                             className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
@@ -310,6 +306,30 @@ function RatePlanEditor({ ratePlans = [], onChange }) {
                             <option value="Refundable">Refundable</option>
                             <option value="Non-refundable">Non-refundable</option>
                           </select>
+                        </div>
+                      </div>
+
+                      {/* Supplier Information for Rate Plan */}
+                      <div className="grid grid-cols-2 gap-4 p-3 bg-purple-50 rounded-lg">
+                        <div>
+                          <label className="block text-xs font-medium text-purple-700 mb-1">Supplier Name (Optional)</label>
+                          <input
+                            type="text"
+                            value={plan.supplier_name || ''}
+                            onChange={(e) => updateRatePlan(idx, 'supplier_name', e.target.value)}
+                            placeholder="e.g., Marriott Hotels"
+                            className="w-full px-3 py-2 text-sm border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-purple-700 mb-1">Supplier Cost/Night (Optional)</label>
+                          <input
+                            type="number"
+                            value={plan.supplier_cost || ''}
+                            onChange={(e) => updateRatePlan(idx, 'supplier_cost', parseFloat(e.target.value) || null)}
+                            placeholder="Cost from supplier"
+                            className="w-full px-3 py-2 text-sm border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white"
+                          />
                         </div>
                       </div>
 
@@ -951,36 +971,6 @@ export default function HotelEditForm({ hotel, onSave, onClose, isNew = false })
                   placeholder="Detailed description of the hotel..."
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent resize-none"
                 />
-              </div>
-
-              {/* Supplier Info */}
-              <div className="border-t border-gray-200 pt-4">
-                <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                  <Building2 size={16} className="text-purple-500" />
-                  Supplier Information
-                </h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">Supplier Name</label>
-                    <input
-                      type="text"
-                      value={formData.supplier_name || ''}
-                      onChange={(e) => handleFieldChange('supplier_name', e.target.value)}
-                      placeholder="e.g., Marriott Hotels"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">Supplier Cost/Night (AED)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.supplier_cost_per_night || ''}
-                      onChange={(e) => handleFieldChange('supplier_cost_per_night', parseFloat(e.target.value) || null)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-                    />
-                  </div>
-                </div>
               </div>
             </div>
           )}
