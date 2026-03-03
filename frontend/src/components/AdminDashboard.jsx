@@ -10,13 +10,12 @@ import { api } from '@/App';
 import HotelEditForm from './HotelEditForm';
 
 export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
-  const [proposals, setProposals] = useState([]);
   const [airports, setAirports] = useState([]);
   const [cities, setCities] = useState([]);
   const [hotels, setHotels] = useState([]);
   const [transfers, setTransfers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('proposals');
+  const [activeTab, setActiveTab] = useState('airports');
   const [searchTerm, setSearchTerm] = useState('');
   
   // Pagination state for airports
@@ -50,14 +49,11 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [proposalsRes, citiesRes, hotelsRes, transfersRes] = await Promise.all([
-        api.get('/proposals'),
+      const [citiesRes, hotelsRes, transfersRes] = await Promise.all([
         api.get('/cities'),
         api.get('/hotels'),
         api.get('/transfers')
       ]);
-      // Handle proposals response (returns array directly)
-      setProposals(Array.isArray(proposalsRes.data) ? proposalsRes.data : []);
       setCities(citiesRes.data?.cities || []);
       setHotels(hotelsRes.data?.hotels || []);
       setTransfers(transfersRes.data?.transfers || []);
@@ -105,11 +101,6 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
     }
   };
 
-  const filteredProposals = proposals.filter(p => 
-    p.leaving_from?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.nationality?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   const filteredCities = cities.filter(c =>
     c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.country?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -126,16 +117,6 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
     t.from_location?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const deleteProposal = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this proposal?')) return;
-    try {
-      await api.delete(`/proposals/${id}`);
-      setProposals(proposals.filter(p => p.id !== id));
-    } catch (error) {
-      console.error('Error deleting proposal:', error);
-    }
-  };
-
   // Open edit modal
   const openEditModal = (type, data = null) => {
     setEditModal({ open: true, type, data });
@@ -143,7 +124,6 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
       setEditForm({ ...data });
     } else {
       // Default values for new items
-      if (type === 'proposal') setEditForm({ leaving_from: '', nationality: '', leaving_on: '', star_rating: 3, status: 'pending' });
       if (type === 'airport') setEditForm({ code: '', name: '', city: '', country: '' });
       if (type === 'city') setEditForm({ name: '', country: '' });
       if (type === 'hotel') setEditForm({ 
@@ -913,9 +893,8 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           {[
-            { label: 'Total Proposals', value: proposals.length, icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
             { label: 'Airports in DB', value: airportPagination.total || airports.length, icon: Plane, color: 'text-purple-600', bg: 'bg-purple-50' },
             { label: 'Cities in DB', value: cities.length, icon: MapPin, color: 'text-green-600', bg: 'bg-green-50' },
             { label: 'Hotels in DB', value: hotels.length, icon: Building2, color: 'text-orange-600', bg: 'bg-orange-50' },
@@ -938,7 +917,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-gray-100 overflow-x-auto">
-            {['proposals', 'airports', 'cities', 'hotels', 'transfers'].map((tab) => (
+            {['airports', 'cities', 'hotels', 'transfers'].map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -979,101 +958,6 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
             </div>
 
             {/* Content based on active tab */}
-            {activeTab === 'proposals' && (
-              <div>
-                <div className="flex justify-end mb-4">
-                  <button
-                    onClick={() => openEditModal('proposal')}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-colors"
-                    data-testid="add-proposal-button"
-                  >
-                    <Plus size={18} />
-                    Add Proposal
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-left border-b border-gray-100">
-                      <th className="pb-4 font-bold text-xs text-gray-400 uppercase tracking-widest px-4">ID</th>
-                      <th className="pb-4 font-bold text-xs text-gray-400 uppercase tracking-widest px-4">Origin</th>
-                      <th className="pb-4 font-bold text-xs text-gray-400 uppercase tracking-widest px-4">Destination</th>
-                      <th className="pb-4 font-bold text-xs text-gray-400 uppercase tracking-widest px-4">Date</th>
-                      <th className="pb-4 font-bold text-xs text-gray-400 uppercase tracking-widest px-4">Status</th>
-                      <th className="pb-4 font-bold text-xs text-gray-400 uppercase tracking-widest px-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {loading ? (
-                      <tr>
-                        <td colSpan={6} className="py-20 text-center">
-                          <div className="flex flex-col items-center gap-4">
-                            <div className="w-10 h-10 border-4 border-[#002B5B] border-t-transparent rounded-full animate-spin" />
-                            <span className="font-bold text-gray-400">Loading...</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : filteredProposals.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-20 text-center">
-                          <div className="flex flex-col items-center gap-4 opacity-30">
-                            <FileText size={48} />
-                            <span className="font-bold">No proposals found</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredProposals.map((p) => (
-                        <tr key={p.id} className="hover:bg-gray-50/50 transition-colors group" data-testid={`proposal-row-${p.id}`}>
-                          <td className="py-5 px-4 font-mono text-xs text-gray-400">#{p.id.slice(0, 8)}</td>
-                          <td className="py-5 px-4">
-                            <div className="font-bold text-gray-800">{p.leaving_from}</div>
-                            <div className="text-[10px] font-bold text-gray-400 uppercase">{p.nationality}</div>
-                          </td>
-                          <td className="py-5 px-4">
-                            <div className="font-bold text-gray-800">{p.cities?.[0]?.name || 'N/A'}</div>
-                            <div className="text-[10px] font-bold text-gray-400 uppercase">{p.cities?.length || 0} Cities</div>
-                          </td>
-                          <td className="py-5 px-4">
-                            <div className="font-bold text-gray-800">{p.leaving_on}</div>
-                            <div className="text-[10px] font-bold text-gray-400 uppercase">{p.star_rating} Star</div>
-                          </td>
-                          <td className="py-5 px-4">
-                            <span className={cn(
-                              "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                              p.status === 'confirmed' ? 'bg-green-50 text-green-600' : 'bg-yellow-50 text-yellow-600'
-                            )}>
-                              {p.status === 'confirmed' ? <CheckCircle size={12} /> : null}
-                              {p.status}
-                            </span>
-                          </td>
-                          <td className="py-5 px-4 text-right">
-                            <div className="flex justify-end gap-2">
-                              <button 
-                                onClick={() => openEditModal('proposal', p)}
-                                className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
-                                data-testid={`edit-proposal-${p.id}`}
-                              >
-                                <Edit2 size={16} />
-                              </button>
-                              <button 
-                                onClick={() => deleteProposal(p.id)}
-                                className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
-                                data-testid={`delete-proposal-${p.id}`}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              </div>
-            )}
-
             {activeTab === 'airports' && (
               <div>
                 {/* Airport-specific search and Add button */}
