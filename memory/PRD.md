@@ -780,3 +780,57 @@ English, Arabic
 $250 AED | Supplier: Arabian Adventures | Margin: +40
 ```
 
+
+## Update: March 3, 2026 - Activities Integration with Trip Builder
+
+### Feature: Activities Connection to Customize Your Trip Page
+
+Implemented seamless integration between Activities Management and the Trip Builder (Customize Your Trip) page, filtering activities by city from the Create Trip Package form.
+
+#### How It Works
+1. User creates trip package with destination city (e.g., Dubai)
+2. In Trip Builder, each day shows "Add Activity in [City]" button
+3. Clicking opens Activities Modal showing ONLY activities for that city
+4. Selected activities appear in day card and Trip Summary
+5. Pricing is automatically calculated and added to total
+
+#### New Components in TripBuilder.jsx
+- **ActivitiesModal** - Displays city-filtered activities with:
+  - Search functionality
+  - Activity cards with images, badges, timing, languages, inclusions
+  - Multi-select toggle (click to select/deselect)
+  - Selection counter ("X activities selected for this day")
+  
+#### State Management
+- `selectedActivities` - Object: `{ "city_day": [activities] }`
+- `activeActivityCity` - Current city for activity selection
+- `activeActivityDay` - Current day number
+
+#### Pricing Integration
+- Activities total calculated from `selectedActivities`
+- Price Breakdown shows "Activities: AED X" in pink
+- Total includes all activities
+
+#### UI Changes
+- Day Card: Shows selected activities with image, category/transfer badges, timing, price
+- Trip Summary: New "Activities" section grouped by day
+- "Add Activity" button styled in pink/coral to match Activities brand
+
+### Test Results (iteration_13.json)
+- **Frontend:** 100% pass rate (7/7 features)
+  - Activities modal opens correctly
+  - City filtering works (only Dubai activities for Dubai trip)
+  - Selection toggle verified (select, deselect, re-select)
+  - Multiple activities per day supported
+  - Day card display verified
+  - Trip Summary integration verified
+  - Pricing calculation correct (AED 550 for 3 activities)
+
+### Files Modified
+- `/app/frontend/src/components/TripBuilder.jsx`:
+  - Added ActivitiesModal component (250+ lines)
+  - Added activity state management
+  - Updated calculatePricing for activities
+  - Enhanced DayCard to show activities with details
+  - Added Activities section to Trip Summary sidebar
+
