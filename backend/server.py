@@ -42,6 +42,7 @@ UPLOADS_DIR = ROOT_DIR / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
 (UPLOADS_DIR / "hotels").mkdir(exist_ok=True)
 (UPLOADS_DIR / "rooms").mkdir(exist_ok=True)
+(UPLOADS_DIR / "activities").mkdir(exist_ok=True)
 
 # Create the main app - disable redirect_slashes for consistent routing
 app = FastAPI(title="Travo DMC B2B Travel Platform API", redirect_slashes=False)
@@ -55,6 +56,7 @@ hotels_router = APIRouter(prefix="/hotels", tags=["Hotels"])
 airports_router = APIRouter(prefix="/airports", tags=["Airports"])
 cities_router = APIRouter(prefix="/cities", tags=["Cities"])
 transfers_router = APIRouter(prefix="/transfers", tags=["Transfers"])
+activities_router = APIRouter(prefix="/activities", tags=["Activities"])
 ai_router = APIRouter(prefix="/ai", tags=["AI Features"])
 payments_router = APIRouter(prefix="/payments", tags=["Payments"])
 sheets_router = APIRouter(prefix="/sheets", tags=["Google Sheets"])
@@ -257,6 +259,37 @@ class TransferCreate(BaseModel):
     max_bags: int = 2  # Number of bags allowed
     supplier_name: Optional[str] = None  # For supplier dashboard
     supplier_cost: Optional[float] = None  # Cost from supplier (for margin calculation)
+
+# Activity/Excursion Model
+class ActivityCreate(BaseModel):
+    name: str
+    description: str = ""  # Detailed description/itinerary
+    city: str
+    country: str = ""
+    category: str = "City Tours"  # City Tours, Sightseeing, Adventure, Cultural, Food & Drink, Nature, Water Sports, etc.
+    duration: str = "5 hrs"  # e.g., "5 hrs", "Full Day", "Half Day"
+    price: float = 0
+    currency: str = "AED"
+    images: List[str] = []
+    highlights: List[str] = []  # Key highlights/features
+    inclusions: List[str] = []  # What's included (e.g., "Driver cum Guide", "Cable Car")
+    exclusions: List[str] = []  # What's not included
+    useful_information: List[str] = []  # Useful info bullet points
+    meeting_point: str = ""
+    start_times: List[str] = []  # Available start times e.g., ["10:00", "15:00", "15:30"]
+    languages: List[str] = ["English"]  # Tour languages
+    transfer_type: str = "Private"  # Private, Shared, Luxury
+    operating_days: List[str] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]  # Days activity operates
+    closed_days: List[str] = []  # Days activity is closed (e.g., ["Monday"])
+    min_participants: int = 1
+    max_participants: int = 20
+    age_restriction: str = "All ages"  # "All ages", "18+", "12+", etc.
+    cancellation_policy: str = "Free cancellation up to 24 hours"
+    supplier_name: Optional[str] = None
+    supplier_cost: Optional[float] = None
+    available: bool = True
+    rating: float = 4.5
+    review_count: int = 0
 
 class ChatMessage(BaseModel):
     message: str
@@ -693,6 +726,50 @@ async def delete_transfer(transfer_id: str):
     result = await db.transfers.delete_one({"id": transfer_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Transfer not found")
+    return {"success": True}
+
+# ============= ACTIVITIES ROUTES =============
+
+@activities_router.get("")
+async def get_activities(city: Optional[str] = None, category: Optional[str] = None):
+    query = {}
+    if city:
+        query["city"] = {"$regex": city, "$options": "i"}
+    if category:
+        query["category"] = {"$regex": category, "$options": "i"}
+    
+    activities = await db.activities.find(query, {"_id": 0}).to_list(length=100)
+    return {"success": True, "activities": activities}
+
+@activities_router.get("/{activity_id}")
+async def get_activity(activity_id: str):
+    activity = await db.activities.find_one({"id": activity_id}, {"_id": 0})
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    return {"success": True, "activity": activity}
+
+@activities_router.post("")
+async def create_activity(activity: ActivityCreate):
+    activity_dict = activity.dict()
+    activity_dict["id"] = str(uuid.uuid4())
+    activity_dict["created_at"] = datetime.now(timezone.utc).isoformat()
+    await db.activities.insert_one(activity_dict)
+    return {"success": True, "id": activity_dict["id"], "activity": {k: v for k, v in activity_dict.items() if k != "_id"}}
+
+@activities_router.put("/{activity_id}")
+async def update_activity(activity_id: str, activity: ActivityCreate):
+    activity_dict = activity.dict()
+    activity_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
+    result = await db.activities.update_one({"id": activity_id}, {"$set": activity_dict})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    return {"success": True, "activity": activity_dict}
+
+@activities_router.delete("/{activity_id}")
+async def delete_activity(activity_id: str):
+    result = await db.activities.delete_one({"id": activity_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Activity not found")
     return {"success": True}
 
 # ============= AI ROUTES =============
@@ -1399,10 +1476,38 @@ async def upload_room_image(
     image_url = f"/api/static/rooms/{filename}"
     return {"success": True, "url": image_url, "filename": filename}
 
+@uploads_router.post("/activity-image")
+async def upload_activity_image(
+    file: UploadFile = File(...),
+    activity_id: str = Form(default=""),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Upload an activity/attraction image"""
+    # Validate file extension
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
+    
+    # Generate unique filename
+    unique_id = str(uuid.uuid4())[:8]
+    filename = f"{activity_id}_{unique_id}{file_ext}" if activity_id else f"activity_{unique_id}{file_ext}"
+    file_path = UPLOADS_DIR / "activities" / filename
+    
+    # Save file
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+    
+    # Return the URL path - use /api/static so it goes through the proxy
+    image_url = f"/api/static/activities/{filename}"
+    return {"success": True, "url": image_url, "filename": filename}
+
 @uploads_router.delete("/image")
 async def delete_uploaded_image(
     filename: str = Query(...),
-    image_type: str = Query(..., regex="^(hotels|rooms)$"),
+    image_type: str = Query(..., regex="^(hotels|rooms|activities)$"),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """Delete an uploaded image"""
@@ -1938,6 +2043,178 @@ async def seed_initial_data():
         await db.transfers.insert_many(transfers)
         logger.info(f"Seeded {len(transfers)} transfers")
     
+    # Check if activities data needs seeding
+    activities_count = await db.activities.count_documents({})
+    if activities_count == 0:
+        logger.info("Seeding activities...")
+        activities = [
+            {
+                "id": str(uuid.uuid4()),
+                "name": "Desert Safari with BBQ Dinner",
+                "description": "Experience the thrilling desert safari with dune bashing, camel riding, sandboarding, and a delicious BBQ dinner under the stars with live entertainment.",
+                "city": "Dubai",
+                "country": "United Arab Emirates",
+                "category": "Adventure",
+                "duration": "6 hours",
+                "price": 250,
+                "currency": "AED",
+                "images": ["https://images.unsplash.com/photo-1451337516015-6b6e9a44a8a3?w=800"],
+                "highlights": ["Dune Bashing", "Camel Riding", "BBQ Dinner", "Live Entertainment", "Henna Painting"],
+                "inclusions": ["Hotel pickup and drop-off", "4x4 Land Cruiser", "BBQ dinner", "Soft drinks", "Sandboarding"],
+                "exclusions": ["Alcoholic beverages", "Quad biking", "Photography"],
+                "meeting_point": "Hotel Lobby",
+                "start_times": ["14:30", "15:00"],
+                "languages": ["English", "Arabic"],
+                "min_participants": 2,
+                "max_participants": 6,
+                "age_restriction": "All ages",
+                "cancellation_policy": "Free cancellation up to 24 hours before",
+                "supplier_name": "Desert Adventures LLC",
+                "supplier_cost": 150,
+                "available": True,
+                "rating": 4.8,
+                "review_count": 1250
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "name": "Burj Khalifa At The Top",
+                "description": "Visit the observation deck of the world's tallest building. Enjoy breathtaking 360-degree views of Dubai from levels 124 and 125.",
+                "city": "Dubai",
+                "country": "United Arab Emirates",
+                "category": "Sightseeing",
+                "duration": "2 hours",
+                "price": 180,
+                "currency": "AED",
+                "images": ["https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800"],
+                "highlights": ["124th & 125th Floor Access", "360° Views", "Multimedia Presentation", "Photo Opportunities"],
+                "inclusions": ["Skip-the-line tickets", "Access to observation decks", "Multimedia presentation"],
+                "exclusions": ["Hotel transfers", "Food and beverages", "At The Top SKY (148th floor)"],
+                "meeting_point": "Burj Khalifa Ticket Counter, Dubai Mall",
+                "start_times": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"],
+                "languages": ["English", "Arabic", "Chinese"],
+                "min_participants": 1,
+                "max_participants": 20,
+                "age_restriction": "All ages",
+                "cancellation_policy": "Non-refundable",
+                "supplier_name": "Emaar Entertainment",
+                "supplier_cost": 140,
+                "available": True,
+                "rating": 4.7,
+                "review_count": 3420
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "name": "Dubai City Tour",
+                "description": "Discover the old and new Dubai on this comprehensive city tour. Visit historic sites, modern landmarks, and experience local culture.",
+                "city": "Dubai",
+                "country": "United Arab Emirates",
+                "category": "Sightseeing",
+                "duration": "4 hours",
+                "price": 120,
+                "currency": "AED",
+                "images": ["https://images.unsplash.com/photo-1518684079-3c830dcef090?w=800"],
+                "highlights": ["Dubai Museum", "Gold Souk", "Spice Souk", "Jumeirah Mosque", "Photo Stop at Burj Al Arab"],
+                "inclusions": ["Air-conditioned vehicle", "Professional guide", "Hotel pickup and drop-off", "Water bottle"],
+                "exclusions": ["Entry tickets to attractions", "Lunch", "Gratuities"],
+                "meeting_point": "Hotel Lobby",
+                "start_times": ["08:30", "14:00"],
+                "languages": ["English", "Arabic", "Russian"],
+                "min_participants": 2,
+                "max_participants": 12,
+                "age_restriction": "All ages",
+                "cancellation_policy": "Free cancellation up to 24 hours before",
+                "supplier_name": "Arabian Adventures",
+                "supplier_cost": 80,
+                "available": True,
+                "rating": 4.5,
+                "review_count": 890
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "name": "Tbilisi Walking Tour",
+                "description": "Explore the charming streets of Tbilisi's Old Town with a local guide. Discover hidden gems, historic churches, and traditional Georgian culture.",
+                "city": "Tbilisi",
+                "country": "Georgia",
+                "category": "Cultural",
+                "duration": "3 hours",
+                "price": 45,
+                "currency": "USD",
+                "images": ["https://images.unsplash.com/photo-1565008576549-57569a49371d?w=800"],
+                "highlights": ["Narikala Fortress Views", "Sulfur Baths District", "Sioni Cathedral", "Wine Tasting"],
+                "inclusions": ["Local guide", "Wine tasting", "Traditional snacks"],
+                "exclusions": ["Hotel transfers", "Additional food and drinks", "Entry fees"],
+                "meeting_point": "Freedom Square",
+                "start_times": ["10:00", "15:00"],
+                "languages": ["English", "Georgian", "Russian"],
+                "min_participants": 2,
+                "max_participants": 10,
+                "age_restriction": "All ages",
+                "cancellation_policy": "Free cancellation up to 12 hours before",
+                "supplier_name": "Tbilisi Free Walking Tours",
+                "supplier_cost": 25,
+                "available": True,
+                "rating": 4.9,
+                "review_count": 567
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "name": "Georgian Wine Tour - Kakheti",
+                "description": "Full day tour to Georgia's premier wine region. Visit traditional wineries, learn about qvevri winemaking, and taste authentic Georgian wines.",
+                "city": "Tbilisi",
+                "country": "Georgia",
+                "category": "Food & Drink",
+                "duration": "Full Day",
+                "price": 85,
+                "currency": "USD",
+                "images": ["https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?w=800"],
+                "highlights": ["3 Winery Visits", "Qvevri Wine Tasting", "Traditional Lunch", "Sighnaghi Town Visit"],
+                "inclusions": ["Transportation", "Professional guide", "Lunch", "Wine tastings at 3 wineries", "Entrance fees"],
+                "exclusions": ["Additional wine purchases", "Gratuities"],
+                "meeting_point": "Hotel Lobby or Freedom Square",
+                "start_times": ["09:00"],
+                "languages": ["English", "Russian"],
+                "min_participants": 2,
+                "max_participants": 8,
+                "age_restriction": "18+",
+                "cancellation_policy": "Free cancellation up to 48 hours before",
+                "supplier_name": "Georgia Wine Tours",
+                "supplier_cost": 55,
+                "available": True,
+                "rating": 4.8,
+                "review_count": 423
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "name": "Baku Old City Walking Tour",
+                "description": "Discover the UNESCO World Heritage Old City (Icherisheher) of Baku. Explore ancient streets, palaces, and the iconic Maiden Tower.",
+                "city": "Baku",
+                "country": "Azerbaijan",
+                "category": "Cultural",
+                "duration": "3 hours",
+                "price": 35,
+                "currency": "USD",
+                "images": ["https://images.unsplash.com/photo-1603027937430-8f873c92e5f0?w=800"],
+                "highlights": ["Maiden Tower", "Palace of the Shirvanshahs", "Carpet Museum", "Local Tea House"],
+                "inclusions": ["Professional guide", "Traditional tea", "Entry to Maiden Tower"],
+                "exclusions": ["Hotel transfers", "Lunch", "Other entry fees"],
+                "meeting_point": "Fountain Square",
+                "start_times": ["10:00", "16:00"],
+                "languages": ["English", "Azerbaijani", "Russian"],
+                "min_participants": 2,
+                "max_participants": 12,
+                "age_restriction": "All ages",
+                "cancellation_policy": "Free cancellation up to 24 hours before",
+                "supplier_name": "Baku Tours",
+                "supplier_cost": 20,
+                "available": True,
+                "rating": 4.6,
+                "review_count": 312
+            }
+        ]
+        
+        await db.activities.insert_many(activities)
+        logger.info(f"Seeded {len(activities)} activities")
+    
     logger.info("Data seeding check complete")
 
 # ============= APP SETUP =============
@@ -1950,6 +2227,7 @@ api_router.include_router(hotels_router)
 api_router.include_router(airports_router)
 api_router.include_router(cities_router)
 api_router.include_router(transfers_router)
+api_router.include_router(activities_router)
 api_router.include_router(ai_router)
 api_router.include_router(payments_router)
 api_router.include_router(sheets_router)
@@ -1976,6 +2254,7 @@ app.add_middleware(
 async def startup_event():
     await seed_initial_data()
     await migrate_image_urls()
+    await migrate_activities_fields()
 
 async def migrate_image_urls():
     """Migrate old /uploads/ URLs to /api/static/ URLs"""
@@ -2003,6 +2282,34 @@ async def migrate_image_urls():
                 {"$set": {"images": new_images}}
             )
             logger.info(f"Migrated image URLs for hotel: {hotel.get('name', 'unknown')}")
+
+async def migrate_activities_fields():
+    """Add new fields to existing activities"""
+    activities_collection = db.activities
+    
+    # Default values for new fields
+    default_fields = {
+        "useful_information": [],
+        "transfer_type": "Private",
+        "operating_days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+        "closed_days": []
+    }
+    
+    # Find activities missing the new fields
+    activities = await activities_collection.find({}).to_list(length=1000)
+    
+    for activity in activities:
+        updates = {}
+        for field, default_value in default_fields.items():
+            if field not in activity:
+                updates[field] = default_value
+        
+        if updates:
+            await activities_collection.update_one(
+                {"_id": activity["_id"]},
+                {"$set": updates}
+            )
+            logger.info(f"Migrated activity fields for: {activity.get('name', 'unknown')}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

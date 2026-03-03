@@ -3,17 +3,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Database, Users, FileText, Settings, Search, RefreshCw,
   Edit2, Trash2, CheckCircle, XCircle, MapPin, Plane, Building2, X,
-  ChevronLeft, ChevronRight, Plus, Save, Car, Clock, DollarSign, Briefcase, Star, Bed
+  ChevronLeft, ChevronRight, Plus, Save, Car, Clock, DollarSign, Briefcase, Star, Bed,
+  Compass, Camera, Utensils, Mountain, Globe
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
 import HotelEditForm from './HotelEditForm';
+import ActivityEditForm from './ActivityEditForm';
 
 export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   const [airports, setAirports] = useState([]);
   const [cities, setCities] = useState([]);
   const [hotels, setHotels] = useState([]);
   const [transfers, setTransfers] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('airports');
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,6 +37,9 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   
   // Hotel edit form state (separate from generic edit modal)
   const [hotelEditModal, setHotelEditModal] = useState({ open: false, hotel: null, isNew: false });
+  
+  // Activity edit form state (separate from generic edit modal)
+  const [activityEditModal, setActivityEditModal] = useState({ open: false, activity: null, isNew: false });
 
   useEffect(() => {
     fetchData();
@@ -49,14 +55,16 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [citiesRes, hotelsRes, transfersRes] = await Promise.all([
+      const [citiesRes, hotelsRes, transfersRes, activitiesRes] = await Promise.all([
         api.get('/cities'),
         api.get('/hotels'),
-        api.get('/transfers')
+        api.get('/transfers'),
+        api.get('/activities')
       ]);
       setCities(citiesRes.data?.cities || []);
       setHotels(hotelsRes.data?.hotels || []);
       setTransfers(transfersRes.data?.transfers || []);
+      setActivities(activitiesRes.data?.activities || []);
       
       // Fetch airports separately with pagination
       await fetchAirports();
@@ -117,6 +125,12 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
     t.from_location?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const filteredActivities = activities.filter(a =>
+    a.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    a.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    a.category?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   // Open edit modal
   const openEditModal = (type, data = null) => {
     setEditModal({ open: true, type, data });
@@ -160,6 +174,32 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         max_bags: 2,
         supplier_name: '',
         supplier_cost: 0
+      });
+      if (type === 'activity') setEditForm({
+        name: '',
+        description: '',
+        city: '',
+        country: '',
+        category: 'Sightseeing',
+        duration: '4 hours',
+        price: 0,
+        currency: 'AED',
+        images: [],
+        highlights: [],
+        inclusions: [],
+        exclusions: [],
+        meeting_point: '',
+        start_times: [],
+        languages: ['English'],
+        min_participants: 1,
+        max_participants: 20,
+        age_restriction: 'All ages',
+        cancellation_policy: 'Free cancellation up to 24 hours',
+        supplier_name: '',
+        supplier_cost: 0,
+        available: true,
+        rating: 4.5,
+        review_count: 0
       });
     }
   };
@@ -222,6 +262,14 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
           const res = await api.post('/transfers', editForm);
           setTransfers([...transfers, { id: res.data.id, ...editForm }]);
         }
+      } else if (type === 'activity') {
+        if (data) {
+          await api.put(`/activities/${data.id}`, editForm);
+          setActivities(activities.map(a => a.id === data.id ? { ...a, ...editForm } : a));
+        } else {
+          const res = await api.post('/activities', editForm);
+          setActivities([...activities, { id: res.data.id, ...editForm }]);
+        }
       }
       
       closeEditModal();
@@ -272,6 +320,16 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
       setTransfers(transfers.filter(t => t.id !== id));
     } catch (error) {
       console.error('Error deleting transfer:', error);
+    }
+  };
+
+  const deleteActivity = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this activity?')) return;
+    try {
+      await api.delete(`/activities/${id}`);
+      setActivities(activities.filter(a => a.id !== id));
+    } catch (error) {
+      console.error('Error deleting activity:', error);
     }
   };
 
@@ -893,12 +951,13 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           {[
             { label: 'Airports in DB', value: airportPagination.total || airports.length, icon: Plane, color: 'text-purple-600', bg: 'bg-purple-50' },
             { label: 'Cities in DB', value: cities.length, icon: MapPin, color: 'text-green-600', bg: 'bg-green-50' },
             { label: 'Hotels in DB', value: hotels.length, icon: Building2, color: 'text-orange-600', bg: 'bg-orange-50' },
             { label: 'Transfers in DB', value: transfers.length, icon: Car, color: 'text-teal-600', bg: 'bg-teal-50' },
+            { label: 'Activities in DB', value: activities.length, icon: Compass, color: 'text-pink-600', bg: 'bg-pink-50' },
           ].map((stat, i) => (
             <div key={i} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm" data-testid={`stat-${i}`}>
               <div className="flex justify-between items-start mb-4">
@@ -917,7 +976,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-gray-100 overflow-x-auto">
-            {['airports', 'cities', 'hotels', 'transfers'].map((tab) => (
+            {['airports', 'cities', 'hotels', 'transfers', 'activities'].map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -1407,6 +1466,174 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                 )}
               </div>
             )}
+
+            {/* Activities Tab */}
+            {activeTab === 'activities' && (
+              <div>
+                <div className="flex justify-end mb-4">
+                  <button
+                    onClick={() => setActivityEditModal({ open: true, activity: null, isNew: true })}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-colors"
+                    data-testid="add-activity-button"
+                  >
+                    <Plus size={18} />
+                    Add Activity
+                  </button>
+                </div>
+                {filteredActivities.length === 0 ? (
+                  <div className="py-20 text-center">
+                    <div className="flex flex-col items-center gap-4 opacity-30">
+                      <Compass size={48} />
+                      <span className="font-bold">No activities found</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredActivities.map((activity) => (
+                      <div 
+                        key={activity.id} 
+                        className={cn(
+                          "bg-white p-5 rounded-xl border hover:shadow-lg transition-all group",
+                          activity.available === false ? "border-red-200 opacity-75" : "border-gray-200"
+                        )}
+                      >
+                        {/* Activity Image */}
+                        <div className="relative mb-4">
+                          <img 
+                            src={activity.images?.[0] || 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400'} 
+                            alt={activity.name}
+                            className="w-full h-40 object-cover rounded-lg"
+                          />
+                          <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+                            <span className="bg-pink-500 text-white text-[10px] px-2 py-1 rounded-full font-bold">
+                              {activity.category || 'Activity'}
+                            </span>
+                            {activity.transfer_type && (
+                              <span className="bg-blue-500 text-white text-[10px] px-2 py-1 rounded-full font-bold">
+                                {activity.transfer_type}
+                              </span>
+                            )}
+                            {activity.available === false && (
+                              <span className="bg-red-500 text-white text-[10px] px-2 py-1 rounded-full font-bold">
+                                UNAVAILABLE
+                              </span>
+                            )}
+                          </div>
+                          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={() => setActivityEditModal({ open: true, activity, isNew: false })}
+                              className="p-2 bg-white/90 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors shadow"
+                              data-testid={`edit-activity-${activity.id}`}
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button 
+                              onClick={() => deleteActivity(activity.id)}
+                              className="p-2 bg-white/90 hover:bg-red-50 text-red-600 rounded-lg transition-colors shadow"
+                              data-testid={`delete-activity-${activity.id}`}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Activity Info */}
+                        <h3 className="font-bold text-gray-800 mb-1 line-clamp-1">{activity.name}</h3>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                          <MapPin size={12} />
+                          <span>{activity.city}, {activity.country}</span>
+                        </div>
+                        
+                        {/* Timing Info */}
+                        {activity.start_times && activity.start_times.length > 0 && (
+                          <div className="text-xs text-blue-600 mb-2">
+                            <Clock size={10} className="inline mr-1" />
+                            Starts at {activity.start_times.join(', ')} ({activity.duration})
+                          </div>
+                        )}
+                        
+                        {/* Closed Days */}
+                        {activity.closed_days && activity.closed_days.length > 0 && (
+                          <div className="text-xs text-red-500 mb-2">
+                            Closed on {activity.closed_days.join(', ')}
+                          </div>
+                        )}
+                        
+                        {/* Languages */}
+                        {activity.languages && activity.languages.length > 0 && (
+                          <div className="text-xs text-gray-500 mb-2">
+                            <Globe size={10} className="inline mr-1" />
+                            {activity.languages.join(', ')}
+                          </div>
+                        )}
+                        
+                        <p className="text-sm text-gray-600 line-clamp-2 mb-3">{activity.description}</p>
+                        
+                        {/* Activity Details */}
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          <div className="flex items-center gap-1 text-xs bg-gray-100 px-2 py-1 rounded">
+                            <Clock size={12} />
+                            <span>{activity.duration}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-xs bg-gray-100 px-2 py-1 rounded">
+                            <Users size={12} />
+                            <span>{activity.min_participants}-{activity.max_participants}</span>
+                          </div>
+                          {activity.rating && (
+                            <div className="flex items-center gap-1 text-xs bg-yellow-50 text-yellow-700 px-2 py-1 rounded">
+                              <Star size={12} className="fill-yellow-400" />
+                              <span>{activity.rating}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Inclusions Preview */}
+                        {activity.inclusions && activity.inclusions.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {activity.inclusions.slice(0, 3).map((inc, idx) => (
+                              <span key={idx} className="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded font-medium">
+                                {inc}
+                              </span>
+                            ))}
+                            {activity.inclusions.length > 3 && (
+                              <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded">
+                                +{activity.inclusions.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Price & Supplier */}
+                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200">
+                          <div className="flex items-center gap-1">
+                            <DollarSign size={16} className="text-green-600" />
+                            <span className="font-bold text-green-600 text-lg">{activity.price}</span>
+                            <span className="text-xs text-gray-500">{activity.currency}</span>
+                          </div>
+                          {activity.supplier_name && (
+                            <div className="text-xs text-purple-600">
+                              {activity.supplier_name}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Supplier Cost (Admin view) */}
+                        {activity.supplier_cost > 0 && (
+                          <div className="mt-2 text-xs text-gray-500 flex justify-between">
+                            <span>Supplier Cost: {activity.supplier_cost} {activity.currency}</span>
+                            {activity.price > activity.supplier_cost && (
+                              <span className="text-green-600 font-medium">
+                                Margin: +{(activity.price - activity.supplier_cost).toFixed(0)}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1430,6 +1657,32 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                 setHotelEditModal({ open: false, hotel: null, isNew: false });
               } catch (error) {
                 console.error('Error saving hotel:', error);
+                throw error;
+              }
+            }}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Activity Edit Form Modal */}
+      <AnimatePresence>
+        {activityEditModal.open && (
+          <ActivityEditForm
+            activity={activityEditModal.activity}
+            isNew={activityEditModal.isNew}
+            onClose={() => setActivityEditModal({ open: false, activity: null, isNew: false })}
+            onSave={async (activityData) => {
+              try {
+                if (activityEditModal.isNew) {
+                  const res = await api.post('/activities', activityData);
+                  setActivities([...activities, { id: res.data.id, ...activityData }]);
+                } else {
+                  await api.put(`/activities/${activityEditModal.activity.id}`, activityData);
+                  setActivities(activities.map(a => a.id === activityEditModal.activity.id ? { ...a, ...activityData } : a));
+                }
+                setActivityEditModal({ open: false, activity: null, isNew: false });
+              } catch (error) {
+                console.error('Error saving activity:', error);
                 throw error;
               }
             }}
