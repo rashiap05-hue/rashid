@@ -176,6 +176,8 @@ class RoomType(BaseModel):
     images: List[str] = []
     description: str = ""
     rate_plans: List[Dict] = []  # List of rate plans for this room
+    available: bool = True  # Room availability status
+    total_inventory: int = 10  # Total number of rooms available
 
 class HotelRoom(BaseModel):
     id: str

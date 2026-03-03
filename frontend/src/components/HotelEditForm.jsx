@@ -409,7 +409,9 @@ function RoomTypeEditor({ roomTypes = [], onChange, hotelId = '' }) {
       amenities: ['Free WiFi', 'LED TV', 'Minibar'],
       images: [],
       description: '',
-      rate_plans: []
+      rate_plans: [],
+      available: true,
+      total_inventory: 10
     };
     onChange([...roomTypes, newRoom]);
     setExpandedRoom(roomTypes.length);
@@ -467,20 +469,46 @@ function RoomTypeEditor({ roomTypes = [], onChange, hotelId = '' }) {
       ) : (
         <div className="space-y-3">
           {roomTypes.map((room, idx) => (
-            <div key={room.id || idx} className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+            <div key={room.id || idx} className={cn(
+              "border rounded-xl overflow-hidden bg-white transition-all",
+              room.available === false ? "border-red-200 opacity-75" : "border-gray-200"
+            )}>
               {/* Room Header */}
               <div 
-                className="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 flex items-center justify-between cursor-pointer"
+                className={cn(
+                  "px-4 py-3 flex items-center justify-between cursor-pointer",
+                  room.available === false 
+                    ? "bg-gradient-to-r from-red-50 to-orange-50" 
+                    : "bg-gradient-to-r from-blue-50 to-indigo-50"
+                )}
                 onClick={() => setExpandedRoom(expandedRoom === idx ? null : idx)}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Bed className="w-5 h-5 text-blue-600" />
+                  <div className={cn(
+                    "w-10 h-10 rounded-lg flex items-center justify-center",
+                    room.available === false ? "bg-red-100" : "bg-blue-100"
+                  )}>
+                    <Bed className={cn(
+                      "w-5 h-5",
+                      room.available === false ? "text-red-600" : "text-blue-600"
+                    )} />
                   </div>
                   <div>
-                    <span className="font-bold text-gray-800">
-                      {room.name || 'Unnamed Room Type'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-gray-800">
+                        {room.name || 'Unnamed Room Type'}
+                      </span>
+                      {room.available === false && (
+                        <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded font-medium">
+                          UNAVAILABLE
+                        </span>
+                      )}
+                      {room.available !== false && room.total_inventory && (
+                        <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
+                          {room.total_inventory} rooms
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                       <span className="bg-gray-100 px-1.5 py-0.5 rounded">{room.category}</span>
                       <span>•</span>
@@ -490,7 +518,27 @@ function RoomTypeEditor({ roomTypes = [], onChange, hotelId = '' }) {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  {/* Availability Toggle */}
+                  <div 
+                    className="flex items-center gap-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span className="text-xs text-gray-500">Available</span>
+                    <button
+                      type="button"
+                      onClick={() => updateRoomType(idx, 'available', room.available === false ? true : false)}
+                      className={cn(
+                        "relative w-11 h-6 rounded-full transition-colors",
+                        room.available === false ? "bg-gray-300" : "bg-green-500"
+                      )}
+                    >
+                      <span className={cn(
+                        "absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform",
+                        room.available === false ? "left-0.5" : "left-[22px]"
+                      )} />
+                    </button>
+                  </div>
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); removeRoomType(idx); }}
@@ -567,7 +615,7 @@ function RoomTypeEditor({ roomTypes = [], onChange, hotelId = '' }) {
                       </div>
 
                       {/* Size & Occupancy */}
-                      <div className="grid grid-cols-4 gap-4">
+                      <div className="grid grid-cols-5 gap-4">
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">Room Size</label>
                           <input
@@ -609,6 +657,17 @@ function RoomTypeEditor({ roomTypes = [], onChange, hotelId = '' }) {
                             value={room.max_children || 0}
                             onChange={(e) => updateRoomType(idx, 'max_children', parseInt(e.target.value) || 0)}
                             className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-green-600 mb-1">Total Rooms</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={room.total_inventory || ''}
+                            onChange={(e) => updateRoomType(idx, 'total_inventory', parseInt(e.target.value) || 0)}
+                            placeholder="Inventory"
+                            className="w-full px-3 py-2 text-sm border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 bg-green-50"
                           />
                         </div>
                       </div>
