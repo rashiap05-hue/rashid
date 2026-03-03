@@ -1,10 +1,12 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends, Query, UploadFile, File, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
+import shutil
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Dict, Any
@@ -35,8 +37,17 @@ STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
 # Import airports data
 from airports_data import AIRPORTS_DATA
 
+# Setup uploads directory
+UPLOADS_DIR = ROOT_DIR / "uploads"
+UPLOADS_DIR.mkdir(exist_ok=True)
+(UPLOADS_DIR / "hotels").mkdir(exist_ok=True)
+(UPLOADS_DIR / "rooms").mkdir(exist_ok=True)
+
 # Create the main app - disable redirect_slashes for consistent routing
 app = FastAPI(title="Travo DMC B2B Travel Platform API", redirect_slashes=False)
+
+# Mount static files for uploads
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 # Create routers
 api_router = APIRouter(prefix="/api")
@@ -51,6 +62,7 @@ ai_router = APIRouter(prefix="/ai", tags=["AI Features"])
 payments_router = APIRouter(prefix="/payments", tags=["Payments"])
 sheets_router = APIRouter(prefix="/sheets", tags=["Google Sheets"])
 admin_router = APIRouter(prefix="/admin", tags=["Admin"])
+uploads_router = APIRouter(prefix="/uploads", tags=["File Uploads"])
 
 security = HTTPBearer(auto_error=False)
 
@@ -136,6 +148,38 @@ class FlightSearch(BaseModel):
     trip_type: str = "One-way"
     cabin_class: str = "Economy"
 
+# Rate Plan model for room pricing
+class RatePlan(BaseModel):
+    id: str = ""
+    name: str  # e.g., "Room Only", "Breakfast Included"
+    price: float
+    original_price: Optional[float] = None
+    currency: str = "AED"
+    meal_plan: str = "Room Only"  # Room Only, Breakfast, Half Board, Full Board
+    meal_details: Optional[str] = None  # e.g., "Breakfast buffet", "Breakfast for 2"
+    refund_policy: str = "Refundable"  # Refundable, Non-refundable
+    refund_deadline: Optional[str] = None  # e.g., "11 Mar 2026"
+    inclusions: List[str] = []  # e.g., ["Free WiFi", "Free parking", "Breakfast for 2"]
+    taxes: List[str] = []  # e.g., ["Tourism Tax", "City Tax", "Sales Tax"]
+    available: bool = True
+
+# Enhanced Room Type model
+class RoomType(BaseModel):
+    id: str = ""
+    name: str  # e.g., "Superior Room, 1 King, City View"
+    category: str = "Standard"  # Superior, Deluxe, Junior Suite, Suite, etc.
+    bed_configuration: List[str] = []  # e.g., ["1 King"] or ["2 Twin", "Sofa Bed"]
+    view_type: str = ""  # City View, Garden View, Sea View, Pool View
+    room_size: Optional[float] = None  # Size in sqm or sqft
+    size_unit: str = "sqm"  # sqm or sqft
+    max_adults: int = 2
+    max_children: int = 1
+    smoking: bool = False
+    amenities: List[str] = []  # Room-specific amenities
+    images: List[str] = []
+    description: str = ""
+    rate_plans: List[Dict] = []  # List of rate plans for this room
+
 class HotelRoom(BaseModel):
     id: str
     name: str
@@ -166,7 +210,8 @@ class HotelCreate(BaseModel):
     amenities: List[str] = []
     detailed_ratings: Dict[str, float] = {}
     what_to_know: List[Dict] = []
-    rooms: List[Dict] = []
+    rooms: List[Dict] = []  # Legacy support
+    room_types: List[Dict] = []  # New enhanced room types with rate plans
     # New fields based on PDF analysis
     check_in_time: str = "14:00"
     check_out_time: str = "12:00"
@@ -1294,6 +1339,85 @@ async def create_sample_bookings(supplier_name: str):
     
     return {"success": True, "created": len(response_bookings), "bookings": response_bookings}
 
+# ============= FILE UPLOAD ROUTES =============
+
+ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+@uploads_router.post("/hotel-image")
+async def upload_hotel_image(
+    file: UploadFile = File(...),
+    hotel_id: str = Form(default=""),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Upload a hotel image"""
+    # Validate file extension
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
+    
+    # Generate unique filename
+    unique_id = str(uuid.uuid4())[:8]
+    filename = f"{hotel_id}_{unique_id}{file_ext}" if hotel_id else f"hotel_{unique_id}{file_ext}"
+    file_path = UPLOADS_DIR / "hotels" / filename
+    
+    # Save file
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+    
+    # Return the URL path
+    image_url = f"/uploads/hotels/{filename}"
+    return {"success": True, "url": image_url, "filename": filename}
+
+@uploads_router.post("/room-image")
+async def upload_room_image(
+    file: UploadFile = File(...),
+    room_id: str = Form(default=""),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Upload a room image"""
+    # Validate file extension
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
+    
+    # Generate unique filename
+    unique_id = str(uuid.uuid4())[:8]
+    filename = f"{room_id}_{unique_id}{file_ext}" if room_id else f"room_{unique_id}{file_ext}"
+    file_path = UPLOADS_DIR / "rooms" / filename
+    
+    # Save file
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+    
+    # Return the URL path
+    image_url = f"/uploads/rooms/{filename}"
+    return {"success": True, "url": image_url, "filename": filename}
+
+@uploads_router.delete("/image")
+async def delete_uploaded_image(
+    filename: str = Query(...),
+    image_type: str = Query(..., regex="^(hotels|rooms)$"),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Delete an uploaded image"""
+    file_path = UPLOADS_DIR / image_type / filename
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    try:
+        os.remove(file_path)
+        return {"success": True, "message": "Image deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete image: {str(e)}")
+
 # ============= ROOT ROUTES =============
 
 @api_router.get("")
@@ -1832,6 +1956,7 @@ api_router.include_router(payments_router)
 api_router.include_router(sheets_router)
 api_router.include_router(admin_router)
 api_router.include_router(supplier_router)
+api_router.include_router(uploads_router)
 
 app.include_router(api_router)
 

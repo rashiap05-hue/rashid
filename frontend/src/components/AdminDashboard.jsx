@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Database, Users, FileText, Settings, Search, RefreshCw,
   Edit2, Trash2, CheckCircle, XCircle, MapPin, Plane, Building2, X,
-  ChevronLeft, ChevronRight, Plus, Save, Car, Clock, DollarSign, Briefcase
+  ChevronLeft, ChevronRight, Plus, Save, Car, Clock, DollarSign, Briefcase, Star, Bed
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
+import HotelEditForm from './HotelEditForm';
 
 export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   const [proposals, setProposals] = useState([]);
@@ -31,6 +32,9 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   const [editModal, setEditModal] = useState({ open: false, type: null, data: null });
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
+  
+  // Hotel edit form state (separate from generic edit modal)
+  const [hotelEditModal, setHotelEditModal] = useState({ open: false, hotel: null, isNew: false });
 
   useEffect(() => {
     fetchData();
@@ -1251,7 +1255,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
               <div>
                 <div className="flex justify-end mb-4">
                   <button
-                    onClick={() => openEditModal('hotel')}
+                    onClick={() => setHotelEditModal({ open: true, hotel: null, isNew: true })}
                     className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-colors"
                     data-testid="add-hotel-button"
                   >
@@ -1263,54 +1267,90 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   {filteredHotels.map((hotel, i) => (
                     <div 
                       key={hotel.id || i} 
-                      className="bg-gray-50 p-6 rounded-xl border border-gray-100 hover:shadow-md transition-all group"
+                      className="bg-white p-5 rounded-xl border border-gray-200 hover:shadow-lg transition-all group"
                     >
                       <div className="flex gap-4">
-                        <img 
-                          src={hotel.images?.[0] || 'https://via.placeholder.com/100'} 
-                          alt={hotel.name}
-                          className="w-24 h-24 rounded-lg object-cover cursor-pointer"
-                          onClick={() => onViewHotel && onViewHotel(hotel)}
-                        />
-                        <div className="flex-1">
+                        {/* Hotel Image */}
+                        <div className="relative">
+                          <img 
+                            src={hotel.images?.[0] || 'https://via.placeholder.com/120x100?text=No+Image'} 
+                            alt={hotel.name}
+                            className="w-28 h-24 rounded-lg object-cover cursor-pointer"
+                            onClick={() => onViewHotel && onViewHotel(hotel)}
+                          />
+                          {hotel.images?.length > 1 && (
+                            <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
+                              +{hotel.images.length - 1}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between">
                             <div className="cursor-pointer" onClick={() => onViewHotel && onViewHotel(hotel)}>
-                              <div className="font-bold text-gray-800">{hotel.name}</div>
-                              <div className="text-xs text-gray-500">{hotel.city}, {hotel.country}</div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center gap-1 bg-green-100 px-2 py-1 rounded">
-                                <span className="text-green-600 font-bold text-sm">{hotel.rating_score}</span>
+                              <div className="font-bold text-gray-800 truncate">{hotel.name}</div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                {Array.from({ length: hotel.star_rating || 4 }).map((_, j) => (
+                                  <Star key={j} size={12} className="fill-yellow-400 text-yellow-400" />
+                                ))}
                               </div>
-                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); openEditModal('hotel', hotel); }}
-                                  className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
-                                  data-testid={`edit-hotel-${hotel.id}`}
-                                >
-                                  <Edit2 size={14} />
-                                </button>
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); deleteHotel(hotel.id); }}
-                                  className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
-                                  data-testid={`delete-hotel-${hotel.id}`}
-                                >
-                                  <Trash2 size={14} />
-                                </button>
+                              <div className="text-xs text-gray-500 mt-1">{hotel.city}, {hotel.country}</div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <div className="bg-[#002B5B] text-white px-2 py-1 rounded font-bold text-sm">
+                                {hotel.rating_score || 8.0}
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 mt-2">
-                            {Array.from({ length: hotel.star_rating || 4 }).map((_, j) => (
-                              <span key={j} className="text-yellow-400">★</span>
-                            ))}
+                          
+                          {/* Room Types & Rate Plans Count */}
+                          <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Bed size={12} />
+                              {hotel.room_types?.length || hotel.rooms?.length || 0} room types
+                            </span>
+                            {hotel.amenities?.length > 0 && (
+                              <span className="truncate">
+                                {hotel.amenities.slice(0, 3).join(', ')}
+                              </span>
+                            )}
                           </div>
-                          <div className="text-xs text-gray-500 mt-2 line-clamp-2">{hotel.description}</div>
+                          
+                          {/* Action Buttons */}
+                          <div className="flex gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setHotelEditModal({ open: true, hotel, isNew: false }); 
+                              }}
+                              className="flex-1 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
+                              data-testid={`edit-hotel-${hotel.id}`}
+                            >
+                              <Edit2 size={12} />
+                              Edit
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); deleteHotel(hotel.id); }}
+                              className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors"
+                              data-testid={`delete-hotel-${hotel.id}`}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
+                
+                {filteredHotels.length === 0 && (
+                  <div className="py-20 text-center">
+                    <div className="flex flex-col items-center gap-4 opacity-30">
+                      <Building2 size={48} />
+                      <span className="font-bold">No hotels found</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1486,6 +1526,32 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
           </div>
         </div>
       </div>
+      
+      {/* Hotel Edit Form Modal */}
+      <AnimatePresence>
+        {hotelEditModal.open && (
+          <HotelEditForm
+            hotel={hotelEditModal.hotel}
+            isNew={hotelEditModal.isNew}
+            onClose={() => setHotelEditModal({ open: false, hotel: null, isNew: false })}
+            onSave={async (hotelData) => {
+              try {
+                if (hotelEditModal.isNew) {
+                  const res = await api.post('/hotels', hotelData);
+                  setHotels([...hotels, { id: res.data.id, ...hotelData }]);
+                } else {
+                  await api.put(`/hotels/${hotelEditModal.hotel.id}`, hotelData);
+                  setHotels(hotels.map(h => h.id === hotelEditModal.hotel.id ? { ...h, ...hotelData } : h));
+                }
+                setHotelEditModal({ open: false, hotel: null, isNew: false });
+              } catch (error) {
+                console.error('Error saving hotel:', error);
+                throw error;
+              }
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
