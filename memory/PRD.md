@@ -699,3 +699,84 @@ Updated `/app/frontend/src/components/HotelDetailsView.jsx` to:
 - `/app/frontend/src/components/HotelDetailsView.jsx` - Added `getAllRooms()` function with format fallback
 - `/app/frontend/src/components/HotelEditForm.jsx` - Removed supplier section, updated rate plan fields
 - `/app/frontend/src/components/TripBuilder.jsx` - Added DollarSign icon import, enhanced price display
+
+
+## Update: March 3, 2026 - Enhanced Activities Management System
+
+### Feature: Comprehensive Activity/Attraction Management
+
+Implemented a fully featured Activities Management system based on user's reference screenshot for "Half Day Tbilisi City Tour - Private Transfers".
+
+#### New Features Implemented
+1. **ActivityEditForm Component** (`ActivityEditForm.jsx`)
+   - **5 Tabs:**
+     - Basic Info: Name, category, transfer type, city/country, meeting point, languages, availability
+     - Photos: Drag-and-drop image upload, URL addition, highlights/key features
+     - Timing & Schedule: Duration, start times, operating days, closed days, age restrictions, participants
+     - Tour Details: Description/itinerary, useful information, inclusions, exclusions, cancellation policy
+     - Supplier & Pricing: Price, supplier cost, margin calculation, supplier name, rating, reviews
+
+2. **New Backend Fields** (ActivityCreate model):
+   - `useful_information: List[str]` - Bullet points of useful info
+   - `transfer_type: str` - Private, Shared, Luxury
+   - `operating_days: List[str]` - Days activity operates
+   - `closed_days: List[str]` - Days activity is closed (e.g., ["Monday"])
+
+3. **Activity Image Upload**:
+   - New endpoint: `POST /api/uploads/activity-image`
+   - Images stored in `/app/backend/uploads/activities/`
+   - Served via `/api/static/activities/`
+
+4. **Enhanced Activity Cards** in Admin Dashboard:
+   - Shows timing info: "Starts at 10:00, 15:00 (5 hrs)"
+   - Displays languages spoken
+   - Shows closed days (if any)
+   - Transfer type badge alongside category badge
+   - Inclusions preview badges
+
+5. **Data Migration**:
+   - Automatic migration adds new fields to existing activities with defaults
+
+#### UI Components Created
+- `ActivityImageUploader` - Drag-drop + URL image addition
+- `ListEditor` - Reusable list management for inclusions/exclusions/etc.
+- `DaysSelector` - Toggle operating/closed days with visual feedback
+- `StartTimesEditor` - Time picker with sortable time chips
+- `LanguagesEditor` - Toggle buttons with common languages
+
+### Test Results (iteration_12.json)
+- **Backend:** 100% pass rate (9/9 tests)
+- **Frontend:** 100% pass rate
+  - All 5 tabs functional
+  - Operating days toggle working
+  - Start times add/remove verified
+  - Image upload via URL working
+  - Edit form data loading confirmed
+
+### Files Modified/Created
+- `/app/frontend/src/components/ActivityEditForm.jsx` (NEW - 700+ lines)
+- `/app/frontend/src/components/AdminDashboard.jsx` (Updated activity cards, integrated new form)
+- `/app/backend/server.py`:
+  - ActivityCreate model updated with new fields
+  - New activity-image upload endpoint
+  - Activities folder for uploads
+  - Migration function for existing activities
+
+### API Endpoints
+- `GET /api/activities` - List all activities
+- `POST /api/activities` - Create activity with all fields
+- `PUT /api/activities/{id}` - Update activity
+- `DELETE /api/activities/{id}` - Delete activity
+- `POST /api/uploads/activity-image` - Upload activity image
+
+### Sample Activity Card Display
+```
+Desert Safari with BBQ Dinner
+Dubai, United Arab Emirates
+Starts at 14:30, 15:00 (6 hours)
+English, Arabic
+[Adventure] [Private]
+[Driver cum Guide] [BBQ Dinner] [Camel Ride] +2
+$250 AED | Supplier: Arabian Adventures | Margin: +40
+```
+
