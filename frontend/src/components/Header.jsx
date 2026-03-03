@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plane, Hotel, MapPin, LayoutDashboard, Settings, FileText, 
-  PieChart, MessageSquare, Bell, LogOut, ArrowLeft, ChevronDown, ChevronUp, Globe
+  PieChart, MessageSquare, Bell, LogOut, ArrowLeft, ChevronDown, ChevronUp, Globe,
+  Users, Briefcase, Calendar, Download, UserPlus, ClipboardList, Wallet, Upload, UserCog, User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -17,13 +18,48 @@ export const NAV_ITEMS = [
       { name: 'Passenger Calendar' }
     ]
   },
-  { name: 'Holidays', icon: Globe },
+  { 
+    name: 'Holidays', 
+    icon: Globe,
+    subItems: [
+      { name: 'FIT Packages' },
+      { name: 'Group Tours' },
+      { name: 'Adhoc Group' },
+      { name: 'Private Tours' }
+    ]
+  },
   { name: 'Hotels', icon: Hotel },
   { name: 'Activities', icon: MapPin },
-  { name: 'Marketing', icon: PieChart },
-  { name: 'My Leads', icon: MessageSquare },
+  { 
+    name: 'Marketing', 
+    icon: PieChart,
+    subItems: [
+      { name: 'Generate Leads' },
+      { name: 'Download Flyers' }
+    ]
+  },
+  { 
+    name: 'My Leads', 
+    icon: MessageSquare,
+    subItems: [
+      { name: 'My Leads' },
+      { name: 'My Proposals' },
+      { name: 'My Bookings' },
+      { name: 'Expert Dashboard' },
+      { name: 'Pending Followups' }
+    ]
+  },
   { name: 'Settings', icon: Settings },
   { name: 'Account Statement', icon: FileText },
+];
+
+// Profile dropdown items
+const PROFILE_ITEMS = [
+  { name: 'Wallet Statement', icon: Wallet },
+  { name: 'Upload Deposit', icon: Upload },
+  { name: 'Update Deposit Request', icon: FileText },
+  { name: 'Manage Staff', icon: Users },
+  { name: 'Profile', icon: User },
 ];
 
 export default function Header({ 
@@ -37,6 +73,7 @@ export default function Header({
   onBack
 }) {
   const [openDropdown, setOpenDropdown] = useState(null);
+  const [profileDropdown, setProfileDropdown] = useState(false);
 
   return (
     <div className="sticky top-0 z-50 w-full" data-testid="header">
@@ -51,14 +88,53 @@ export default function Header({
             <Bell size={14} />
             <span>Notifications</span>
           </div>
-          <div className="flex items-center gap-2 border-l border-white/20 pl-4">
-            <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-[10px] font-bold">
-              {user?.full_name?.[0] || 'U'}
+          
+          {/* Profile Dropdown */}
+          <div 
+            className="relative"
+            onMouseEnter={() => setProfileDropdown(true)}
+            onMouseLeave={() => setProfileDropdown(false)}
+          >
+            <div className="flex items-center gap-2 border-l border-white/20 pl-4 cursor-pointer">
+              <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-[10px] font-bold">
+                {user?.full_name?.[0] || 'U'}
+              </div>
+              <span className="font-medium" data-testid="user-name">{user?.full_name || 'User'}</span>
+              <ChevronDown size={14} className={cn("transition-transform", profileDropdown && "rotate-180")} />
             </div>
-            <span className="font-medium" data-testid="user-name">{user?.full_name || 'User'}</span>
-            <button onClick={onLogout} data-testid="logout-button" className="hover:text-red-300 transition-colors ml-2">
-              <LogOut size={14} />
-            </button>
+            
+            <AnimatePresence>
+              {profileDropdown && (
+                <motion.div
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 5 }}
+                  className="absolute top-full right-0 mt-2 w-56 bg-white text-gray-800 rounded-lg shadow-xl overflow-hidden z-[100] border border-gray-100"
+                >
+                  {PROFILE_ITEMS.map((item) => (
+                    <button
+                      key={item.name}
+                      className="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 flex items-center gap-3"
+                      onClick={() => {
+                        // Handle navigation based on item
+                        setProfileDropdown(false);
+                      }}
+                    >
+                      <item.icon size={16} className="text-gray-400" />
+                      {item.name}
+                    </button>
+                  ))}
+                  <button
+                    onClick={onLogout}
+                    data-testid="logout-button"
+                    className="w-full text-left px-4 py-3 text-sm hover:bg-red-50 text-red-600 transition-colors flex items-center gap-3 border-t border-gray-200"
+                  >
+                    <LogOut size={16} />
+                    Logout
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </header>
