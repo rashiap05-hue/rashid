@@ -589,3 +589,81 @@ A comprehensive hotel details view component was created and integrated into the
 ### Files Modified
 - `/app/frontend/src/components/HotelDetailsView.jsx` - Complete component (660 lines)
 - `/app/frontend/src/components/TripBuilder.jsx` - Integration at lines 12, 291-299
+
+
+## Update: March 3, 2026 - Hotel Management System with Image Upload & Room Types
+
+### Feature: Comprehensive Hotel Management in Admin Dashboard
+
+A major enhancement to the Hotel Management system implementing photo uploads, room types with detailed configurations, and rate plans with pricing/meal options.
+
+#### New Components Created
+1. **`/app/frontend/src/components/HotelEditForm.jsx`** (700+ lines)
+   - Full-featured hotel edit modal with 4 tabs
+   - `ImageUploader` - Drag & drop file upload + URL input
+   - `RoomTypeEditor` - Expandable room type management
+   - `RatePlanEditor` - Nested rate plans per room
+   - `RatingBreakdownEditor` - 5-category rating inputs
+
+#### Hotel Edit Form Features
+**Tab 1: Basic Info**
+- Hotel name, address, city, country
+- Star rating (1-7 stars)
+- Total rooms, cancellation policy
+- Check-in/Check-out times
+- Board types (Room Only, B&B, Half Board, Full Board)
+- Amenities, highlights (comma-separated)
+- Description, supplier info
+
+**Tab 2: Photos**
+- Existing images grid with "Main" badge
+- Drag & drop file upload (JPG, PNG, GIF, WEBP up to 10MB)
+- "+ Add URL" button for external URLs
+- Delete image functionality
+
+**Tab 3: Ratings**
+- Overall score (0-10)
+- Rating text (Exceptional, Wonderful, Excellent, Very Good, Good, Pleasant)
+- Review count
+- Detailed ratings breakdown (Cleanliness, Service, Comfort, Location, Amenities)
+
+**Tab 4: Room Types & Rate Plans**
+- Room Type fields:
+  - Name, Category (Standard/Superior/Deluxe/Suite/etc.)
+  - Bed configuration (1 King, 2 Twin, etc.)
+  - View type (City/Garden/Sea/Pool/Mountain/Courtyard)
+  - Room size with sqm/sqft unit
+  - Max adults/children
+  - Room amenities, description
+  - Room photos (upload + URL)
+- Rate Plan fields (per room type):
+  - Rate name, Meal plan dropdown
+  - Price, Original price (for discounts)
+  - Refund policy (Refundable/Non-refundable)
+  - Refund deadline, Meal details
+  - Inclusions, Taxes (comma-separated)
+
+#### Backend Enhancements
+- **New Upload Endpoints:**
+  - `POST /api/uploads/hotel-image` - Upload hotel photos
+  - `POST /api/uploads/room-image` - Upload room photos
+  - `DELETE /api/uploads/image` - Delete uploaded image
+- **Enhanced Hotel Model:**
+  - `room_types[]` array with nested `rate_plans[]`
+  - `RoomType` model with full room configuration
+  - `RatePlan` model with pricing/meal/refund options
+- **Static File Serving:** `/uploads/` mounted for uploaded images
+
+### Test Results (iteration_11.json)
+- **Backend:** 100% pass rate (10/10 tests)
+- **Frontend:** 100% pass rate
+  - All 4 tabs functional
+  - Room types with rate plans working
+  - Image upload drag-drop verified
+  - Save functionality confirmed
+
+### Files Modified/Created
+- `/app/frontend/src/components/HotelEditForm.jsx` (NEW - 700+ lines)
+- `/app/frontend/src/components/AdminDashboard.jsx` (Updated hotel cards & modal)
+- `/app/backend/server.py` (Upload endpoints, enhanced models)
+- `/app/backend/tests/test_hotel_management.py` (NEW - 10 test cases)
