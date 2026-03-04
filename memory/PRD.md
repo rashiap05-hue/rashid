@@ -834,3 +834,85 @@ Implemented seamless integration between Activities Management and the Trip Buil
   - Enhanced DayCard to show activities with details
   - Added Activities section to Trip Summary sidebar
 
+
+
+## Update: March 4, 2026 - ProposalView Redesign Complete
+
+### Feature: Complete ProposalView UI Redesign
+
+Redesigned the ProposalView.jsx component to match user-provided screenshots with a modern, professional travel proposal layout.
+
+#### Design Elements Implemented
+
+**Header Section:**
+- Breadcrumb navigation: "Lead Details > View All Suggested Options > Proposal Name"
+- Proposal number display (Proposal No: XXXXXXX)
+- Proposal title with destination
+- Trip summary: destination/nights, dates, room/guest count
+- Download PDF button
+
+**Sticky Tab Navigation (Dark Gray Bar):**
+- ITINERARY tab (with Calendar icon)
+- INCLUSIONS tab (with FileText icon)
+- TERMS AND POLICIES tab (with Shield icon)
+- MESSAGES tab (with MessageCircle icon)
+- NEED HELP tab (with HelpCircle icon)
+- EDIT PROPOSAL button
+
+**ITINERARY Tab:**
+- Introduction for Customer section with "+ ADD" button
+- Google Maps embed showing destination city
+- Flights section with departure info and "No Flight Included" status
+- City/Hotel section:
+  - City header with nights count
+  - Hotel card with image, star rating, name, VIEW button, address
+  - Check-in/Check-out dates
+  - Room details, amenities, refund policy
+  - "What to know about this hotel" 3-column grid section
+- Day-by-day itinerary:
+  - Expandable days with toggle (+ EXPAND ALL DAYS button)
+  - Day 1: "Arrival at [City]" with orange alert banner, description, notes, transfer info
+  - Middle days: "Day at leisure" with description, overnight stay, meals
+  - Last day: "Departure from [City]" with pink alert banner
+  - Transfer details with "Private Transfers" and "3 Bags" badges
+  - VIEW button for transfer details
+  - Meals grid (Breakfast, Lunch, Dinner - Not Included)
+
+**INCLUSIONS Tab:**
+- INCLUSIONS header with divider lines
+- City inclusions grouped by destination
+- Hotel stay details with room info
+- Transfers with dates and badges
+- Meals grid with "Not Included" status
+- Travel Insurance section ($50,000 coverage note)
+- Exclusions list with bullet points
+
+**Other Tabs:**
+- TERMS AND POLICIES: Booking, payment, cancellation, amendment policies
+- MESSAGES: Empty state with "Send Message" button
+- NEED HELP: Contact Support, WhatsApp, Email Us buttons
+
+#### Integration Changes
+- Updated `/app/frontend/src/App.js` to handle proposal objects from MyProposals
+- Clicking "View Proposal" now correctly navigates to the redesigned ProposalView
+
+### Test Results (iteration_14.json)
+- **Frontend:** 100% pass rate
+- All tabs functional
+- Expand/collapse days working
+- Alert banners display correctly (orange for arrival, pink for departure)
+- Google Maps loads correctly
+- Back navigation works
+
+### Files Modified
+- `/app/frontend/src/components/ProposalView.jsx` - Complete redesign (700+ lines)
+- `/app/frontend/src/App.js` - Updated onViewProposal handler
+
+### User Flow
+1. User navigates to My Leads > My Proposals
+2. Clicks "View Proposal" on any proposal
+3. ProposalView page displays with all sections
+4. User can switch between tabs (ITINERARY, INCLUSIONS, etc.)
+5. User can expand/collapse individual days or all days
+6. User can click "Back to Proposals" to return to list
+
