@@ -143,9 +143,15 @@ function App() {
                       setPendingProposalData(null);
                       setCurrentView('form');
                     }}
-                    onViewProposal={(id) => {
-                      setSelectedProposalId(id);
-                      setCurrentView('details');
+                    onViewProposal={(proposal) => {
+                      // Handle both proposal object and proposal ID
+                      if (typeof proposal === 'object') {
+                        setSavedProposal(proposal);
+                        setCurrentView('proposal-view');
+                      } else {
+                        setSelectedProposalId(proposal);
+                        setCurrentView('details');
+                      }
                     }}
                     onAdminView={() => setCurrentView('admin')}
                   />
