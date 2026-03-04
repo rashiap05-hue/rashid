@@ -15,6 +15,7 @@ import SupplierDashboard from '@/components/SupplierDashboard';
 import AIChatbot from '@/components/AIChatbot';
 import PaymentSuccess from '@/components/PaymentSuccess';
 import PaymentCancel from '@/components/PaymentCancel';
+import ProposalView from '@/components/ProposalView';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
@@ -44,6 +45,7 @@ function App() {
   const [selectedProposalId, setSelectedProposalId] = useState(null);
   const [pendingProposalData, setPendingProposalData] = useState(null);
   const [showChatbot, setShowChatbot] = useState(false);
+  const [savedProposal, setSavedProposal] = useState(null); // For viewing saved proposal
 
   useEffect(() => {
     const savedUser = localStorage.getItem('travo_user');
@@ -165,8 +167,13 @@ function App() {
                     data={pendingProposalData}
                     user={user}
                     onBack={() => setCurrentView('form')}
-                    onConfirm={async () => {
-                      setCurrentView('dashboard');
+                    onConfirm={async (savedProposalData) => {
+                      if (savedProposalData) {
+                        setSavedProposal(savedProposalData);
+                        setCurrentView('proposal-view');
+                      } else {
+                        setCurrentView('dashboard');
+                      }
                       setPendingProposalData(null);
                     }}
                   />
@@ -181,6 +188,21 @@ function App() {
 
                 {currentView === 'admin-users' && (
                   <AdminUserDashboard onBack={() => setCurrentView('admin')} />
+                )}
+
+                {currentView === 'proposal-view' && savedProposal && (
+                  <ProposalView 
+                    proposal={savedProposal}
+                    onBack={() => {
+                      setSavedProposal(null);
+                      setCurrentView('dashboard');
+                      setActiveTab('My Proposals');
+                    }}
+                    onBookNow={() => {
+                      // Handle booking
+                      alert('Book Now feature coming soon!');
+                    }}
+                  />
                 )}
 
                 {/* AI Chatbot Button */}

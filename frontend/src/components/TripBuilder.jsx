@@ -1368,7 +1368,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const handleSaveProposalWithData = async (formData) => {
     setIsSaving(true);
     try {
-      await api.post('/proposals', {
+      const proposalData = {
         leaving_from: data.leaving_from,
         leaving_from_code: data.leaving_from_code,
         nationality: data.nationality,
@@ -1392,9 +1392,19 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         markup_type: formData.markup_type,
         discount_amount: formData.discount_amount,
         status: 'pending'
-      });
+      };
+
+      const response = await api.post('/proposals', proposalData);
+      
+      // Create full proposal object for the view page
+      const savedProposal = {
+        id: response.data.id,
+        ...proposalData,
+        created_at: new Date().toISOString()
+      };
+
       setShowSaveProposalModal(false);
-      onConfirm();
+      onConfirm(savedProposal);  // Pass the saved proposal data
     } catch (error) {
       console.error('Error saving proposal:', error);
       throw error;
