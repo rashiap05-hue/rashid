@@ -289,17 +289,17 @@ export default function MyProposals({ onViewProposal, onEditProposal }) {
                 </tr>
                 {/* Filter Row */}
                 <tr className="bg-white border-b border-gray-100">
-                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
-                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
-                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
-                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
-                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
-                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
-                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
-                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
-                  <td className="px-4 py-2"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></td>
-                  <td className="px-4 py-2"></td>
-                  <td className="px-4 py-2"></td>
+                  <th className="px-4 py-2 font-normal"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></th>
+                  <th className="px-4 py-2 font-normal"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></th>
+                  <th className="px-4 py-2 font-normal"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></th>
+                  <th className="px-4 py-2 font-normal"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></th>
+                  <th className="px-4 py-2 font-normal"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></th>
+                  <th className="px-4 py-2 font-normal"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></th>
+                  <th className="px-4 py-2 font-normal"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></th>
+                  <th className="px-4 py-2 font-normal"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></th>
+                  <th className="px-4 py-2 font-normal"><input type="text" className="w-full px-2 py-1 border border-gray-200 rounded text-sm" /></th>
+                  <th className="px-4 py-2"></th>
+                  <th className="px-4 py-2"></th>
                 </tr>
               </thead>
               <tbody>

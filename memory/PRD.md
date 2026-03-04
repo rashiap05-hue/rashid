@@ -916,3 +916,100 @@ Redesigned the ProposalView.jsx component to match user-provided screenshots wit
 5. User can expand/collapse individual days or all days
 6. User can click "Back to Proposals" to return to list
 
+
+
+## Update: March 4, 2026 - ProposalView Right Sidebar & Terms Accordion Added
+
+### Feature: Right Sidebar with Pricing Breakdown
+
+Added a sticky right sidebar (visible on lg screens) to the ProposalView page with complete pricing breakdown and action buttons.
+
+#### Sidebar Components
+
+**Header:**
+- "EDIT PROPOSAL" button with Menu icon
+
+**Estimated Date of Booking Section:**
+- Gray background box showing booking date (7 days from now by default)
+
+**Price Breakdown Section:**
+- "Price Breakdown" header with "Edit" link
+- Room info (e.g., "1 room, 2 adults")
+- Nationality
+- Departure City
+- "Update Markup / Discount" link (blue, clickable)
+- Price per adult (calculated from total / adults)
+- Total Price
+- Coupon Discount (if applicable, with coupon code label)
+- **Price after discount** - Large text (AED X,XXX) with eye icon
+- "INCLUDING ALL TAXES" label
+- Net Price
+
+**Action Buttons:**
+- **BOOK NOW** - Full-width, brown (#8B4513)
+- **ACCEPT PROPOSAL** - Full-width, brown with checkmark icon
+- **NEED HELP** - Full-width, pink/magenta (#D946EF) with HelpCircle icon
+- **MAIL** / **WHATSAPP LINK** - Side-by-side, gray bordered
+
+**Payment Schedule:**
+- Amber/yellow background box
+- Shows total price and due date (7 days before travel)
+
+**Chat with Client:**
+- Section at bottom with MessageSquare icon
+
+### Feature: Terms & Policies Expandable Accordion
+
+Redesigned the Terms & Policies tab with expandable accordion sections using AnimatePresence for smooth animations.
+
+#### Accordion Sections
+
+1. **Any Other Commitments** (collapsed by default)
+   - Yellow alert box explaining where to add extra commitments
+
+2. **Important Notes** (expanded by default)
+   - **General** - 5 numbered points about tickets, cancellations, refunds, passports, visas
+   - **Hotel** - Security deposit information
+   - **Tours and Transfers** - Children pricing information
+   - **Europe** - 10 detailed points about telegram app, driver details, pickup times, tours, trains, luggage
+
+3. **Terms and Conditions** (collapsed)
+   - 10 bullet points about availability, refunds, check-in/out, expenses, liability, flights, special dates, country guidelines
+
+4. **Our Scope of Services** (collapsed)
+   - 4 bullet points about service provider relationships and liability
+
+5. **Hotel Cancellation Policy** (collapsed)
+   - 6 bullet points about refunds, service charges, room allocation
+
+6. **Payment Policies** (collapsed)
+   - 2 bullet points about price increases and payment methods
+
+7. **Amendment of Booking by Guest** (collapsed)
+   - Information about booking changes and cancellation charges
+
+### Technical Implementation
+
+**New Components:**
+- `PriceSidebar` - Complete pricing sidebar component
+- `ExpandableSection` - Reusable accordion component with AnimatePresence
+
+**Styling:**
+- Sidebar uses Tailwind `sticky top-20` for fixed positioning
+- Button colors: Brown (#8B4513), Pink/Magenta (#D946EF)
+- Payment Schedule uses Tailwind amber classes (bg-amber-50, border-amber-200)
+
+### Bug Fix
+- Fixed hydration warning in MyProposals.jsx by changing `<td>` to `<th>` inside `<thead>`
+
+### Test Results (iteration_15.json)
+- **Frontend:** 100% pass rate (21/21 features)
+- All sidebar elements verified
+- All accordion sections functional
+- Expand/collapse animations working
+- Button colors and styling correct
+
+### Files Modified
+- `/app/frontend/src/components/ProposalView.jsx` - Added PriceSidebar and ExpandableSection components
+- `/app/frontend/src/components/MyProposals.jsx` - Fixed hydration warning
+
