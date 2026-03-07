@@ -131,6 +131,7 @@ function App() {
                       setCurrentView('form');
                     }
                   }}
+                  showNewBooking={currentView === 'dashboard'}
                 />
 
                 {currentView === 'dashboard' && (

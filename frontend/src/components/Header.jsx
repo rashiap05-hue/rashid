@@ -70,7 +70,8 @@ export default function Header({
   onNewBooking,
   currentView,
   onGoHome,
-  onBack
+  onBack,
+  showNewBooking = true
 }) {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [profileDropdown, setProfileDropdown] = useState(false);
@@ -219,13 +220,15 @@ export default function Header({
         </div>
         
         <div className="flex items-center gap-4">
-          <button 
-            onClick={onNewBooking}
-            data-testid="new-booking-button"
-            className="bg-[#002B5B] text-white px-4 py-2 rounded text-sm font-medium hover:bg-[#003d82] transition-colors shadow-sm"
-          >
-            + New Booking
-          </button>
+          {showNewBooking && (
+            <button 
+              onClick={onNewBooking}
+              data-testid="new-booking-button"
+              className="bg-[#002B5B] text-white px-4 py-2 rounded text-sm font-medium hover:bg-[#003d82] transition-colors shadow-sm"
+            >
+              + New Booking
+            </button>
+          )}
         </div>
       </nav>
     </div>
