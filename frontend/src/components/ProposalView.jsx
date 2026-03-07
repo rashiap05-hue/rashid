@@ -391,8 +391,8 @@ export default function ProposalView({ proposal, onBack, onBookNow }) {
         </div>
       </div>
 
-      {/* Sticky Tab Navigation - Dark Background */}
-      <div className="bg-[#1a1a2e] text-white sticky top-0 z-40 shadow-md">
+      {/* Fixed Tab Navigation - Dark Background */}
+      <div className="bg-[#1a1a2e] text-white fixed top-0 left-0 right-0 z-50 shadow-md">
         <div className="max-w-7xl mx-auto px-6 lg:pl-16">
           <div className="flex items-center justify-between">
             <div className="flex overflow-x-auto scrollbar-hide">
@@ -424,8 +424,8 @@ export default function ProposalView({ proposal, onBack, onBookNow }) {
         </div>
       </div>
 
-      {/* Main Content with Sidebar */}
-      <div className="max-w-7xl mx-auto px-6 py-8 lg:pl-16">
+      {/* Main Content with Sidebar - Add top padding for fixed header */}
+      <div className="max-w-7xl mx-auto px-6 py-8 lg:pl-16 mt-14">
         <div className="flex gap-8">
           {/* Main Content Area */}
           <div className="flex-1 min-w-0">
