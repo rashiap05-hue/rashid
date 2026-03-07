@@ -71,11 +71,20 @@ export default function MyProposals({ onViewProposal, onEditProposal }) {
     if (!window.confirm('Are you sure you want to delete this proposal?')) return;
     
     try {
+      const token = localStorage.getItem('travo_token');
+      if (!token) {
+        alert('Please login again to delete proposals');
+        return;
+      }
       await api.delete(`/proposals/${proposalId}`);
       setProposals(proposals.filter(p => p.id !== proposalId));
     } catch (error) {
       console.error('Error deleting proposal:', error);
-      alert('Failed to delete proposal');
+      if (error.response?.status === 401) {
+        alert('Session expired. Please login again.');
+      } else {
+        alert('Failed to delete proposal: ' + (error.response?.data?.detail || error.message));
+      }
     }
   };
 
