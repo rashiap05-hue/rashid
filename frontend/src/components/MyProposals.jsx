@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Search, Calendar, ChevronDown, ChevronLeft, ChevronRight, 
-  Eye, Trash2, Loader2, Filter, ArrowUpDown
+  Eye, Trash2, Loader2, Filter, ArrowUpDown, Edit2, MoreVertical
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
@@ -284,7 +284,7 @@ export default function MyProposals({ onViewProposal, onEditProposal }) {
                   <SortableHeader field="from" label="From" />
                   <SortableHeader field="travel_date" label="Travel Date" />
                   <SortableHeader field="price" label="Price Quoted" />
-                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700"></th>
+                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">Actions</th>
                   <th className="px-4 py-3 text-left text-sm font-bold text-gray-700"></th>
                 </tr>
                 {/* Filter Row */}
@@ -380,24 +380,38 @@ export default function MyProposals({ onViewProposal, onEditProposal }) {
                           AED {(proposal.total_price || 0).toLocaleString()}
                         </td>
                         
-                        {/* Delete */}
+                        {/* Actions - Edit & Delete */}
                         <td className="px-4 py-4">
-                          <button
-                            onClick={() => handleDelete(proposal.id)}
-                            className="text-red-500 hover:text-red-700 text-sm font-medium hover:underline"
-                            data-testid={`delete-proposal-${proposal.id}`}
-                          >
-                            delete
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => onEditProposal && onEditProposal(proposal)}
+                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
+                              data-testid={`edit-proposal-${proposal.id}`}
+                              title="Edit Proposal"
+                            >
+                              <Edit2 size={14} />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(proposal.id)}
+                              className="flex items-center gap-1 text-red-500 hover:text-red-700 text-sm font-medium hover:underline"
+                              data-testid={`delete-proposal-${proposal.id}`}
+                              title="Delete Proposal"
+                            >
+                              <Trash2 size={14} />
+                              Delete
+                            </button>
+                          </div>
                         </td>
                         
                         {/* View Proposal */}
                         <td className="px-4 py-4">
                           <button
                             onClick={() => onViewProposal && onViewProposal(proposal)}
-                            className="text-[#002B5B] hover:text-[#004080] text-sm font-medium hover:underline whitespace-nowrap"
+                            className="flex items-center gap-1 text-[#002B5B] hover:text-[#004080] text-sm font-medium hover:underline whitespace-nowrap"
                             data-testid={`view-proposal-${proposal.id}`}
                           >
+                            <Eye size={14} />
                             View Proposal
                           </button>
                         </td>

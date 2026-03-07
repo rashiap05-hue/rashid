@@ -15,6 +15,7 @@ export default function Dashboard({
   onLogout,
   onNewProposal,
   onViewProposal,
+  onEditProposal,
   onAdminView,
   activeTab,
   setActiveTab
@@ -54,10 +55,7 @@ export default function Dashboard({
           ) : activeTab === 'My Leads' || activeTab === 'My Proposals' ? (
             <MyProposals 
               onViewProposal={onViewProposal}
-              onEditProposal={(proposal) => {
-                // Handle edit - could navigate to trip builder with proposal data
-                if (onViewProposal) onViewProposal(proposal);
-              }}
+              onEditProposal={onEditProposal}
             />
           ) : (
             <main className="max-w-7xl mx-auto px-6 py-8">

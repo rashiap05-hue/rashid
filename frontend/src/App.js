@@ -153,6 +153,17 @@ function App() {
                         setCurrentView('details');
                       }
                     }}
+                    onEditProposal={(proposal) => {
+                      // Navigate to Trip Builder with proposal data for editing
+                      if (typeof proposal === 'object') {
+                        setPendingProposalData({
+                          ...proposal,
+                          isEditing: true,
+                          editProposalId: proposal.id
+                        });
+                        setCurrentView('customize');
+                      }
+                    }}
                     onAdminView={() => setCurrentView('admin')}
                   />
                 )}
