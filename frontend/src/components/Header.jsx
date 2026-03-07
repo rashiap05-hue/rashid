@@ -152,15 +152,15 @@ export default function Header({
             </button>
           )}
           <div 
-            className="flex items-center gap-2 cursor-pointer group"
+            className="flex items-center cursor-pointer group"
             onClick={onGoHome}
             data-testid="logo"
           >
-            <div className="w-10 h-10 bg-[#002B5B] rounded flex items-center justify-center text-white font-bold text-xl group-hover:scale-105 transition-transform">T</div>
-            <div className="flex flex-col leading-none">
-              <span className="font-bold text-xl tracking-tight text-[#002B5B]">TRAVO DMC</span>
-              <span className="text-[10px] text-gray-400 font-medium">B2B TRAVEL PLATFORM</span>
-            </div>
+            <img 
+              src="https://customer-assets.emergentagent.com/job_9551fded-e336-4914-adea-a4f43af148f3/artifacts/y64ehjld_cropped-91219F02-59CF-4C4C-902E-201DB942ADE9-1-e1693132870286.png" 
+              alt="Travo Tours & Travels" 
+              className="h-12 object-contain group-hover:scale-105 transition-transform"
+            />
           </div>
           
           <div className="flex items-center gap-6">
