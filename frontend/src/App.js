@@ -220,6 +220,15 @@ function App() {
                       // Handle booking
                       alert('Book Now feature coming soon!');
                     }}
+                    onEditProposal={(proposal) => {
+                      // Navigate to Trip Builder with proposal data for editing
+                      setPendingProposalData({
+                        ...proposal,
+                        isEditing: true,
+                        editProposalId: proposal.id
+                      });
+                      setCurrentView('customize');
+                    }}
                   />
                 )}
 

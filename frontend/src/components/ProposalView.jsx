@@ -257,7 +257,7 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal }) {
 }
 
 // Main Proposal View Component
-export default function ProposalView({ proposal, onBack, onBookNow }) {
+export default function ProposalView({ proposal, onBack, onBookNow, onEditProposal }) {
   const [activeTab, setActiveTab] = useState('itinerary');
   const [expandedDays, setExpandedDays] = useState({1: true});
   const [allExpanded, setAllExpanded] = useState(false);
@@ -414,7 +414,8 @@ export default function ProposalView({ proposal, onBack, onBookNow }) {
               ))}
             </div>
             <button 
-              className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors"
+              onClick={() => onEditProposal && onEditProposal(proposal)}
+              className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors cursor-pointer"
               data-testid="edit-proposal-btn"
             >
               <Menu size={16} />
