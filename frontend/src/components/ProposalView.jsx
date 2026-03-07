@@ -461,7 +461,7 @@ export default function ProposalView({ proposal, onBack, onBookNow }) {
     { id: 'itinerary', label: 'ITINERARY', icon: Calendar },
     { id: 'inclusions', label: 'INCLUSIONS', icon: FileText },
     { id: 'terms', label: 'TERMS AND POLICIES', icon: Shield },
-    { id: 'messages', label: 'MESSAGES', icon: MessageCircle },
+    { id: 'costing', label: 'COSTING', icon: DollarSign },
     { id: 'help', label: 'NEED HELP', icon: HelpCircle }
   ];
 
@@ -1093,17 +1093,97 @@ export default function ProposalView({ proposal, onBack, onBookNow }) {
               </div>
             )}
 
-            {/* MESSAGES Tab */}
-            {activeTab === 'messages' && (
-              <div className="bg-white rounded-xl p-6 shadow-sm" data-testid="messages-content">
-                <h2 className="text-xl font-bold text-gray-800 mb-6">Messages</h2>
-                <div className="bg-gray-50 rounded-xl p-8 text-center border border-gray-100">
-                  <MessageCircle size={48} className="text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-600 font-medium">No messages yet</p>
-                  <p className="text-gray-400 text-sm mt-1">Start a conversation with your client</p>
-                  <button className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-                    Send Message
-                  </button>
+            {/* COSTING Tab */}
+            {activeTab === 'costing' && (
+              <div className="bg-white rounded-xl p-6 shadow-sm" data-testid="costing-content">
+                <h2 className="text-xl font-bold text-gray-800 mb-6">Costing Details</h2>
+                
+                {/* Cost Summary Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Description</th>
+                        <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Qty</th>
+                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Unit Price</th>
+                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Hotels */}
+                      {proposal.cities?.map((city, idx) => {
+                        const hotel = proposal.selected_hotels?.[city.name];
+                        const hotelPrice = hotel?.selectedRoom?.price || 150;
+                        return (
+                          <tr key={`hotel-${idx}`} className="border-b border-gray-100">
+                            <td className="py-3 px-4">
+                              <p className="text-gray-800 font-medium">Hotel - {hotel?.name || 'Standard Hotel'}</p>
+                              <p className="text-gray-500 text-sm">{city.name} ({city.nights} nights)</p>
+                            </td>
+                            <td className="py-3 px-4 text-center text-gray-600">{city.nights}</td>
+                            <td className="py-3 px-4 text-right text-gray-600">AED {hotelPrice.toLocaleString()}</td>
+                            <td className="py-3 px-4 text-right text-gray-800 font-medium">AED {(hotelPrice * city.nights).toLocaleString()}</td>
+                          </tr>
+                        );
+                      })}
+                      
+                      {/* Transfers */}
+                      {proposal.add_transfers && (
+                        <>
+                          <tr className="border-b border-gray-100">
+                            <td className="py-3 px-4">
+                              <p className="text-gray-800 font-medium">Airport Transfer - Arrival</p>
+                              <p className="text-gray-500 text-sm">Private transfer</p>
+                            </td>
+                            <td className="py-3 px-4 text-center text-gray-600">1</td>
+                            <td className="py-3 px-4 text-right text-gray-600">AED 150</td>
+                            <td className="py-3 px-4 text-right text-gray-800 font-medium">AED 150</td>
+                          </tr>
+                          <tr className="border-b border-gray-100">
+                            <td className="py-3 px-4">
+                              <p className="text-gray-800 font-medium">Airport Transfer - Departure</p>
+                              <p className="text-gray-500 text-sm">Private transfer</p>
+                            </td>
+                            <td className="py-3 px-4 text-center text-gray-600">1</td>
+                            <td className="py-3 px-4 text-right text-gray-600">AED 150</td>
+                            <td className="py-3 px-4 text-right text-gray-800 font-medium">AED 150</td>
+                          </tr>
+                        </>
+                      )}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-gray-50">
+                        <td colSpan="3" className="py-3 px-4 text-right font-semibold text-gray-700">Subtotal</td>
+                        <td className="py-3 px-4 text-right font-semibold text-gray-800">AED {(proposal.total_price || 1500).toLocaleString()}</td>
+                      </tr>
+                      {proposal.markup_land > 0 && (
+                        <tr className="bg-gray-50">
+                          <td colSpan="3" className="py-3 px-4 text-right text-gray-600">Markup</td>
+                          <td className="py-3 px-4 text-right text-gray-600">AED {proposal.markup_land.toLocaleString()}</td>
+                        </tr>
+                      )}
+                      {proposal.discount_amount > 0 && (
+                        <tr className="bg-gray-50">
+                          <td colSpan="3" className="py-3 px-4 text-right text-green-600">Discount</td>
+                          <td className="py-3 px-4 text-right text-green-600">- AED {proposal.discount_amount.toLocaleString()}</td>
+                        </tr>
+                      )}
+                      <tr className="bg-[#002B5B] text-white">
+                        <td colSpan="3" className="py-4 px-4 text-right font-bold text-lg">Grand Total</td>
+                        <td className="py-4 px-4 text-right font-bold text-lg">AED {((proposal.total_price || 1500) + (proposal.markup_land || 0) - (proposal.discount_amount || 0)).toLocaleString()}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                {/* Payment Terms */}
+                <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <h3 className="font-semibold text-amber-800 mb-2">Payment Terms</h3>
+                  <ul className="text-sm text-amber-700 space-y-1">
+                    <li>• 100% payment required at time of booking</li>
+                    <li>• Payment accepted via Bank Transfer, Credit Card, or PayPal</li>
+                    <li>• Prices are valid for 7 days from proposal date</li>
+                  </ul>
                 </div>
               </div>
             )}
