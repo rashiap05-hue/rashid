@@ -23,6 +23,75 @@ const TERMS_ICONS = {
   file: FileText
 };
 
+// Video Modal Component
+function VideoModal({ isOpen, onClose, videoUrl, title }) {
+  if (!isOpen) return null;
+  
+  // Check if it's a YouTube URL
+  const isYouTubeUrl = (url) => {
+    return url?.includes('youtube.com') || url?.includes('youtu.be');
+  };
+  
+  const getYouTubeEmbedUrl = (url) => {
+    if (!url) return null;
+    const videoId = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?\s]+)/)?.[1];
+    return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1` : null;
+  };
+  
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative w-full max-w-4xl bg-black rounded-2xl overflow-hidden shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-10 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+        >
+          <X size={20} />
+        </button>
+        {title && (
+          <div className="absolute top-4 left-4 z-10 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg text-white font-medium">
+            {title}
+          </div>
+        )}
+        <div className="aspect-video">
+          {isYouTubeUrl(videoUrl) ? (
+            <iframe
+              src={getYouTubeEmbedUrl(videoUrl)}
+              title={title || "Video"}
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : videoUrl ? (
+            <video
+              src={videoUrl}
+              controls
+              autoPlay
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gray-900 text-white">
+              <p>No video available for this destination</p>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // Format date helper
 const formatDate = (dateStr, format = 'short') => {
   if (!dateStr) return '';
@@ -275,10 +344,49 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
   const [allExpanded, setAllExpanded] = useState(false);
   const [activeSection, setActiveSection] = useState('flights');
   
+  // Video modal state
+  const [videoModal, setVideoModal] = useState({ open: false, url: null, title: '' });
+  
   // Dynamic Terms & Policies state
   const [termsAndPolicies, setTermsAndPolicies] = useState([]);
   const [termsLoading, setTermsLoading] = useState(false);
   const [termsError, setTermsError] = useState(null);
+  
+  // Destination videos state
+  const [destinationVideo, setDestinationVideo] = useState(null);
+
+  // Fetch destination video from activities/transfers
+  useEffect(() => {
+    const fetchDestinationVideo = async () => {
+      if (!proposal) return;
+      
+      const mainCity = proposal.cities?.[0]?.name || '';
+      if (!mainCity) return;
+      
+      try {
+        // Try to find videos from activities for this city
+        const activitiesRes = await api.get(`/activities?city=${encodeURIComponent(mainCity)}`);
+        const activities = activitiesRes.data?.activities || [];
+        const activityWithVideo = activities.find(a => a.video);
+        if (activityWithVideo?.video) {
+          setDestinationVideo(activityWithVideo.video);
+          return;
+        }
+        
+        // Try transfers if no activity video
+        const transfersRes = await api.get(`/transfers?city=${encodeURIComponent(mainCity)}`);
+        const transfers = transfersRes.data?.transfers || [];
+        const transferWithVideo = transfers.find(t => t.video);
+        if (transferWithVideo?.video) {
+          setDestinationVideo(transferWithVideo.video);
+        }
+      } catch (error) {
+        console.log('Could not fetch destination video:', error);
+      }
+    };
+    
+    fetchDestinationVideo();
+  }, [proposal]);
 
   // Fetch Terms & Policies based on proposal destination
   useEffect(() => {
@@ -518,10 +626,20 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                     className="w-full h-[350px] object-cover"
                   />
                   <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                    <button className="w-16 h-16 bg-white/90 rounded-lg flex items-center justify-center shadow-lg hover:bg-white transition-colors">
-                      <Play size={28} className="text-gray-700 ml-1" />
+                    <button 
+                      onClick={() => setVideoModal({ open: true, url: destinationVideo, title: `Discover ${mainCity}` })}
+                      className="w-16 h-16 bg-white/90 rounded-lg flex items-center justify-center shadow-lg hover:bg-white transition-colors group"
+                      data-testid="play-video-btn"
+                    >
+                      <Play size={28} className="text-gray-700 ml-1 group-hover:text-[#002B5B]" />
                     </button>
                   </div>
+                  {destinationVideo && (
+                    <div className="absolute bottom-4 left-4 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                      <Play size={12} />
+                      <span>Video Available</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Map Section */}
@@ -884,6 +1002,18 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
           </button>
         </div>
       </div>
+      
+      {/* Video Modal */}
+      <AnimatePresence>
+        {videoModal.open && (
+          <VideoModal
+            isOpen={videoModal.open}
+            videoUrl={videoModal.url}
+            title={videoModal.title}
+            onClose={() => setVideoModal({ open: false, url: null, title: '' })}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

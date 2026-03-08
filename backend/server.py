@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends, Query, UploadFile, File, Form
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends, Query, UploadFile, File, Form, Body
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
@@ -736,6 +736,19 @@ async def update_transfer(transfer_id: str, transfer: TransferCreate):
         raise HTTPException(status_code=404, detail="Transfer not found")
     return {"success": True}
 
+@transfers_router.patch("/{transfer_id}")
+async def partial_update_transfer(transfer_id: str, update_data: dict = Body(...)):
+    """Partial update for transfer - only updates provided fields"""
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    update_data = {k: v for k, v in update_data.items() if v is not None}
+    
+    result = await db.transfers.update_one({"id": transfer_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Transfer not found")
+    
+    updated = await db.transfers.find_one({"id": transfer_id}, {"_id": 0})
+    return {"success": True, "transfer": updated}
+
 @transfers_router.delete("/{transfer_id}")
 async def delete_transfer(transfer_id: str):
     result = await db.transfers.delete_one({"id": transfer_id})
@@ -779,6 +792,23 @@ async def update_activity(activity_id: str, activity: ActivityCreate):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Activity not found")
     return {"success": True, "activity": activity_dict}
+
+@activities_router.patch("/{activity_id}")
+async def partial_update_activity(activity_id: str, update_data: dict = Body(...)):
+    """Partial update for activity - only updates provided fields"""
+    # Add updated timestamp
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    # Remove any None values
+    update_data = {k: v for k, v in update_data.items() if v is not None}
+    
+    result = await db.activities.update_one({"id": activity_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    
+    # Get updated activity
+    updated = await db.activities.find_one({"id": activity_id}, {"_id": 0})
+    return {"success": True, "activity": updated}
 
 @activities_router.delete("/{activity_id}")
 async def delete_activity(activity_id: str):
@@ -1653,6 +1683,90 @@ async def upload_activity_image(
     # Return the URL path - use /api/static so it goes through the proxy
     image_url = f"/api/static/activities/{filename}"
     return {"success": True, "url": image_url, "filename": filename}
+
+# Video upload allowed extensions
+ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".avi", ".mkv"}
+
+@uploads_router.post("/activity-video")
+async def upload_activity_video(
+    file: UploadFile = File(...),
+    activity_id: str = Form(default=""),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Upload an activity/attraction video"""
+    # Validate file extension
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_VIDEO_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"Invalid video type. Allowed: {', '.join(ALLOWED_VIDEO_EXTENSIONS)}")
+    
+    # Create videos directory if it doesn't exist
+    videos_dir = UPLOADS_DIR / "videos"
+    videos_dir.mkdir(exist_ok=True)
+    
+    # Generate unique filename
+    unique_id = str(uuid.uuid4())[:8]
+    filename = f"{activity_id}_{unique_id}{file_ext}" if activity_id else f"video_{unique_id}{file_ext}"
+    file_path = videos_dir / filename
+    
+    # Save file
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save video: {str(e)}")
+    
+    # Return the URL path
+    video_url = f"/api/static/videos/{filename}"
+    return {"success": True, "url": video_url, "filename": filename}
+
+@uploads_router.post("/transfer-video")
+async def upload_transfer_video(
+    file: UploadFile = File(...),
+    transfer_id: str = Form(default=""),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Upload a transfer video"""
+    # Validate file extension
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_VIDEO_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"Invalid video type. Allowed: {', '.join(ALLOWED_VIDEO_EXTENSIONS)}")
+    
+    # Create videos directory if it doesn't exist
+    videos_dir = UPLOADS_DIR / "videos"
+    videos_dir.mkdir(exist_ok=True)
+    
+    # Generate unique filename
+    unique_id = str(uuid.uuid4())[:8]
+    filename = f"transfer_{transfer_id}_{unique_id}{file_ext}" if transfer_id else f"transfer_{unique_id}{file_ext}"
+    file_path = videos_dir / filename
+    
+    # Save file
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save video: {str(e)}")
+    
+    # Return the URL path
+    video_url = f"/api/static/videos/{filename}"
+    return {"success": True, "url": video_url, "filename": filename}
+
+@uploads_router.delete("/video")
+async def delete_uploaded_video(
+    filename: str = Query(...),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Delete an uploaded video"""
+    file_path = UPLOADS_DIR / "videos" / filename
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    try:
+        os.remove(file_path)
+        return {"success": True, "message": "Video deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete video: {str(e)}")
 
 @uploads_router.delete("/image")
 async def delete_uploaded_image(

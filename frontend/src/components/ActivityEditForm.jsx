@@ -152,6 +152,168 @@ function ActivityImageUploader({ images = [], onImagesChange, activityId = '' })
   );
 }
 
+// Video Upload Component for Activities
+function ActivityVideoUploader({ video = null, onVideoChange, activityId = '' }) {
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+
+  const handleFileUpload = async (file) => {
+    if (!file) return;
+    
+    const validTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'];
+    if (!validTypes.includes(file.type)) {
+      alert(`Invalid file type: ${file.name}. Only MP4, WebM, MOV, AVI, MKV allowed.`);
+      return;
+    }
+    
+    if (file.size > 100 * 1024 * 1024) {
+      alert(`File too large: ${file.name}. Maximum size is 100MB.`);
+      return;
+    }
+    
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('activity_id', activityId);
+      
+      const res = await api.post('/uploads/activity-video', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      if (res.data.url) {
+        const baseUrl = API.replace('/api', '');
+        const fullUrl = `${baseUrl}${res.data.url}`;
+        onVideoChange(fullUrl);
+      }
+    } catch (error) {
+      console.error('Video upload error:', error);
+      alert(`Failed to upload video: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    handleFileUpload(file);
+  };
+
+  const handleRemoveVideo = () => {
+    onVideoChange(null);
+  };
+
+  const handleUrlAdd = () => {
+    const url = prompt('Enter video URL (YouTube, Vimeo, or direct video link):');
+    if (url && url.trim()) {
+      onVideoChange(url.trim());
+    }
+  };
+
+  // Check if it's a YouTube or Vimeo URL
+  const isYouTubeUrl = (url) => {
+    return url?.includes('youtube.com') || url?.includes('youtu.be');
+  };
+
+  const isVimeoUrl = (url) => {
+    return url?.includes('vimeo.com');
+  };
+
+  const getYouTubeEmbedUrl = (url) => {
+    if (!url) return null;
+    const videoId = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?\s]+)/)?.[1];
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <label className="block text-sm font-bold text-gray-600">Activity Video</label>
+        <button
+          type="button"
+          onClick={handleUrlAdd}
+          className="text-xs text-blue-600 hover:underline"
+        >
+          + Add YouTube/URL
+        </button>
+      </div>
+      
+      {video && (
+        <div className="relative group">
+          {isYouTubeUrl(video) ? (
+            <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden">
+              <iframe
+                src={getYouTubeEmbedUrl(video)}
+                title="Activity Video"
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          ) : (
+            <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden">
+              <video
+                src={video}
+                controls
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={handleRemoveVideo}
+            className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+      
+      {!video && (
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          className={cn(
+            "border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer",
+            dragOver ? "border-purple-500 bg-purple-50" : "border-gray-200 hover:border-gray-300",
+            uploading && "opacity-50 pointer-events-none"
+          )}
+          onClick={() => document.getElementById(`video-input-activity-${activityId}`).click()}
+        >
+          <input
+            id={`video-input-activity-${activityId}`}
+            type="file"
+            accept="video/*"
+            className="hidden"
+            onChange={(e) => handleFileUpload(e.target.files[0])}
+          />
+          {uploading ? (
+            <div className="flex flex-col items-center">
+              <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+              <p className="mt-2 text-sm text-gray-500">Uploading video...</p>
+            </div>
+          ) : (
+            <>
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <svg className="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <p className="text-sm text-gray-500">
+                Drag & drop video or <span className="text-purple-600">browse</span>
+              </p>
+              <p className="text-xs text-gray-400 mt-1">MP4, WebM, MOV, AVI up to 100MB</p>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // List Editor Component for arrays like inclusions, exclusions, etc.
 function ListEditor({ items = [], onChange, placeholder = "Add item...", label = "Items" }) {
   const [newItem, setNewItem] = useState('');
@@ -390,6 +552,7 @@ export default function ActivityEditForm({ activity, onSave, onClose, isNew = fa
     price: activity?.price || 0,
     currency: activity?.currency || 'AED',
     images: activity?.images || [],
+    video: activity?.video || null,
     highlights: activity?.highlights || [],
     inclusions: activity?.inclusions || [],
     exclusions: activity?.exclusions || [],
@@ -438,7 +601,7 @@ export default function ActivityEditForm({ activity, onSave, onClose, isNew = fa
 
   const tabs = [
     { id: 'basic', label: 'Basic Info', icon: Info },
-    { id: 'photos', label: 'Photos', icon: Image },
+    { id: 'photos', label: 'Photos & Video', icon: Image },
     { id: 'timing', label: 'Timing & Schedule', icon: Clock },
     { id: 'details', label: 'Tour Details', icon: CheckCircle },
     { id: 'supplier', label: 'Supplier & Pricing', icon: Building2 }
@@ -607,20 +770,31 @@ export default function ActivityEditForm({ activity, onSave, onClose, isNew = fa
               </motion.div>
             )}
 
-            {/* Photos Tab */}
+            {/* Photos & Video Tab */}
             {activeTab === 'photos' && (
               <motion.div
                 key="photos"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="space-y-4"
+                className="space-y-6"
               >
                 <ActivityImageUploader
                   images={formData.images}
                   onImagesChange={(imgs) => handleFieldChange('images', imgs)}
                   activityId={activity?.id || 'new'}
                 />
+
+                <div className="border-t border-gray-200 pt-6">
+                  <ActivityVideoUploader
+                    video={formData.video}
+                    onVideoChange={(video) => handleFieldChange('video', video)}
+                    activityId={activity?.id || 'new'}
+                  />
+                  <p className="text-xs text-gray-400 mt-2">
+                    This video will appear on the proposal page for itinerary days featuring this activity
+                  </p>
+                </div>
 
                 <ListEditor
                   items={formData.highlights}

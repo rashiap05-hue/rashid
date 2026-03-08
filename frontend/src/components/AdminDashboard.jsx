@@ -174,7 +174,8 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         pickup_times: [],
         max_bags: 2,
         supplier_name: '',
-        supplier_cost: 0
+        supplier_cost: 0,
+        video: null
       });
       if (type === 'activity') setEditForm({
         name: '',
@@ -901,6 +902,39 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     data-testid="edit-transfer-available"
                   />
                   <label className="text-sm font-bold text-gray-600">Transfer Available</label>
+                </div>
+                
+                {/* Video Section */}
+                <div className="border-t border-gray-200 pt-4 mt-2">
+                  <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Destination Video
+                  </h4>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Video URL (YouTube or direct link)</label>
+                    <input
+                      type="text"
+                      value={editForm.video || ''}
+                      onChange={(e) => handleFieldChange('video', e.target.value)}
+                      placeholder="https://www.youtube.com/watch?v=... or direct video URL"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-transfer-video"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">This video will appear on the proposal page for days with this transfer</p>
+                  </div>
+                  {editForm.video && editForm.video.includes('youtube') && (
+                    <div className="mt-2 aspect-video bg-gray-900 rounded-lg overflow-hidden max-w-sm">
+                      <iframe
+                        src={`https://www.youtube.com/embed/${editForm.video.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?\s]+)/)?.[1]}`}
+                        title="Preview"
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  )}
                 </div>
               </>
             )}

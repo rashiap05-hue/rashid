@@ -1113,3 +1113,57 @@ The Europe policy would NOT appear for Dubai (correct behavior - it only applies
 - `/app/frontend/src/components/TermsPoliciesManager.jsx` - Added ALL_COUNTRIES array with 205 entries
 
 
+
+
+
+## Update: March 8, 2026 - Video Upload Feature for Activities & Transfers
+
+### Feature: Destination Videos on ProposalView
+
+Added video upload capability to Activities and Transfers management. Videos associated with activities/transfers for a destination automatically appear on the ProposalView page.
+
+#### Implementation Details
+
+**Backend Changes (`/app/backend/server.py`):**
+- Added video upload endpoints:
+  - `POST /api/uploads/activity-video` - Upload video files for activities
+  - `POST /api/uploads/transfer-video` - Upload video files for transfers
+  - `DELETE /api/uploads/video` - Delete uploaded videos
+- Added PATCH endpoints for partial updates:
+  - `PATCH /api/activities/{id}` - Partial update activity (video field)
+  - `PATCH /api/transfers/{id}` - Partial update transfer (video field)
+- Videos stored in `/app/backend/uploads/videos/`
+- Supported formats: MP4, WebM, MOV, AVI, MKV (max 100MB)
+
+**Frontend Changes:**
+
+1. **ActivityEditForm.jsx:**
+   - Added `ActivityVideoUploader` component
+   - Supports drag & drop video upload
+   - Supports YouTube/Vimeo URL addition
+   - Preview YouTube videos directly in form
+   - Video field added to form state
+
+2. **AdminDashboard.jsx (Transfers):**
+   - Added video URL field to transfer edit form
+   - Preview YouTube videos in admin form
+
+3. **ProposalView.jsx:**
+   - Added `VideoModal` component for full-screen video playback
+   - Added `destinationVideo` state to fetch video from activities/transfers
+   - Play button on hero image opens video modal
+   - "Video Available" badge shows when destination has video
+   - Supports both YouTube embed and direct video URLs
+
+#### How It Works
+
+1. **Admin adds video:** In Admin Dashboard → Activities tab → Edit activity → Photos & Video tab → Upload video or add YouTube URL
+2. **Video fetched:** When viewing a proposal, system fetches activities/transfers for the main city and finds first one with video
+3. **Video displayed:** Play button appears on hero image, click to open video modal
+
+#### Files Modified
+- `/app/backend/server.py` - Video upload endpoints and PATCH methods
+- `/app/frontend/src/components/ActivityEditForm.jsx` - Video uploader component
+- `/app/frontend/src/components/AdminDashboard.jsx` - Transfer video field
+- `/app/frontend/src/components/ProposalView.jsx` - Video modal and play button
+
