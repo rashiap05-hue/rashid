@@ -187,24 +187,6 @@ export default function CustomizeTrip({ data, user, onBack, onConfirm }) {
             >
               Save as Draft
             </button>
-            <button 
-              onClick={handlePayment}
-              disabled={isPaymentLoading}
-              data-testid="pay-now-button"
-              className="bg-[#E66B31] text-white px-10 py-3 rounded-xl font-bold hover:bg-[#d15a24] transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
-            >
-              {isPaymentLoading ? (
-                <>
-                  <Loader2 className="animate-spin" size={20} />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <CreditCard size={20} />
-                  Pay Now
-                </>
-              )}
-            </button>
           </div>
         </div>
       </main>

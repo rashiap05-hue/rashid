@@ -2128,24 +2128,6 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                     {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                     Save As Proposal
                   </button>
-                  <button 
-                    onClick={handlePayment}
-                    disabled={isPaymentLoading}
-                    className="w-full bg-[#E66B31] text-white py-3 rounded-xl font-bold hover:bg-[#d15a24] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                    data-testid="pay-now-button"
-                  >
-                    {isPaymentLoading ? (
-                      <>
-                        <Loader2 className="animate-spin" size={18} />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard size={18} />
-                        Pay Now
-                      </>
-                    )}
-                  </button>
                 </div>
               </div>
             </div>
