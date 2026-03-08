@@ -1304,6 +1304,53 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
 
   const itinerary = generateItinerary();
 
+  // Determine vehicle type based on total passengers
+  const getVehicleTypeForPax = (totalPax) => {
+    if (totalPax <= 4) return { key: 'sedan_4', label: '4 Seater Sedan', icon: '🚗', maxPax: 4 };
+    if (totalPax <= 7) return { key: 'car_7', label: '7 Seater Car', icon: '🚙', maxPax: 7 };
+    if (totalPax <= 8) return { key: 'van_8', label: '8 Seater Van', icon: '🚐', maxPax: 8 };
+    if (totalPax <= 17) return { key: 'van_17', label: '17 Seater Van', icon: '🚐', maxPax: 17 };
+    if (totalPax <= 29) return { key: 'bus_29', label: '29 Seater Bus', icon: '🚌', maxPax: 29 };
+    if (totalPax <= 45) return { key: 'bus_45', label: '45 Seater Bus', icon: '🚌', maxPax: 45 };
+    return { key: 'bus_55', label: '55 Seater Bus', icon: '🚌', maxPax: 55 };
+  };
+
+  // Calculate total passengers
+  const getTotalPassengers = () => {
+    const adultsCount = data?.room_data?.reduce((acc, r) => acc + r.adults, 0) || 2;
+    const childrenCount = data?.room_data?.reduce((acc, r) => acc + r.children?.length, 0) || 0;
+    return adultsCount + childrenCount;
+  };
+
+  const totalPax = getTotalPassengers();
+  const selectedVehicle = getVehicleTypeForPax(totalPax);
+
+  // Get vehicle-based price for an activity
+  const getActivityPriceForVehicle = (activity) => {
+    if (!activity) return 0;
+    
+    // If activity has vehicle-based pricing, use it
+    if (activity.vehicle_pricing && activity.vehicle_pricing[selectedVehicle.key]) {
+      return activity.vehicle_pricing[selectedVehicle.key].selling_price || 0;
+    }
+    
+    // Fallback to regular price
+    return activity.price || 0;
+  };
+
+  // Get vehicle-based price for a transfer
+  const getTransferPriceForVehicle = (transfer) => {
+    if (!transfer) return 0;
+    
+    // If transfer has vehicle-based pricing, use it
+    if (transfer.vehicle_pricing && transfer.vehicle_pricing[selectedVehicle.key]) {
+      return transfer.vehicle_pricing[selectedVehicle.key].selling_price || 0;
+    }
+    
+    // Fallback to regular price
+    return transfer.price || 0;
+  };
+
   // Calculate pricing
   const calculatePricing = () => {
     let hotelTotal = 0;
@@ -1314,15 +1361,17 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     });
 
     const flightPrice = selectedFlight ? parseFloat(selectedFlight.price?.replace(',', '') || 0) : 0;
-    const arrivalTransferPrice = selectedArrivalTransfer?.price || 0;
-    const departureTransferPrice = selectedDepartureTransfer?.price || 0;
+    
+    // Use vehicle-based pricing for transfers
+    const arrivalTransferPrice = getTransferPriceForVehicle(selectedArrivalTransfer);
+    const departureTransferPrice = getTransferPriceForVehicle(selectedDepartureTransfer);
     const transferTotal = arrivalTransferPrice + departureTransferPrice;
     
-    // Calculate activities total
+    // Calculate activities total using vehicle-based pricing
     let activitiesTotal = 0;
     Object.values(selectedActivities).forEach(dayActivities => {
       dayActivities.forEach(activity => {
-        activitiesTotal += activity.price || 0;
+        activitiesTotal += getActivityPriceForVehicle(activity);
       });
     });
     
@@ -1344,6 +1393,8 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       pricePerChild,
       adultsCount,
       childrenCount,
+      totalPax: adultsCount + childrenCount,
+      vehicleType: selectedVehicle,
       total: subtotal
     };
   };
@@ -1381,6 +1432,10 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         selected_hotels: selectedHotels,
         selected_activities: selectedActivities,
         total_price: pricing.total,
+        // Vehicle type based on passengers
+        vehicle_type: selectedVehicle.key,
+        vehicle_label: selectedVehicle.label,
+        total_pax: totalPax,
         // New fields from the modal
         customer_name: formData.customer_name,
         customer_email: formData.customer_email,
@@ -2094,6 +2149,20 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                         <span className="font-medium">AED {pricing.activitiesTotal.toLocaleString()}</span>
                       </div>
                     )}
+                    
+                    {/* Vehicle Type Based on Passengers */}
+                    <div className="pt-2 border-t border-dashed mt-2">
+                      <div className="flex items-center justify-between bg-blue-50 rounded-lg p-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{pricing.vehicleType?.icon}</span>
+                          <span className="text-sm font-medium text-blue-800">{pricing.vehicleType?.label}</span>
+                        </div>
+                        <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                          {pricing.totalPax} pax
+                        </span>
+                      </div>
+                    </div>
+                    
                     <div className="pt-2 border-t border-dashed">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Price per adult ({pricing.adultsCount})</span>

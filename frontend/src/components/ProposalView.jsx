@@ -189,6 +189,22 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal }) {
   const adultsCount = proposal.room_data?.reduce((acc, r) => acc + (r.adults || 0), 0) || 2;
   const childrenCount = proposal.room_data?.reduce((acc, r) => acc + (r.children?.length || 0), 0) || 0;
   const roomsCount = proposal.room_data?.length || 1;
+  const totalPax = adultsCount + childrenCount;
+  
+  // Get vehicle type based on passengers
+  const getVehicleTypeForPax = (pax) => {
+    if (pax <= 4) return { key: 'sedan_4', label: '4 Seater Sedan', icon: '🚗' };
+    if (pax <= 7) return { key: 'car_7', label: '7 Seater Car', icon: '🚙' };
+    if (pax <= 8) return { key: 'van_8', label: '8 Seater Van', icon: '🚐' };
+    if (pax <= 17) return { key: 'van_17', label: '17 Seater Van', icon: '🚐' };
+    if (pax <= 29) return { key: 'bus_29', label: '29 Seater Bus', icon: '🚌' };
+    if (pax <= 45) return { key: 'bus_45', label: '45 Seater Bus', icon: '🚌' };
+    return { key: 'bus_55', label: '55 Seater Bus', icon: '🚌' };
+  };
+  
+  const vehicleType = proposal.vehicle_label 
+    ? { label: proposal.vehicle_label, icon: proposal.vehicle_type?.includes('sedan') ? '🚗' : proposal.vehicle_type?.includes('car') ? '🚙' : proposal.vehicle_type?.includes('bus') ? '🚌' : '🚐' }
+    : getVehicleTypeForPax(totalPax);
   
   // Calculate pricing
   const basePrice = proposal.total_price || 1500;
@@ -228,6 +244,17 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal }) {
             <p>{roomsCount} room, {adultsCount} adults{childrenCount > 0 ? `, ${childrenCount} children` : ''}</p>
             <p>Nationality: {proposal.nationality || 'India'}</p>
             <p>Departure City: {departureCity}</p>
+          </div>
+          
+          {/* Vehicle Type Badge */}
+          <div className="flex items-center justify-between bg-blue-50 rounded-lg p-2 mb-3 border border-blue-100">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{vehicleType.icon}</span>
+              <span className="text-sm font-medium text-blue-800">{vehicleType.label}</span>
+            </div>
+            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+              {totalPax} pax
+            </span>
           </div>
 
           <button className="text-blue-600 text-sm hover:underline mb-4 block">
