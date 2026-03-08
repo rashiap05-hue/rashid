@@ -1013,3 +1013,58 @@ Redesigned the Terms & Policies tab with expandable accordion sections using Ani
 - `/app/frontend/src/components/ProposalView.jsx` - Added PriceSidebar and ExpandableSection components
 - `/app/frontend/src/components/MyProposals.jsx` - Fixed hydration warning
 
+
+
+
+## Update: March 8, 2026 - Dynamic Terms & Policies Integration Complete
+
+### Feature: Terms & Policies Fetched from Backend API
+
+Completed the integration of dynamic Terms & Policies into the ProposalView page. Policies are now managed from the Admin Dashboard and appear dynamically on proposals based on destination (country/city).
+
+#### Implementation Details
+
+**Frontend Changes (`/app/frontend/src/components/ProposalView.jsx`):**
+- Added `termsAndPolicies`, `termsLoading`, `termsError` state variables
+- Created `useEffect` hook to fetch policies from `/api/terms-policies` API
+- Added `TERMS_ICONS` mapping for icon components (info, shield, hotel, creditCard, check, briefcase, edit, file)
+- Replaced hardcoded Terms & Policies content with dynamic rendering
+- Added loading and error states with appropriate UI feedback
+- Implemented fallback to hardcoded content if API fails
+
+**API Integration:**
+- Fetches from `/api/terms-policies?active_only=true&city={city}&country={country}`
+- Filters policies by proposal destination
+- Returns policies sorted by `order` field
+
+**UI Rendering:**
+- Each policy renders as an expandable accordion section
+- Icon displayed based on `icon` field from database
+- `is_expanded_default` controls initial expanded state
+- Sub-sections (e.g., General, Hotel, Tours and Transfers) render as h4 headings with ordered lists
+- Commitments category gets special amber/yellow styling
+- Empty state handling for missing content
+
+#### Policies from Database (8 sections)
+1. **Any Other Commitments** (icon: check) - Collapsed
+2. **Important Notes** (icon: info) - Expanded by default
+   - Sub-sections: General, Hotel, Tours and Transfers
+3. **Important Notes - Europe** (icon: info) - Regional policy for Europe
+4. **Terms and Conditions** (icon: shield)
+5. **Our Scope of Services** (icon: briefcase)
+6. **Hotel Cancellation Policy** (icon: hotel)
+7. **Payment Policies** (icon: creditCard)
+8. **Amendment of Booking by Guest** (icon: edit)
+
+### Test Results (iteration_16.json)
+- **Backend:** 100% (15/15 tests passed)
+- **Frontend:** 100% (All features working)
+- Dynamic terms API returns 8 sections correctly
+- All accordion sections expand/collapse with smooth animation
+- Icons and titles match database configuration
+- Sub-sections display properly
+- Delete Proposal functionality confirmed working
+
+### Files Modified
+- `/app/frontend/src/components/ProposalView.jsx` - Added dynamic terms fetch and rendering
+
