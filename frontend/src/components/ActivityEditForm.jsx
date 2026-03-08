@@ -563,15 +563,23 @@ export default function ActivityEditForm({ activity, onSave, onClose, isNew = fa
     transfer_type: activity?.transfer_type || 'Private',
     operating_days: activity?.operating_days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
     closed_days: activity?.closed_days || [],
-    min_participants: activity?.min_participants || 1,
-    max_participants: activity?.max_participants || 20,
     age_restriction: activity?.age_restriction || 'All ages',
     cancellation_policy: activity?.cancellation_policy || 'Free cancellation up to 24 hours',
     supplier_name: activity?.supplier_name || '',
     supplier_cost: activity?.supplier_cost || 0,
     available: activity?.available !== false,
     rating: activity?.rating || 4.5,
-    review_count: activity?.review_count || 0
+    review_count: activity?.review_count || 0,
+    // Vehicle-based pricing
+    vehicle_pricing: activity?.vehicle_pricing || {
+      sedan_4: { selling_price: 0, supplier_cost: 0 },
+      car_7: { selling_price: 0, supplier_cost: 0 },
+      van_8: { selling_price: 0, supplier_cost: 0 },
+      van_17: { selling_price: 0, supplier_cost: 0 },
+      bus_29: { selling_price: 0, supplier_cost: 0 },
+      bus_45: { selling_price: 0, supplier_cost: 0 },
+      bus_55: { selling_price: 0, supplier_cost: 0 }
+    }
   });
 
   const handleFieldChange = useCallback((field, value) => {
@@ -855,29 +863,6 @@ export default function ActivityEditForm({ activity, onSave, onClose, isNew = fa
                     handleFieldChange('closed_days', closedDays);
                   }}
                 />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">Min Participants</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={formData.min_participants}
-                      onChange={(e) => handleFieldChange('min_participants', parseInt(e.target.value) || 1)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">Max Participants</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={formData.max_participants}
-                      onChange={(e) => handleFieldChange('max_participants', parseInt(e.target.value) || 20)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
               </motion.div>
             )}
 
@@ -957,69 +942,131 @@ Example:
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="space-y-4"
+                className="space-y-5"
               >
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">Selling Price *</label>
-                    <div className="flex">
-                      <select
-                        value={formData.currency}
-                        onChange={(e) => handleFieldChange('currency', e.target.value)}
-                        className="px-3 py-3 border border-r-0 border-gray-200 rounded-l-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="AED">AED</option>
-                        <option value="USD">USD</option>
-                        <option value="EUR">EUR</option>
-                        <option value="GBP">GBP</option>
-                      </select>
-                      <input
-                        type="number"
-                        min="0"
-                        value={formData.price}
-                        onChange={(e) => handleFieldChange('price', parseFloat(e.target.value) || 0)}
-                        className="flex-1 px-4 py-3 border border-gray-200 rounded-r-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        data-testid="activity-price-input"
-                      />
-                    </div>
+                {/* Currency Selection */}
+                <div className="flex items-center gap-3">
+                  <label className="text-sm font-bold text-gray-600">Currency:</label>
+                  <select
+                    value={formData.currency}
+                    onChange={(e) => handleFieldChange('currency', e.target.value)}
+                    className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="AED">AED</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                  </select>
+                </div>
+
+                {/* Vehicle Pricing Table */}
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                    <h4 className="font-bold text-gray-700 flex items-center gap-2">
+                      <Car size={18} />
+                      Vehicle-Based Pricing
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-1">Set selling price and supplier cost for each vehicle type</p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">Supplier Cost</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.supplier_cost || ''}
-                      onChange={(e) => handleFieldChange('supplier_cost', parseFloat(e.target.value) || 0)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      data-testid="activity-supplier-cost-input"
-                    />
+                  
+                  <div className="divide-y divide-gray-100">
+                    {[
+                      { key: 'sedan_4', label: '4 Seater Sedan', icon: '🚗' },
+                      { key: 'car_7', label: '7 Seater Car', icon: '🚙' },
+                      { key: 'van_8', label: '8 Seater Van', icon: '🚐' },
+                      { key: 'van_17', label: '17 Seater Van', icon: '🚐' },
+                      { key: 'bus_29', label: '29 Seater Bus', icon: '🚌' },
+                      { key: 'bus_45', label: '45 Seater Bus', icon: '🚌' },
+                      { key: 'bus_55', label: '55 Seater Bus', icon: '🚌' }
+                    ].map(vehicle => {
+                      const pricing = formData.vehicle_pricing?.[vehicle.key] || { selling_price: 0, supplier_cost: 0 };
+                      const margin = pricing.selling_price - pricing.supplier_cost;
+                      const marginPercent = pricing.selling_price > 0 ? (margin / pricing.selling_price * 100) : 0;
+                      
+                      return (
+                        <div key={vehicle.key} className="px-4 py-3 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className="w-40 flex items-center gap-2">
+                              <span className="text-lg">{vehicle.icon}</span>
+                              <span className="text-sm font-medium text-gray-700">{vehicle.label}</span>
+                            </div>
+                            
+                            <div className="flex-1 grid grid-cols-3 gap-3">
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Selling Price</label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={pricing.selling_price || ''}
+                                  onChange={(e) => {
+                                    const newPricing = { ...formData.vehicle_pricing };
+                                    newPricing[vehicle.key] = {
+                                      ...newPricing[vehicle.key],
+                                      selling_price: parseFloat(e.target.value) || 0
+                                    };
+                                    handleFieldChange('vehicle_pricing', newPricing);
+                                  }}
+                                  placeholder="0"
+                                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Supplier Cost</label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={pricing.supplier_cost || ''}
+                                  onChange={(e) => {
+                                    const newPricing = { ...formData.vehicle_pricing };
+                                    newPricing[vehicle.key] = {
+                                      ...newPricing[vehicle.key],
+                                      supplier_cost: parseFloat(e.target.value) || 0
+                                    };
+                                    handleFieldChange('vehicle_pricing', newPricing);
+                                  }}
+                                  placeholder="0"
+                                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Margin</label>
+                                <div className={cn(
+                                  "px-3 py-2 rounded-lg text-sm font-medium",
+                                  margin > 0 ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-400"
+                                )}>
+                                  {margin > 0 ? (
+                                    <>
+                                      {formData.currency} {margin.toFixed(0)}
+                                      <span className="text-xs ml-1">({marginPercent.toFixed(1)}%)</span>
+                                    </>
+                                  ) : (
+                                    '-'
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {formData.price > 0 && formData.supplier_cost > 0 && (
-                  <div className="p-4 bg-green-50 rounded-xl border border-green-100">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-600">Margin:</span>
-                      <span className="text-lg font-bold text-green-700">
-                        {formData.currency} {(formData.price - formData.supplier_cost).toFixed(2)}
-                        <span className="text-sm font-normal ml-2">
-                          ({((formData.price - formData.supplier_cost) / formData.price * 100).toFixed(1)}%)
-                        </span>
-                      </span>
-                    </div>
+                {/* Supplier Info */}
+                <div className="border-t border-gray-200 pt-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Supplier Name</label>
+                    <input
+                      type="text"
+                      value={formData.supplier_name}
+                      onChange={(e) => handleFieldChange('supplier_name', e.target.value)}
+                      placeholder="e.g., Local Tours Georgia"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      data-testid="activity-supplier-name-input"
+                    />
                   </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-600 mb-1">Supplier Name</label>
-                  <input
-                    type="text"
-                    value={formData.supplier_name}
-                    onChange={(e) => handleFieldChange('supplier_name', e.target.value)}
-                    placeholder="e.g., Local Tours Georgia"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    data-testid="activity-supplier-name-input"
-                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
