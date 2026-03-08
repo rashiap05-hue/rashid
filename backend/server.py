@@ -260,6 +260,9 @@ class TransferCreate(BaseModel):
     max_bags: int = 2  # Number of bags allowed
     supplier_name: Optional[str] = None  # For supplier dashboard
     supplier_cost: Optional[float] = None  # Cost from supplier (for margin calculation)
+    video: Optional[str] = None  # Video URL
+    # Vehicle-based pricing
+    vehicle_pricing: Optional[dict] = None  # { "sedan_4": { "selling_price": 100, "supplier_cost": 80 }, ... }
 
 # Activity/Excursion Model
 class ActivityCreate(BaseModel):
@@ -272,6 +275,7 @@ class ActivityCreate(BaseModel):
     price: float = 0
     currency: str = "AED"
     images: List[str] = []
+    video: Optional[str] = None  # Video URL (YouTube or direct)
     highlights: List[str] = []  # Key highlights/features
     inclusions: List[str] = []  # What's included (e.g., "Driver cum Guide", "Cable Car")
     exclusions: List[str] = []  # What's not included
@@ -282,8 +286,6 @@ class ActivityCreate(BaseModel):
     transfer_type: str = "Private"  # Private, Shared, Luxury
     operating_days: List[str] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]  # Days activity operates
     closed_days: List[str] = []  # Days activity is closed (e.g., ["Monday"])
-    min_participants: int = 1
-    max_participants: int = 20
     age_restriction: str = "All ages"  # "All ages", "18+", "12+", etc.
     cancellation_policy: str = "Free cancellation up to 24 hours"
     supplier_name: Optional[str] = None
@@ -291,6 +293,8 @@ class ActivityCreate(BaseModel):
     available: bool = True
     rating: float = 4.5
     review_count: int = 0
+    # Vehicle-based pricing
+    vehicle_pricing: Optional[dict] = None  # { "sedan_4": { "selling_price": 100, "supplier_cost": 80 }, ... }
 
 class ChatMessage(BaseModel):
     message: str
