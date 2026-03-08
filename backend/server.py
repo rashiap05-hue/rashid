@@ -62,6 +62,7 @@ payments_router = APIRouter(prefix="/payments", tags=["Payments"])
 sheets_router = APIRouter(prefix="/sheets", tags=["Google Sheets"])
 admin_router = APIRouter(prefix="/admin", tags=["Admin"])
 uploads_router = APIRouter(prefix="/uploads", tags=["File Uploads"])
+terms_router = APIRouter(prefix="/terms-policies", tags=["Terms and Policies"])
 
 security = HTTPBearer(auto_error=False)
 
@@ -311,6 +312,20 @@ class PaymentCreate(BaseModel):
     amount: float
     currency: str = "AED"
     payment_method: str = "stripe"
+
+# Terms and Policies Model
+class TermsPolicyCreate(BaseModel):
+    title: str  # e.g., "Important Notes", "Hotel Cancellation Policy"
+    category: str  # e.g., "General", "Hotel", "Tours and Transfers", "Europe", "Cancellation"
+    content: List[str] = []  # List of bullet points/items
+    sub_sections: List[Dict[str, Any]] = []  # For nested sections like "General", "Hotel", "Europe" under "Important Notes"
+    country: Optional[str] = None  # Country-specific policy (e.g., "Georgia", "UAE")
+    city: Optional[str] = None  # City-specific policy (e.g., "Tbilisi", "Dubai")
+    applies_to: str = "all"  # "all", "country", "city"
+    order: int = 0  # Display order
+    is_expanded_default: bool = False  # Whether to show expanded by default
+    is_active: bool = True
+    icon: str = "info"  # Icon name: info, shield, hotel, creditCard, check, etc.
 
 # ============= HELPERS =============
 
@@ -771,6 +786,121 @@ async def delete_activity(activity_id: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Activity not found")
     return {"success": True}
+
+# ============= TERMS AND POLICIES ROUTES =============
+
+@terms_router.get("")
+async def get_terms_policies(
+    country: Optional[str] = None,
+    city: Optional[str] = None,
+    category: Optional[str] = None,
+    active_only: bool = True
+):
+    """Get all terms and policies, optionally filtered by country, city, or category"""
+    query = {}
+    if active_only:
+        query["is_active"] = True
+    if country:
+        query["$or"] = [
+            {"applies_to": "all"},
+            {"country": country},
+            {"country": None}
+        ]
+    if city:
+        query["$or"] = [
+            {"applies_to": "all"},
+            {"city": city},
+            {"city": None}
+        ]
+    if category:
+        query["category"] = category
+    
+    terms = await db.terms_policies.find(query, {"_id": 0}).sort("order", 1).to_list(100)
+    return terms
+
+@terms_router.get("/all")
+async def get_all_terms_policies():
+    """Get all terms and policies for admin management"""
+    terms = await db.terms_policies.find({}, {"_id": 0}).sort("order", 1).to_list(100)
+    return terms
+
+@terms_router.get("/{term_id}")
+async def get_term_policy(term_id: str):
+    """Get a specific term/policy by ID"""
+    term = await db.terms_policies.find_one({"id": term_id}, {"_id": 0})
+    if not term:
+        raise HTTPException(status_code=404, detail="Term/Policy not found")
+    return term
+
+@terms_router.post("")
+async def create_term_policy(term: TermsPolicyCreate, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Create a new term/policy (Admin only)"""
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    user = await get_current_user(credentials)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    term_dict = term.dict()
+    term_dict["id"] = str(uuid.uuid4())
+    term_dict["created_at"] = datetime.now(timezone.utc).isoformat()
+    term_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
+    term_dict["created_by"] = user.get("id")
+    
+    await db.terms_policies.insert_one(term_dict)
+    term_dict.pop("_id", None)
+    return term_dict
+
+@terms_router.put("/{term_id}")
+async def update_term_policy(term_id: str, term: TermsPolicyCreate, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Update an existing term/policy (Admin only)"""
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    user = await get_current_user(credentials)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    term_dict = term.dict()
+    term_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.terms_policies.update_one(
+        {"id": term_id},
+        {"$set": term_dict}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Term/Policy not found")
+    
+    updated_term = await db.terms_policies.find_one({"id": term_id}, {"_id": 0})
+    return updated_term
+
+@terms_router.delete("/{term_id}")
+async def delete_term_policy(term_id: str, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Delete a term/policy (Admin only)"""
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    user = await get_current_user(credentials)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    result = await db.terms_policies.delete_one({"id": term_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Term/Policy not found")
+    return {"success": True}
+
+@terms_router.get("/categories/list")
+async def get_terms_categories():
+    """Get all unique categories"""
+    categories = await db.terms_policies.distinct("category")
+    return categories
+
+@terms_router.get("/countries/list")
+async def get_terms_countries():
+    """Get all countries with specific terms"""
+    countries = await db.terms_policies.distinct("country")
+    return [c for c in countries if c]
 
 # ============= AI ROUTES =============
 
@@ -2234,6 +2364,7 @@ api_router.include_router(sheets_router)
 api_router.include_router(admin_router)
 api_router.include_router(supplier_router)
 api_router.include_router(uploads_router)
+api_router.include_router(terms_router)
 
 app.include_router(api_router)
 
@@ -2255,6 +2386,211 @@ async def startup_event():
     await seed_initial_data()
     await migrate_image_urls()
     await migrate_activities_fields()
+    await seed_terms_policies()
+
+async def seed_terms_policies():
+    """Seed default terms and policies"""
+    terms_collection = db.terms_policies
+    
+    # Check if any terms exist
+    existing = await terms_collection.count_documents({})
+    if existing > 0:
+        logger.info("Terms and policies already seeded")
+        return
+    
+    default_terms = [
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Any Other Commitments",
+            "category": "Commitments",
+            "content": ["If any other service or commitments have been made apart from the inclusions in the proposal, then please make sure they are mentioned in this section."],
+            "sub_sections": [],
+            "country": None,
+            "city": None,
+            "applies_to": "all",
+            "order": 1,
+            "is_expanded_default": False,
+            "is_active": True,
+            "icon": "check",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Important Notes",
+            "category": "General",
+            "content": [],
+            "sub_sections": [
+                {
+                    "title": "General",
+                    "items": [
+                        "Any ticket to attractions, museums, train, cable car, ferries, rides, safari, etc. are not included unless explicitly mentioned as an inclusion.",
+                        "For queries regarding cancellations and refunds, please refer to our Cancellation Policy.",
+                        "We reserve the right to issue a full refund in case we believe we are unable to fulfil the services for any technical reasons.",
+                        "Please make sure that the passport of all guests travelling is valid for at least 6 months from the date of travel.",
+                        "We can only facilitate the visa application for the travelling passengers. Granting of visa is solely at the discretion of Embassy."
+                    ]
+                },
+                {
+                    "title": "Hotel",
+                    "items": [
+                        "At the time of check-in to your hotel, hotel may ask you to make an advance/security deposit (amount depends upon hotel policy). This amount is refunded at the time of check-out, minus the cost of any items taken from the mini-bar or other charges."
+                    ]
+                },
+                {
+                    "title": "Tours and Transfers",
+                    "items": [
+                        "The cost and ticket issued for various attractions with regards to any children travelling are based on the age provided at the time of creating the package quote."
+                    ]
+                }
+            ],
+            "country": None,
+            "city": None,
+            "applies_to": "all",
+            "order": 2,
+            "is_expanded_default": True,
+            "is_active": True,
+            "icon": "info",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Important Notes - Europe",
+            "category": "Regional",
+            "content": [],
+            "sub_sections": [
+                {
+                    "title": "Europe",
+                    "items": [
+                        "Please make sure to download the telegram app before your travel starts, where driver details for all tours and transfers shall be shared.",
+                        "The driver details for private airport transfers or train station transfers or tours shall be shared within 24 hours of scheduled time only on the telegram app.",
+                        "On arrival in case you cannot locate your driver please call the service provider and give your complete name and confirmation number for them to guide you.",
+                        "Any changes in pickup times in Europe for airport or train station transfers (private only) can be done only 24 hours before the scheduled pickup time.",
+                        "Most tours on sharing basis in Europe start from a common point in the city. Please make sure you reach the shared common point mentioned in the activity voucher at least 15 mins before the scheduled time.",
+                        "In case you are delayed in reaching the common point, and the bus leaves for the tour, the tour is considered a no show and no refund shall be provided.",
+                        "For tours and activities booked on private basis, the drivers arrive at specified time only and the maximum waiting time is only 10-15 mins.",
+                        "Please note that we are not responsible for any delays (if any) in the vehicle for pick-ups or drops due to any un-avoidable conditions, like traffic, accidents, vehicle breakdown etc.",
+                        "Please note that any trains confirmed as part of journeys exclude seat reservations and seat reservation charges.",
+                        "In Europe you are required to manage and handle your luggage on your own. No porterage services are provided by us."
+                    ]
+                }
+            ],
+            "country": "Europe",
+            "city": None,
+            "applies_to": "country",
+            "order": 3,
+            "is_expanded_default": False,
+            "is_active": True,
+            "icon": "info",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Terms and Conditions",
+            "category": "Legal",
+            "content": [
+                "Airline seats and hotel rooms are subject to availability at the time of confirmation.",
+                "In case of unavailability in the listed hotels, arrangement for an alternate accommodation will be made in a hotel of similar standard.",
+                "There will be no refund for unused nights or early check-out (in case of Medical condition it completely depends on hotel policy).",
+                "There will be no refund for any unutilized services (meals, entrance fees, optional tours, hotels, transport and sightseeing etc) for any reason whatsoever.",
+                "Check-in and check-out times at hotels would be as per Hotel policies. Early check-in or late check-out is subject to availability and may be chargeable by the hotel.",
+                "The price does not include expenses of personal nature, such as laundry, telephone calls, room service, alcoholic beverages, mini bar charges, tips, portage, camera fees etc.",
+                "We reserves the right to modify the itinerary at any point, due to reasons including but not limited to: Force Majeure events, strikes, fairs, festivals, weather conditions, traffic problems, overbooking of hotels / flights, cancellation / re-routing of flights, closure of / entry restrictions at a place of visit, etc.",
+                "In case a flight gets cancelled, we will not be liable to provide any alternate flights within the same cost, any additional cost incurred for the same shall be borne by the traveler.",
+                "If your stay falls on special dates (like 24th December, 31st December, 14th February, etc.) when hotel organize gala dinner, then there may be mandatory Gala Dinner Charges additional that you need to pay at the hotel directly.",
+                "Country guidelines may change without notice, hence do check travel rules and your eligibility for travel on the regulatory website of the respective country/state, before booking your travel."
+            ],
+            "sub_sections": [],
+            "country": None,
+            "city": None,
+            "applies_to": "all",
+            "order": 4,
+            "is_expanded_default": False,
+            "is_active": True,
+            "icon": "shield",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Our Scope of Services",
+            "category": "Legal",
+            "content": [
+                "We are holiday organizers only. We inspect and select the services to be provided to you. However, we do not own, operate or control any airline, shipping company, coach or coach company, hotel, transport, restaurant, kitchen caravan or any other facility or provider etc.",
+                "You will need to adhere to the conditions, rules and regulations of each service provider.",
+                "If you cause any injury or damage affecting the service provider, then you may be liable to the service provider and if the service provider recovers any monies from us for such injury or damages, we shall separately charge you for the same.",
+                "We cannot be held responsible / liable for any delay, deficiency, injury, death, loss or damage etc. occasioned due to act or default of such service providers, their employees or agents."
+            ],
+            "sub_sections": [],
+            "country": None,
+            "city": None,
+            "applies_to": "all",
+            "order": 5,
+            "is_expanded_default": False,
+            "is_active": True,
+            "icon": "briefcase",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Hotel Cancellation Policy",
+            "category": "Cancellation",
+            "content": [
+                "Hotel cancellation will be as per the hotel cancellation policy. If the hotels are non-refundable, you will not get any refund for hotels in the event of cancellation.",
+                "Any transfers or activities included in the trip will be non-refundable if cancelled within 3 days of the travel start date, unless otherwise specified during the quotation stage.",
+                "Entrance tickets of any kind are non-refundable from the moment of booking, unless specified otherwise.",
+                "There will also a service charge of 5% on total value in case of cancellation of Land and 5% on total value for any amendments.",
+                "Hotel room allocation will be subject to availability and will be on a first come first serve basis.",
+                "Any transfers or activities included in the trip will be non-refundable if cancelled within 3 days of the travel start date."
+            ],
+            "sub_sections": [],
+            "country": None,
+            "city": None,
+            "applies_to": "all",
+            "order": 6,
+            "is_expanded_default": False,
+            "is_active": True,
+            "icon": "hotel",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Payment Policies",
+            "category": "Payment",
+            "content": [
+                "There might be an increase in total package cost offered at the time of bookings in case the payments are not received by us as per the terms mentioned and the extra cost need to be borne by the guest.",
+                "We will never ask you to pay in a personal account. Please always pay using our website or in our company bank account."
+            ],
+            "sub_sections": [],
+            "country": None,
+            "city": None,
+            "applies_to": "all",
+            "order": 7,
+            "is_expanded_default": False,
+            "is_active": True,
+            "icon": "creditCard",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "title": "Amendment of Booking by Guest",
+            "category": "Booking",
+            "content": [
+                "If you wish to amend or change your booking, you have to communicate your request to us in writing. Such requests for change or amendment will be accepted subject to availability.",
+                "Please note that the amended or changed booking will be regarded as a new booking. In case the amendment is carried out within the cancellation period, then a cancellation charge shall apply as if a cancellation was made on the date the request for amendment or change is made."
+            ],
+            "sub_sections": [],
+            "country": None,
+            "city": None,
+            "applies_to": "all",
+            "order": 8,
+            "is_expanded_default": False,
+            "is_active": True,
+            "icon": "edit",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+    ]
+    
+    await terms_collection.insert_many(default_terms)
+    logger.info(f"Seeded {len(default_terms)} default terms and policies")
 
 async def migrate_image_urls():
     """Migrate old /uploads/ URLs to /api/static/ URLs"""

@@ -6,10 +6,22 @@ import {
   Download, Mail, MessageCircle, DollarSign, CreditCard, HelpCircle,
   Coffee, Utensils, Sun, Moon, Plus, Edit2, Trash2, Bed, Info, Eye,
   FileText, ChevronRight, Shield, Briefcase, AlertCircle, List,
-  MessageSquare, Phone, CheckCircle, Menu, Camera
+  MessageSquare, Phone, CheckCircle, Menu, Camera, Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
+
+// Icon mapping for terms/policies
+const TERMS_ICONS = {
+  info: Info,
+  shield: Shield,
+  hotel: Hotel,
+  creditCard: CreditCard,
+  check: CheckCircle,
+  briefcase: Briefcase,
+  edit: Edit2,
+  file: FileText
+};
 
 // Format date helper
 const formatDate = (dateStr, format = 'short') => {
@@ -262,6 +274,55 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
   const [expandedDays, setExpandedDays] = useState({1: true});
   const [allExpanded, setAllExpanded] = useState(false);
   const [activeSection, setActiveSection] = useState('flights');
+  
+  // Dynamic Terms & Policies state
+  const [termsAndPolicies, setTermsAndPolicies] = useState([]);
+  const [termsLoading, setTermsLoading] = useState(false);
+  const [termsError, setTermsError] = useState(null);
+
+  // Fetch Terms & Policies based on proposal destination
+  useEffect(() => {
+    const fetchTermsAndPolicies = async () => {
+      if (!proposal) return;
+      
+      setTermsLoading(true);
+      setTermsError(null);
+      
+      try {
+        // Get the main city from the proposal
+        const mainCity = proposal.cities?.[0]?.name || '';
+        const mainCountry = proposal.destination_country || '';
+        
+        // Fetch terms - the backend will return all applicable policies
+        // (both global "all" policies and specific country/city policies)
+        let url = '/terms-policies?active_only=true';
+        if (mainCity) {
+          url += `&city=${encodeURIComponent(mainCity)}`;
+        }
+        if (mainCountry) {
+          url += `&country=${encodeURIComponent(mainCountry)}`;
+        }
+        
+        const response = await api.get(url);
+        
+        // Sort by order and filter active ones
+        const policies = (response.data || [])
+          .filter(p => p.is_active)
+          .sort((a, b) => (a.order || 0) - (b.order || 0));
+        
+        setTermsAndPolicies(policies);
+      } catch (error) {
+        console.error('Error fetching terms and policies:', error);
+        setTermsError('Failed to load terms and policies');
+        // Fall back to empty array - hardcoded fallback will be shown
+        setTermsAndPolicies([]);
+      } finally {
+        setTermsLoading(false);
+      }
+    };
+    
+    fetchTermsAndPolicies();
+  }, [proposal]);
 
   if (!proposal) {
     return (
@@ -649,47 +710,115 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
             {/* TERMS AND POLICIES Tab */}
             {activeTab === 'terms' && (
               <div className="bg-white rounded-xl shadow-sm" data-testid="terms-content">
-                <ExpandableSection title="Any Other Commitments" icon={CheckCircle}>
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-800 text-sm">
-                    If any other service or commitments have been made apart from the inclusions, please mention them here.
+                {termsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="animate-spin text-gray-400 mr-2" size={24} />
+                    <span className="text-gray-500">Loading terms and policies...</span>
                   </div>
-                </ExpandableSection>
-
-                <ExpandableSection title="Important Notes" icon={Info} defaultExpanded={true}>
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-semibold text-gray-800 mb-2">General</h4>
-                      <ol className="list-decimal list-inside space-y-2 text-gray-600">
-                        <li>Tickets to attractions are not included unless mentioned.</li>
-                        <li>For cancellations, refer to our Cancellation Policy.</li>
-                        <li>Passport must be valid for 6 months from travel date.</li>
-                      </ol>
-                    </div>
+                ) : termsError && termsAndPolicies.length === 0 ? (
+                  <div className="text-center py-12">
+                    <AlertCircle className="mx-auto text-gray-300 mb-4" size={48} />
+                    <p className="text-gray-500">{termsError}</p>
                   </div>
-                </ExpandableSection>
+                ) : termsAndPolicies.length > 0 ? (
+                  // Dynamic Terms from API
+                  termsAndPolicies.map((term) => {
+                    const IconComponent = TERMS_ICONS[term.icon] || Info;
+                    return (
+                      <ExpandableSection 
+                        key={term.id} 
+                        title={term.title} 
+                        icon={IconComponent}
+                        defaultExpanded={term.is_expanded_default}
+                      >
+                        {/* Special styling for Commitments category */}
+                        {term.category === 'Commitments' && term.content?.length > 0 && (
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-800 text-sm">
+                            {term.content.map((item, idx) => (
+                              <p key={idx}>{item}</p>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Regular content items */}
+                        {term.category !== 'Commitments' && term.content?.length > 0 && (
+                          <ul className="list-disc list-inside space-y-2 text-gray-600">
+                            {term.content.map((item, idx) => (
+                              <li key={idx}>{item}</li>
+                            ))}
+                          </ul>
+                        )}
+                        
+                        {/* Sub-sections (e.g., General, Hotel, Europe under Important Notes) */}
+                        {term.sub_sections?.length > 0 && (
+                          <div className="space-y-4">
+                            {term.sub_sections.map((section, sIdx) => (
+                              <div key={sIdx}>
+                                <h4 className="font-semibold text-gray-800 mb-2">{section.title}</h4>
+                                <ol className="list-decimal list-inside space-y-2 text-gray-600">
+                                  {section.items?.map((item, iIdx) => (
+                                    <li key={iIdx}>{item}</li>
+                                  ))}
+                                </ol>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Show empty state if no content */}
+                        {(!term.content || term.content.length === 0) && 
+                         (!term.sub_sections || term.sub_sections.length === 0) && (
+                          <p className="text-gray-400 italic">No content available.</p>
+                        )}
+                      </ExpandableSection>
+                    );
+                  })
+                ) : (
+                  // Fallback to hardcoded content if no policies from API
+                  <>
+                    <ExpandableSection title="Any Other Commitments" icon={CheckCircle}>
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-800 text-sm">
+                        If any other service or commitments have been made apart from the inclusions, please mention them here.
+                      </div>
+                    </ExpandableSection>
 
-                <ExpandableSection title="Terms and Conditions" icon={Shield}>
-                  <ul className="list-disc list-inside space-y-2 text-gray-600">
-                    <li>Airline seats and hotel rooms subject to availability.</li>
-                    <li>No refund for unused nights or early check-out.</li>
-                    <li>Check-in/out times as per hotel policies.</li>
-                  </ul>
-                </ExpandableSection>
+                    <ExpandableSection title="Important Notes" icon={Info} defaultExpanded={true}>
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="font-semibold text-gray-800 mb-2">General</h4>
+                          <ol className="list-decimal list-inside space-y-2 text-gray-600">
+                            <li>Tickets to attractions are not included unless mentioned.</li>
+                            <li>For cancellations, refer to our Cancellation Policy.</li>
+                            <li>Passport must be valid for 6 months from travel date.</li>
+                          </ol>
+                        </div>
+                      </div>
+                    </ExpandableSection>
 
-                <ExpandableSection title="Hotel Cancellation Policy" icon={Hotel}>
-                  <ul className="list-disc list-inside space-y-2 text-gray-600">
-                    <li>Hotel cancellation as per hotel policy.</li>
-                    <li>Non-refundable hotels will not be refunded.</li>
-                    <li>5% service charge on cancellations.</li>
-                  </ul>
-                </ExpandableSection>
+                    <ExpandableSection title="Terms and Conditions" icon={Shield}>
+                      <ul className="list-disc list-inside space-y-2 text-gray-600">
+                        <li>Airline seats and hotel rooms subject to availability.</li>
+                        <li>No refund for unused nights or early check-out.</li>
+                        <li>Check-in/out times as per hotel policies.</li>
+                      </ul>
+                    </ExpandableSection>
 
-                <ExpandableSection title="Payment Policies" icon={CreditCard}>
-                  <ul className="list-disc list-inside space-y-2 text-gray-600">
-                    <li>Full payment required at time of booking.</li>
-                    <li>Always pay via official website or company bank account.</li>
-                  </ul>
-                </ExpandableSection>
+                    <ExpandableSection title="Hotel Cancellation Policy" icon={Hotel}>
+                      <ul className="list-disc list-inside space-y-2 text-gray-600">
+                        <li>Hotel cancellation as per hotel policy.</li>
+                        <li>Non-refundable hotels will not be refunded.</li>
+                        <li>5% service charge on cancellations.</li>
+                      </ul>
+                    </ExpandableSection>
+
+                    <ExpandableSection title="Payment Policies" icon={CreditCard}>
+                      <ul className="list-disc list-inside space-y-2 text-gray-600">
+                        <li>Full payment required at time of booking.</li>
+                        <li>Always pay via official website or company bank account.</li>
+                      </ul>
+                    </ExpandableSection>
+                  </>
+                )}
               </div>
             )}
 

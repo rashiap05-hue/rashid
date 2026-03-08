@@ -4,12 +4,13 @@ import {
   Database, Users, FileText, Settings, Search, RefreshCw,
   Edit2, Trash2, CheckCircle, XCircle, MapPin, Plane, Building2, X,
   ChevronLeft, ChevronRight, Plus, Save, Car, Clock, DollarSign, Briefcase, Star, Bed,
-  Compass, Camera, Utensils, Mountain, Globe
+  Compass, Camera, Utensils, Mountain, Globe, Shield
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
 import HotelEditForm from './HotelEditForm';
 import ActivityEditForm from './ActivityEditForm';
+import TermsPoliciesManager from './TermsPoliciesManager';
 
 export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   const [airports, setAirports] = useState([]);
@@ -976,7 +977,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-gray-100 overflow-x-auto">
-            {['airports', 'cities', 'hotels', 'transfers', 'activities'].map((tab) => (
+            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'terms'].map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -986,7 +987,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   activeTab === tab ? "text-[#002B5B]" : "text-gray-400 hover:text-gray-600"
                 )}
               >
-                {tab} Management
+                {tab === 'terms' ? 'Terms & Policies' : `${tab} Management`}
                 {activeTab === tab && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-[#002B5B]" />}
               </button>
             ))}
@@ -1633,6 +1634,11 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Terms & Policies Tab */}
+            {activeTab === 'terms' && (
+              <TermsPoliciesManager />
             )}
           </div>
         </div>
