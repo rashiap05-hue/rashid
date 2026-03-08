@@ -796,24 +796,44 @@ async def get_terms_policies(
     category: Optional[str] = None,
     active_only: bool = True
 ):
-    """Get all terms and policies, optionally filtered by country, city, or category"""
+    """Get all terms and policies, optionally filtered by country, city, or category.
+    
+    Logic:
+    - Always returns policies with applies_to='all'
+    - If city is provided, also returns city-specific policies AND looks up the country
+    - If country is provided, also returns country-specific policies
+    - Country-specific policies apply to ALL cities within that country
+    """
+    # If city is provided but country is not, look up the country from cities DB
+    looked_up_country = None
+    if city and not country:
+        city_doc = await db.cities.find_one(
+            {"name": {"$regex": f"^{city}$", "$options": "i"}},
+            {"country": 1, "_id": 0}
+        )
+        if city_doc:
+            looked_up_country = city_doc.get("country")
+    
+    effective_country = country or looked_up_country
+    
+    # Build the query
     query = {}
     if active_only:
         query["is_active"] = True
-    if country:
-        query["$or"] = [
-            {"applies_to": "all"},
-            {"country": country},
-            {"country": None}
-        ]
+    
+    # Build OR conditions for matching policies
+    or_conditions = [{"applies_to": "all"}]  # Always include global policies
+    
     if city:
-        query["$or"] = [
-            {"applies_to": "all"},
-            {"city": city},
-            {"city": None}
-        ]
+        or_conditions.append({"city": city, "applies_to": "city"})
+    
+    if effective_country:
+        or_conditions.append({"country": effective_country, "applies_to": "country"})
+    
     if category:
         query["category"] = category
+    
+    query["$or"] = or_conditions
     
     terms = await db.terms_policies.find(query, {"_id": 0}).sort("order", 1).to_list(100)
     return terms

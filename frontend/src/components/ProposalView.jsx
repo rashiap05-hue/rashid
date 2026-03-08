@@ -289,18 +289,34 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
       setTermsError(null);
       
       try {
-        // Get the main city from the proposal
-        const mainCity = proposal.cities?.[0]?.name || '';
-        const mainCountry = proposal.destination_country || '';
+        // Get all cities from the proposal
+        const cities = proposal.cities || [];
+        const mainCity = cities[0]?.name || '';
         
-        // Fetch terms - the backend will return all applicable policies
-        // (both global "all" policies and specific country/city policies)
+        // First, look up the country for the main city from the cities database
+        let country = '';
+        if (mainCity) {
+          try {
+            const cityResponse = await api.get(`/cities?search=${encodeURIComponent(mainCity)}&limit=1`);
+            const cityData = cityResponse.data?.cities?.[0];
+            if (cityData?.country) {
+              country = cityData.country;
+            }
+          } catch (e) {
+            console.log('Could not look up country for city:', mainCity);
+          }
+        }
+        
+        // Fetch terms - the backend will return:
+        // 1. All global policies (applies_to: "all")
+        // 2. City-specific policies for the main city
+        // 3. Country-specific policies for the country (applies to ALL cities in that country)
         let url = '/terms-policies?active_only=true';
         if (mainCity) {
           url += `&city=${encodeURIComponent(mainCity)}`;
         }
-        if (mainCountry) {
-          url += `&country=${encodeURIComponent(mainCountry)}`;
+        if (country) {
+          url += `&country=${encodeURIComponent(country)}`;
         }
         
         const response = await api.get(url);

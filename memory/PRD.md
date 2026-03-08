@@ -1068,3 +1068,48 @@ Completed the integration of dynamic Terms & Policies into the ProposalView page
 ### Files Modified
 - `/app/frontend/src/components/ProposalView.jsx` - Added dynamic terms fetch and rendering
 
+
+
+## Update: March 8, 2026 - Country-Specific Terms & Policies Enhancement
+
+### Feature: Automatic Country Detection for Terms & Policies
+
+Enhanced the Terms & Policies system to automatically detect and display country-specific policies based on the proposal's destination city. When a user creates a proposal for any city in a country (e.g., Dubai, Abu Dhabi, Sharjah in UAE), the system automatically shows all relevant policies for that country.
+
+#### How It Works
+
+1. **Frontend (`ProposalView.jsx`):** 
+   - Fetches the proposal's first city (e.g., "Dubai")
+   - Looks up the city's country from `/api/cities` (e.g., "United Arab Emirates")
+   - Requests terms from `/api/terms-policies?city=Dubai&country=United%20Arab%20Emirates`
+
+2. **Backend (`server.py`):**
+   - If city is provided without country, looks up the country from the cities database
+   - Returns all policies matching:
+     - `applies_to: "all"` (global policies)
+     - `applies_to: "city"` AND city matches
+     - `applies_to: "country"` AND country matches
+
+#### Complete Country List Added
+
+Added comprehensive list of 195 countries + 10 regions to the Terms & Policies admin form:
+- **Regions:** Africa, Asia, Caribbean, Central America, Europe, Middle East, North America, Oceania, South America, Southeast Asia
+- **Countries:** Afghanistan to Zimbabwe (alphabetically sorted)
+
+#### Example: UAE Proposal
+
+When viewing a proposal for Dubai:
+- Shows 5 global policies (Any Other Commitments, Important Notes, Terms and Conditions, Hotel Cancellation Policy, Payment Policies)
+- Shows 1 UAE-specific policy: "Important Notes - United Arab Emirates"
+  - UAE Entry Requirements (passport validity, visa info)
+  - UAE Local Laws & Customs (public affection, dress code, alcohol rules)
+  - UAE Climate & Health (temperature, hydration, travel insurance)
+
+The Europe policy would NOT appear for Dubai (correct behavior - it only applies to European cities).
+
+#### Files Modified
+- `/app/backend/server.py` - Enhanced `/api/terms-policies` endpoint with automatic country lookup
+- `/app/frontend/src/components/ProposalView.jsx` - Added city-to-country lookup before fetching terms
+- `/app/frontend/src/components/TermsPoliciesManager.jsx` - Added ALL_COUNTRIES array with 205 entries
+
+
