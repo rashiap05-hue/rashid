@@ -170,7 +170,6 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         transfer_type: 'Private', 
         city: '', 
         is_available: true,
-        vehicle_type: 'Sedan',
         pickup_times: [],
         max_bags: 2,
         supplier_name: '',
@@ -763,24 +762,8 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                       data-testid="edit-transfer-city"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">Vehicle Type</label>
-                    <select
-                      value={editForm.vehicle_type || 'Sedan'}
-                      onChange={(e) => handleFieldChange('vehicle_type', e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-                      data-testid="edit-transfer-vehicle-type"
-                    >
-                      <option value="Sedan">Sedan</option>
-                      <option value="SUV">SUV</option>
-                      <option value="Van">Van</option>
-                      <option value="Minibus">Minibus</option>
-                      <option value="Luxury Car">Luxury Car</option>
-                      <option value="Coach">Coach</option>
-                    </select>
-                  </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-bold text-gray-600 mb-1">Transfer Type</label>
                     <select
@@ -1454,11 +1437,6 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                               }`}>
                                 {transfer.transfer_type}
                               </span>
-                              {transfer.vehicle_type && (
-                                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-gray-200 text-gray-600">
-                                  {transfer.vehicle_type}
-                                </span>
-                              )}
                             </div>
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
