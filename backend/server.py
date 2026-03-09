@@ -263,6 +263,7 @@ class TransferCreate(BaseModel):
     duration: str = "1 hrs"
     confirmation_time: str = "4 hrs"
     transfer_type: str = "Private"  # Private, Shared, Luxury
+    transfer_direction: str = "arrival"  # 'arrival' (Airport → Hotel) or 'departure' (Hotel → Airport)
     city: str
     extras: Optional[List[TransferExtra]] = []
     is_available: bool = True
