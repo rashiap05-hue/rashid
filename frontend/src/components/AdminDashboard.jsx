@@ -359,7 +359,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl max-h-[90vh] overflow-y-auto"
+          className="bg-white rounded-2xl p-6 w-full max-w-3xl mx-4 shadow-2xl max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex justify-between items-center mb-6">
@@ -828,8 +828,8 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                       
                       return (
                         <div key={vehicle.key} className="px-4 py-3 hover:bg-gray-50 transition-colors">
-                          <div className="flex items-center gap-3">
-                            <div className="w-36 flex items-center gap-2">
+                          <div className="flex items-center gap-4">
+                            <div className="w-44 flex items-center gap-2 flex-shrink-0">
                               <span className="text-lg">{vehicle.icon}</span>
                               <div>
                                 <div className="flex items-center gap-1">
@@ -842,7 +842,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                               </div>
                             </div>
                             
-                            <div className="flex-1 grid grid-cols-4 gap-3">
+                            <div className="flex-1 grid grid-cols-4 gap-4">
                               <div>
                                 <label className="block text-xs text-gray-500 mb-1">Selling Price</label>
                                 <input
