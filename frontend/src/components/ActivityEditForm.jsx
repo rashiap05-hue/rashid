@@ -979,7 +979,7 @@ Example:
                       { key: 'bus_45', label: '45 Seater Bus', icon: '🚌', pax: '30-45 pax' },
                       { key: 'bus_55', label: '55 Seater Bus', icon: '🚌', pax: '46-55 pax' }
                     ].map(vehicle => {
-                      const pricing = formData.vehicle_pricing?.[vehicle.key] || { selling_price: 0, supplier_cost: 0 };
+                      const pricing = formData.vehicle_pricing?.[vehicle.key] || { selling_price: 0, supplier_cost: 0, max_bags: 0 };
                       const margin = pricing.selling_price - pricing.supplier_cost;
                       const marginPercent = pricing.selling_price > 0 ? (margin / pricing.selling_price * 100) : 0;
                       
@@ -999,7 +999,7 @@ Example:
                               </div>
                             </div>
                             
-                            <div className="flex-1 grid grid-cols-3 gap-3">
+                            <div className="flex-1 grid grid-cols-4 gap-3">
                               <div>
                                 <label className="block text-xs text-gray-500 mb-1">Selling Price</label>
                                 <input
@@ -1030,6 +1030,25 @@ Example:
                                     newPricing[vehicle.key] = {
                                       ...newPricing[vehicle.key],
                                       supplier_cost: parseFloat(e.target.value) || 0
+                                    };
+                                    handleFieldChange('vehicle_pricing', newPricing);
+                                  }}
+                                  placeholder="0"
+                                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Max Bags</label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={pricing.max_bags || ''}
+                                  onChange={(e) => {
+                                    const newPricing = { ...formData.vehicle_pricing };
+                                    newPricing[vehicle.key] = {
+                                      ...newPricing[vehicle.key],
+                                      max_bags: parseInt(e.target.value) || 0
                                     };
                                     handleFieldChange('vehicle_pricing', newPricing);
                                   }}
