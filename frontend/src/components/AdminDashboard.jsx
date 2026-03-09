@@ -814,8 +814,8 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   <div className="divide-y divide-gray-100 max-h-[300px] overflow-y-auto">
                     {[
                       { key: 'sedan_4', label: '4 Seater Sedan', icon: '🚗', pax: '1-4 pax' },
-                      { key: 'car_7', label: '7 Seater Car', icon: '🚙', pax: '5-7 pax' },
-                      { key: 'van_8', label: '8 Seater Van', icon: '🚐', pax: '8 pax' },
+                      { key: 'car_7', label: '7 Seater Car', icon: '🚙', pax: '3-7 pax', optional: true },
+                      { key: 'van_8', label: '8 Seater Van', icon: '🚐', pax: '5-8 pax', optional: true },
                       { key: 'van_17', label: '17 Seater Van', icon: '🚐', pax: '9-17 pax' },
                       { key: 'bus_29', label: '29 Seater Bus', icon: '🚌', pax: '18-29 pax' },
                       { key: 'bus_45', label: '45 Seater Bus', icon: '🚌', pax: '30-45 pax' },
@@ -829,10 +829,15 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                       return (
                         <div key={vehicle.key} className="px-4 py-3 hover:bg-gray-50 transition-colors">
                           <div className="flex items-center gap-3">
-                            <div className="w-32 flex items-center gap-2">
+                            <div className="w-36 flex items-center gap-2">
                               <span className="text-lg">{vehicle.icon}</span>
                               <div>
-                                <span className="text-sm font-medium text-gray-700 block">{vehicle.label}</span>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-sm font-medium text-gray-700">{vehicle.label}</span>
+                                  {vehicle.optional && (
+                                    <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-medium">Optional</span>
+                                  )}
+                                </div>
                                 <span className="text-xs text-gray-400">{vehicle.pax}</span>
                               </div>
                             </div>

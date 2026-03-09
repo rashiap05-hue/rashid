@@ -971,13 +971,13 @@ Example:
                   
                   <div className="divide-y divide-gray-100">
                     {[
-                      { key: 'sedan_4', label: '4 Seater Sedan', icon: '🚗' },
-                      { key: 'car_7', label: '7 Seater Car', icon: '🚙' },
-                      { key: 'van_8', label: '8 Seater Van', icon: '🚐' },
-                      { key: 'van_17', label: '17 Seater Van', icon: '🚐' },
-                      { key: 'bus_29', label: '29 Seater Bus', icon: '🚌' },
-                      { key: 'bus_45', label: '45 Seater Bus', icon: '🚌' },
-                      { key: 'bus_55', label: '55 Seater Bus', icon: '🚌' }
+                      { key: 'sedan_4', label: '4 Seater Sedan', icon: '🚗', pax: '1-4 pax' },
+                      { key: 'car_7', label: '7 Seater Car', icon: '🚙', pax: '3-7 pax', optional: true },
+                      { key: 'van_8', label: '8 Seater Van', icon: '🚐', pax: '5-8 pax', optional: true },
+                      { key: 'van_17', label: '17 Seater Van', icon: '🚐', pax: '9-17 pax' },
+                      { key: 'bus_29', label: '29 Seater Bus', icon: '🚌', pax: '18-29 pax' },
+                      { key: 'bus_45', label: '45 Seater Bus', icon: '🚌', pax: '30-45 pax' },
+                      { key: 'bus_55', label: '55 Seater Bus', icon: '🚌', pax: '46-55 pax' }
                     ].map(vehicle => {
                       const pricing = formData.vehicle_pricing?.[vehicle.key] || { selling_price: 0, supplier_cost: 0 };
                       const margin = pricing.selling_price - pricing.supplier_cost;
@@ -986,9 +986,17 @@ Example:
                       return (
                         <div key={vehicle.key} className="px-4 py-3 hover:bg-gray-50 transition-colors">
                           <div className="flex items-center gap-4">
-                            <div className="w-40 flex items-center gap-2">
+                            <div className="w-44 flex items-center gap-2">
                               <span className="text-lg">{vehicle.icon}</span>
-                              <span className="text-sm font-medium text-gray-700">{vehicle.label}</span>
+                              <div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-sm font-medium text-gray-700">{vehicle.label}</span>
+                                  {vehicle.optional && (
+                                    <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-medium">Optional</span>
+                                  )}
+                                </div>
+                                <span className="text-xs text-gray-400">{vehicle.pax}</span>
+                              </div>
                             </div>
                             
                             <div className="flex-1 grid grid-cols-3 gap-3">
