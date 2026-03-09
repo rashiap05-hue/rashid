@@ -175,7 +175,16 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         max_bags: 2,
         supplier_name: '',
         supplier_cost: 0,
-        video: null
+        video: null,
+        vehicle_pricing: {
+          sedan_4: { selling_price: 0, supplier_cost: 0 },
+          car_7: { selling_price: 0, supplier_cost: 0 },
+          van_8: { selling_price: 0, supplier_cost: 0 },
+          van_17: { selling_price: 0, supplier_cost: 0 },
+          bus_29: { selling_price: 0, supplier_cost: 0 },
+          bus_45: { selling_price: 0, supplier_cost: 0 },
+          bus_55: { selling_price: 0, supplier_cost: 0 }
+        }
       });
       if (type === 'activity') setEditForm({
         name: '',
@@ -797,6 +806,116 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     />
                   </div>
                   <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Confirmation Time</label>
+                    <input
+                      type="text"
+                      value={editForm.confirmation_time || ''}
+                      onChange={(e) => handleFieldChange('confirmation_time', e.target.value)}
+                      placeholder="e.g., 4 hrs"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-transfer-confirmation"
+                    />
+                  </div>
+                </div>
+                
+                {/* Vehicle-Based Pricing Section */}
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 px-4 py-3 border-b border-gray-200">
+                    <h4 className="font-bold text-gray-700 flex items-center gap-2">
+                      <Car size={18} className="text-blue-600" />
+                      Vehicle-Based Pricing (AED)
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-1">Set selling price and supplier cost for each vehicle type</p>
+                  </div>
+                  
+                  <div className="divide-y divide-gray-100 max-h-[300px] overflow-y-auto">
+                    {[
+                      { key: 'sedan_4', label: '4 Seater Sedan', icon: '🚗', pax: '1-4 pax' },
+                      { key: 'car_7', label: '7 Seater Car', icon: '🚙', pax: '5-7 pax' },
+                      { key: 'van_8', label: '8 Seater Van', icon: '🚐', pax: '8 pax' },
+                      { key: 'van_17', label: '17 Seater Van', icon: '🚐', pax: '9-17 pax' },
+                      { key: 'bus_29', label: '29 Seater Bus', icon: '🚌', pax: '18-29 pax' },
+                      { key: 'bus_45', label: '45 Seater Bus', icon: '🚌', pax: '30-45 pax' },
+                      { key: 'bus_55', label: '55 Seater Bus', icon: '🚌', pax: '46-55 pax' }
+                    ].map(vehicle => {
+                      const vp = editForm.vehicle_pricing || {};
+                      const pricing = vp[vehicle.key] || { selling_price: 0, supplier_cost: 0 };
+                      const margin = (pricing.selling_price || 0) - (pricing.supplier_cost || 0);
+                      const marginPercent = pricing.selling_price > 0 ? (margin / pricing.selling_price * 100) : 0;
+                      
+                      return (
+                        <div key={vehicle.key} className="px-4 py-3 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className="w-32 flex items-center gap-2">
+                              <span className="text-lg">{vehicle.icon}</span>
+                              <div>
+                                <span className="text-sm font-medium text-gray-700 block">{vehicle.label}</span>
+                                <span className="text-xs text-gray-400">{vehicle.pax}</span>
+                              </div>
+                            </div>
+                            
+                            <div className="flex-1 grid grid-cols-3 gap-3">
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Selling Price</label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={pricing.selling_price || ''}
+                                  onChange={(e) => {
+                                    const newPricing = { ...editForm.vehicle_pricing };
+                                    newPricing[vehicle.key] = {
+                                      ...newPricing[vehicle.key],
+                                      selling_price: parseFloat(e.target.value) || 0
+                                    };
+                                    handleFieldChange('vehicle_pricing', newPricing);
+                                  }}
+                                  placeholder="0"
+                                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Supplier Cost</label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={pricing.supplier_cost || ''}
+                                  onChange={(e) => {
+                                    const newPricing = { ...editForm.vehicle_pricing };
+                                    newPricing[vehicle.key] = {
+                                      ...newPricing[vehicle.key],
+                                      supplier_cost: parseFloat(e.target.value) || 0
+                                    };
+                                    handleFieldChange('vehicle_pricing', newPricing);
+                                  }}
+                                  placeholder="0"
+                                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Margin</label>
+                                <div className={`px-3 py-2 rounded-lg text-sm font-medium ${margin > 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-400'}`}>
+                                  {margin > 0 ? (
+                                    <>
+                                      {margin.toFixed(0)}
+                                      <span className="text-xs ml-1">({marginPercent.toFixed(0)}%)</span>
+                                    </>
+                                  ) : (
+                                    '-'
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
                     <label className="block text-sm font-bold text-gray-600 mb-1">Max Bags</label>
                     <input
                       type="number"
@@ -808,28 +927,15 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                       data-testid="edit-transfer-max-bags"
                     />
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">Price (AED)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={editForm.price || 0}
-                      onChange={(e) => handleFieldChange('price', parseFloat(e.target.value))}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-                      data-testid="edit-transfer-price"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">Confirmation Time</label>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Supplier Name</label>
                     <input
                       type="text"
-                      value={editForm.confirmation_time || ''}
-                      onChange={(e) => handleFieldChange('confirmation_time', e.target.value)}
-                      placeholder="e.g., 4 hrs"
+                      value={editForm.supplier_name || ''}
+                      onChange={(e) => handleFieldChange('supplier_name', e.target.value)}
+                      placeholder="Enter supplier name"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-                      data-testid="edit-transfer-confirmation"
+                      data-testid="edit-transfer-supplier-name"
                     />
                   </div>
                 </div>
@@ -854,43 +960,6 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent resize-none"
                     data-testid="edit-transfer-description"
                   />
-                </div>
-                
-                {/* Supplier Information Section */}
-                <div className="border-t border-gray-200 pt-4 mt-2">
-                  <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                    <Building2 size={16} className="text-purple-500" />
-                    Supplier Information
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-gray-600 mb-1">Supplier Name</label>
-                      <input
-                        type="text"
-                        value={editForm.supplier_name || ''}
-                        onChange={(e) => handleFieldChange('supplier_name', e.target.value)}
-                        placeholder="Enter supplier name"
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-                        data-testid="edit-transfer-supplier-name"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-gray-600 mb-1">Supplier Cost (AED)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={editForm.supplier_cost || 0}
-                        onChange={(e) => handleFieldChange('supplier_cost', parseFloat(e.target.value))}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-                        data-testid="edit-transfer-supplier-cost"
-                      />
-                    </div>
-                  </div>
-                  {editForm.price > 0 && editForm.supplier_cost > 0 && (
-                    <div className="mt-2 text-sm text-gray-500">
-                      Margin: <span className="font-bold text-green-600">{(editForm.price - editForm.supplier_cost).toFixed(2)} AED</span> ({((editForm.price - editForm.supplier_cost) / editForm.price * 100).toFixed(1)}%)
-                    </div>
-                  )}
                 </div>
                 
                 <div className="flex items-center gap-2">
