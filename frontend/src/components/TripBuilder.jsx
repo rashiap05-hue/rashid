@@ -1055,7 +1055,22 @@ function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, on
                     {selectedArrivalTransfer ? (
                       <div className="mt-1">
                         <p className="text-sm text-green-600 font-medium">{selectedArrivalTransfer.title}</p>
-                        <p className="text-xs text-gray-500">{selectedArrivalTransfer.vehicle_type} • {selectedArrivalTransfer.duration} • {selectedArrivalTransfer.price} AED</p>
+                        <p className="text-xs text-gray-500">
+                          {selectedArrivalTransfer.selectedVehicle ? (
+                            <>
+                              {selectedArrivalTransfer.selectedVehicle === 'sedan_4' && '🚗 4 Seater Sedan'}
+                              {selectedArrivalTransfer.selectedVehicle === 'car_7' && '🚙 7 Seater Car'}
+                              {selectedArrivalTransfer.selectedVehicle === 'van_8' && '🚐 8 Seater Van'}
+                              {selectedArrivalTransfer.selectedVehicle === 'van_17' && '🚐 17 Seater Van'}
+                              {selectedArrivalTransfer.selectedVehicle === 'bus_29' && '🚌 29 Seater Bus'}
+                              {selectedArrivalTransfer.selectedVehicle === 'bus_45' && '🚌 45 Seater Bus'}
+                              {selectedArrivalTransfer.selectedVehicle === 'bus_55' && '🚌 55 Seater Bus'}
+                              {' • '}{selectedArrivalTransfer.duration} • {selectedArrivalTransfer.vehiclePrice || selectedArrivalTransfer.price} AED
+                            </>
+                          ) : (
+                            <>{selectedArrivalTransfer.vehicle_type} • {selectedArrivalTransfer.duration} • {selectedArrivalTransfer.price} AED</>
+                          )}
+                        </p>
                       </div>
                     ) : (
                       <p className="text-sm text-gray-500">Transfer from airport to hotel</p>
@@ -1083,7 +1098,22 @@ function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, on
                     {selectedDepartureTransfer ? (
                       <div className="mt-1">
                         <p className="text-sm text-green-600 font-medium">{selectedDepartureTransfer.title}</p>
-                        <p className="text-xs text-gray-500">{selectedDepartureTransfer.vehicle_type} • {selectedDepartureTransfer.duration} • {selectedDepartureTransfer.price} AED</p>
+                        <p className="text-xs text-gray-500">
+                          {selectedDepartureTransfer.selectedVehicle ? (
+                            <>
+                              {selectedDepartureTransfer.selectedVehicle === 'sedan_4' && '🚗 4 Seater Sedan'}
+                              {selectedDepartureTransfer.selectedVehicle === 'car_7' && '🚙 7 Seater Car'}
+                              {selectedDepartureTransfer.selectedVehicle === 'van_8' && '🚐 8 Seater Van'}
+                              {selectedDepartureTransfer.selectedVehicle === 'van_17' && '🚐 17 Seater Van'}
+                              {selectedDepartureTransfer.selectedVehicle === 'bus_29' && '🚌 29 Seater Bus'}
+                              {selectedDepartureTransfer.selectedVehicle === 'bus_45' && '🚌 45 Seater Bus'}
+                              {selectedDepartureTransfer.selectedVehicle === 'bus_55' && '🚌 55 Seater Bus'}
+                              {' • '}{selectedDepartureTransfer.duration} • {selectedDepartureTransfer.vehiclePrice || selectedDepartureTransfer.price} AED
+                            </>
+                          ) : (
+                            <>{selectedDepartureTransfer.vehicle_type} • {selectedDepartureTransfer.duration} • {selectedDepartureTransfer.price} AED</>
+                          )}
+                        </p>
                       </div>
                     ) : (
                       <p className="text-sm text-gray-500">Check-out from hotel & transfer to airport</p>
@@ -1257,6 +1287,11 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferModalType, setTransferModalType] = useState('arrival'); // 'arrival' or 'departure'
   const [transferCity, setTransferCity] = useState(null);
+  
+  // Vehicle selection state for transfers
+  const [showTransferVehicleModal, setShowTransferVehicleModal] = useState(false);
+  const [pendingTransfer, setPendingTransfer] = useState(null);
+  const [transferVehicles, setTransferVehicles] = useState({}); // { "transferId": vehicleKey }
 
   // Fetch transfers for the destination country
   useEffect(() => {
@@ -1314,14 +1349,31 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     setShowTransferModal(true);
   };
 
-  // Select a transfer
+  // Select a transfer - show vehicle modal first
   const handleSelectTransfer = (transfer) => {
+    setPendingTransfer(transfer);
+    setShowTransferVehicleModal(true);
+  };
+
+  // Handle vehicle selection for transfer
+  const handleTransferVehicleSelect = (transfer, vehicleKey, price) => {
+    const transferWithVehicle = { ...transfer, selectedVehicle: vehicleKey, vehiclePrice: price };
+    
     if (transferModalType === 'arrival') {
-      setSelectedArrivalTransfer(transfer);
+      setSelectedArrivalTransfer(transferWithVehicle);
     } else {
-      setSelectedDepartureTransfer(transfer);
+      setSelectedDepartureTransfer(transferWithVehicle);
     }
+    
+    // Store vehicle selection
+    setTransferVehicles(prev => ({
+      ...prev,
+      [transfer.id]: vehicleKey
+    }));
+    
+    setShowTransferVehicleModal(false);
     setShowTransferModal(false);
+    setPendingTransfer(null);
   };
 
   // Handle hotel option selection
@@ -1565,13 +1617,45 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const getTransferPriceForVehicle = (transfer) => {
     if (!transfer) return 0;
     
-    // If transfer has vehicle-based pricing, use it
+    // Check if transfer has a selected vehicle (from vehicle selection modal)
+    if (transfer.selectedVehicle && transfer.vehiclePrice !== undefined) {
+      return transfer.vehiclePrice;
+    }
+    
+    // Check if we have stored a vehicle selection for this transfer
+    const storedVehicle = transferVehicles[transfer.id];
+    if (storedVehicle && transfer.vehicle_pricing && transfer.vehicle_pricing[storedVehicle]) {
+      return transfer.vehicle_pricing[storedVehicle].selling_price || 0;
+    }
+    
+    // If transfer has vehicle-based pricing, use selected vehicle based on pax
     if (transfer.vehicle_pricing && transfer.vehicle_pricing[selectedVehicle.key]) {
       return transfer.vehicle_pricing[selectedVehicle.key].selling_price || 0;
     }
     
     // Fallback to regular price
     return transfer.price || 0;
+  };
+
+  // Get vehicle label for a transfer
+  const getTransferVehicleLabel = (transfer) => {
+    if (!transfer) return null;
+    
+    // Check if transfer has a selected vehicle
+    if (transfer.selectedVehicle) {
+      const vehicles = {
+        'sedan_4': '🚗 4 Seater Sedan',
+        'car_7': '🚙 7 Seater Car',
+        'van_8': '🚐 8 Seater Van',
+        'van_17': '🚐 17 Seater Van',
+        'bus_29': '🚌 29 Seater Bus',
+        'bus_45': '🚌 45 Seater Bus',
+        'bus_55': '🚌 55 Seater Bus'
+      };
+      return vehicles[transfer.selectedVehicle] || null;
+    }
+    
+    return null;
   };
 
   // Calculate pricing
@@ -1937,6 +2021,23 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Vehicle Selection Modal for Transfers */}
+      <AnimatePresence>
+        {showTransferVehicleModal && pendingTransfer && (
+          <VehicleSelectionModal
+            isOpen={showTransferVehicleModal}
+            onClose={() => {
+              setShowTransferVehicleModal(false);
+              setPendingTransfer(null);
+            }}
+            activity={pendingTransfer}
+            onSelectVehicle={handleTransferVehicleSelect}
+            totalPax={totalPax}
+            currentVehicle={transferVehicles[pendingTransfer?.id]}
+          />
         )}
       </AnimatePresence>
 
@@ -2316,6 +2417,50 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                         </p>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* Selected Transfers */}
+                {(selectedArrivalTransfer || selectedDepartureTransfer) && (
+                  <div>
+                    <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                      <Car size={16} className="text-blue-600" />
+                      Transfers
+                    </h4>
+                    <div className="space-y-2">
+                      {selectedArrivalTransfer && (
+                        <div className="p-3 bg-blue-50 rounded-lg">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">Arrival Transfer</span>
+                            <span className="text-sm font-bold text-blue-600">
+                              AED {getTransferPriceForVehicle(selectedArrivalTransfer)}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">{selectedArrivalTransfer.title}</p>
+                          {getTransferVehicleLabel(selectedArrivalTransfer) && (
+                            <div className="text-xs text-blue-600 mt-0.5">
+                              {getTransferVehicleLabel(selectedArrivalTransfer)}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {selectedDepartureTransfer && (
+                        <div className="p-3 bg-orange-50 rounded-lg">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">Departure Transfer</span>
+                            <span className="text-sm font-bold text-orange-600">
+                              AED {getTransferPriceForVehicle(selectedDepartureTransfer)}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">{selectedDepartureTransfer.title}</p>
+                          {getTransferVehicleLabel(selectedDepartureTransfer) && (
+                            <div className="text-xs text-orange-600 mt-0.5">
+                              {getTransferVehicleLabel(selectedDepartureTransfer)}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
