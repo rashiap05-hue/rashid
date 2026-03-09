@@ -1164,26 +1164,30 @@ function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, on
                 </div>
               )}
 
-              {/* Meals (only for non-departure days) */}
-              {!isDeparture && (
+              {/* Meals (hide on first day, show on middle days and departure) */}
+              {!isFirst && (
                 <div className="grid grid-cols-3 gap-3">
                   <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                     <Sun className="text-yellow-500" size={16} />
-                    <span className="text-sm text-gray-600">Breakfast: {hotel ? 'Included' : 'Not included'}</span>
+                    <span className="text-sm text-gray-600">Breakfast: {hotel ? 'Included' : (isDeparture ? 'Included' : 'Not included')}</span>
                   </div>
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                    <Utensils className="text-orange-500" size={16} />
-                    <span className="text-sm text-gray-600">Lunch: Not included</span>
-                  </div>
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                    <Moon className="text-purple-500" size={16} />
-                    <span className="text-sm text-gray-600">Dinner: Not included</span>
-                  </div>
+                  {!isDeparture && (
+                    <>
+                      <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                        <Utensils className="text-orange-500" size={16} />
+                        <span className="text-sm text-gray-600">Lunch: Not included</span>
+                      </div>
+                      <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                        <Moon className="text-purple-500" size={16} />
+                        <span className="text-sm text-gray-600">Dinner: Not included</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
-              {/* Activities (only for non-departure days) */}
-              {!isDeparture && activities?.length > 0 && (
+              {/* Activities (show for non-first days including departure) */}
+              {!isFirst && activities?.length > 0 && (
                 <div className="space-y-2">
                   {activities.map((activity, i) => (
                     <div key={activity.id || i} className="flex items-center gap-4 p-4 bg-purple-50 rounded-xl border border-purple-100 group">
@@ -1233,8 +1237,8 @@ function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, on
                 </div>
               )}
 
-              {/* Add Activity Button (only for non-departure days) */}
-              {!isDeparture && (
+              {/* Add Activity Button (show for non-first days including departure) */}
+              {!isFirst && (
                 <button 
                   onClick={onAddActivity}
                   className="w-full py-3 border-2 border-dashed border-pink-200 rounded-xl text-pink-500 font-medium hover:border-pink-500 hover:bg-pink-50 transition-all flex items-center justify-center gap-2"
