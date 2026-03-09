@@ -168,6 +168,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         duration: '1 hrs', 
         confirmation_time: '4 hrs', 
         transfer_type: 'Private', 
+        transfer_direction: 'arrival', // 'arrival' or 'departure'
         city: '', 
         is_available: true,
         pickup_times: [],
@@ -777,6 +778,20 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                       <option value="Luxury">Luxury</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Transfer Direction</label>
+                    <select
+                      value={editForm.transfer_direction || 'arrival'}
+                      onChange={(e) => handleFieldChange('transfer_direction', e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                      data-testid="edit-transfer-direction"
+                    >
+                      <option value="arrival">Arrival (Airport → Hotel)</option>
+                      <option value="departure">Departure (Hotel → Airport)</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-bold text-gray-600 mb-1">Duration</label>
                     <input
@@ -1460,6 +1475,11 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                                 transfer.transfer_type === 'Shared' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'
                               }`}>
                                 {transfer.transfer_type}
+                              </span>
+                              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
+                                transfer.transfer_direction === 'departure' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
+                              }`}>
+                                {transfer.transfer_direction === 'departure' ? '✈️ Departure' : '🛬 Arrival'}
                               </span>
                             </div>
                           </div>

@@ -1901,15 +1901,24 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
 
               {/* Transfer List */}
               <div className="flex-1 overflow-y-auto p-6">
-                {availableTransfers.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Car size={48} className="mx-auto text-gray-300 mb-4" />
-                    <p className="text-gray-500 font-medium">No transfers available for this destination</p>
-                    <p className="text-gray-400 text-sm mt-2">Please contact support to arrange transfer</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {availableTransfers.map((transfer) => (
+                {(() => {
+                  // Filter transfers based on direction
+                  const filteredTransfers = availableTransfers.filter(transfer => {
+                    // If transfer has no direction set, show in both
+                    if (!transfer.transfer_direction) return true;
+                    // Match transfer direction with modal type
+                    return transfer.transfer_direction === transferModalType;
+                  });
+                  
+                  return filteredTransfers.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Car size={48} className="mx-auto text-gray-300 mb-4" />
+                      <p className="text-gray-500 font-medium">No {transferModalType} transfers available for this destination</p>
+                      <p className="text-gray-400 text-sm mt-2">Please contact support to arrange transfer</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {filteredTransfers.map((transfer) => (
                       <motion.div
                         key={transfer.id}
                         whileHover={{ scale: 1.02 }}
@@ -1996,13 +2005,14 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                       </motion.div>
                     ))}
                   </div>
-                )}
+                  );
+                })()}
               </div>
 
               {/* Footer */}
               <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
                 <div className="text-sm text-gray-500">
-                  {availableTransfers.length} transfer option{availableTransfers.length !== 1 ? 's' : ''} available
+                  {availableTransfers.filter(t => !t.transfer_direction || t.transfer_direction === transferModalType).length} transfer option{availableTransfers.filter(t => !t.transfer_direction || t.transfer_direction === transferModalType).length !== 1 ? 's' : ''} available
                 </div>
                 <div className="flex items-center gap-3">
                   <button
