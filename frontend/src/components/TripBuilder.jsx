@@ -550,6 +550,163 @@ function ActivitiesModal({ isOpen, onClose, city, onSelectActivity, selectedActi
   );
 }
 
+// Vehicle Selection Modal - For choosing vehicle type when selecting an activity
+function VehicleSelectionModal({ isOpen, onClose, activity, onSelectVehicle, totalPax, currentVehicle }) {
+  if (!isOpen || !activity) return null;
+
+  // Define all vehicle options with pricing from the activity
+  const vehicleOptions = [
+    { key: 'sedan_4', label: '4 Seater Sedan', icon: '🚗', minPax: 1, maxPax: 4 },
+    { key: 'car_7', label: '7 Seater Car', icon: '🚙', minPax: 3, maxPax: 7, optional: true },
+    { key: 'van_8', label: '8 Seater Van', icon: '🚐', minPax: 5, maxPax: 8, optional: true },
+    { key: 'van_17', label: '17 Seater Van', icon: '🚐', minPax: 9, maxPax: 17 },
+    { key: 'bus_29', label: '29 Seater Bus', icon: '🚌', minPax: 18, maxPax: 29 },
+    { key: 'bus_45', label: '45 Seater Bus', icon: '🚌', minPax: 30, maxPax: 45 },
+    { key: 'bus_55', label: '55 Seater Bus', icon: '🚌', minPax: 46, maxPax: 55 }
+  ];
+
+  // Get default vehicle based on pax count
+  const getDefaultVehicle = () => {
+    if (totalPax <= 4) return 'sedan_4';
+    if (totalPax <= 7) return 'car_7';
+    if (totalPax <= 8) return 'van_8';
+    if (totalPax <= 17) return 'van_17';
+    if (totalPax <= 29) return 'bus_29';
+    if (totalPax <= 45) return 'bus_45';
+    return 'bus_55';
+  };
+
+  const defaultVehicleKey = getDefaultVehicle();
+
+  // Filter available vehicles - show default + optional upgrades
+  const availableVehicles = vehicleOptions.filter(v => {
+    // Always show the default vehicle for this pax count
+    if (v.key === defaultVehicleKey) return true;
+    // Show optional vehicles that can accommodate this pax count (for upgrades)
+    if (v.optional && totalPax >= v.minPax - 2 && totalPax <= v.maxPax) return true;
+    // Show larger vehicles as upgrade options
+    if (v.maxPax > totalPax && v.minPax <= totalPax) return true;
+    return false;
+  });
+
+  // Get price for a vehicle
+  const getVehiclePrice = (vehicleKey) => {
+    if (activity.vehicle_pricing && activity.vehicle_pricing[vehicleKey]) {
+      return activity.vehicle_pricing[vehicleKey].selling_price || 0;
+    }
+    return activity.price || 0;
+  };
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-lg">Select Vehicle Type</h3>
+              <p className="text-blue-100 text-sm">{activity.name}</p>
+            </div>
+            <button 
+              onClick={onClose}
+              className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Passenger Info */}
+        <div className="px-6 py-3 bg-blue-50 border-b border-blue-100">
+          <div className="flex items-center gap-2 text-sm text-blue-700">
+            <Users size={16} />
+            <span className="font-medium">{totalPax} passengers</span>
+            <span className="text-blue-500">• Choose your preferred vehicle</span>
+          </div>
+        </div>
+
+        {/* Vehicle Options */}
+        <div className="p-4 max-h-[400px] overflow-y-auto">
+          <div className="space-y-3">
+            {availableVehicles.map((vehicle) => {
+              const price = getVehiclePrice(vehicle.key);
+              const isDefault = vehicle.key === defaultVehicleKey;
+              const isSelected = currentVehicle === vehicle.key;
+              
+              return (
+                <motion.button
+                  key={vehicle.key}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  onClick={() => onSelectVehicle(activity, vehicle.key, price)}
+                  className={cn(
+                    "w-full p-4 rounded-xl border-2 transition-all text-left",
+                    isSelected 
+                      ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
+                      : isDefault
+                        ? "border-green-300 bg-green-50 hover:border-green-400"
+                        : "border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/50"
+                  )}
+                  data-testid={`vehicle-option-${vehicle.key}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{vehicle.icon}</span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-gray-800">{vehicle.label}</span>
+                          {isDefault && (
+                            <span className="text-[10px] px-2 py-0.5 bg-green-500 text-white rounded-full font-bold">
+                              Recommended
+                            </span>
+                          )}
+                          {vehicle.optional && !isDefault && (
+                            <span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded font-bold">
+                              Upgrade
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {vehicle.minPax}-{vehicle.maxPax} passengers • Extra comfort & space
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-lg text-green-600">${price}</div>
+                      <div className="text-xs text-gray-400">per vehicle</div>
+                    </div>
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
+          <p className="text-xs text-gray-500 text-center">
+            💡 Choose a larger vehicle for extra luggage space or comfort
+          </p>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // Hotel Options Modal Component (Choose how to change hotel)
 function HotelOptionsModal({ isOpen, onClose, city, onViewAll, onNoStay, onSearch }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -1088,6 +1245,11 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [activeActivityDay, setActiveActivityDay] = useState(null);
   const [selectedActivities, setSelectedActivities] = useState({}); // { "city_day": [activities] }
   
+  // Vehicle selection state for activities
+  const [showVehicleModal, setShowVehicleModal] = useState(false);
+  const [pendingActivity, setPendingActivity] = useState(null);
+  const [activityVehicles, setActivityVehicles] = useState({}); // { "activityId": vehicleKey }
+  
   // Transfer state
   const [availableTransfers, setAvailableTransfers] = useState([]);
   const [selectedArrivalTransfer, setSelectedArrivalTransfer] = useState(null);
@@ -1211,19 +1373,48 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
 
   const handleSelectActivity = (activity) => {
     const key = `${activeActivityCity}_${activeActivityDay}`;
-    setSelectedActivities(prev => {
-      const currentActivities = prev[key] || [];
-      // Check if already selected - if so, remove it
-      const existingIndex = currentActivities.findIndex(a => a.id === activity.id);
-      if (existingIndex >= 0) {
-        // Remove activity
-        const newActivities = currentActivities.filter(a => a.id !== activity.id);
-        return { ...prev, [key]: newActivities };
-      } else {
-        // Add activity
-        return { ...prev, [key]: [...currentActivities, activity] };
-      }
-    });
+    const currentActivities = selectedActivities[key] || [];
+    
+    // Check if already selected - if so, remove it directly
+    const existingIndex = currentActivities.findIndex(a => a.id === activity.id);
+    if (existingIndex >= 0) {
+      // Remove activity
+      setSelectedActivities(prev => ({
+        ...prev,
+        [key]: currentActivities.filter(a => a.id !== activity.id)
+      }));
+      // Also remove vehicle selection
+      setActivityVehicles(prev => {
+        const newVehicles = { ...prev };
+        delete newVehicles[activity.id];
+        return newVehicles;
+      });
+    } else {
+      // Show vehicle selection modal for new activity
+      setPendingActivity(activity);
+      setShowVehicleModal(true);
+    }
+  };
+
+  // Handle vehicle selection for activity
+  const handleVehicleSelect = (activity, vehicleKey, price) => {
+    const key = `${activeActivityCity}_${activeActivityDay}`;
+    
+    // Add activity with selected vehicle
+    setSelectedActivities(prev => ({
+      ...prev,
+      [key]: [...(prev[key] || []), { ...activity, selectedVehicle: vehicleKey, vehiclePrice: price }]
+    }));
+    
+    // Store vehicle selection
+    setActivityVehicles(prev => ({
+      ...prev,
+      [activity.id]: vehicleKey
+    }));
+    
+    // Close vehicle modal
+    setShowVehicleModal(false);
+    setPendingActivity(null);
   };
 
   const handleRemoveActivity = (cityName, dayNumber, activityId) => {
@@ -1329,13 +1520,45 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const getActivityPriceForVehicle = (activity) => {
     if (!activity) return 0;
     
-    // If activity has vehicle-based pricing, use it
+    // Check if activity has a selected vehicle (from vehicle selection modal)
+    if (activity.selectedVehicle && activity.vehiclePrice !== undefined) {
+      return activity.vehiclePrice;
+    }
+    
+    // Check if we have stored a vehicle selection for this activity
+    const storedVehicle = activityVehicles[activity.id];
+    if (storedVehicle && activity.vehicle_pricing && activity.vehicle_pricing[storedVehicle]) {
+      return activity.vehicle_pricing[storedVehicle].selling_price || 0;
+    }
+    
+    // If activity has vehicle-based pricing, use selected vehicle based on pax
     if (activity.vehicle_pricing && activity.vehicle_pricing[selectedVehicle.key]) {
       return activity.vehicle_pricing[selectedVehicle.key].selling_price || 0;
     }
     
     // Fallback to regular price
     return activity.price || 0;
+  };
+
+  // Get vehicle label for an activity
+  const getActivityVehicleLabel = (activity) => {
+    if (!activity) return null;
+    
+    // Check if activity has a selected vehicle
+    if (activity.selectedVehicle) {
+      const vehicles = {
+        'sedan_4': '🚗 4 Seater Sedan',
+        'car_7': '🚙 7 Seater Car',
+        'van_8': '🚐 8 Seater Van',
+        'van_17': '🚐 17 Seater Van',
+        'bus_29': '🚌 29 Seater Bus',
+        'bus_45': '🚌 45 Seater Bus',
+        'bus_55': '🚌 55 Seater Bus'
+      };
+      return vehicles[activity.selectedVehicle] || null;
+    }
+    
+    return null;
   };
 
   // Get vehicle-based price for a transfer
@@ -2109,12 +2332,23 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                       return (
                         <div key={key} className="mb-3 p-3 bg-pink-50 rounded-lg">
                           <p className="text-xs font-medium text-pink-600 mb-1">Day {day} - {city}</p>
-                          {activities.map(activity => (
-                            <div key={activity.id} className="flex justify-between items-center py-1">
-                              <span className="text-sm text-gray-600 line-clamp-1 flex-1">{activity.name}</span>
-                              <span className="text-sm font-bold text-pink-600 ml-2">AED {activity.price}</span>
-                            </div>
-                          ))}
+                          {activities.map(activity => {
+                            const vehicleLabel = getActivityVehicleLabel(activity);
+                            const activityPrice = getActivityPriceForVehicle(activity);
+                            return (
+                              <div key={activity.id} className="py-1">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm text-gray-600 line-clamp-1 flex-1">{activity.name}</span>
+                                  <span className="text-sm font-bold text-pink-600 ml-2">AED {activityPrice}</span>
+                                </div>
+                                {vehicleLabel && (
+                                  <div className="text-xs text-blue-600 mt-0.5">
+                                    {vehicleLabel}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       );
                     })}
@@ -2224,6 +2458,23 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
             city={activeActivityCity}
             selectedActivities={getActivitiesForDay(activeActivityCity, activeActivityDay)}
             onSelectActivity={handleSelectActivity}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Vehicle Selection Modal */}
+      <AnimatePresence>
+        {showVehicleModal && pendingActivity && (
+          <VehicleSelectionModal
+            isOpen={showVehicleModal}
+            onClose={() => {
+              setShowVehicleModal(false);
+              setPendingActivity(null);
+            }}
+            activity={pendingActivity}
+            onSelectVehicle={handleVehicleSelect}
+            totalPax={totalPax}
+            currentVehicle={activityVehicles[pendingActivity?.id]}
           />
         )}
       </AnimatePresence>
