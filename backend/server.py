@@ -125,6 +125,18 @@ class ProposalResponse(BaseModel):
     status: str = "pending"
     total_price: Optional[float]
     created_at: str
+    # New fields for activity details
+    selected_activities: Optional[Dict] = None
+    selected_hotels: Optional[Dict] = None
+    selected_flight: Optional[Dict] = None
+    vehicle_type: Optional[str] = None
+    vehicle_label: Optional[str] = None
+    total_pax: Optional[int] = None
+    customer_name: Optional[str] = None
+    customer_email: Optional[str] = None
+    customer_mobile: Optional[str] = None
+    whatsapp_number: Optional[str] = None
+    updated_at: Optional[str] = None
 
 class FlightCreate(BaseModel):
     airline: str
@@ -463,6 +475,19 @@ async def update_proposal(proposal_id: str, proposal: ProposalCreate):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Proposal not found")
     return {"success": True}
+
+@proposals_router.patch("/{proposal_id}")
+async def partial_update_proposal(proposal_id: str, update_data: dict = Body(...)):
+    """Partial update for proposal - only updates provided fields"""
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    update_data = {k: v for k, v in update_data.items() if v is not None}
+    
+    result = await db.proposals.update_one({"id": proposal_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    
+    updated = await db.proposals.find_one({"id": proposal_id}, {"_id": 0})
+    return {"success": True, "proposal": updated}
 
 @proposals_router.put("/{proposal_id}/status")
 async def update_proposal_status(proposal_id: str, status: str):

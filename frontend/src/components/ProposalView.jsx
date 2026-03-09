@@ -722,31 +722,87 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                 {/* City Tour Section */}
                 {proposal.cities?.map((city, cityIdx) => {
                   const hotel = getHotelForCity(city.name);
+                  // Get activities for this city from selected_activities (handle both string and numeric keys)
+                  const cityActivities = proposal.selected_activities?.[cityIdx] || proposal.selected_activities?.[String(cityIdx)] || [];
+                  
                   return (
                     <div key={cityIdx} className="mb-8">
                       {/* Tour Activity */}
-                      <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4">
-                        <div className="flex items-start gap-3">
-                          <Camera size={20} className="text-gray-400 mt-1" />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium text-gray-800">{city.name} City Tour - Private Transfers</span>
-                              <button className="text-xs text-blue-600 border border-blue-500 px-2 py-0.5 rounded hover:bg-blue-50 font-medium">
-                                VIEW
-                              </button>
+                      {cityActivities.length > 0 ? (
+                        // Show actual selected activities
+                        cityActivities.map((activity, actIdx) => (
+                          <div key={actIdx} className="bg-white border border-gray-200 rounded-xl p-6 mb-4">
+                            <div className="flex items-start gap-3">
+                              <Camera size={20} className="text-gray-400 mt-1" />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-medium text-gray-800">{activity.name}</span>
+                                  <button className="text-xs text-blue-600 border border-blue-500 px-2 py-0.5 rounded hover:bg-blue-50 font-medium">
+                                    VIEW
+                                  </button>
+                                </div>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  {activity.start_times?.length > 0 
+                                    ? `Starts at ${activity.start_times.slice(0,4).join(', ')}` 
+                                    : 'Flexible timing'
+                                  } (Duration: {activity.duration || '3 hrs'})
+                                </p>
+                                
+                                {/* Activity Inclusions */}
+                                {activity.inclusions?.length > 0 && (
+                                  <div className="mt-3 space-y-1.5">
+                                    {activity.inclusions.map((inclusion, incIdx) => (
+                                      <div key={incIdx} className="flex items-start gap-2">
+                                        <Check size={14} className="text-green-500 mt-0.5 flex-shrink-0" />
+                                        <span className="text-sm text-gray-600">{inclusion}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                
+                                {/* Activity Highlights */}
+                                {activity.highlights?.length > 0 && (
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    {activity.highlights.slice(0, 3).map((highlight, hIdx) => (
+                                      <span key={hIdx} className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded">
+                                        {highlight}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                
+                                <span className="inline-block mt-3 text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded font-medium">
+                                  {activity.transfer_type || 'Private'} Transfers
+                                </span>
+                              </div>
                             </div>
-                            <p className="text-sm text-gray-500 mt-1">Starts at 10:00 am, 11:00 am, 12:00 pm, 1:00 pm (Duration: 3 hrs)</p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <Check size={14} className="text-green-500" />
-                              <span className="text-sm text-gray-600">Pick up time 12:00 pm</span>
+                          </div>
+                        ))
+                      ) : (
+                        // Default city tour if no activities selected
+                        <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4">
+                          <div className="flex items-start gap-3">
+                            <Camera size={20} className="text-gray-400 mt-1" />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium text-gray-800">{city.name} City Tour - Private Transfers</span>
+                                <button className="text-xs text-blue-600 border border-blue-500 px-2 py-0.5 rounded hover:bg-blue-50 font-medium">
+                                  VIEW
+                                </button>
+                              </div>
+                              <p className="text-sm text-gray-500 mt-1">Starts at 10:00 am, 11:00 am, 12:00 pm, 1:00 pm (Duration: 3 hrs)</p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Check size={14} className="text-green-500" />
+                                <span className="text-sm text-gray-600">Pick up time 12:00 pm</span>
+                              </div>
+                              <p className="text-sm text-gray-500 ml-6">Start from {hotel?.name || 'Hotel'}</p>
+                              <span className="inline-block mt-2 text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded font-medium">
+                                Private Transfers
+                              </span>
                             </div>
-                            <p className="text-sm text-gray-500 ml-6">Start from {hotel?.name || 'Hotel'}</p>
-                            <span className="inline-block mt-2 text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded font-medium">
-                              Private Transfers
-                            </span>
                           </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* Overnight Stay */}
                       {hotel && (
@@ -790,6 +846,8 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
 
                 {proposal.cities?.map((city, idx) => {
                   const hotel = getHotelForCity(city.name);
+                  const cityActivities = proposal.selected_activities?.[idx] || proposal.selected_activities?.[String(idx)] || [];
+                  
                   return (
                     <div key={idx} className="mb-10 bg-gray-50 rounded-xl p-6">
                       <div className="flex items-center gap-3 mb-6">
@@ -809,6 +867,35 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                               <p className="text-sm text-gray-500">{hotel.selectedRoom?.name || '1 x Double Room'}</p>
                             </div>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Show Activities with Inclusions */}
+                      {cityActivities.length > 0 && (
+                        <div className="mb-6 space-y-4">
+                          {cityActivities.map((activity, actIdx) => (
+                            <div key={actIdx} className="pl-4 border-l-2 border-teal-200">
+                              <div className="flex items-start gap-4">
+                                <Camera size={18} className="text-teal-500 mt-1" />
+                                <div className="flex-1">
+                                  <p className="font-medium text-gray-800">{activity.name}</p>
+                                  <p className="text-sm text-gray-500">{activity.duration || 'Full Day'} • {activity.transfer_type || 'Private'}</p>
+                                  
+                                  {/* Activity Inclusions */}
+                                  {activity.inclusions?.length > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                      {activity.inclusions.map((inclusion, incIdx) => (
+                                        <div key={incIdx} className="flex items-start gap-2">
+                                          <Check size={12} className="text-green-500 mt-1 flex-shrink-0" />
+                                          <span className="text-sm text-gray-600">{inclusion}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       )}
 
