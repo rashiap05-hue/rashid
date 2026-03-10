@@ -752,41 +752,6 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                   />
                 </div>
 
-                {/* Transfer Info */}
-                <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6">
-                  <div className="flex items-start gap-4">
-                    <div className="w-24 h-20 rounded-lg overflow-hidden flex-shrink-0">
-                      <img 
-                        src="https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=200"
-                        alt="Transfer"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-gray-600 text-sm">Pick up from {proposal.leaving_from?.includes('Airport') ? proposal.leaving_from.split('(')[0] : 'Airport'}.</p>
-                      <p className="text-gray-600 text-sm mt-1">Drop off at {mainCity} Hotel.</p>
-                      
-                      <p className="text-gray-700 mt-4 text-sm leading-relaxed">
-                        {mainCity} is the federal capital and the largest city in the region. 
-                        Literally meaning "muddy river confluence", {mainCity} has grown from a small sleepy village 
-                        to a bustling metropolis. A cultural melting pot with some of...
-                        <button className="text-blue-600 hover:underline ml-1">...more</button>
-                      </p>
-                      
-                      <div className="mt-4 bg-gray-50 rounded-lg p-4">
-                        <div className="flex items-center gap-2 text-gray-600 mb-2">
-                          <Info size={16} />
-                          <span className="font-medium">Notes:</span>
-                        </div>
-                        <ul className="text-sm text-gray-600 space-y-2 list-disc list-inside">
-                          <li>Valid for Pickups between 6 am - 11 pm. Pickups between 11 pm and 6 am will attract a Surcharge.</li>
-                          <li>Estimated tour: 3 hrs</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 {/* City Tour Section */}
                 {proposal.cities?.map((city, cityIdx) => {
                   const hotel = getHotelForCity(city.name);
