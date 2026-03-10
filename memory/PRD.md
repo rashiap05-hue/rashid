@@ -34,7 +34,9 @@ Migrate and enhance a Google AI Studio B2B Travel Platform (Travo DMC) with:
 ### Latest Updates (Mar 10, 2026)
 - [x] **FIXED: Save Proposal functionality** - Backend ProposalCreate model updated to accept all extended fields (customer_name, proposal_name, expected_booking_date, flights_booked, itinerary, pricing_breakdown, etc.)
 - [x] **FIXED: Trip Builder form UI interaction** - Airport dropdown now works correctly (was a testing issue, not a code bug)
+- [x] **FIXED: ProposalView not showing saved activities** - Updated `getAllActivitiesForCity` helper to handle both `CityName_day` key format (e.g., "Dubai_1") and numeric index formats for backward compatibility
 - [x] Testing agent verified: All Trip Builder features working end-to-end
+- [x] Activity selection, vehicle selection, and proposal save flow verified working
 
 ## What's Been Implemented (Mar 9, 2026)
 

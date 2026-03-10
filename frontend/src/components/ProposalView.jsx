@@ -722,8 +722,34 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                 {/* City Tour Section */}
                 {proposal.cities?.map((city, cityIdx) => {
                   const hotel = getHotelForCity(city.name);
-                  // Get activities for this city from selected_activities (handle both string and numeric keys)
-                  const cityActivities = proposal.selected_activities?.[cityIdx] || proposal.selected_activities?.[String(cityIdx)] || [];
+                  // Get activities for this city from selected_activities
+                  // Handle multiple key formats: 'CityName_day', cityIdx, or String(cityIdx)
+                  const getAllActivitiesForCity = () => {
+                    const activities = [];
+                    const selectedActs = proposal.selected_activities || {};
+                    
+                    // Check for city_day format (e.g., "Tbilisi_1", "Tbilisi_2")
+                    Object.keys(selectedActs).forEach(key => {
+                      if (key.startsWith(city.name + '_')) {
+                        const dayActivities = selectedActs[key];
+                        if (Array.isArray(dayActivities)) {
+                          activities.push(...dayActivities);
+                        }
+                      }
+                    });
+                    
+                    // Also check numeric/string index formats for backward compatibility
+                    if (activities.length === 0) {
+                      const indexActivities = selectedActs[cityIdx] || selectedActs[String(cityIdx)] || [];
+                      if (Array.isArray(indexActivities)) {
+                        activities.push(...indexActivities);
+                      }
+                    }
+                    
+                    return activities;
+                  };
+                  
+                  const cityActivities = getAllActivitiesForCity();
                   
                   return (
                     <div key={cityIdx} className="mb-8">
@@ -846,7 +872,33 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
 
                 {proposal.cities?.map((city, idx) => {
                   const hotel = getHotelForCity(city.name);
-                  const cityActivities = proposal.selected_activities?.[idx] || proposal.selected_activities?.[String(idx)] || [];
+                  // Get activities for this city - handle multiple key formats
+                  const getAllActivitiesForCityInclusions = () => {
+                    const activities = [];
+                    const selectedActs = proposal.selected_activities || {};
+                    
+                    // Check for city_day format (e.g., "Tbilisi_1", "Tbilisi_2")
+                    Object.keys(selectedActs).forEach(key => {
+                      if (key.startsWith(city.name + '_')) {
+                        const dayActivities = selectedActs[key];
+                        if (Array.isArray(dayActivities)) {
+                          activities.push(...dayActivities);
+                        }
+                      }
+                    });
+                    
+                    // Also check numeric/string index formats
+                    if (activities.length === 0) {
+                      const indexActivities = selectedActs[idx] || selectedActs[String(idx)] || [];
+                      if (Array.isArray(indexActivities)) {
+                        activities.push(...indexActivities);
+                      }
+                    }
+                    
+                    return activities;
+                  };
+                  
+                  const cityActivities = getAllActivitiesForCityInclusions();
                   
                   return (
                     <div key={idx} className="mb-10 bg-gray-50 rounded-xl p-6">
