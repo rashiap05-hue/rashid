@@ -1311,87 +1311,117 @@ function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, on
             <div className="p-6 space-y-4">
               {/* Arrival on Day 1 */}
               {isFirst && (
-                <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Plane className="text-blue-600" size={20} />
+                <div className="space-y-3">
+                  {/* Arrival Info Missing Alert */}
+                  <div className="flex items-center justify-between p-4 bg-red-50 rounded-xl border border-red-200">
+                    <p className="text-red-700 font-semibold">Arrival information is missing</p>
+                    <button 
+                      onClick={() => onSelectArrivalTransfer && onSelectArrivalTransfer(city)}
+                      className="bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-800 transition-all"
+                      data-testid="update-arrival-details"
+                    >
+                      Update Arrival Details
+                    </button>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-gray-800">Arrival at {city}</p>
-                    {selectedArrivalTransfer ? (
-                      <div className="mt-1">
-                        <p className="text-sm text-green-600 font-medium">{selectedArrivalTransfer.title}</p>
-                        <p className="text-xs text-gray-500">
-                          {selectedArrivalTransfer.selectedVehicle ? (
-                            <>
-                              {selectedArrivalTransfer.selectedVehicle === 'sedan_4' && '🚗 4 Seater Sedan'}
-                              {selectedArrivalTransfer.selectedVehicle === 'car_7' && '🚙 7 Seater Car'}
-                              {selectedArrivalTransfer.selectedVehicle === 'van_8' && '🚐 8 Seater Van'}
-                              {selectedArrivalTransfer.selectedVehicle === 'van_17' && '🚐 17 Seater Van'}
-                              {selectedArrivalTransfer.selectedVehicle === 'bus_29' && '🚌 29 Seater Bus'}
-                              {selectedArrivalTransfer.selectedVehicle === 'bus_45' && '🚌 45 Seater Bus'}
-                              {selectedArrivalTransfer.selectedVehicle === 'bus_55' && '🚌 55 Seater Bus'}
-                              {' • '}{selectedArrivalTransfer.duration} • {selectedArrivalTransfer.vehiclePrice || selectedArrivalTransfer.price} AED
-                            </>
-                          ) : (
-                            <>{selectedArrivalTransfer.vehicle_type} • {selectedArrivalTransfer.duration} • {selectedArrivalTransfer.price} AED</>
-                          )}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500">Transfer from airport to hotel</p>
-                    )}
+                  
+                  {/* Transfer Selection */}
+                  <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Plane className="text-blue-600" size={20} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-800">Arrival at {city}</p>
+                      {selectedArrivalTransfer ? (
+                        <div className="mt-1">
+                          <p className="text-sm text-green-600 font-medium">{selectedArrivalTransfer.title}</p>
+                          <p className="text-xs text-gray-500">
+                            {selectedArrivalTransfer.selectedVehicle ? (
+                              <>
+                                {selectedArrivalTransfer.selectedVehicle === 'sedan_4' && '🚗 4 Seater Sedan'}
+                                {selectedArrivalTransfer.selectedVehicle === 'car_7' && '🚙 7 Seater Car'}
+                                {selectedArrivalTransfer.selectedVehicle === 'van_8' && '🚐 8 Seater Van'}
+                                {selectedArrivalTransfer.selectedVehicle === 'van_17' && '🚐 17 Seater Van'}
+                                {selectedArrivalTransfer.selectedVehicle === 'bus_29' && '🚌 29 Seater Bus'}
+                                {selectedArrivalTransfer.selectedVehicle === 'bus_45' && '🚌 45 Seater Bus'}
+                                {selectedArrivalTransfer.selectedVehicle === 'bus_55' && '🚌 55 Seater Bus'}
+                                {' • '}{selectedArrivalTransfer.duration} • {selectedArrivalTransfer.vehiclePrice || selectedArrivalTransfer.price} AED
+                              </>
+                            ) : (
+                              <>{selectedArrivalTransfer.vehicle_type} • {selectedArrivalTransfer.duration} • {selectedArrivalTransfer.price} AED</>
+                            )}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">Transfer from airport to hotel</p>
+                      )}
+                    </div>
+                    <button 
+                      onClick={() => onSelectArrivalTransfer && onSelectArrivalTransfer(city)}
+                      className="bg-[#002B5B] text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#003d82] transition-all flex items-center gap-2"
+                      data-testid="select-arrival-transfer"
+                    >
+                      <Car size={16} />
+                      {selectedArrivalTransfer ? 'Change' : 'Select Transfer'}
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => onSelectArrivalTransfer && onSelectArrivalTransfer(city)}
-                    className="bg-[#002B5B] text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#003d82] transition-all flex items-center gap-2"
-                    data-testid="select-arrival-transfer"
-                  >
-                    <Car size={16} />
-                    {selectedArrivalTransfer ? 'Change' : 'Select Transfer'}
-                  </button>
                 </div>
               )}
 
               {/* Departure Day (Return) */}
               {isDeparture && (
-                <div className="flex items-center gap-4 p-4 bg-orange-50 rounded-xl border border-orange-100">
-                  <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <Plane className="text-orange-600 rotate-45" size={20} />
+                <div className="space-y-3">
+                  {/* Departure Info Missing Alert */}
+                  <div className="flex items-center justify-between p-4 bg-red-50 rounded-xl border border-red-200">
+                    <p className="text-red-700 font-semibold">Departure information is missing</p>
+                    <button 
+                      onClick={() => onSelectDepartureTransfer && onSelectDepartureTransfer(city)}
+                      className="bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-800 transition-all"
+                      data-testid="update-departure-details"
+                    >
+                      Update Departure Details
+                    </button>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-gray-800">Return Flight - Departure from {city}</p>
-                    {selectedDepartureTransfer ? (
-                      <div className="mt-1">
-                        <p className="text-sm text-green-600 font-medium">{selectedDepartureTransfer.title}</p>
-                        <p className="text-xs text-gray-500">
-                          {selectedDepartureTransfer.selectedVehicle ? (
-                            <>
-                              {selectedDepartureTransfer.selectedVehicle === 'sedan_4' && '🚗 4 Seater Sedan'}
-                              {selectedDepartureTransfer.selectedVehicle === 'car_7' && '🚙 7 Seater Car'}
-                              {selectedDepartureTransfer.selectedVehicle === 'van_8' && '🚐 8 Seater Van'}
-                              {selectedDepartureTransfer.selectedVehicle === 'van_17' && '🚐 17 Seater Van'}
-                              {selectedDepartureTransfer.selectedVehicle === 'bus_29' && '🚌 29 Seater Bus'}
-                              {selectedDepartureTransfer.selectedVehicle === 'bus_45' && '🚌 45 Seater Bus'}
-                              {selectedDepartureTransfer.selectedVehicle === 'bus_55' && '🚌 55 Seater Bus'}
-                              {' • '}{selectedDepartureTransfer.duration} • {selectedDepartureTransfer.vehiclePrice || selectedDepartureTransfer.price} AED
-                            </>
-                          ) : (
-                            <>{selectedDepartureTransfer.vehicle_type} • {selectedDepartureTransfer.duration} • {selectedDepartureTransfer.price} AED</>
-                          )}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500">Check-out from hotel & transfer to airport</p>
-                    )}
+                  
+                  {/* Transfer Selection */}
+                  <div className="flex items-center gap-4 p-4 bg-orange-50 rounded-xl border border-orange-100">
+                    <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <Plane className="text-orange-600 rotate-45" size={20} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-800">Return Flight - Departure from {city}</p>
+                      {selectedDepartureTransfer ? (
+                        <div className="mt-1">
+                          <p className="text-sm text-green-600 font-medium">{selectedDepartureTransfer.title}</p>
+                          <p className="text-xs text-gray-500">
+                            {selectedDepartureTransfer.selectedVehicle ? (
+                              <>
+                                {selectedDepartureTransfer.selectedVehicle === 'sedan_4' && '🚗 4 Seater Sedan'}
+                                {selectedDepartureTransfer.selectedVehicle === 'car_7' && '🚙 7 Seater Car'}
+                                {selectedDepartureTransfer.selectedVehicle === 'van_8' && '🚐 8 Seater Van'}
+                                {selectedDepartureTransfer.selectedVehicle === 'van_17' && '🚐 17 Seater Van'}
+                                {selectedDepartureTransfer.selectedVehicle === 'bus_29' && '🚌 29 Seater Bus'}
+                                {selectedDepartureTransfer.selectedVehicle === 'bus_45' && '🚌 45 Seater Bus'}
+                                {selectedDepartureTransfer.selectedVehicle === 'bus_55' && '🚌 55 Seater Bus'}
+                                {' • '}{selectedDepartureTransfer.duration} • {selectedDepartureTransfer.vehiclePrice || selectedDepartureTransfer.price} AED
+                              </>
+                            ) : (
+                              <>{selectedDepartureTransfer.vehicle_type} • {selectedDepartureTransfer.duration} • {selectedDepartureTransfer.price} AED</>
+                            )}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">Check-out from hotel & transfer to airport</p>
+                      )}
+                    </div>
+                    <button 
+                      onClick={() => onSelectDepartureTransfer && onSelectDepartureTransfer(city)}
+                      className="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-orange-600 transition-all flex items-center gap-2"
+                      data-testid="select-departure-transfer"
+                    >
+                      <Car size={16} />
+                      {selectedDepartureTransfer ? 'Change' : 'Select Transfer'}
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => onSelectDepartureTransfer && onSelectDepartureTransfer(city)}
-                    className="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-orange-600 transition-all flex items-center gap-2"
-                    data-testid="select-departure-transfer"
-                  >
-                    <Car size={16} />
-                    {selectedDepartureTransfer ? 'Change' : 'Select Transfer'}
-                  </button>
                 </div>
               )}
 
