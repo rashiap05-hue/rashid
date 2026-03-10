@@ -154,30 +154,76 @@ function ExpandableSection({ title, icon: Icon, children, defaultExpanded = fals
   );
 }
 
-// Left Sidebar Navigation Icons
-function LeftSidebarNav({ activeSection, onSectionChange }) {
-  const sections = [
-    { id: 'flights', icon: Plane, label: 'Flights' },
-    { id: 'hotel', icon: Hotel, label: 'Hotel' },
-    { id: 'transfers', icon: Car, label: 'Transfers' },
-    { id: 'activities', icon: MapPin, label: 'Activities' },
+// Left Sidebar Navigation with Trip Timeline
+function LeftSidebarNav({ proposal, activeSection, onSectionChange }) {
+  const nightsCount = proposal?.cities?.reduce((acc, c) => acc + (c.nights || 0), 0) || 1;
+  const daysCount = nightsCount + 1;
+  const mainCity = proposal?.cities?.[0]?.name || 'Unknown';
+  
+  // Build timeline items
+  const timelineItems = [
+    { id: 'flights', type: 'section', icon: Plane, label: 'Flights' },
   ];
   
+  // Add city nights
+  proposal?.cities?.forEach((city, idx) => {
+    timelineItems.push({
+      id: `city-${idx}`,
+      type: 'city',
+      icon: Hotel,
+      label: `${city.nights} Nights ${city.name}`,
+      city: city.name,
+      nights: city.nights
+    });
+  });
+  
+  // Add days
+  for (let i = 1; i <= daysCount; i++) {
+    const isFirst = i === 1;
+    const isLast = i === daysCount;
+    timelineItems.push({
+      id: `day-${i}`,
+      type: 'day',
+      day: i,
+      label: isFirst ? 'Arrival' : isLast ? 'Departure' : `Day ${i}`,
+      subLabel: isFirst ? `Day${i}` : isLast ? `Day${i}` : ''
+    });
+  }
+  
+  // Add travel insurance
+  timelineItems.push({ id: 'insurance', type: 'section', icon: Shield, label: 'Travel Insurance' });
+  
   return (
-    <div className="fixed left-0 top-1/2 -translate-y-1/2 bg-white border-r border-gray-200 shadow-sm z-30 hidden lg:flex flex-col py-4">
-      {sections.map((section) => (
+    <div className="fixed left-0 top-1/3 bg-white border-r border-gray-200 shadow-lg z-30 hidden lg:flex flex-col py-2 rounded-r-lg max-h-[60vh] overflow-y-auto">
+      <div className="px-3 py-2 border-b border-gray-100">
+        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Trip Overview</span>
+      </div>
+      
+      {timelineItems.map((item, idx) => (
         <button
-          key={section.id}
-          onClick={() => onSectionChange(section.id)}
+          key={item.id}
+          onClick={() => onSectionChange(item.id)}
           className={cn(
-            "w-12 h-12 flex items-center justify-center transition-colors",
-            activeSection === section.id 
-              ? "bg-teal-50 text-teal-600 border-l-2 border-teal-500" 
-              : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+            "flex items-center gap-2 px-3 py-2 text-left transition-colors text-sm",
+            activeSection === item.id 
+              ? "bg-teal-50 text-teal-700 border-l-2 border-teal-500" 
+              : "text-gray-600 hover:bg-gray-50 border-l-2 border-transparent"
           )}
-          title={section.label}
         >
-          <section.icon size={20} />
+          {item.type === 'section' && item.icon && (
+            <item.icon size={14} className="flex-shrink-0" />
+          )}
+          {item.type === 'city' && (
+            <div className="w-5 h-5 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
+              <span className="text-[10px] font-bold text-teal-600">{item.city?.charAt(0)}</span>
+            </div>
+          )}
+          {item.type === 'day' && (
+            <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <span className="text-[10px] font-bold text-gray-500">{item.day}</span>
+            </div>
+          )}
+          <span className="truncate text-xs">{item.label}</span>
         </button>
       ))}
     </div>
@@ -536,16 +582,17 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
   };
 
   const tabs = [
-    { id: 'itinerary', label: 'ITINERARY', icon: Plane },
-    { id: 'inclusions', label: 'INCLUSIONS', icon: FileText },
-    { id: 'terms', label: 'TERMS AND POLICIES', icon: Shield },
-    { id: 'help', label: 'NEED HELP', icon: HelpCircle }
+    { id: 'itinerary', label: 'Itinerary', icon: Plane },
+    { id: 'inclusions', label: 'Inclusions', icon: FileText },
+    { id: 'terms', label: 'Terms and Policies', icon: Shield },
+    { id: 'messages', label: 'Messages', icon: MessageSquare },
+    { id: 'changes', label: 'Request Changes', icon: Edit2 }
   ];
 
   return (
     <div className="min-h-screen bg-white" data-testid="proposal-view-page">
       {/* Left Sidebar Nav */}
-      <LeftSidebarNav activeSection={activeSection} onSectionChange={setActiveSection} />
+      <LeftSidebarNav proposal={proposal} activeSection={activeSection} onSectionChange={setActiveSection} />
 
       {/* Breadcrumb Navigation */}
       <div className="bg-gray-50 border-b border-gray-200">
@@ -573,7 +620,24 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
         <div className="max-w-7xl mx-auto px-6 py-6 lg:pl-16">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-gray-400 italic mb-2">Proposal No: {proposalNumber}</p>
+              <div className="flex items-center gap-4 mb-2">
+                <p className="text-sm text-gray-500">Proposal No: <span className="font-semibold text-gray-700">{proposalNumber}</span></p>
+                <div className="flex items-center gap-2">
+                  <button 
+                    className="px-4 py-1.5 bg-[#002B5B] text-white text-sm font-medium rounded hover:bg-[#003d82] transition-colors"
+                    data-testid="save-proposal-btn"
+                  >
+                    Save
+                  </button>
+                  <button 
+                    onClick={onBack}
+                    className="px-4 py-1.5 border border-gray-300 text-gray-600 text-sm font-medium rounded hover:bg-gray-50 transition-colors"
+                    data-testid="cancel-proposal-btn"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4" data-testid="proposal-title">
                 {proposal.proposal_name || `Option 1 - Trip to ${mainCity}`}
               </h1>
@@ -625,14 +689,18 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                 </button>
               ))}
             </div>
-            <button 
-              onClick={() => onEditProposal && onEditProposal(proposal)}
-              className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors cursor-pointer"
-              data-testid="edit-proposal-btn"
-            >
-              <Menu size={16} />
-              EDIT PROPOSAL
-            </button>
+            <div className="hidden md:flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-xs text-gray-400">Total Price</p>
+                <p className="text-lg font-bold text-teal-400">AED {proposal.total_price || 1500}</p>
+              </div>
+              <button 
+                className="px-5 py-2.5 bg-orange-500 text-white text-sm font-bold rounded-lg hover:bg-orange-600 transition-colors flex items-center gap-2"
+                data-testid="book-now-header-btn"
+              >
+                Book Now
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1122,24 +1190,118 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
               </div>
             )}
 
-            {/* NEED HELP Tab */}
-            {activeTab === 'help' && (
-              <div className="bg-white rounded-xl p-6 shadow-sm" data-testid="help-content">
-                <h2 className="text-xl font-bold text-gray-800 mb-6">Need Help?</h2>
-                <div className="bg-gray-50 rounded-xl p-8 border border-gray-100">
-                  <p className="text-gray-600 mb-6">Our support team is here to assist you.</p>
-                  <div className="flex flex-wrap gap-4">
-                    <button className="px-6 py-3 bg-[#002B5B] text-white rounded-lg font-medium hover:bg-[#003d82]">
-                      Contact Support
-                    </button>
-                    <button className="px-6 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 flex items-center gap-2">
-                      <MessageCircle size={18} />
-                      WhatsApp
-                    </button>
-                    <button className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 flex items-center gap-2">
-                      <Mail size={18} />
-                      Email Us
-                    </button>
+            {/* MESSAGES Tab */}
+            {activeTab === 'messages' && (
+              <div className="bg-white rounded-xl p-6 shadow-sm" data-testid="messages-content">
+                <h2 className="text-xl font-bold text-gray-800 mb-6">Send a message to the advisor</h2>
+                <div className="space-y-4">
+                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
+                    <textarea
+                      placeholder="Type your message here..."
+                      className="w-full h-32 p-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#002B5B] focus:border-transparent resize-none"
+                      data-testid="message-textarea"
+                    />
+                    <div className="mt-4 flex justify-end">
+                      <button className="px-6 py-2.5 bg-[#002B5B] text-white rounded-lg font-medium hover:bg-[#003d82] flex items-center gap-2">
+                        <MessageSquare size={16} />
+                        Send
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Chat History */}
+                  <div className="border-t border-gray-100 pt-4">
+                    <h3 className="text-sm font-medium text-gray-500 mb-4">Message History</h3>
+                    <div className="text-center text-gray-400 py-8">
+                      <MessageSquare size={32} className="mx-auto mb-2 opacity-50" />
+                      <p>No messages yet. Start the conversation!</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* REQUEST CHANGES Tab */}
+            {activeTab === 'changes' && (
+              <div className="bg-white rounded-xl p-6 shadow-sm" data-testid="changes-content">
+                <h2 className="text-xl font-bold text-gray-800 mb-6">Request Changes</h2>
+                <div className="space-y-4">
+                  {/* More Actions */}
+                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
+                    <h3 className="font-medium text-gray-800 mb-4">More Actions</h3>
+                    <div className="space-y-3">
+                      <button className="w-full flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200 hover:border-[#002B5B] hover:bg-blue-50 transition-all text-left">
+                        <Phone size={18} className="text-[#002B5B]" />
+                        <div>
+                          <p className="font-medium text-gray-800">Request Callback</p>
+                          <p className="text-sm text-gray-500">Call me to explain proposal</p>
+                        </div>
+                      </button>
+                      
+                      <button className="w-full flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200 hover:border-[#002B5B] hover:bg-blue-50 transition-all text-left">
+                        <Edit2 size={18} className="text-[#002B5B]" />
+                        <div>
+                          <p className="font-medium text-gray-800">I want changes in flight / hotel / itinerary</p>
+                        </div>
+                      </button>
+                      
+                      <button className="w-full flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200 hover:border-red-300 hover:bg-red-50 transition-all text-left">
+                        <X size={18} className="text-red-500" />
+                        <div>
+                          <p className="font-medium text-gray-800">I have cancelled / postponed my plans</p>
+                        </div>
+                      </button>
+                      
+                      <button className="w-full flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200 hover:border-green-300 hover:bg-green-50 transition-all text-left">
+                        <DollarSign size={18} className="text-green-600" />
+                        <div>
+                          <p className="font-medium text-gray-800">I want lower prices</p>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Lower Price Form */}
+                  <div className="bg-amber-50 rounded-xl p-6 border border-amber-200">
+                    <h3 className="font-medium text-amber-800 mb-3">LOWER PRICE ELSEWHERE</h3>
+                    <p className="text-sm text-amber-700 mb-4">Found a better price? Let us know and we'll try to match it.</p>
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="Competitor website/agency name"
+                        className="w-full px-4 py-2.5 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Indicative Price*"
+                        className="w-full px-4 py-2.5 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
+                      />
+                      <p className="text-xs text-amber-600">*Please make sure indicative price is reasonable to allow us to come back with suitable offers</p>
+                      <button className="w-full py-2.5 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700">
+                        Submit
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Share on WhatsApp */}
+                  <div className="bg-green-50 rounded-xl p-6 border border-green-200">
+                    <h3 className="font-medium text-green-800 mb-4">Share on WhatsApp</h3>
+                    <div className="space-y-3">
+                      <input
+                        type="tel"
+                        placeholder="Mobile Number"
+                        className="w-full px-4 py-2.5 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
+                      />
+                      <textarea
+                        placeholder="Message to Share"
+                        className="w-full px-4 py-2.5 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white h-20 resize-none"
+                        defaultValue={`Check out this trip proposal: ${proposal.proposal_name || `Trip to ${mainCity}`}`}
+                      />
+                      <button className="w-full py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2">
+                        <MessageCircle size={18} />
+                        Share on WhatsApp
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

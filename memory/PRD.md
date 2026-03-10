@@ -39,6 +39,13 @@ Migrate and enhance a Google AI Studio B2B Travel Platform (Travo DMC) with:
   - Extracted: SaveProposalModal, ActivitiesModal, VehicleSelectionModal, UpdateFlightInfoModal, HotelOptionsModal, HotelSelectionModal, DayCard
   - New folder: `/app/frontend/src/components/TripBuilder/`
   - Each component is now independently maintainable and testable
+- [x] **ENHANCED: ProposalView page redesigned to match Nexus DMC style**
+  - Added Save/Cancel buttons in header
+  - New tabs: Itinerary | Inclusions | Terms and Policies | Messages | Request Changes
+  - Total Price and Book Now button in header navigation
+  - Left sidebar with Trip Timeline (Flights, City Nights, Days, Travel Insurance)
+  - Messages tab with advisor chat form
+  - Request Changes tab with callback, price negotiation, and WhatsApp sharing
 - [x] Testing agent verified: All Trip Builder features working end-to-end
 - [x] Activity selection, vehicle selection, and proposal save flow verified working
 
