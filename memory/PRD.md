@@ -29,6 +29,13 @@ Migrate and enhance a Google AI Studio B2B Travel Platform (Travo DMC) with:
 - **AI**: Gemini via emergentintegrations library
 - **Payments**: Stripe via emergentintegrations library
 
+## What's Been Implemented (Mar 10, 2026)
+
+### Latest Updates (Mar 10, 2026)
+- [x] **FIXED: Save Proposal functionality** - Backend ProposalCreate model updated to accept all extended fields (customer_name, proposal_name, expected_booking_date, flights_booked, itinerary, pricing_breakdown, etc.)
+- [x] **FIXED: Trip Builder form UI interaction** - Airport dropdown now works correctly (was a testing issue, not a code bug)
+- [x] Testing agent verified: All Trip Builder features working end-to-end
+
 ## What's Been Implemented (Mar 9, 2026)
 
 ### Latest Updates (Mar 9, 2026)
