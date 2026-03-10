@@ -914,13 +914,20 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
       });
     }
     
+    // Helper to get cheapest room price
+    const getCheapestPrice = (hotel) => {
+      const rooms = hotel.rooms || [];
+      if (rooms.length === 0) return 0;
+      return Math.min(...rooms.map(r => r.price_per_night || r.price || Infinity));
+    };
+    
     // Sort
     switch (sortBy) {
       case 'price_low':
-        filtered.sort((a, b) => (a.rooms?.[0]?.price_per_night || 0) - (b.rooms?.[0]?.price_per_night || 0));
+        filtered.sort((a, b) => getCheapestPrice(a) - getCheapestPrice(b));
         break;
       case 'price_high':
-        filtered.sort((a, b) => (b.rooms?.[0]?.price_per_night || 0) - (a.rooms?.[0]?.price_per_night || 0));
+        filtered.sort((a, b) => getCheapestPrice(b) - getCheapestPrice(a));
         break;
       case 'name_asc':
         filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -1220,9 +1227,25 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
                         <div className="flex justify-between items-end mt-3">
                           <p className="text-xs text-green-600 font-medium">Fully refundable before check-in</p>
                           <div className="text-right">
-                            <p className="text-xs text-gray-400 line-through">AED {(hotel.rooms?.[0]?.original_price || 2000) * nights}</p>
-                            <p className="text-lg font-bold text-[#002B5B]">AED {(hotel.rooms?.[0]?.price || 1800) * nights}</p>
-                            <p className="text-xs text-gray-500">for {nights} nights</p>
+                            {(() => {
+                              // Get cheapest room price
+                              const rooms = hotel.rooms || [];
+                              const cheapestRoom = rooms.length > 0 
+                                ? rooms.reduce((min, room) => 
+                                    (room.price_per_night || room.price || Infinity) < (min.price_per_night || min.price || Infinity) ? room : min
+                                  , rooms[0])
+                                : null;
+                              const cheapestPrice = cheapestRoom?.price_per_night || cheapestRoom?.price || 180;
+                              const originalPrice = cheapestRoom?.original_price || Math.round(cheapestPrice * 1.1);
+                              
+                              return (
+                                <>
+                                  <p className="text-xs text-gray-400 line-through">AED {originalPrice * nights}</p>
+                                  <p className="text-lg font-bold text-[#002B5B]">AED {cheapestPrice * nights}</p>
+                                  <p className="text-xs text-gray-500">for {nights} nights</p>
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
