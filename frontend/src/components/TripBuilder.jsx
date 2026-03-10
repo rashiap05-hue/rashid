@@ -4,7 +4,7 @@ import {
   Plane, Hotel, MapPin, Calendar, Users, ChevronDown, ChevronRight, 
   Plus, X, Check, Star, Clock, Coffee, Wifi, Car, Edit2, Loader2,
   CreditCard, Save, ArrowRight, Sun, Moon, Utensils, Camera, Info, AlertCircle,
-  List, Ban, Search, DollarSign, Globe, Compass, Trash2, Phone, Mail, User
+  List, Ban, Search, DollarSign, Globe, Compass, Trash2, Phone, Mail, User, Filter
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
@@ -813,6 +813,14 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
   const [selectedHotel, setSelectedHotel] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'detail'
   const [filterQuery, setFilterQuery] = useState(searchQuery);
+  
+  // Filter states
+  const [sortBy, setSortBy] = useState('recommended');
+  const [starFilter, setStarFilter] = useState([]);
+  const [propertyTypeFilter, setPropertyTypeFilter] = useState([]);
+  const [mealPlanFilter, setMealPlanFilter] = useState([]);
+  const [amenitiesFilter, setAmenitiesFilter] = useState([]);
+  const [showFilters, setShowFilters] = useState(true);
 
   useEffect(() => {
     if (isOpen) {
@@ -852,13 +860,120 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
     }
   };
 
-  // Filter hotels based on current filter query
-  const filteredHotels = filterQuery 
-    ? hotels.filter(h => 
+  // Property types and amenities lists
+  const propertyTypes = ['Hotel', 'Apart Hotel', 'Apartment', 'Hostel', 'Resort', 'Villa'];
+  const mealPlans = ['Room Only', 'Bed and Breakfast', 'Half Board', 'Full Board', 'All Inclusive'];
+  const amenitiesList = ['Free WiFi', 'Air Conditioning', 'Parking Facility', 'Restaurant', 'Swimming Pool', 'Spa', 'Gym', '24 hr Front Desk', 'Room Service', 'Pet Friendly'];
+
+  // Filter hotels based on all criteria
+  const getFilteredHotels = () => {
+    let filtered = hotels;
+    
+    // Search filter
+    if (filterQuery) {
+      filtered = filtered.filter(h => 
         h.name?.toLowerCase().includes(filterQuery.toLowerCase()) ||
-        h.city?.toLowerCase().includes(filterQuery.toLowerCase())
-      )
-    : hotels;
+        h.city?.toLowerCase().includes(filterQuery.toLowerCase()) ||
+        h.location?.toLowerCase().includes(filterQuery.toLowerCase())
+      );
+    }
+    
+    // Star rating filter
+    if (starFilter.length > 0) {
+      filtered = filtered.filter(h => starFilter.includes(h.star_rating || 4));
+    }
+    
+    // Property type filter
+    if (propertyTypeFilter.length > 0) {
+      filtered = filtered.filter(h => 
+        propertyTypeFilter.some(type => 
+          (h.property_type || 'Hotel').toLowerCase().includes(type.toLowerCase())
+        )
+      );
+    }
+    
+    // Meal plan filter
+    if (mealPlanFilter.length > 0) {
+      filtered = filtered.filter(h => {
+        const hotelMeals = h.rooms?.some(r => 
+          mealPlanFilter.some(meal => 
+            (r.meals || 'Room Only').toLowerCase().includes(meal.toLowerCase())
+          )
+        );
+        return hotelMeals;
+      });
+    }
+    
+    // Amenities filter
+    if (amenitiesFilter.length > 0) {
+      filtered = filtered.filter(h => {
+        const hotelAmenities = h.amenities || [];
+        return amenitiesFilter.every(amenity => 
+          hotelAmenities.some(a => a.toLowerCase().includes(amenity.toLowerCase()))
+        );
+      });
+    }
+    
+    // Sort
+    switch (sortBy) {
+      case 'price_low':
+        filtered.sort((a, b) => (a.rooms?.[0]?.price_per_night || 0) - (b.rooms?.[0]?.price_per_night || 0));
+        break;
+      case 'price_high':
+        filtered.sort((a, b) => (b.rooms?.[0]?.price_per_night || 0) - (a.rooms?.[0]?.price_per_night || 0));
+        break;
+      case 'name_asc':
+        filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        break;
+      case 'name_desc':
+        filtered.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+        break;
+      case 'rating':
+        filtered.sort((a, b) => (b.star_rating || 0) - (a.star_rating || 0));
+        break;
+      default:
+        // Recommended - no change
+        break;
+    }
+    
+    return filtered;
+  };
+  
+  const filteredHotels = getFilteredHotels();
+
+  // Toggle filter helpers
+  const toggleStarFilter = (star) => {
+    setStarFilter(prev => 
+      prev.includes(star) ? prev.filter(s => s !== star) : [...prev, star]
+    );
+  };
+  
+  const togglePropertyType = (type) => {
+    setPropertyTypeFilter(prev => 
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
+    );
+  };
+  
+  const toggleMealPlan = (meal) => {
+    setMealPlanFilter(prev => 
+      prev.includes(meal) ? prev.filter(m => m !== meal) : [...prev, meal]
+    );
+  };
+  
+  const toggleAmenity = (amenity) => {
+    setAmenitiesFilter(prev => 
+      prev.includes(amenity) ? prev.filter(a => a !== amenity) : [...prev, amenity]
+    );
+  };
+  
+  const clearAllFilters = () => {
+    setFilterQuery('');
+    setStarFilter([]);
+    setPropertyTypeFilter([]);
+    setMealPlanFilter([]);
+    setAmenitiesFilter([]);
+    setSortBy('recommended');
+  };
 
   const handleSelectHotel = (hotel, room) => {
     onSelect({
@@ -887,38 +1002,163 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="relative bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+        className="relative bg-white w-full max-w-6xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
       >
         {/* Header */}
         <div className="bg-[#002B5B] text-white px-6 py-4 flex justify-between items-center">
           <div>
-            <h2 className="text-xl font-bold">Select Hotel in {city}</h2>
-            <p className="text-sm text-blue-200">{checkIn} - {checkOut} ({nights} nights)</p>
+            <h2 className="text-xl font-bold">Select Hotel - {nights} Nights {city}</h2>
+            <p className="text-sm text-blue-200">{checkIn} - {checkOut}</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-            <X size={24} />
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setShowFilters(!showFilters)}
+              className="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 rounded-lg transition-colors flex items-center gap-2"
+            >
+              <Filter size={16} />
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
+            </button>
+            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+              <X size={24} />
+            </button>
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {/* Search Filter */}
-          {viewMode === 'list' && (
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  placeholder="Search hotels by name..."
-                  value={filterQuery}
-                  onChange={(e) => setFilterQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent outline-none text-sm"
-                />
+        {/* Content with Sidebar */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Filter Sidebar */}
+          {viewMode === 'list' && showFilters && (
+            <div className="w-64 border-r border-gray-200 overflow-y-auto bg-gray-50 p-4 flex-shrink-0">
+              {/* Search by property */}
+              <div className="mb-5">
+                <h4 className="font-bold text-gray-700 text-sm mb-2">Search by property</h4>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    value={filterQuery}
+                    onChange={(e) => setFilterQuery(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
               </div>
+              
+              {/* Star Rating */}
+              <div className="mb-5 pb-4 border-b border-dashed border-gray-300">
+                <h4 className="font-bold text-gray-700 text-sm mb-2">Star rating</h4>
+                <div className="space-y-1.5">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <label key={star} className="flex items-center gap-2 cursor-pointer hover:bg-white p-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={starFilter.includes(star)}
+                        onChange={() => toggleStarFilter(star)}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div className="flex">
+                        {Array.from({ length: star }).map((_, i) => (
+                          <Star key={i} className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                        ))}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Property Type */}
+              <div className="mb-5 pb-4 border-b border-dashed border-gray-300">
+                <h4 className="font-bold text-gray-700 text-sm mb-2">Property type</h4>
+                <div className="space-y-1.5">
+                  {propertyTypes.map(type => (
+                    <label key={type} className="flex items-center gap-2 cursor-pointer hover:bg-white p-1 rounded text-sm">
+                      <input
+                        type="checkbox"
+                        checked={propertyTypeFilter.includes(type)}
+                        onChange={() => togglePropertyType(type)}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-600">{type}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Meal Plan */}
+              <div className="mb-5 pb-4 border-b border-dashed border-gray-300">
+                <h4 className="font-bold text-gray-700 text-sm mb-2">Meal Plan</h4>
+                <div className="space-y-1.5">
+                  {mealPlans.map(meal => (
+                    <label key={meal} className="flex items-center gap-2 cursor-pointer hover:bg-white p-1 rounded text-sm">
+                      <input
+                        type="checkbox"
+                        checked={mealPlanFilter.includes(meal)}
+                        onChange={() => toggleMealPlan(meal)}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-600">{meal}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Amenities */}
+              <div className="mb-5">
+                <h4 className="font-bold text-gray-700 text-sm mb-2">Amenities</h4>
+                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  {amenitiesList.map(amenity => (
+                    <label key={amenity} className="flex items-center gap-2 cursor-pointer hover:bg-white p-1 rounded text-sm">
+                      <input
+                        type="checkbox"
+                        checked={amenitiesFilter.includes(amenity)}
+                        onChange={() => toggleAmenity(amenity)}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-600">{amenity}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Clear Filters */}
+              {(starFilter.length > 0 || propertyTypeFilter.length > 0 || mealPlanFilter.length > 0 || amenitiesFilter.length > 0 || filterQuery) && (
+                <button
+                  onClick={clearAllFilters}
+                  className="w-full py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors"
+                >
+                  Clear All Filters
+                </button>
+              )}
             </div>
           )}
-          
-          {loading ? (
+
+          {/* Main Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {/* Sort and View Options */}
+            {viewMode === 'list' && (
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm text-gray-500">
+                  {filteredHotels.length} hotel{filteredHotels.length !== 1 ? 's' : ''} found
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">Sort by:</span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="recommended">Recommended</option>
+                    <option value="price_low">Price - Low to High</option>
+                    <option value="price_high">Price - High to Low</option>
+                    <option value="rating">Star Rating</option>
+                    <option value="name_asc">Name - A to Z</option>
+                    <option value="name_desc">Name - Z to A</option>
+                  </select>
+                </div>
+              </div>
+            )}
+            
+            {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
               <Loader2 className="w-10 h-10 text-[#002B5B] animate-spin" />
               <p className="mt-4 text-gray-500 font-medium">Searching for hotels...</p>
@@ -1002,6 +1242,7 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
               nights={nights}
             />
           )}
+        </div>
         </div>
       </motion.div>
     </div>
