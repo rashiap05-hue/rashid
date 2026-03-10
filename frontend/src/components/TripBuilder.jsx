@@ -707,6 +707,211 @@ function VehicleSelectionModal({ isOpen, onClose, activity, onSelectVehicle, tot
   );
 }
 
+// Update Arrival/Departure Information Modal
+function UpdateFlightInfoModal({ isOpen, onClose, type, city, date, onUpdate }) {
+  const [flightType, setFlightType] = useState('flight');
+  const [infoType, setInfoType] = useState(type === 'arrival' ? 'Arrival Information' : 'Departure Information');
+  const [flightDate, setFlightDate] = useState(date || '');
+  const [flightNumber, setFlightNumber] = useState('');
+  const [flightTime, setFlightTime] = useState('');
+  const [airline, setAirline] = useState('');
+  const [terminal, setTerminal] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showTimeInput, setShowTimeInput] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleGetFlightDetails = () => {
+    if (!flightNumber) return;
+    setLoading(true);
+    // Simulate fetching flight details
+    setTimeout(() => {
+      setAirline('Air India');
+      setFlightTime(type === 'arrival' ? '14:30' : '10:15');
+      setTerminal('Terminal 3');
+      setLoading(false);
+    }, 1000);
+  };
+
+  const handleUpdate = () => {
+    const flightInfo = {
+      type,
+      flightType,
+      infoType,
+      flightNumber,
+      flightDate,
+      flightTime,
+      airline,
+      terminal
+    };
+    onUpdate(flightInfo);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="relative bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-gray-900">Update Arrival/Departure Information</h2>
+            <button 
+              onClick={onClose}
+              className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* City and Date */}
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-bold text-gray-800">
+              {type === 'arrival' ? 'Arrival at' : 'Departure from'} {city}
+            </h3>
+            <span className="text-gray-600 font-medium">{date}</span>
+          </div>
+
+          {/* Provide Time Banner */}
+          <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-4 flex items-center justify-between">
+            <p className="text-teal-700 font-semibold">Do not have complete details yet?</p>
+            <button 
+              onClick={() => setShowTimeInput(!showTimeInput)}
+              className="px-4 py-2 border-2 border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Provide {type}/departure time
+            </button>
+          </div>
+
+          {/* Time Input (when clicked "Provide time") */}
+          {showTimeInput && (
+            <div className="bg-gray-50 rounded-xl p-4">
+              <label className="block text-sm font-medium text-gray-600 mb-2">
+                {type === 'arrival' ? 'Arrival' : 'Departure'} Time
+              </label>
+              <input
+                type="time"
+                value={flightTime}
+                onChange={(e) => setFlightTime(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          )}
+
+          {/* Dropdowns Row */}
+          <div className="bg-gray-100 rounded-xl p-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div>
+                <select
+                  value={flightType}
+                  onChange={(e) => setFlightType(e.target.value)}
+                  className="px-4 py-3 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="flight">Flight</option>
+                  <option value="train">Train</option>
+                  <option value="bus">Bus</option>
+                  <option value="self">Self Arranged</option>
+                </select>
+              </div>
+              
+              <div>
+                <select
+                  value={infoType}
+                  onChange={(e) => setInfoType(e.target.value)}
+                  className="px-4 py-3 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="Arrival Information">Arrival Information</option>
+                  <option value="Departure Information">Departure Information</option>
+                </select>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-gray-600 text-sm">Departing On:</span>
+                <input
+                  type="date"
+                  value={flightDate}
+                  onChange={(e) => setFlightDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Flight Number Input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-2 uppercase tracking-wide">
+              Flight Number (Example 9W-811)
+            </label>
+            <div className="flex gap-3">
+              <input
+                type="text"
+                placeholder="Flight Number like AI-811"
+                value={flightNumber}
+                onChange={(e) => setFlightNumber(e.target.value)}
+                className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                onClick={handleGetFlightDetails}
+                disabled={!flightNumber || loading}
+                className="px-6 py-3 bg-blue-500 text-white font-bold rounded-xl hover:bg-blue-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {loading ? <Loader2 className="animate-spin" size={18} /> : null}
+                Get Flight Details
+              </button>
+            </div>
+          </div>
+
+          {/* Flight Details (if fetched) */}
+          {airline && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+              <h4 className="font-bold text-green-800 mb-2">Flight Details Found</h4>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-500">Airline:</span>
+                  <p className="font-medium text-gray-800">{airline}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Time:</span>
+                  <p className="font-medium text-gray-800">{flightTime}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Terminal:</span>
+                  <p className="font-medium text-gray-800">{terminal}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end">
+          <button
+            onClick={handleUpdate}
+            className="px-8 py-3 bg-[#002B5B] text-white font-bold rounded-lg hover:bg-[#003d82] transition-colors"
+          >
+            UPDATE
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // Hotel Options Modal Component (Choose how to change hotel)
 function HotelOptionsModal({ isOpen, onClose, city, onViewAll, onNoStay, onSearch }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -1274,7 +1479,7 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
 }
 
 // Day Card Component
-function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, onAddActivity, onRemoveActivity, onChangeHotel, hotel, onSelectArrivalTransfer, onSelectDepartureTransfer, selectedArrivalTransfer, selectedDepartureTransfer }) {
+function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, onAddActivity, onRemoveActivity, onChangeHotel, hotel, onSelectArrivalTransfer, onSelectDepartureTransfer, selectedArrivalTransfer, selectedDepartureTransfer, onUpdateFlightInfo, arrivalFlightInfo, departureFlightInfo }) {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -1312,17 +1517,41 @@ function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, on
               {/* Arrival on Day 1 */}
               {isFirst && (
                 <div className="space-y-3">
-                  {/* Arrival Info Missing Alert */}
-                  <div className="flex items-center justify-between p-4 bg-red-50 rounded-xl border border-red-200">
-                    <p className="text-red-700 font-semibold">Arrival information is missing</p>
-                    <button 
-                      onClick={() => onSelectArrivalTransfer && onSelectArrivalTransfer(city)}
-                      className="bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-800 transition-all"
-                      data-testid="update-arrival-details"
-                    >
-                      Update Arrival Details
-                    </button>
-                  </div>
+                  {/* Arrival Info Missing Alert - only show if no flight info */}
+                  {!arrivalFlightInfo && (
+                    <div className="flex items-center justify-between p-4 bg-red-50 rounded-xl border border-red-200">
+                      <p className="text-red-700 font-semibold">Arrival information is missing</p>
+                      <button 
+                        onClick={() => onUpdateFlightInfo && onUpdateFlightInfo('arrival', city)}
+                        className="bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-800 transition-all"
+                        data-testid="update-arrival-details"
+                      >
+                        Update Arrival Details
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Arrival Info Filled */}
+                  {arrivalFlightInfo && (
+                    <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-200">
+                      <div className="flex items-center gap-3">
+                        <Check className="text-green-600" size={20} />
+                        <div>
+                          <p className="text-green-700 font-semibold">Arrival Details Added</p>
+                          <p className="text-sm text-green-600">
+                            {arrivalFlightInfo.flightNumber && `Flight: ${arrivalFlightInfo.flightNumber}`}
+                            {arrivalFlightInfo.flightTime && ` • Time: ${arrivalFlightInfo.flightTime}`}
+                          </p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => onUpdateFlightInfo && onUpdateFlightInfo('arrival', city)}
+                        className="text-green-700 underline font-medium text-sm hover:text-green-800"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  )}
                   
                   {/* Transfer Selection */}
                   <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
@@ -1370,17 +1599,41 @@ function DayCard({ day, date, city, activities, isFirst, isLast, isDeparture, on
               {/* Departure Day (Return) */}
               {isDeparture && (
                 <div className="space-y-3">
-                  {/* Departure Info Missing Alert */}
-                  <div className="flex items-center justify-between p-4 bg-red-50 rounded-xl border border-red-200">
-                    <p className="text-red-700 font-semibold">Departure information is missing</p>
-                    <button 
-                      onClick={() => onSelectDepartureTransfer && onSelectDepartureTransfer(city)}
-                      className="bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-800 transition-all"
-                      data-testid="update-departure-details"
-                    >
-                      Update Departure Details
-                    </button>
-                  </div>
+                  {/* Departure Info Missing Alert - only show if no flight info */}
+                  {!departureFlightInfo && (
+                    <div className="flex items-center justify-between p-4 bg-red-50 rounded-xl border border-red-200">
+                      <p className="text-red-700 font-semibold">Departure information is missing</p>
+                      <button 
+                        onClick={() => onUpdateFlightInfo && onUpdateFlightInfo('departure', city)}
+                        className="bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-800 transition-all"
+                        data-testid="update-departure-details"
+                      >
+                        Update Departure Details
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Departure Info Filled */}
+                  {departureFlightInfo && (
+                    <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-200">
+                      <div className="flex items-center gap-3">
+                        <Check className="text-green-600" size={20} />
+                        <div>
+                          <p className="text-green-700 font-semibold">Departure Details Added</p>
+                          <p className="text-sm text-green-600">
+                            {departureFlightInfo.flightNumber && `Flight: ${departureFlightInfo.flightNumber}`}
+                            {departureFlightInfo.flightTime && ` • Time: ${departureFlightInfo.flightTime}`}
+                          </p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => onUpdateFlightInfo && onUpdateFlightInfo('departure', city)}
+                        className="text-green-700 underline font-medium text-sm hover:text-green-800"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  )}
                   
                   {/* Transfer Selection */}
                   <div className="flex items-center gap-4 p-4 bg-orange-50 rounded-xl border border-orange-100">
@@ -1593,6 +1846,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [pendingTransfer, setPendingTransfer] = useState(null);
   const [transferVehicles, setTransferVehicles] = useState({}); // { "transferId": vehicleKey }
 
+  // Update Flight Info Modal state
+  const [showFlightInfoModal, setShowFlightInfoModal] = useState(false);
+  const [flightInfoType, setFlightInfoType] = useState('arrival'); // 'arrival' or 'departure'
+  const [arrivalFlightInfo, setArrivalFlightInfo] = useState(null);
+  const [departureFlightInfo, setDepartureFlightInfo] = useState(null);
+
   // Fetch transfers for the destination country
   useEffect(() => {
     const fetchTransfers = async () => {
@@ -1714,6 +1973,21 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     setHotelSearchQuery(query);
     setShowHotelOptions(false);
     setShowHotelModal(true);
+  };
+
+  // Handle opening Update Flight Info Modal
+  const handleOpenFlightInfoModal = (type, city) => {
+    setFlightInfoType(type);
+    setShowFlightInfoModal(true);
+  };
+
+  // Handle updating flight info
+  const handleUpdateFlightInfo = (info) => {
+    if (info.type === 'arrival') {
+      setArrivalFlightInfo(info);
+    } else {
+      setDepartureFlightInfo(info);
+    }
   };
 
   // Handle activity selection
@@ -2663,6 +2937,9 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                 onSelectDepartureTransfer={(city) => openTransferModal('departure', city)}
                 selectedArrivalTransfer={selectedArrivalTransfer}
                 selectedDepartureTransfer={selectedDepartureTransfer}
+                onUpdateFlightInfo={handleOpenFlightInfoModal}
+                arrivalFlightInfo={arrivalFlightInfo}
+                departureFlightInfo={departureFlightInfo}
               />
             ))}
           </div>
@@ -2931,6 +3208,20 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
             onSelectVehicle={handleVehicleSelect}
             totalPax={totalPax}
             currentVehicle={activityVehicles[pendingActivity?.id]}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Update Flight Info Modal */}
+      <AnimatePresence>
+        {showFlightInfoModal && (
+          <UpdateFlightInfoModal
+            isOpen={showFlightInfoModal}
+            onClose={() => setShowFlightInfoModal(false)}
+            type={flightInfoType}
+            city={cities[0]?.name || 'Destination'}
+            date={formatDate(startDate)}
+            onUpdate={handleUpdateFlightInfo}
           />
         )}
       </AnimatePresence>
