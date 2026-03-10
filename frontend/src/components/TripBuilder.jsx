@@ -749,38 +749,48 @@ function UpdateFlightInfoModal({ isOpen, onClose, type, city, date, onUpdate }) 
     try {
       // Call backend API to fetch flight details
       const API_URL = process.env.REACT_APP_BACKEND_URL || '';
-      const response = await fetch(`${API_URL}/api/flights/search?flight_number=${encodeURIComponent(flightNumber)}&date=${flightDate}`);
+      // Don't send date for now as Aviationstack may have issues with future dates
+      const response = await fetch(`${API_URL}/api/flights/search?flight_number=${encodeURIComponent(flightNumber)}`);
       
       if (response.ok) {
         const data = await response.json();
-        if (data.flights && data.flights.length > 0) {
+        console.log('Flight API response:', data); // Debug log
+        
+        if (data.success && data.flights && data.flights.length > 0) {
           const flight = data.flights[0];
+          console.log('Flight found:', flight); // Debug log
           setAirline(flight.airline_name || flight.airline || 'Unknown Airline');
           setFlightTime(type === 'arrival' ? (flight.arr_time || flight.arrival_time || '') : (flight.dep_time || flight.departure_time || ''));
           setTerminal(type === 'arrival' ? (flight.arr_terminal || '') : (flight.dep_terminal || ''));
           setDepartureAirport(flight.dep_iata || flight.departure || '');
           setArrivalAirport(flight.arr_iata || flight.arrival || '');
           setFlightStatus(flight.status || 'Scheduled');
+          setError(''); // Clear any previous error
+        } else if (data.error) {
+          setError(data.error);
+          setAirline('');
+          setFlightTime('');
+          setTerminal('');
         } else {
-          // No flights found - show sample data
-          setError('Flight not found. Using sample data.');
-          setAirline('Sample Airlines');
-          setFlightTime(type === 'arrival' ? '14:30' : '10:15');
-          setTerminal('Terminal 1');
+          // No flights found - show error
+          setError('Flight not found. Please check the flight number.');
+          setAirline('');
+          setFlightTime('');
+          setTerminal('');
         }
       } else {
-        // API error - use sample data
-        setError('Could not fetch flight data. Using sample data.');
-        setAirline('Sample Airlines');
-        setFlightTime(type === 'arrival' ? '14:30' : '10:15');
-        setTerminal('Terminal 1');
+        // API error
+        setError('Could not fetch flight data. Please try again.');
+        setAirline('');
+        setFlightTime('');
+        setTerminal('');
       }
     } catch (err) {
       console.error('Error fetching flight details:', err);
-      setError('Could not fetch flight data. Using sample data.');
-      setAirline('Sample Airlines');
-      setFlightTime(type === 'arrival' ? '14:30' : '10:15');
-      setTerminal('Terminal 1');
+      setError('Could not fetch flight data. Please try again.');
+      setAirline('');
+      setFlightTime('');
+      setTerminal('');
     } finally {
       setLoading(false);
     }
