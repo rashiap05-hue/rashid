@@ -711,26 +711,79 @@ function VehicleSelectionModal({ isOpen, onClose, activity, onSelectVehicle, tot
 function UpdateFlightInfoModal({ isOpen, onClose, type, city, date, onUpdate }) {
   const [flightType, setFlightType] = useState('flight');
   const [infoType, setInfoType] = useState(type === 'arrival' ? 'Arrival Information' : 'Departure Information');
-  const [flightDate, setFlightDate] = useState(date || '');
+  const [flightDate, setFlightDate] = useState('');
   const [flightNumber, setFlightNumber] = useState('');
   const [flightTime, setFlightTime] = useState('');
   const [airline, setAirline] = useState('');
   const [terminal, setTerminal] = useState('');
+  const [departureAirport, setDepartureAirport] = useState('');
+  const [arrivalAirport, setArrivalAirport] = useState('');
+  const [flightStatus, setFlightStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const [showTimeInput, setShowTimeInput] = useState(false);
+  const [error, setError] = useState('');
+
+  // Initialize date when modal opens
+  useEffect(() => {
+    if (isOpen && date) {
+      // Convert date string to YYYY-MM-DD format for input
+      const dateObj = new Date(date);
+      if (!isNaN(dateObj.getTime())) {
+        const formattedDate = dateObj.toISOString().split('T')[0];
+        setFlightDate(formattedDate);
+      } else {
+        setFlightDate(date);
+      }
+    }
+    // Reset info type based on type prop
+    setInfoType(type === 'arrival' ? 'Arrival Information' : 'Departure Information');
+  }, [isOpen, date, type]);
 
   if (!isOpen) return null;
 
-  const handleGetFlightDetails = () => {
+  const handleGetFlightDetails = async () => {
     if (!flightNumber) return;
     setLoading(true);
-    // Simulate fetching flight details
-    setTimeout(() => {
-      setAirline('Air India');
+    setError('');
+    
+    try {
+      // Call backend API to fetch flight details
+      const API_URL = process.env.REACT_APP_BACKEND_URL || '';
+      const response = await fetch(`${API_URL}/api/flights/search?flight_number=${encodeURIComponent(flightNumber)}&date=${flightDate}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.flights && data.flights.length > 0) {
+          const flight = data.flights[0];
+          setAirline(flight.airline_name || flight.airline || 'Unknown Airline');
+          setFlightTime(type === 'arrival' ? (flight.arr_time || flight.arrival_time || '') : (flight.dep_time || flight.departure_time || ''));
+          setTerminal(type === 'arrival' ? (flight.arr_terminal || '') : (flight.dep_terminal || ''));
+          setDepartureAirport(flight.dep_iata || flight.departure || '');
+          setArrivalAirport(flight.arr_iata || flight.arrival || '');
+          setFlightStatus(flight.status || 'Scheduled');
+        } else {
+          // No flights found - show sample data
+          setError('Flight not found. Using sample data.');
+          setAirline('Sample Airlines');
+          setFlightTime(type === 'arrival' ? '14:30' : '10:15');
+          setTerminal('Terminal 1');
+        }
+      } else {
+        // API error - use sample data
+        setError('Could not fetch flight data. Using sample data.');
+        setAirline('Sample Airlines');
+        setFlightTime(type === 'arrival' ? '14:30' : '10:15');
+        setTerminal('Terminal 1');
+      }
+    } catch (err) {
+      console.error('Error fetching flight details:', err);
+      setError('Could not fetch flight data. Using sample data.');
+      setAirline('Sample Airlines');
       setFlightTime(type === 'arrival' ? '14:30' : '10:15');
-      setTerminal('Terminal 3');
+      setTerminal('Terminal 1');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   const handleUpdate = () => {
@@ -742,7 +795,10 @@ function UpdateFlightInfoModal({ isOpen, onClose, type, city, date, onUpdate }) 
       flightDate,
       flightTime,
       airline,
-      terminal
+      terminal,
+      departureAirport,
+      arrivalAirport,
+      flightStatus
     };
     onUpdate(flightInfo);
     onClose();
@@ -841,7 +897,7 @@ function UpdateFlightInfoModal({ isOpen, onClose, type, city, date, onUpdate }) 
               </div>
               
               <div className="flex items-center gap-2">
-                <span className="text-gray-600 text-sm">Departing On:</span>
+                <span className="text-gray-600 text-sm">{type === 'arrival' ? 'Arriving On:' : 'Departing On:'}</span>
                 <input
                   type="date"
                   value={flightDate}
@@ -876,23 +932,50 @@ function UpdateFlightInfoModal({ isOpen, onClose, type, city, date, onUpdate }) 
             </div>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-700 text-sm">
+              {error}
+            </div>
+          )}
+
           {/* Flight Details (if fetched) */}
           {airline && (
             <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-              <h4 className="font-bold text-green-800 mb-2">Flight Details Found</h4>
-              <div className="grid grid-cols-3 gap-4 text-sm">
+              <h4 className="font-bold text-green-800 mb-3">Flight Details Found</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                 <div>
                   <span className="text-gray-500">Airline:</span>
                   <p className="font-medium text-gray-800">{airline}</p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Time:</span>
-                  <p className="font-medium text-gray-800">{flightTime}</p>
+                  <span className="text-gray-500">{type === 'arrival' ? 'Arrival' : 'Departure'} Time:</span>
+                  <p className="font-medium text-gray-800">{flightTime || 'N/A'}</p>
                 </div>
                 <div>
                   <span className="text-gray-500">Terminal:</span>
-                  <p className="font-medium text-gray-800">{terminal}</p>
+                  <p className="font-medium text-gray-800">{terminal || 'N/A'}</p>
                 </div>
+                {departureAirport && (
+                  <div>
+                    <span className="text-gray-500">From:</span>
+                    <p className="font-medium text-gray-800">{departureAirport}</p>
+                  </div>
+                )}
+                {arrivalAirport && (
+                  <div>
+                    <span className="text-gray-500">To:</span>
+                    <p className="font-medium text-gray-800">{arrivalAirport}</p>
+                  </div>
+                )}
+                {flightStatus && (
+                  <div>
+                    <span className="text-gray-500">Status:</span>
+                    <p className={`font-medium ${flightStatus === 'Scheduled' ? 'text-blue-600' : flightStatus === 'Active' ? 'text-green-600' : 'text-gray-800'}`}>
+                      {flightStatus}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
