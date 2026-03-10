@@ -39,12 +39,21 @@ function SaveProposalModal({ isOpen, onClose, onSave, tripData, pricing }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validate required fields
     if (!formData.customer_name.trim()) {
       alert('Customer name is required');
       return;
     }
     if (!formData.proposal_name.trim()) {
       alert('Trip name is required');
+      return;
+    }
+    if (!formData.expected_booking_date) {
+      alert('Estimated date of booking is required');
+      return;
+    }
+    if (formData.flights_booked === null) {
+      alert('Please select if flights are booked');
       return;
     }
 
@@ -178,7 +187,7 @@ function SaveProposalModal({ isOpen, onClose, onSave, tripData, pricing }) {
             <div className="space-y-4">
               <div className="flex items-start gap-4">
                 <label className="w-40 text-sm font-medium text-gray-700 pt-2">
-                  Estimated Date of Booking
+                  Estimated Date of Booking<span className="text-red-500">*</span>
                 </label>
                 <div className="flex-1">
                   <input
@@ -186,6 +195,7 @@ function SaveProposalModal({ isOpen, onClose, onSave, tripData, pricing }) {
                     value={formData.expected_booking_date}
                     onChange={(e) => setFormData({...formData, expected_booking_date: e.target.value})}
                     className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    required
                     data-testid="booking-date-input"
                   />
                   <p className="text-xs text-gray-500 mt-1">
@@ -196,7 +206,7 @@ function SaveProposalModal({ isOpen, onClose, onSave, tripData, pricing }) {
               
               <div className="flex items-center gap-4">
                 <label className="w-40 text-sm font-medium text-gray-700">
-                  Are Flights Booked?
+                  Are Flights Booked?<span className="text-red-500">*</span>
                 </label>
                 <div className="flex items-center gap-6">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -2393,7 +2403,44 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const handleSaveProposalWithData = async (formData) => {
     setIsSaving(true);
     try {
+      // Build complete activities data with all details
+      const activitiesWithDetails = {};
+      Object.entries(selectedActivities).forEach(([key, activities]) => {
+        activitiesWithDetails[key] = activities.map(activity => ({
+          id: activity.id,
+          name: activity.name,
+          description: activity.description,
+          price: activity.price,
+          duration: activity.duration,
+          city: activity.city,
+          highlights: activity.highlights,
+          inclusions: activity.inclusions,
+          selectedVehicle: activity.selectedVehicle,
+          vehiclePrice: activity.vehiclePrice,
+          image: activity.image
+        }));
+      });
+
+      // Build hotels data with selected rooms
+      const hotelsWithRooms = {};
+      Object.entries(selectedHotels).forEach(([city, hotel]) => {
+        hotelsWithRooms[city] = {
+          id: hotel.id,
+          name: hotel.name,
+          star_rating: hotel.star_rating,
+          location: hotel.location,
+          city: hotel.city,
+          image: hotel.image,
+          amenities: hotel.amenities,
+          selectedRoom: hotel.selectedRoom,
+          checkIn: hotel.checkIn,
+          checkOut: hotel.checkOut,
+          nights: hotel.nights
+        };
+      });
+
       const proposalData = {
+        // Basic trip info
         leaving_from: data.leaving_from,
         leaving_from_code: data.leaving_from_code,
         nationality: data.nationality,
@@ -2402,15 +2449,65 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         add_transfers: data.add_transfers,
         room_data: data.room_data,
         cities: data.cities,
+        
+        // Flight info
         selected_flight: selectedFlight,
-        selected_hotels: selectedHotels,
-        selected_activities: selectedActivities,
+        arrival_flight_info: arrivalFlightInfo,
+        departure_flight_info: departureFlightInfo,
+        
+        // Hotels with full details
+        selected_hotels: hotelsWithRooms,
+        
+        // Activities with full details
+        selected_activities: activitiesWithDetails,
+        
+        // Transfers with vehicle selection
+        arrival_transfer: selectedArrivalTransfer ? {
+          id: selectedArrivalTransfer.id,
+          title: selectedArrivalTransfer.title,
+          from_location: selectedArrivalTransfer.from_location,
+          to_location: selectedArrivalTransfer.to_location,
+          duration: selectedArrivalTransfer.duration,
+          selectedVehicle: selectedArrivalTransfer.selectedVehicle,
+          vehiclePrice: selectedArrivalTransfer.vehiclePrice,
+          price: selectedArrivalTransfer.price
+        } : null,
+        departure_transfer: selectedDepartureTransfer ? {
+          id: selectedDepartureTransfer.id,
+          title: selectedDepartureTransfer.title,
+          from_location: selectedDepartureTransfer.from_location,
+          to_location: selectedDepartureTransfer.to_location,
+          duration: selectedDepartureTransfer.duration,
+          selectedVehicle: selectedDepartureTransfer.selectedVehicle,
+          vehiclePrice: selectedDepartureTransfer.vehiclePrice,
+          price: selectedDepartureTransfer.price
+        } : null,
+        
+        // Pricing
+        pricing_breakdown: {
+          hotels: pricing.hotelTotal,
+          activities: pricing.activitiesTotal,
+          transfers: pricing.transferTotal,
+          subtotal: pricing.subtotal,
+          markup: formData.markup_type === 'percentage' 
+            ? (pricing.subtotal * formData.markup_value / 100)
+            : formData.markup_value,
+          discount: formData.discount_amount,
+          total: pricing.total
+        },
         total_price: pricing.total,
-        // Vehicle type based on passengers
+        
+        // Vehicle info
         vehicle_type: selectedVehicle.key,
         vehicle_label: selectedVehicle.label,
         total_pax: totalPax,
-        // New fields from the modal
+        
+        // Itinerary
+        itinerary: itinerary,
+        total_nights: totalNights,
+        start_date: startDate.toISOString(),
+        
+        // Customer info from modal
         customer_name: formData.customer_name,
         customer_email: formData.customer_email,
         customer_phone: formData.customer_phone,

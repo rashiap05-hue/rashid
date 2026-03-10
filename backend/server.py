@@ -111,11 +111,39 @@ class ProposalCreate(BaseModel):
     add_transfers: bool = True
     room_data: List[RoomData]
     cities: List[CityStop]
+    # Extended fields for complete proposal
+    leaving_from_code: Optional[str] = None
+    selected_flight: Optional[Dict] = None
+    arrival_flight_info: Optional[Dict] = None
+    departure_flight_info: Optional[Dict] = None
+    selected_hotels: Optional[Dict] = None
+    selected_activities: Optional[Dict] = None
+    arrival_transfer: Optional[Dict] = None
+    departure_transfer: Optional[Dict] = None
+    pricing_breakdown: Optional[Dict] = None
+    total_price: Optional[float] = None
+    vehicle_type: Optional[str] = None
+    vehicle_label: Optional[str] = None
+    total_pax: Optional[int] = None
+    itinerary: Optional[List] = None
+    total_nights: Optional[int] = None
+    start_date: Optional[str] = None
+    customer_name: Optional[str] = None
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
+    proposal_name: Optional[str] = None
+    expected_booking_date: Optional[str] = None
+    flights_booked: Optional[bool] = None
+    markup_value: Optional[float] = None
+    markup_type: Optional[str] = None
+    discount_amount: Optional[float] = None
+    status: Optional[str] = None
 
 class ProposalResponse(BaseModel):
     id: str
-    user_id: Optional[str]
+    user_id: Optional[str] = None
     leaving_from: str
+    leaving_from_code: Optional[str] = None
     nationality: str
     leaving_on: str
     star_rating: str
@@ -123,20 +151,42 @@ class ProposalResponse(BaseModel):
     room_data: List[Dict]
     cities: List[Dict]
     status: str = "pending"
-    total_price: Optional[float]
+    total_price: Optional[float] = None
     created_at: str
-    # New fields for activity details
-    selected_activities: Optional[Dict] = None
-    selected_hotels: Optional[Dict] = None
+    updated_at: Optional[str] = None
+    # Flight information
     selected_flight: Optional[Dict] = None
+    arrival_flight_info: Optional[Dict] = None
+    departure_flight_info: Optional[Dict] = None
+    # Hotel and Activity details
+    selected_hotels: Optional[Dict] = None
+    selected_activities: Optional[Dict] = None
+    # Transfer details
+    arrival_transfer: Optional[Dict] = None
+    departure_transfer: Optional[Dict] = None
+    # Pricing breakdown
+    pricing_breakdown: Optional[Dict] = None
+    # Vehicle info
     vehicle_type: Optional[str] = None
     vehicle_label: Optional[str] = None
     total_pax: Optional[int] = None
+    # Itinerary
+    itinerary: Optional[List] = None
+    total_nights: Optional[int] = None
+    start_date: Optional[str] = None
+    # Customer info
     customer_name: Optional[str] = None
     customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
     customer_mobile: Optional[str] = None
     whatsapp_number: Optional[str] = None
-    updated_at: Optional[str] = None
+    # Proposal details
+    proposal_name: Optional[str] = None
+    expected_booking_date: Optional[str] = None
+    flights_booked: Optional[bool] = None
+    markup_value: Optional[float] = None
+    markup_type: Optional[str] = None
+    discount_amount: Optional[float] = None
 
 class FlightCreate(BaseModel):
     airline: str
@@ -433,25 +483,53 @@ async def get_me(user: dict = Depends(get_current_user)):
 async def create_proposal(proposal: ProposalCreate, user: dict = Depends(get_optional_user)):
     proposal_id = str(uuid.uuid4())
     
-    # Calculate mock price
-    total_nights = sum(c.nights for c in proposal.cities)
-    base_price = 500 * total_nights
-    room_count = len(proposal.room_data)
-    total_price = base_price * room_count
+    # Calculate price - use provided total_price or calculate
+    if proposal.total_price:
+        total_price = proposal.total_price
+    else:
+        total_nights = sum(c.nights for c in proposal.cities)
+        base_price = 500 * total_nights
+        room_count = len(proposal.room_data)
+        total_price = base_price * room_count
     
     doc = {
         "id": proposal_id,
         "user_id": user["id"] if user else None,
         "leaving_from": proposal.leaving_from,
+        "leaving_from_code": proposal.leaving_from_code,
         "nationality": proposal.nationality,
         "leaving_on": proposal.leaving_on,
         "star_rating": proposal.star_rating,
         "add_transfers": proposal.add_transfers,
         "room_data": [r.model_dump() for r in proposal.room_data],
         "cities": [c.model_dump() for c in proposal.cities],
-        "status": "pending",
+        "status": proposal.status or "pending",
         "total_price": total_price,
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        # Extended proposal data
+        "selected_flight": proposal.selected_flight,
+        "arrival_flight_info": proposal.arrival_flight_info,
+        "departure_flight_info": proposal.departure_flight_info,
+        "selected_hotels": proposal.selected_hotels,
+        "selected_activities": proposal.selected_activities,
+        "arrival_transfer": proposal.arrival_transfer,
+        "departure_transfer": proposal.departure_transfer,
+        "pricing_breakdown": proposal.pricing_breakdown,
+        "vehicle_type": proposal.vehicle_type,
+        "vehicle_label": proposal.vehicle_label,
+        "total_pax": proposal.total_pax,
+        "itinerary": proposal.itinerary,
+        "total_nights": proposal.total_nights,
+        "start_date": proposal.start_date,
+        "customer_name": proposal.customer_name,
+        "customer_email": proposal.customer_email,
+        "customer_phone": proposal.customer_phone,
+        "proposal_name": proposal.proposal_name,
+        "expected_booking_date": proposal.expected_booking_date,
+        "flights_booked": proposal.flights_booked,
+        "markup_value": proposal.markup_value,
+        "markup_type": proposal.markup_type,
+        "discount_amount": proposal.discount_amount
     }
     await db.proposals.insert_one(doc)
     return ProposalResponse(**doc)
