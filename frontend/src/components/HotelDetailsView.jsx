@@ -195,7 +195,7 @@ function WhatToKnow({ highlights, hotel }) {
 }
 
 // Room Option Card
-function RoomOption({ room, onSelect, nights = 4 }) {
+function RoomOption({ room, onSelect, nights = 4, totalGuests = 2 }) {
   const [expanded, setExpanded] = useState(false);
   
   // Use rate plan price if available, otherwise use room price
@@ -206,6 +206,28 @@ function RoomOption({ room, onSelect, nights = 4 }) {
   const totalPrice = price * nights;
   const originalTotal = supplierCost ? supplierCost * nights : null;
   const hasDiscount = originalTotal && originalTotal < totalPrice;
+  
+  // Get room capacity
+  const getRoomCapacity = () => {
+    const name = (room.name || '').toLowerCase();
+    const type = (room.type || '').toLowerCase();
+    const combinedText = `${name} ${type}`;
+    
+    if (room.max_occupancy) return room.max_occupancy;
+    if (room.capacity) return room.capacity;
+    if (room.room_type?.max_occupancy) return room.room_type.max_occupancy;
+    
+    if (combinedText.includes('family') || combinedText.includes('suite')) return 4;
+    if (combinedText.includes('triple') || combinedText.includes('3 bed')) return 3;
+    if (combinedText.includes('quad') || combinedText.includes('4 bed')) return 4;
+    if (combinedText.includes('twin') || combinedText.includes('double')) return 2;
+    if (combinedText.includes('single')) return 1;
+    if (combinedText.includes('apartment') || combinedText.includes('villa')) return 6;
+    
+    return 2;
+  };
+  
+  const roomCapacity = getRoomCapacity();
   
   // Create enhanced room object with rate plan data
   const handleSelect = () => {
@@ -244,12 +266,18 @@ function RoomOption({ room, onSelect, nights = 4 }) {
                   <Info size={16} />
                 </button>
               </h4>
-              <p className="text-sm text-gray-500 mt-1">
-                {ratePlan?.meal_plan || room.meals || 'No meals included'}
-                {ratePlan?.supplier_name && (
-                  <span className="ml-2 text-purple-600 text-xs">({ratePlan.supplier_name})</span>
-                )}
-              </p>
+              <div className="flex items-center gap-3 mt-1">
+                <p className="text-sm text-gray-500">
+                  {ratePlan?.meal_plan || room.meals || 'No meals included'}
+                  {ratePlan?.supplier_name && (
+                    <span className="ml-2 text-purple-600 text-xs">({ratePlan.supplier_name})</span>
+                  )}
+                </p>
+                <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                  <Users size={12} />
+                  Max {roomCapacity} guests
+                </span>
+              </div>
             </div>
             <div className="text-right">
               {supplierCost && (
@@ -317,7 +345,7 @@ function RoomOption({ room, onSelect, nights = 4 }) {
 }
 
 // Room Category Section
-function RoomCategory({ category, rooms, onSelectRoom, nights }) {
+function RoomCategory({ category, rooms, onSelectRoom, nights, totalGuests }) {
   const [expanded, setExpanded] = useState(true);
   const [showAll, setShowAll] = useState(false);
   
@@ -346,7 +374,7 @@ function RoomCategory({ category, rooms, onSelectRoom, nights }) {
           >
             {displayRooms.map((room, idx) => (
               <div key={room.id || idx} className="p-4">
-                <RoomOption room={room} onSelect={onSelectRoom} nights={nights} />
+                <RoomOption room={room} onSelect={onSelectRoom} nights={nights} totalGuests={totalGuests} />
               </div>
             ))}
             
@@ -368,7 +396,7 @@ function RoomCategory({ category, rooms, onSelectRoom, nights }) {
 }
 
 // Main Hotel Details View Component
-export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn, checkOut, nights = 4 }) {
+export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn, checkOut, nights = 4, totalGuests = 2 }) {
   const [activeTab, setActiveTab] = useState('available');
   const [searchQuery, setSearchQuery] = useState('');
   const [mealFilter, setMealFilter] = useState('all');
@@ -441,6 +469,32 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
     return acc;
   }, {});
 
+  // Helper function to determine max occupancy from room name/type
+  const getRoomMaxOccupancy = (room) => {
+    const name = (room.name || '').toLowerCase();
+    const type = (room.type || '').toLowerCase();
+    const combinedText = `${name} ${type}`;
+    
+    // Check for explicit max_occupancy or capacity field
+    if (room.max_occupancy) return room.max_occupancy;
+    if (room.capacity) return room.capacity;
+    if (room.room_type?.max_occupancy) return room.room_type.max_occupancy;
+    
+    // Infer from room name/type
+    if (combinedText.includes('family') || combinedText.includes('suite')) return 4;
+    if (combinedText.includes('triple') || combinedText.includes('3 bed')) return 3;
+    if (combinedText.includes('quad') || combinedText.includes('4 bed')) return 4;
+    if (combinedText.includes('twin') || combinedText.includes('double')) return 2;
+    if (combinedText.includes('single')) return 1;
+    if (combinedText.includes('king') || combinedText.includes('queen')) return 2;
+    if (combinedText.includes('apartment') || combinedText.includes('villa')) return 6;
+    if (combinedText.includes('deluxe') || combinedText.includes('superior')) return 2;
+    if (combinedText.includes('standard')) return 2;
+    
+    // Default to 2 if unknown
+    return 2;
+  };
+
   // Filter rooms
   const filterRooms = (rooms) => {
     return rooms.filter(room => {
@@ -450,7 +504,12 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
         (mealFilter === 'breakfast' && room.meals?.toLowerCase().includes('breakfast')) ||
         (mealFilter === 'none' && (room.meals === 'Room Only' || !room.meals));
       const matchesRefund = !refundableOnly || room.refundable;
-      return matchesSearch && matchesMeal && matchesRefund;
+      
+      // Filter by guest capacity - only show rooms that can fit totalGuests
+      const roomCapacity = getRoomMaxOccupancy(room);
+      const matchesCapacity = roomCapacity >= totalGuests;
+      
+      return matchesSearch && matchesMeal && matchesRefund && matchesCapacity;
     });
   };
 
@@ -595,11 +654,21 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
                     rooms={filteredRooms}
                     onSelectRoom={onSelectRoom}
                     nights={nights}
+                    totalGuests={totalGuests}
                   />
                 );
               })}
 
-              {/* If no rooms */}
+              {/* If no rooms match filters */}
+              {Object.entries(roomsByCategory).every(([_, rooms]) => filterRooms(rooms).length === 0) && allRooms.length > 0 && (
+                <div className="text-center py-12 text-gray-500 bg-amber-50 border border-amber-200 rounded-lg">
+                  <Users size={48} className="mx-auto mb-4 text-amber-400" />
+                  <p className="font-medium text-amber-700">No rooms available for {totalGuests} guests</p>
+                  <p className="text-sm text-amber-600 mt-2">Try selecting a different room type or reducing the number of guests</p>
+                </div>
+              )}
+
+              {/* If no rooms at all */}
               {Object.keys(roomsByCategory).length === 0 && (
                 <div className="text-center py-12 text-gray-500">
                   <Building2 size={48} className="mx-auto mb-4 text-gray-300" />

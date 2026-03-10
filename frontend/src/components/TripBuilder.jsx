@@ -807,7 +807,7 @@ function HotelOptionsModal({ isOpen, onClose, city, onViewAll, onNoStay, onSearc
 }
 
 // Hotel Selection Modal Component
-function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights, onSelect, searchQuery = '', initialHotel = null }) {
+function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights, onSelect, searchQuery = '', initialHotel = null, totalGuests = 2 }) {
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedHotel, setSelectedHotel] = useState(null);
@@ -1263,6 +1263,7 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
               checkIn={checkIn}
               checkOut={checkOut}
               nights={nights}
+              totalGuests={totalGuests}
             />
           )}
         </div>
@@ -2102,6 +2103,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         onSelect={handleHotelSelect}
         searchQuery={hotelSearchQuery}
         initialHotel={changeRoomHotel}
+        totalGuests={totalPax}
       />
 
       {/* Hotel Options Modal (Change Hotel choices) */}
