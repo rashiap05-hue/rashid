@@ -605,7 +605,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
 
       {/* Breadcrumb Navigation */}
       <div className="bg-gray-50 border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-3 lg:pl-16">
+        <div className="max-w-[1600px] mx-auto px-6 py-3 lg:pl-20">
           <nav className="flex items-center gap-2 text-sm">
             <button 
               onClick={onBack}
@@ -626,7 +626,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
 
       {/* Proposal Header */}
       <div className="border-b border-gray-200 bg-white">
-        <div className="max-w-7xl mx-auto px-6 py-6 lg:pl-16">
+        <div className="max-w-[1600px] mx-auto px-6 py-6 lg:pl-20">
           <div className="flex items-start justify-between">
             <div>
               <div className="flex items-center gap-4 mb-2">
@@ -678,7 +678,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
 
       {/* Fixed Tab Navigation - Dark Background */}
       <div className="bg-[#1a1a2e] text-white fixed top-0 left-0 right-0 z-50 shadow-md">
-        <div className="max-w-7xl mx-auto px-6 lg:pl-16">
+        <div className="max-w-[1600px] mx-auto px-6 lg:pl-20">
           <div className="flex items-center justify-between">
             <div className="flex overflow-x-auto scrollbar-hide">
               {tabs.map(tab => (
@@ -715,10 +715,10 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
       </div>
 
       {/* Main Content with Sidebar - Add top padding for fixed header */}
-      <div className="max-w-7xl mx-auto px-6 py-8 lg:pl-16 mt-14">
+      <div className="max-w-[1600px] mx-auto px-6 py-8 lg:pl-20 mt-14">
         <div className="flex gap-8">
           {/* Main Content Area */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 max-w-[1100px]">
             {/* ITINERARY Tab */}
             {activeTab === 'itinerary' && (
               <div data-testid="itinerary-content">
