@@ -1125,6 +1125,310 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                   );
                 })}
 
+                {/* Day-wise Itinerary Section */}
+                <div className="mb-8">
+                  {/* Expand All Days Button */}
+                  <div className="flex justify-end mb-4">
+                    <button className="text-orange-600 text-sm font-medium hover:text-orange-700">
+                      + EXPAND ALL DAYS
+                    </button>
+                  </div>
+
+                  {/* Generate Day Cards */}
+                  {Array.from({ length: daysCount }).map((_, dayIndex) => {
+                    const dayNum = dayIndex + 1;
+                    const isArrivalDay = dayNum === 1;
+                    const isDepartureDay = dayNum === daysCount;
+                    const isMiddleDay = !isArrivalDay && !isDepartureDay;
+                    
+                    const dayDate = new Date(proposal.leaving_on);
+                    dayDate.setDate(dayDate.getDate() + dayIndex);
+                    
+                    // Get activities for this day
+                    const dayActivities = proposal.selected_activities?.[`${mainCity}_${dayNum}`] || [];
+                    const hotel = getHotelForCity(mainCity);
+                    
+                    // Generate day title
+                    let dayTitle = '';
+                    if (isArrivalDay) {
+                      dayTitle = `Arrival into ${mainCity} - Check-in`;
+                    } else if (isDepartureDay) {
+                      dayTitle = `Departure from ${mainCity}`;
+                    } else {
+                      // Middle day - show activities
+                      if (dayActivities.length > 0) {
+                        const activityNames = dayActivities.slice(0, 2).map(a => a.name?.split(' - ')[0] || a.name).join(' - ');
+                        dayTitle = activityNames;
+                      } else {
+                        dayTitle = `Free Day in ${mainCity}`;
+                      }
+                    }
+
+                    return (
+                      <div key={dayNum} className="bg-white border border-gray-200 rounded-xl mb-6 overflow-hidden" data-testid={`day-card-${dayNum}`}>
+                        {/* Day Header */}
+                        <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
+                          <div className="flex items-center gap-4">
+                            <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-medium">
+                              Day {dayNum}
+                            </span>
+                            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                              {dayTitle}
+                              <ChevronDown size={18} className="text-gray-400" />
+                            </h3>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-gray-500 text-sm">{formatDate(dayDate, 'full')}</span>
+                            <button className="p-1 hover:bg-gray-100 rounded">
+                              <MoreVertical size={18} className="text-gray-400" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Day Content */}
+                        <div className="p-6">
+                          <div className="flex gap-8">
+                            {/* Day Image */}
+                            <div className="w-64 flex-shrink-0">
+                              <img 
+                                src={isArrivalDay 
+                                  ? 'https://images.unsplash.com/photo-1518684079-3c830dcef090?w=400'
+                                  : isDepartureDay
+                                    ? 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=400'
+                                    : dayActivities[0]?.images?.[0] || 'https://images.unsplash.com/photo-1546412414-e1885259563a?w=400'
+                                }
+                                alt={`Day ${dayNum}`}
+                                className="w-full h-44 object-cover rounded-lg"
+                              />
+                              {/* Show second image for middle days with multiple activities */}
+                              {isMiddleDay && dayActivities.length > 1 && (
+                                <img 
+                                  src={dayActivities[1]?.images?.[0] || 'https://images.unsplash.com/photo-1569288052389-dac9b01c9c05?w=400'}
+                                  alt={`Day ${dayNum} activity 2`}
+                                  className="w-full h-44 object-cover rounded-lg mt-4"
+                                />
+                              )}
+                            </div>
+
+                            {/* Day Details */}
+                            <div className="flex-1">
+                              {/* Arrival Day Content */}
+                              {isArrivalDay && (
+                                <>
+                                  <p className="text-gray-600 italic mb-6">
+                                    You will be met by our representative at the Airport Arrival Terminal. Our representative will be holding a signage card with your Name written on it. You will then be escorted to waiting vehicle for transfer to hotel.
+                                  </p>
+
+                                  {/* Flight Info */}
+                                  <div className="flex items-center gap-3 mb-6">
+                                    <Plane size={18} className="text-gray-400 -rotate-45" />
+                                    <span className="text-gray-600">
+                                      {proposal.arrival_flight_info?.flightNumber || 'IX-343'} - Flight arriving on {formatDate(dayDate, 'day')} at {proposal.arrival_flight_info?.arrivalTime || '05:05 PM'} - {mainCity} Intl Airport, {mainCity}
+                                    </span>
+                                  </div>
+
+                                  {/* Transfer */}
+                                  <div className="mb-6">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <Car size={18} className="text-gray-400" />
+                                      <span className="font-semibold text-gray-800">
+                                        One-way Transfer from Airport to {mainCity} Hotel - Private from {proposal.leaving_from?.split('(')[0]?.trim() || 'Airport'}
+                                      </span>
+                                    </div>
+                                    <div className="flex gap-2 ml-8">
+                                      <span className="px-3 py-1 bg-orange-50 text-orange-600 text-xs rounded-full border border-orange-200">
+                                        Private Transfers
+                                      </span>
+                                      <span className="px-3 py-1 bg-green-50 text-green-600 text-xs rounded-full border border-green-200 flex items-center gap-1">
+                                        <Briefcase size={12} />
+                                        4 Bags
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Hotel Stay */}
+                                  <div className="flex items-center gap-3 mb-8">
+                                    <Bed size={18} className="text-gray-400" />
+                                    <span className="text-gray-600">Overnight stay at {hotel?.name || 'Hotel'}</span>
+                                  </div>
+
+                                  {/* Dinner */}
+                                  <div className="flex items-start gap-3">
+                                    <Utensils size={18} className="text-gray-300 mt-0.5" />
+                                    <div>
+                                      <p className="text-gray-400">Dinner</p>
+                                      <p className="text-gray-400 text-sm">Not Included</p>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+
+                              {/* Middle Day Content */}
+                              {isMiddleDay && (
+                                <>
+                                  {/* Day Description */}
+                                  {dayActivities.length > 0 && (
+                                    <p className="text-gray-600 italic mb-6">
+                                      {dayActivities[0]?.description?.substring(0, 300) || 
+                                       `Embark on a ${dayActivities[0]?.duration || '4-hour'} ${mainCity} tour that seamlessly blends the city's historic charm with its modern marvels.`}
+                                      {dayActivities[0]?.description?.length > 300 && (
+                                        <button className="text-teal-600 ml-1 hover:underline">...more</button>
+                                      )}
+                                    </p>
+                                  )}
+
+                                  {/* Tip Box */}
+                                  {dayActivities.length > 0 && (
+                                    <div className="bg-gray-50 border border-gray-100 rounded-lg p-4 mb-6">
+                                      <div className="flex items-start gap-2">
+                                        <span className="text-yellow-500">💡</span>
+                                        <p className="text-gray-600 text-sm">
+                                          Don't miss clicking photos at landmarks and having local cuisine during your tour.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Activities */}
+                                  {dayActivities.map((activity, actIdx) => (
+                                    <div key={actIdx} className="mb-6">
+                                      <div className="flex items-start gap-3 mb-2">
+                                        <Camera size={18} className="text-gray-400 mt-0.5" />
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-semibold text-gray-800">{activity.name}</span>
+                                            <button className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50">
+                                              VIEW
+                                            </button>
+                                          </div>
+                                          <p className="text-gray-500 text-sm mb-2">
+                                            Starts at {activity.start_times?.[0] || '9:00 am'}, {activity.start_times?.[1] || '10:00 am'}, {activity.start_times?.[2] || '1:00 pm'} (Duration: {activity.duration || '4 hrs'})
+                                          </p>
+                                          <div className="space-y-1 text-sm">
+                                            <p className="flex items-center gap-2 text-gray-600">
+                                              <Check size={14} className="text-gray-400" />
+                                              Pick up time {activity.start_times?.[0] || '09:00 am'}
+                                            </p>
+                                            <p className="text-gray-500 ml-6">Start from {hotel?.name || 'Hotel'}</p>
+                                          </div>
+                                          <div className="flex gap-2 mt-3">
+                                            <span className="px-3 py-1 bg-orange-50 text-orange-600 text-xs rounded-full border border-orange-200">
+                                              {activity.transfer_type || 'Private Transfers'}
+                                            </span>
+                                            {activity.inclusions?.includes('Meal') && (
+                                              <span className="px-3 py-1 bg-green-50 text-green-600 text-xs rounded-full border border-green-200">
+                                                Meal Included
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+
+                                  {/* No activities */}
+                                  {dayActivities.length === 0 && (
+                                    <p className="text-gray-500 italic mb-6">Free day to explore {mainCity} at your leisure.</p>
+                                  )}
+
+                                  {/* Hotel Stay */}
+                                  <div className="flex items-center gap-3 mb-8">
+                                    <Bed size={18} className="text-gray-400" />
+                                    <span className="text-gray-600">Overnight stay at {hotel?.name || 'Hotel'}</span>
+                                  </div>
+
+                                  {/* Meals */}
+                                  <div className="space-y-4">
+                                    <div className="flex items-start gap-3">
+                                      <Coffee size={18} className="text-gray-300 mt-0.5" />
+                                      <div>
+                                        <p className="text-gray-400">Breakfast</p>
+                                        <p className="text-gray-400 text-sm">Not Included</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                      <Utensils size={18} className="text-gray-300 mt-0.5" />
+                                      <div>
+                                        <p className="text-gray-400">Lunch</p>
+                                        <p className="text-gray-400 text-sm">Not Included</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                      <Utensils size={18} className="text-gray-300 mt-0.5" />
+                                      <div>
+                                        <p className="text-gray-400">Dinner</p>
+                                        {dayActivities.some(a => a.inclusions?.includes('Meal') || a.name?.toLowerCase().includes('dinner')) ? (
+                                          <p className="text-teal-600 text-sm font-medium">Included</p>
+                                        ) : (
+                                          <p className="text-gray-400 text-sm">Not Included</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+
+                              {/* Departure Day Content */}
+                              {isDepartureDay && (
+                                <>
+                                  <p className="text-gray-600 italic mb-6">
+                                    You will be picked up from Hotel's lobby at the time confirmed. Please be available at the lobby 15 minutes before the time given and you will be transferred to the airport for your flight.
+                                  </p>
+
+                                  {/* Transfer */}
+                                  <div className="mb-6">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <Car size={18} className="text-gray-400" />
+                                      <span className="font-semibold text-gray-800">
+                                        One-way Transfer from {mainCity} Hotel to Airport - Private to {proposal.leaving_from?.split('(')[0]?.trim() || 'Airport'}
+                                      </span>
+                                    </div>
+                                    <div className="flex gap-2 ml-8">
+                                      <span className="px-3 py-1 bg-orange-50 text-orange-600 text-xs rounded-full border border-orange-200">
+                                        Private Transfers
+                                      </span>
+                                      <span className="px-3 py-1 bg-green-50 text-green-600 text-xs rounded-full border border-green-200 flex items-center gap-1">
+                                        <Briefcase size={12} />
+                                        4 Bags
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Flight Info */}
+                                  <div className="flex items-center gap-3 mb-8">
+                                    <Plane size={18} className="text-gray-400 rotate-45" />
+                                    <span className="text-gray-600">
+                                      {proposal.departure_flight_info?.flightNumber || 'IX-344'} - Flight departing on {formatDate(dayDate, 'day')} at {proposal.departure_flight_info?.flightTime || '06:40 PM'} - {mainCity} Intl Airport, {mainCity}
+                                    </span>
+                                  </div>
+
+                                  {/* Meals */}
+                                  <div className="space-y-4">
+                                    <div className="flex items-start gap-3">
+                                      <Coffee size={18} className="text-gray-300 mt-0.5" />
+                                      <div>
+                                        <p className="text-gray-400">Breakfast</p>
+                                        <p className="text-gray-400 text-sm">Not Included</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                      <Utensils size={18} className="text-gray-300 mt-0.5" />
+                                      <div>
+                                        <p className="text-gray-400">Lunch</p>
+                                        <p className="text-gray-400 text-sm">Not Included</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
                 {/* City Tour Section */}
                 {proposal.cities?.map((city, cityIdx) => {
                   const hotel = getHotelForCity(city.name);
