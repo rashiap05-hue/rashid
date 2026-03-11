@@ -6,7 +6,7 @@ import {
   Download, Mail, MessageCircle, DollarSign, CreditCard, HelpCircle,
   Coffee, Utensils, Sun, Moon, Plus, Edit2, Trash2, Bed, Info, Eye,
   FileText, ChevronRight, Shield, Briefcase, AlertCircle, List,
-  MessageSquare, Phone, CheckCircle, Menu, Camera, Loader2
+  MessageSquare, Phone, CheckCircle, Menu, Camera, Loader2, MoreVertical, User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
@@ -750,6 +750,226 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                     title={`Map of ${mainCity}`}
                     data-testid="proposal-map"
                   />
+                </div>
+
+                {/* Flights Section */}
+                <div className="bg-white border border-gray-200 rounded-xl mb-8 shadow-sm" data-testid="flights-section">
+                  {/* Flights Header */}
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <Plane size={20} className="text-gray-700" />
+                      <h2 className="text-xl font-semibold text-gray-800">Flights</h2>
+                    </div>
+                    <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                      <MoreVertical size={18} className="text-gray-500" />
+                    </button>
+                  </div>
+
+                  {/* Outbound Flight */}
+                  <div className="p-6">
+                    {/* Flight Route Header */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <Plane size={16} className="text-gray-600" />
+                      <span className="font-medium text-gray-800">
+                        {proposal.leaving_from?.split('(')[0]?.trim() || 'Origin'} to {mainCity}
+                      </span>
+                      <span className="text-gray-500 text-sm">
+                        {formatDate(proposal.leaving_on, 'full')}
+                      </span>
+                    </div>
+
+                    {/* Airline Info */}
+                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+                          <X size={16} className="text-orange-500" />
+                        </div>
+                        <span className="text-gray-700 font-medium">
+                          {proposal.arrival_flight_info?.airline || 'Airline'} {proposal.arrival_flight_info?.flightNumber || 'IX-000'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Flight Timeline */}
+                    <div className="flex">
+                      {/* Left: Time and Route */}
+                      <div className="flex-1">
+                        <div className="flex items-start gap-4">
+                          {/* Timeline */}
+                          <div className="flex flex-col items-center">
+                            <div className="w-3 h-3 rounded-full border-2 border-gray-400 bg-white"></div>
+                            <div className="w-0.5 h-16 bg-gray-300 border-l border-dashed border-gray-400"></div>
+                            <div className="w-3 h-3 rounded-full border-2 border-gray-400 bg-white"></div>
+                          </div>
+                          {/* Flight Details */}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-8 mb-2">
+                              <span className="font-semibold text-gray-800 w-20">
+                                {proposal.arrival_flight_info?.flightTime || '00:00'}
+                              </span>
+                              <span className="text-gray-600">
+                                {proposal.leaving_from?.split('(')[1]?.replace(')', '') || 'DEP'}, Terminal
+                              </span>
+                              <span className="text-gray-500 text-sm ml-auto">
+                                {formatDate(proposal.leaving_on, 'full')}
+                              </span>
+                            </div>
+                            <div className="text-gray-500 text-sm mb-4 ml-28">
+                              {proposal.arrival_flight_info?.duration || '4h 00m'}
+                            </div>
+                            <div className="flex items-center gap-8">
+                              <span className="font-semibold text-gray-800 w-20">
+                                {proposal.arrival_flight_info?.arrivalTime || '00:00'}
+                              </span>
+                              <span className="text-gray-600">
+                                {mainCity} Intl Airport ({proposal.cities?.[0]?.airport_code || 'ARR'})
+                              </span>
+                              <span className="text-gray-500 text-sm ml-auto">
+                                {formatDate(proposal.leaving_on, 'full')}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Amenities */}
+                      <div className="w-48 pl-6 border-l border-gray-200">
+                        <div className="space-y-3 text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-500 flex items-center gap-2">
+                              <Briefcase size={14} />
+                              Baggage
+                            </span>
+                            <span className="text-gray-700 font-medium">30Kg</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-500 flex items-center gap-2">
+                              <Utensils size={14} />
+                              Meals
+                            </span>
+                            <span className="text-gray-700">At Extra Cost</span>
+                          </div>
+                          <div className="text-gray-400 text-xs">non-refundable</div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-500 flex items-center gap-2">
+                              <User size={14} />
+                              Cabin
+                            </span>
+                            <span className="text-gray-700 font-medium">Economy</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Return Flight */}
+                  <div className="p-6 border-t border-gray-100">
+                    {/* Flight Route Header */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <Plane size={16} className="text-gray-600 rotate-180" />
+                      <span className="font-medium text-gray-800">
+                        {mainCity} to {proposal.leaving_from?.split('(')[0]?.trim() || 'Origin'}
+                      </span>
+                      <span className="text-gray-500 text-sm">
+                        {(() => {
+                          const startDate = new Date(proposal.leaving_on);
+                          startDate.setDate(startDate.getDate() + nightsCount);
+                          return formatDate(startDate.toISOString(), 'full');
+                        })()}
+                      </span>
+                    </div>
+
+                    {/* Airline Info */}
+                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-orange-100 rounded flex items-center justify-center">
+                          <X size={16} className="text-orange-500" />
+                        </div>
+                        <span className="text-gray-700 font-medium">
+                          {proposal.departure_flight_info?.airline || 'Airline'} {proposal.departure_flight_info?.flightNumber || 'IX-000'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Flight Timeline */}
+                    <div className="flex">
+                      {/* Left: Time and Route */}
+                      <div className="flex-1">
+                        <div className="flex items-start gap-4">
+                          {/* Timeline */}
+                          <div className="flex flex-col items-center">
+                            <div className="w-3 h-3 rounded-full border-2 border-gray-400 bg-white"></div>
+                            <div className="w-0.5 h-16 bg-gray-300 border-l border-dashed border-gray-400"></div>
+                            <div className="w-3 h-3 rounded-full border-2 border-gray-400 bg-white"></div>
+                          </div>
+                          {/* Flight Details */}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-8 mb-2">
+                              <span className="font-semibold text-gray-800 w-20">
+                                {proposal.departure_flight_info?.flightTime || '00:00'}
+                              </span>
+                              <span className="text-gray-600">
+                                {mainCity} Intl Airport ({proposal.cities?.[0]?.airport_code || 'DEP'}), Terminal
+                              </span>
+                              <span className="text-gray-500 text-sm ml-auto">
+                                {(() => {
+                                  const startDate = new Date(proposal.leaving_on);
+                                  startDate.setDate(startDate.getDate() + nightsCount);
+                                  return formatDate(startDate.toISOString(), 'full');
+                                })()}
+                              </span>
+                            </div>
+                            <div className="text-gray-500 text-sm mb-4 ml-28">
+                              {proposal.departure_flight_info?.duration || '4h 00m'}
+                            </div>
+                            <div className="flex items-center gap-8">
+                              <span className="font-semibold text-gray-800 w-20">
+                                {proposal.departure_flight_info?.arrivalTime || '00:00'}<sup className="text-orange-500">+1</sup>
+                              </span>
+                              <span className="text-gray-600">
+                                {proposal.leaving_from?.split('(')[1]?.replace(')', '') || 'ARR'}
+                              </span>
+                              <span className="text-gray-500 text-sm ml-auto">
+                                {(() => {
+                                  const startDate = new Date(proposal.leaving_on);
+                                  startDate.setDate(startDate.getDate() + nightsCount + 1);
+                                  return formatDate(startDate.toISOString(), 'full');
+                                })()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Amenities */}
+                      <div className="w-48 pl-6 border-l border-gray-200">
+                        <div className="space-y-3 text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-500 flex items-center gap-2">
+                              <Briefcase size={14} />
+                              Baggage
+                            </span>
+                            <span className="text-gray-700 font-medium">30Kg</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-500 flex items-center gap-2">
+                              <Utensils size={14} />
+                              Meals
+                            </span>
+                            <span className="text-gray-700">At Extra Cost</span>
+                          </div>
+                          <div className="text-gray-400 text-xs">non-refundable</div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-500 flex items-center gap-2">
+                              <User size={14} />
+                              Cabin
+                            </span>
+                            <span className="text-gray-700 font-medium">Economy</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* City Tour Section */}
