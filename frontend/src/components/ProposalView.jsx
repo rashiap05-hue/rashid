@@ -825,37 +825,33 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                         </div>
                       </div>
 
-                      {/* Middle Column: Dates */}
-                      <div className="w-36 px-4 flex flex-col justify-between py-1">
-                        <p className="text-gray-500 text-sm">{formatDate(proposal.leaving_on, 'full')}</p>
-                        <p className="text-gray-500 text-sm">{formatDate(proposal.leaving_on, 'full')}</p>
-                      </div>
+                      {/* Right Section: Date + Amenities */}
+                      <div className="flex">
+                        {/* Date Column */}
+                        <div className="w-32 flex flex-col justify-between py-1 pr-6">
+                          <p className="text-gray-500 text-sm">{formatDate(proposal.leaving_on, 'full')}</p>
+                          <p className="text-gray-500 text-sm">{formatDate(proposal.leaving_on, 'full')}</p>
+                        </div>
 
-                      {/* Right Column: Amenities with curved border */}
-                      <div className="w-48 border-l border-gray-200 pl-6 relative">
-                        <div className="absolute top-0 right-0 bottom-0 w-4 border-t border-r border-b border-gray-200 rounded-r-xl"></div>
-                        <div className="space-y-3 text-sm pr-6">
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400 flex items-center gap-2">
-                              <Briefcase size={13} />
-                              Baggage
-                            </span>
-                            <span className="text-gray-700 font-medium">30Kg</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400 flex items-center gap-2">
-                              <Utensils size={13} />
-                              Meals
-                            </span>
-                            <span className="text-gray-700">At Extra Cost</span>
-                          </div>
-                          <div className="text-gray-300 text-xs">non-refundable</div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400 flex items-center gap-2">
-                              <User size={13} />
-                              Cabin
-                            </span>
-                            <span className="text-gray-700 font-medium">Economy</span>
+                        {/* Amenities Column */}
+                        <div className="w-56 border-l border-gray-200 pl-6 flex flex-col justify-between py-1">
+                          <div className="space-y-4">
+                            <div className="flex items-center">
+                              <Briefcase size={14} className="text-gray-400 mr-4" />
+                              <span className="text-gray-400 w-16">Baggage</span>
+                              <span className="text-gray-700 font-medium ml-auto">30Kg</span>
+                            </div>
+                            <div className="flex items-center">
+                              <Utensils size={14} className="text-gray-400 mr-4" />
+                              <span className="text-gray-400 w-16">Meals</span>
+                              <span className="text-gray-700 ml-auto">At Extra Cost</span>
+                            </div>
+                            <div className="text-gray-300 text-sm pl-8">non-refundable</div>
+                            <div className="flex items-center">
+                              <User size={14} className="text-gray-400 mr-4" />
+                              <span className="text-gray-400 w-16">Cabin</span>
+                              <span className="text-gray-700 font-medium ml-auto">Economy</span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -919,49 +915,45 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                         </div>
                       </div>
 
-                      {/* Middle Column: Dates */}
-                      <div className="w-36 px-4 flex flex-col justify-between py-1">
-                        <p className="text-gray-500 text-sm">
-                          {(() => {
-                            const returnDate = new Date(proposal.leaving_on);
-                            returnDate.setDate(returnDate.getDate() + nightsCount);
-                            return formatDate(returnDate.toISOString(), 'full');
-                          })()}
-                        </p>
-                        <p className="text-gray-500 text-sm">
-                          {(() => {
-                            const arrivalDate = new Date(proposal.leaving_on);
-                            arrivalDate.setDate(arrivalDate.getDate() + nightsCount + 1);
-                            return formatDate(arrivalDate.toISOString(), 'full');
-                          })()}
-                        </p>
-                      </div>
+                      {/* Right Section: Date + Amenities */}
+                      <div className="flex">
+                        {/* Date Column */}
+                        <div className="w-32 flex flex-col justify-between py-1 pr-6">
+                          <p className="text-gray-500 text-sm">
+                            {(() => {
+                              const returnDate = new Date(proposal.leaving_on);
+                              returnDate.setDate(returnDate.getDate() + nightsCount);
+                              return formatDate(returnDate.toISOString(), 'full');
+                            })()}
+                          </p>
+                          <p className="text-gray-500 text-sm">
+                            {(() => {
+                              const arrivalDate = new Date(proposal.leaving_on);
+                              arrivalDate.setDate(arrivalDate.getDate() + nightsCount + 1);
+                              return formatDate(arrivalDate.toISOString(), 'full');
+                            })()}
+                          </p>
+                        </div>
 
-                      {/* Right Column: Amenities with curved border */}
-                      <div className="w-48 border-l border-gray-200 pl-6 relative">
-                        <div className="absolute top-0 right-0 bottom-0 w-4 border-t border-r border-b border-gray-200 rounded-r-xl"></div>
-                        <div className="space-y-3 text-sm pr-6">
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400 flex items-center gap-2">
-                              <Briefcase size={13} />
-                              Baggage
-                            </span>
-                            <span className="text-gray-700 font-medium">30Kg</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400 flex items-center gap-2">
-                              <Utensils size={13} />
-                              Meals
-                            </span>
-                            <span className="text-gray-700">At Extra Cost</span>
-                          </div>
-                          <div className="text-gray-300 text-xs">non-refundable</div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-400 flex items-center gap-2">
-                              <User size={13} />
-                              Cabin
-                            </span>
-                            <span className="text-gray-700 font-medium">Economy</span>
+                        {/* Amenities Column */}
+                        <div className="w-56 border-l border-gray-200 pl-6 flex flex-col justify-between py-1">
+                          <div className="space-y-4">
+                            <div className="flex items-center">
+                              <Briefcase size={14} className="text-gray-400 mr-4" />
+                              <span className="text-gray-400 w-16">Baggage</span>
+                              <span className="text-gray-700 font-medium ml-auto">30Kg</span>
+                            </div>
+                            <div className="flex items-center">
+                              <Utensils size={14} className="text-gray-400 mr-4" />
+                              <span className="text-gray-400 w-16">Meals</span>
+                              <span className="text-gray-700 ml-auto">At Extra Cost</span>
+                            </div>
+                            <div className="text-gray-300 text-sm pl-8">non-refundable</div>
+                            <div className="flex items-center">
+                              <User size={14} className="text-gray-400 mr-4" />
+                              <span className="text-gray-400 w-16">Cabin</span>
+                              <span className="text-gray-700 font-medium ml-auto">Economy</span>
+                            </div>
                           </div>
                         </div>
                       </div>
