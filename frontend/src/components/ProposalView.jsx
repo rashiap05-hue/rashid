@@ -775,67 +775,66 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                   </div>
 
                   {/* Outbound Flight */}
-                  <div className="px-6 py-5">
+                  <div className="p-6">
                     {/* Flight Route Header */}
                     <div className="flex items-center gap-2 mb-5">
                       <Plane size={14} className="text-gray-500 -rotate-45" />
-                      <span className="text-gray-700">
-                        {proposal.leaving_from || 'Dubai International Airport'} to {mainCity}
+                      <span className="font-medium text-gray-700">
+                        {proposal.leaving_from?.split('(')[0]?.trim() || 'Origin'} to {mainCity}
                       </span>
                       <span className="text-gray-400 text-sm ml-2">
-                        {formatDate(proposal.leaving_on, 'numeric')}
+                        {formatDate(proposal.leaving_on, 'full')}
                       </span>
                     </div>
 
                     {/* Airline Info */}
-                    <div className="bg-gray-50 rounded-lg px-4 py-3 mb-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 bg-orange-100 rounded flex items-center justify-center">
-                          <X size={14} className="text-orange-400" />
-                        </div>
-                        <span className="text-gray-600">
-                          {proposal.arrival_flight_info?.airline || 'Airline'} {proposal.arrival_flight_info?.flightNumber || 'IX-000'}
-                        </span>
+                    <div className="bg-gray-50 rounded-lg px-4 py-3 mb-5 inline-flex items-center gap-3">
+                      <div className="w-6 h-6 flex items-center justify-center">
+                        <X size={18} className="text-orange-500" strokeWidth={3} />
                       </div>
+                      <span className="text-gray-600">
+                        {proposal.arrival_flight_info?.airline || 'AirIndiaExpress'} <span className="ml-2">{proposal.arrival_flight_info?.flightNumber || 'IX-343'}</span>
+                      </span>
                     </div>
 
-                    {/* Flight Timeline */}
-                    <div className="flex">
-                      {/* Left: Timeline and Route */}
-                      <div className="flex-1">
+                    {/* Flight Timeline - 3 Column Layout */}
+                    <div className="flex items-stretch">
+                      {/* Left Column: Time and Route */}
+                      <div className="flex-1 pr-8">
                         <div className="flex gap-4">
+                          {/* Time Column */}
+                          <div className="w-20">
+                            <p className="text-gray-800 font-medium">{proposal.arrival_flight_info?.flightTime || '02:10 PM'}</p>
+                            <p className="text-gray-400 text-sm py-6">{proposal.arrival_flight_info?.duration || '4h 25m'}</p>
+                            <p className="text-gray-800 font-medium">{proposal.arrival_flight_info?.arrivalTime || '05:05 PM'}</p>
+                          </div>
+                          
                           {/* Timeline dots */}
-                          <div className="flex flex-col items-center pt-1">
+                          <div className="flex flex-col items-center py-1">
                             <div className="w-2.5 h-2.5 rounded-full border-2 border-gray-300 bg-white"></div>
-                            <div className="w-px h-14 bg-gray-300"></div>
+                            <div className="w-px flex-1 border-l border-dashed border-gray-300"></div>
                             <div className="w-2.5 h-2.5 rounded-full border-2 border-gray-300 bg-white"></div>
                           </div>
                           
-                          {/* Flight Details */}
-                          <div className="flex-1 space-y-1">
-                            {/* Departure */}
-                            <div className="flex items-baseline">
-                              <span className="text-gray-800 w-16">{proposal.arrival_flight_info?.flightTime || '00:00'}</span>
-                              <span className="text-gray-600 flex-1">{proposal.leaving_from_code || 'DXB'}, Terminal</span>
-                              <span className="text-gray-400 text-sm">{formatDate(proposal.leaving_on, 'numeric')}</span>
-                            </div>
-                            {/* Duration */}
-                            <div className="pl-16 text-gray-400 text-sm py-2">
-                              {proposal.arrival_flight_info?.duration || '4h 00m'}
-                            </div>
-                            {/* Arrival */}
-                            <div className="flex items-baseline">
-                              <span className="text-gray-800 w-16">{proposal.arrival_flight_info?.arrivalTime || '00:00'}</span>
-                              <span className="text-gray-600 flex-1">{mainCity} Intl Airport (ARR)</span>
-                              <span className="text-gray-400 text-sm">{formatDate(proposal.leaving_on, 'numeric')}</span>
-                            </div>
+                          {/* Airport Names */}
+                          <div className="flex-1">
+                            <p className="text-gray-600">{proposal.leaving_from_code || 'Kozhikode (CCJ)'}, Terminal</p>
+                            <div className="py-6"></div>
+                            <p className="text-gray-600">{mainCity} Intl Airport (DXB)</p>
                           </div>
                         </div>
                       </div>
 
-                      {/* Right: Amenities */}
-                      <div className="w-44 pl-6 border-l border-gray-100 ml-6">
-                        <div className="space-y-2.5 text-sm">
+                      {/* Middle Column: Dates */}
+                      <div className="w-36 px-4 flex flex-col justify-between py-1">
+                        <p className="text-gray-500 text-sm">{formatDate(proposal.leaving_on, 'full')}</p>
+                        <p className="text-gray-500 text-sm">{formatDate(proposal.leaving_on, 'full')}</p>
+                      </div>
+
+                      {/* Right Column: Amenities with curved border */}
+                      <div className="w-48 border-l border-gray-200 pl-6 relative">
+                        <div className="absolute top-0 right-0 bottom-0 w-4 border-t border-r border-b border-gray-200 rounded-r-xl"></div>
+                        <div className="space-y-3 text-sm pr-6">
                           <div className="flex items-center justify-between">
                             <span className="text-gray-400 flex items-center gap-2">
                               <Briefcase size={13} />
@@ -848,7 +847,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                               <Utensils size={13} />
                               Meals
                             </span>
-                            <span className="text-gray-600">At Extra Cost</span>
+                            <span className="text-gray-700">At Extra Cost</span>
                           </div>
                           <div className="text-gray-300 text-xs">non-refundable</div>
                           <div className="flex items-center justify-between">
@@ -864,85 +863,84 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                   </div>
 
                   {/* Return Flight */}
-                  <div className="px-6 py-5 border-t border-gray-100">
+                  <div className="p-6 border-t border-gray-100">
                     {/* Flight Route Header */}
                     <div className="flex items-center gap-2 mb-5">
                       <Plane size={14} className="text-gray-500 rotate-[135deg]" />
-                      <span className="text-gray-700">
-                        {mainCity} to {proposal.leaving_from || 'Dubai International Airport'}
+                      <span className="font-medium text-gray-700">
+                        {mainCity} to {proposal.leaving_from?.split('(')[0]?.trim() || 'Origin'}
                       </span>
                       <span className="text-gray-400 text-sm ml-2">
                         {(() => {
                           const returnDate = new Date(proposal.leaving_on);
                           returnDate.setDate(returnDate.getDate() + nightsCount);
-                          return formatDate(returnDate.toISOString(), 'numeric');
+                          return formatDate(returnDate.toISOString(), 'full');
                         })()}
                       </span>
                     </div>
 
                     {/* Airline Info */}
-                    <div className="bg-gray-50 rounded-lg px-4 py-3 mb-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 bg-orange-100 rounded flex items-center justify-center">
-                          <X size={14} className="text-orange-400" />
-                        </div>
-                        <span className="text-gray-600">
-                          {proposal.departure_flight_info?.airline || 'Airline'} {proposal.departure_flight_info?.flightNumber || 'IX-000'}
-                        </span>
+                    <div className="bg-gray-50 rounded-lg px-4 py-3 mb-5 inline-flex items-center gap-3">
+                      <div className="w-6 h-6 flex items-center justify-center">
+                        <X size={18} className="text-orange-500" strokeWidth={3} />
                       </div>
+                      <span className="text-gray-600">
+                        {proposal.departure_flight_info?.airline || 'AirIndiaExpress'} <span className="ml-2">{proposal.departure_flight_info?.flightNumber || 'IX-344'}</span>
+                      </span>
                     </div>
 
-                    {/* Flight Timeline */}
-                    <div className="flex">
-                      {/* Left: Timeline and Route */}
-                      <div className="flex-1">
+                    {/* Flight Timeline - 3 Column Layout */}
+                    <div className="flex items-stretch">
+                      {/* Left Column: Time and Route */}
+                      <div className="flex-1 pr-8">
                         <div className="flex gap-4">
+                          {/* Time Column */}
+                          <div className="w-20">
+                            <p className="text-gray-800 font-medium">{proposal.departure_flight_info?.flightTime || '06:40 PM'}</p>
+                            <p className="text-gray-400 text-sm py-6">{proposal.departure_flight_info?.duration || '3h 55m'}</p>
+                            <p className="text-gray-800 font-medium">
+                              {proposal.departure_flight_info?.arrivalTime || '12:05 AM'}<sup className="text-orange-500 text-[10px] ml-0.5">+1</sup>
+                            </p>
+                          </div>
+                          
                           {/* Timeline dots */}
-                          <div className="flex flex-col items-center pt-1">
+                          <div className="flex flex-col items-center py-1">
                             <div className="w-2.5 h-2.5 rounded-full border-2 border-gray-300 bg-white"></div>
-                            <div className="w-px h-14 bg-gray-300"></div>
+                            <div className="w-px flex-1 border-l border-dashed border-gray-300"></div>
                             <div className="w-2.5 h-2.5 rounded-full border-2 border-gray-300 bg-white"></div>
                           </div>
                           
-                          {/* Flight Details */}
-                          <div className="flex-1 space-y-1">
-                            {/* Departure */}
-                            <div className="flex items-baseline">
-                              <span className="text-gray-800 w-16">{proposal.departure_flight_info?.flightTime || '00:00'}</span>
-                              <span className="text-gray-600 flex-1">{mainCity} Intl Airport (DEP), Terminal</span>
-                              <span className="text-gray-400 text-sm">
-                                {(() => {
-                                  const returnDate = new Date(proposal.leaving_on);
-                                  returnDate.setDate(returnDate.getDate() + nightsCount);
-                                  return formatDate(returnDate.toISOString(), 'numeric');
-                                })()}
-                              </span>
-                            </div>
-                            {/* Duration */}
-                            <div className="pl-16 text-gray-400 text-sm py-2">
-                              {proposal.departure_flight_info?.duration || '4h 00m'}
-                            </div>
-                            {/* Arrival */}
-                            <div className="flex items-baseline">
-                              <span className="text-gray-800 w-16">
-                                {proposal.departure_flight_info?.arrivalTime || '00:00'}<sup className="text-orange-400 text-[10px]">+1</sup>
-                              </span>
-                              <span className="text-gray-600 flex-1">{proposal.leaving_from_code || 'DXB'}</span>
-                              <span className="text-gray-400 text-sm">
-                                {(() => {
-                                  const arrivalDate = new Date(proposal.leaving_on);
-                                  arrivalDate.setDate(arrivalDate.getDate() + nightsCount + 1);
-                                  return formatDate(arrivalDate.toISOString(), 'numeric');
-                                })()}
-                              </span>
-                            </div>
+                          {/* Airport Names */}
+                          <div className="flex-1">
+                            <p className="text-gray-600">{mainCity} Intl Airport (DXB), Terminal</p>
+                            <div className="py-6"></div>
+                            <p className="text-gray-600">{proposal.leaving_from_code || 'Kozhikode (CCJ)'}</p>
                           </div>
                         </div>
                       </div>
 
-                      {/* Right: Amenities */}
-                      <div className="w-44 pl-6 border-l border-gray-100 ml-6">
-                        <div className="space-y-2.5 text-sm">
+                      {/* Middle Column: Dates */}
+                      <div className="w-36 px-4 flex flex-col justify-between py-1">
+                        <p className="text-gray-500 text-sm">
+                          {(() => {
+                            const returnDate = new Date(proposal.leaving_on);
+                            returnDate.setDate(returnDate.getDate() + nightsCount);
+                            return formatDate(returnDate.toISOString(), 'full');
+                          })()}
+                        </p>
+                        <p className="text-gray-500 text-sm">
+                          {(() => {
+                            const arrivalDate = new Date(proposal.leaving_on);
+                            arrivalDate.setDate(arrivalDate.getDate() + nightsCount + 1);
+                            return formatDate(arrivalDate.toISOString(), 'full');
+                          })()}
+                        </p>
+                      </div>
+
+                      {/* Right Column: Amenities with curved border */}
+                      <div className="w-48 border-l border-gray-200 pl-6 relative">
+                        <div className="absolute top-0 right-0 bottom-0 w-4 border-t border-r border-b border-gray-200 rounded-r-xl"></div>
+                        <div className="space-y-3 text-sm pr-6">
                           <div className="flex items-center justify-between">
                             <span className="text-gray-400 flex items-center gap-2">
                               <Briefcase size={13} />
@@ -955,7 +953,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                               <Utensils size={13} />
                               Meals
                             </span>
-                            <span className="text-gray-600">At Extra Cost</span>
+                            <span className="text-gray-700">At Extra Cost</span>
                           </div>
                           <div className="text-gray-300 text-xs">non-refundable</div>
                           <div className="flex items-center justify-between">
