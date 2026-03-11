@@ -961,6 +961,170 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                   </div>
                 </div>
 
+                {/* Hotel Section - Per City */}
+                {proposal.cities?.map((city, cityIdx) => {
+                  const hotel = getHotelForCity(city.name);
+                  const checkInDate = new Date(proposal.leaving_on);
+                  const checkOutDate = new Date(proposal.leaving_on);
+                  checkOutDate.setDate(checkOutDate.getDate() + (city.nights || 1));
+                  
+                  return (
+                    <div key={`hotel-${cityIdx}`} className="bg-white border border-gray-200 rounded-xl mb-8 shadow-sm overflow-hidden" data-testid={`hotel-section-${cityIdx}`}>
+                      {/* City Header */}
+                      <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+                        <MapPin size={20} className="text-gray-600" />
+                        <h2 className="text-xl font-bold text-gray-800">{city.name}</h2>
+                        <span className="text-gray-500">{city.nights || 1} nights</span>
+                      </div>
+
+                      {/* Hotel Card */}
+                      <div className="p-6">
+                        <div className="flex gap-6">
+                          {/* Hotel Image */}
+                          <div className="w-56 h-44 flex-shrink-0 rounded-lg overflow-hidden">
+                            <img 
+                              src={hotel?.images?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'}
+                              alt={hotel?.name || 'Hotel'}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+
+                          {/* Hotel Details */}
+                          <div className="flex-1">
+                            {/* Stars */}
+                            <div className="flex mb-1">
+                              {Array.from({ length: hotel?.star_rating || 3 }).map((_, i) => (
+                                <Star key={i} size={14} className="text-yellow-400 fill-yellow-400" />
+                              ))}
+                            </div>
+
+                            {/* Hotel Name */}
+                            <div className="flex items-center gap-3 mb-1">
+                              <h3 className="text-xl font-bold text-gray-800">{hotel?.name || 'Hotel Name'}</h3>
+                              <button className="px-3 py-1 border border-teal-500 text-teal-600 text-xs font-medium rounded hover:bg-teal-50 transition-colors">
+                                VIEW
+                              </button>
+                            </div>
+
+                            {/* Location */}
+                            <p className="text-teal-600 text-sm mb-3">{hotel?.location || hotel?.address || `${city.name} City Center`}</p>
+
+                            {/* Rating */}
+                            <div className="flex items-center gap-2 mb-4">
+                              <div className="bg-[#002B5B] text-white px-2 py-1 rounded text-sm font-bold">
+                                {hotel?.rating_score || '7.4'}
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-800">{hotel?.rating_text || 'Good'}</span>
+                                <span className="text-gray-400 text-sm ml-2">{hotel?.reviews_count || '941'} ratings</span>
+                              </div>
+                            </div>
+
+                            {/* Check-in / Check-out */}
+                            <div className="flex gap-8 mb-4">
+                              <div>
+                                <p className="text-gray-500 text-sm">Check-in</p>
+                                <p className="font-medium text-gray-800">02:00 PM {formatDate(checkInDate, 'short')}</p>
+                              </div>
+                              <div className="border-l border-gray-200 pl-8">
+                                <p className="text-gray-500 text-sm">Check-out</p>
+                                <p className="font-medium text-gray-800">12:00 PM {formatDate(checkOutDate, 'short')}</p>
+                              </div>
+                            </div>
+
+                            {/* Room Info */}
+                            <div className="flex items-start gap-2 mb-3">
+                              <CheckCircle size={18} className="text-teal-500 mt-0.5 flex-shrink-0" />
+                              <p className="text-gray-700">
+                                1 x {hotel?.selectedRoom?.name || 'Double Room'} - includes 20% off Food & Beverage (excluding in-room dining)
+                              </p>
+                            </div>
+
+                            {/* Room Details */}
+                            <div className="pl-6 space-y-1 text-sm text-gray-500 mb-3">
+                              <p>1 Double Bed</p>
+                              <p>Package rate</p>
+                              <p>Free WiFi</p>
+                              <p>Limited time offer</p>
+                            </div>
+
+                            <p className="text-gray-500 text-sm mb-2">No meals included</p>
+                            <a href="#" className="text-teal-600 text-sm hover:underline">Fully refundable before {formatDate(new Date(checkInDate.getTime() - 86400000), 'day')}</a>
+                          </div>
+
+                          {/* 3-dot menu */}
+                          <button className="self-start p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                            <MoreVertical size={18} className="text-gray-400" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Tax Info */}
+                      <div className="mx-6 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <p className="text-gray-600 text-sm mb-2">You'll be asked to pay the following charges at the property:</p>
+                        <ul className="list-disc list-inside text-gray-600 text-sm">
+                          <li>A tax is imposed by the city: AED 10.00 per accommodation, per night</li>
+                        </ul>
+                      </div>
+
+                      {/* What to know section */}
+                      <div className="mx-6 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <h4 className="font-bold text-gray-800 mb-4">What to know about this hotel</h4>
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <ul className="space-y-2 text-gray-600">
+                            <li className="flex items-start gap-2">
+                              <span className="text-gray-400">•</span>
+                              <span>Newly Renovated: Recently renovated in 2020</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-gray-400">•</span>
+                              <span>Spacious Rooms: Average 250 sq ft room size</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-gray-400">•</span>
+                              <span>Limited Amenities: No fitness center or spa</span>
+                            </li>
+                          </ul>
+                          <ul className="space-y-2 text-gray-600">
+                            <li className="flex items-start gap-2">
+                              <span className="text-gray-400">•</span>
+                              <span>Local Shopping: Al Fahidi Street and Meena Bazaar nearby</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-gray-400">•</span>
+                              <span>Close to Metro: 5-minute walk to Al Fahidi Metro Station</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-gray-400">•</span>
+                              <span>Crowded Lift: Only 2 lifts, can be slow during peak hours</span>
+                            </li>
+                          </ul>
+                          <ul className="space-y-2 text-gray-600">
+                            <li className="flex items-start gap-2">
+                              <span className="text-gray-400">•</span>
+                              <span>Variety Dining: Multiple dining options nearby</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-gray-400">•</span>
+                              <span>Lively Lobby: Spacious and modern lobby area</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-gray-400">•</span>
+                              <span>Small Pool: Pool area is relatively small</span>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      {/* Warning Message */}
+                      <div className="mx-6 mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+                        <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-amber-700 text-sm">Based on expected time of departure, long wait is expected after check-out from the hotel</p>
+                      </div>
+                    </div>
+                  );
+                })}
+
                 {/* City Tour Section */}
                 {proposal.cities?.map((city, cityIdx) => {
                   const hotel = getHotelForCity(city.name);
