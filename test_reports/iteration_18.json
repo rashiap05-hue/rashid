@@ -1,0 +1,95 @@
+{
+  "summary": "Tested ProposalView page redesign - ALL FEATURES WORKING. Day-wise itinerary with collapsible cards, Travel Insurance section, tab navigation, and expand/collapse functionality all working correctly. Old City Tour Section confirmed removed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "MyProposals table",
+        "issues": ["React hydration warning about <tr>/<span> inside <tbody> - cosmetic only, doesn't affect functionality"]
+      }
+    ]
+  },
+  "features_tested": {
+    "proposal_view_page_load": {
+      "status": "PASS",
+      "details": "ProposalView page loads correctly from My Proposals list with all sections visible"
+    },
+    "day_wise_itinerary_cards": {
+      "status": "PASS",
+      "details": "Day cards render correctly with colored circles (orange for Day 1/Arrival, pink for Day 2/Departure), dates, and collapsible content"
+    },
+    "day_1_arrival_expanded_default": {
+      "status": "PASS",
+      "details": "Day 1 (Arrival into Dubai) is expanded by default showing: orange alert banner, flight arrival info (IX-343), transfer with VIEW button, 'Private Transfers' and '4 Bags' badges, overnight stay, and 3-column meals grid (Not Included)"
+    },
+    "day_2_collapsed_default": {
+      "status": "PASS",
+      "details": "Day 2 (Departure from Dubai) is collapsed by default and can be expanded by clicking - shows pink alert banner when expanded"
+    },
+    "expand_all_days_button": {
+      "status": "PASS",
+      "details": "EXPAND ALL DAYS button toggles between '+ EXPAND ALL DAYS' and '- COLLAPSE ALL DAYS', correctly expands/collapses all day cards"
+    },
+    "transfer_badges": {
+      "status": "PASS",
+      "details": "Transfer badges 'Private Transfers' and '4 Bags' display correctly in teal/gray pill format"
+    },
+    "travel_insurance_section": {
+      "status": "PASS",
+      "details": "Travel Insurance section appears at bottom with Shield icon, '$50,000 coverage', 'Only for Age Below 60 Yrs', and 'Not Included' label in red"
+    },
+    "flights_section": {
+      "status": "PASS",
+      "details": "Flights section shows outbound (Dubai Intl Airport to Dubai, AirIndiaExpress IX-343) and return (Dubai to Dubai Intl Airport, IX-344) with times, baggage, meals, cabin info"
+    },
+    "hotel_section": {
+      "status": "PASS",
+      "details": "Hotel section renders with image, VIEW button, star rating, rating score (7.4 Good), check-in/out times, room info, 'What to know about this hotel' grid"
+    },
+    "tab_navigation": {
+      "status": "PASS",
+      "details": "All 5 tabs (Itinerary, Inclusions, Terms and Policies, Messages, Request Changes) switch correctly with proper content display"
+    },
+    "right_sidebar_price_breakdown": {
+      "status": "PASS",
+      "details": "Price breakdown sidebar shows correctly: Estimated Date of Booking, 1 room/2 adults, Nationality, Departure City, 4 Seater Sedan badge, Price per adult, Total Price, AED 500, BOOK NOW/ACCEPT PROPOSAL/NEED HELP/MAIL/WHATSAPP buttons, Payment Schedule, Chat with client"
+    },
+    "city_tour_section_removed": {
+      "status": "PASS",
+      "details": "Old City Tour Section confirmed completely removed from ProposalView.jsx (grep found no matches)"
+    }
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_18.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "expandedDays state initialized correctly with {1: true} so Day 1 is expanded by default (line 425)",
+    "toggleAllDays function correctly toggles allExpanded state and updates expandedDays for all days (lines 572-580)",
+    "AnimatePresence with motion.div provides smooth expand/collapse animation (lines 1203-1211)",
+    "Day cards use proper colored circles: orange (arrival), pink (departure), teal (middle days) via cn() conditional classes (lines 1180-1185)",
+    "Travel Insurance section properly placed at bottom with data-testid='travel-insurance-section' (lines 1472-1488)"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A - Frontend only testing",
+    "frontend": "100% - All ProposalView features working correctly"
+  },
+  "test_credentials": {
+    "email": "testadmin@example.com",
+    "password": "password123"
+  },
+  "seed_data_creation": "Used existing proposals from previous iterations",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_list": ["Flight Search", "AI Chatbot", "Google Sheets", "Stripe", "PayPal"]
+  },
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "ProposalView page fully redesigned to Nexus DMC style. Test flow: Login -> My Leads dropdown -> My Proposals -> Click 'View Proposal' -> ProposalView loads with: Fixed header tabs, left sidebar trip overview, hero image with play button, map, Flights section, Hotel section, Day-wise itinerary with collapsible cards (Day 1 expanded by default), Travel Insurance at bottom, and right sidebar price breakdown. EXPAND ALL DAYS button and individual day toggles work correctly. All 5 tabs (Itinerary, Inclusions, Terms and Policies, Messages, Request Changes) switch correctly."
+}
