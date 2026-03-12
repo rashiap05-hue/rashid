@@ -170,9 +170,13 @@ function LeftSidebarNav({ proposal, activeSection, onSectionChange }) {
   const mainCity = proposal?.cities?.[0]?.name || 'Unknown';
   
   // Build timeline items
-  const timelineItems = [
-    { id: 'flights', type: 'section', icon: Plane, label: 'Flights' },
-  ];
+  const timelineItems = [];
+  
+  // Only add flights if flight data exists
+  const hasFlightData = proposal?.flights_booked === true || proposal?.arrival_flight_info || proposal?.departure_flight_info;
+  if (hasFlightData) {
+    timelineItems.push({ id: 'flights', type: 'section', icon: Plane, label: 'Flights' });
+  }
   
   // Add city nights
   proposal?.cities?.forEach((city, idx) => {
@@ -778,7 +782,8 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                   />
                 </div>
 
-                {/* Flights Section */}
+                {/* Flights Section - Only show if flights are selected */}
+                {(proposal.flights_booked === true || proposal.arrival_flight_info || proposal.departure_flight_info) && (
                 <div className="bg-white border border-gray-200 rounded-xl mb-8 shadow-sm" data-testid="flights-section">
                   {/* Flights Header */}
                   <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -977,6 +982,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Hotel Section - Per City */}
                 {proposal.cities?.map((city, cityIdx) => {
@@ -994,15 +1000,18 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                         <span className="text-gray-500">{city.nights || 1} nights</span>
                       </div>
 
+                      {hotel ? (
+                      <>
                       {/* Hotel Card */}
                       <div className="p-6">
                         <div className="flex gap-6">
                           {/* Hotel Image */}
                           <div className="w-56 h-44 flex-shrink-0 rounded-lg overflow-hidden">
                             <img 
-                              src={hotel?.images?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'}
-                              alt={hotel?.name || 'Hotel'}
+                              src={hotel.image || hotel.images?.[0] || hotel.selectedRoom?.images?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'}
+                              alt={hotel.name || 'Hotel'}
                               className="w-full h-full object-cover"
+                              data-testid={`hotel-image-${cityIdx}`}
                             />
                           </div>
 
@@ -1057,12 +1066,13 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                               </p>
                             </div>
 
-                            {/* Room Details */}
+                            {/* Room Details - from actual data */}
                             <div className="pl-6 space-y-1 text-sm text-gray-500 mb-3">
-                              <p>1 Double Bed</p>
+                              {hotel?.selectedRoom?.bedType && <p>{hotel.selectedRoom.bedType}</p>}
+                              {!hotel?.selectedRoom?.bedType && <p>1 Double Bed</p>}
                               <p>Package rate</p>
-                              <p>Free WiFi</p>
-                              <p>Limited time offer</p>
+                              {hotel?.amenities?.includes('Free WiFi') || hotel?.amenities?.includes('WiFi') ? <p>Free WiFi</p> : null}
+                              {hotel?.selectedRoom?.cancellation_policy && <p>{hotel.selectedRoom.cancellation_policy}</p>}
                             </div>
 
                             <p className="text-gray-500 text-sm mb-2">No meals included</p>
@@ -1084,60 +1094,34 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                         </ul>
                       </div>
 
-                      {/* What to know section */}
+                      {/* Amenities Section */}
+                      {hotel?.amenities && hotel.amenities.length > 0 && (
                       <div className="mx-6 mb-6 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                        <h4 className="font-bold text-gray-800 mb-4">What to know about this hotel</h4>
-                        <div className="grid grid-cols-3 gap-4 text-sm">
-                          <ul className="space-y-2 text-gray-600">
-                            <li className="flex items-start gap-2">
-                              <span className="text-gray-400">•</span>
-                              <span>Newly Renovated: Recently renovated in 2020</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="text-gray-400">•</span>
-                              <span>Spacious Rooms: Average 250 sq ft room size</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="text-gray-400">•</span>
-                              <span>Limited Amenities: No fitness center or spa</span>
-                            </li>
-                          </ul>
-                          <ul className="space-y-2 text-gray-600">
-                            <li className="flex items-start gap-2">
-                              <span className="text-gray-400">•</span>
-                              <span>Local Shopping: Al Fahidi Street and Meena Bazaar nearby</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="text-gray-400">•</span>
-                              <span>Close to Metro: 5-minute walk to Al Fahidi Metro Station</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="text-gray-400">•</span>
-                              <span>Crowded Lift: Only 2 lifts, can be slow during peak hours</span>
-                            </li>
-                          </ul>
-                          <ul className="space-y-2 text-gray-600">
-                            <li className="flex items-start gap-2">
-                              <span className="text-gray-400">•</span>
-                              <span>Variety Dining: Multiple dining options nearby</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="text-gray-400">•</span>
-                              <span>Lively Lobby: Spacious and modern lobby area</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="text-gray-400">•</span>
-                              <span>Small Pool: Pool area is relatively small</span>
-                            </li>
-                          </ul>
+                        <h4 className="font-bold text-gray-800 mb-4">Hotel Amenities</h4>
+                        <div className="grid grid-cols-3 gap-3 text-sm">
+                          {hotel.amenities.slice(0, 9).map((amenity, aIdx) => (
+                            <div key={aIdx} className="flex items-start gap-2 text-gray-600">
+                              <Check size={14} className="text-teal-500 mt-0.5 flex-shrink-0" />
+                              <span>{amenity}</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
+                      )}
 
                       {/* Warning Message */}
                       <div className="mx-6 mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
                         <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
                         <p className="text-amber-700 text-sm">Based on expected time of departure, long wait is expected after check-out from the hotel</p>
                       </div>
+                      </>
+                      ) : (
+                      <div className="p-8 text-center">
+                        <Hotel size={32} className="text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-400 text-sm">No hotel selected for {city.name}</p>
+                        <p className="text-gray-300 text-xs mt-1">Go to Customize Your Trip to select a hotel</p>
+                      </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1230,56 +1214,105 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                 {/* Arrival Day Content */}
                                 {isArrivalDay && (
                                   <div className="pt-5 space-y-5">
-                                    {/* Alert Banner */}
+                                    {/* Alert Banner - only if transfer selected */}
+                                    {proposal.arrival_transfer && (
                                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-start gap-3">
                                       <AlertTriangle size={18} className="text-orange-500 flex-shrink-0 mt-0.5" />
                                       <p className="text-sm text-orange-700">
                                         You will be met by our representative at the Airport Arrival Terminal. Our representative will be holding a signage card with your name on it.
                                       </p>
                                     </div>
+                                    )}
 
-                                    {/* Flight Info */}
+                                    {/* Flight Info - only if flight data exists */}
+                                    {(proposal.arrival_flight_info) && (
                                     <div className="flex items-start gap-3 pl-2">
                                       <Plane size={18} className="text-gray-400 -rotate-45 mt-0.5 flex-shrink-0" />
                                       <div>
                                         <p className="font-medium text-gray-700">Flight Arrival</p>
                                         <p className="text-sm text-gray-500">
-                                          {proposal.arrival_flight_info?.flightNumber || 'IX-343'} arriving on {formatDate(dayDate, 'day')} at {proposal.arrival_flight_info?.arrivalTime || '05:05 PM'} - {mainCity} Intl Airport
+                                          {proposal.arrival_flight_info.flightNumber} arriving on {formatDate(dayDate, 'day')} at {proposal.arrival_flight_info.arrivalTime} - {mainCity} Intl Airport
                                         </p>
                                       </div>
                                     </div>
+                                    )}
 
-                                    {/* Transfer */}
+                                    {/* Transfer - from actual data */}
+                                    {proposal.arrival_transfer ? (
                                     <div className="pl-2">
                                       <div className="flex items-start gap-3">
                                         <Car size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
                                         <div className="flex-1">
                                           <div className="flex items-center gap-2 flex-wrap">
                                             <p className="font-medium text-gray-700">
-                                              One-way transfer from {proposal.leaving_from?.split('(')[0]?.trim() || 'Airport'} to {mainCity} Hotel
+                                              {proposal.arrival_transfer.title || `One-way transfer from ${proposal.leaving_from?.split('(')[0]?.trim() || 'Airport'} to ${mainCity} Hotel`}
                                             </p>
                                             <button className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`transfer-view-day-${dayNum}`}>
                                               VIEW
                                             </button>
                                           </div>
+                                          {proposal.arrival_transfer.duration && (
+                                            <p className="text-sm text-gray-500 mt-1">Duration: {proposal.arrival_transfer.duration}</p>
+                                          )}
                                           <div className="flex gap-2 mt-2">
                                             <span className="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs rounded-full border border-teal-200">
-                                              Private Transfers
+                                              {proposal.arrival_transfer.selectedVehicle ? 'Private' : 'Private'} Transfers
                                             </span>
+                                            {proposal.vehicle_label && (
                                             <span className="px-2.5 py-1 bg-gray-50 text-gray-600 text-xs rounded-full border border-gray-200 flex items-center gap-1">
-                                              <Briefcase size={11} />
-                                              4 Bags
+                                              <Car size={11} />
+                                              {proposal.vehicle_label}
                                             </span>
+                                            )}
                                           </div>
                                         </div>
                                       </div>
                                     </div>
+                                    ) : (
+                                    <div className="pl-2 flex items-center gap-3">
+                                      <Car size={18} className="text-gray-300 flex-shrink-0" />
+                                      <p className="text-gray-400 text-sm italic">No arrival transfer selected</p>
+                                    </div>
+                                    )}
+
+                                    {/* Arrival Activities if any */}
+                                    {dayActivities.length > 0 && dayActivities.map((activity, actIdx) => (
+                                      <div key={actIdx} className="pl-2">
+                                        <div className="flex gap-4">
+                                          {activity.image && (
+                                            <img src={activity.image} alt={activity.name} className="w-24 h-20 rounded-lg object-cover flex-shrink-0" data-testid={`activity-img-day-${dayNum}-${actIdx}`} />
+                                          )}
+                                          <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                              <Camera size={16} className="text-gray-400" />
+                                              <span className="font-medium text-gray-700">{activity.name}</span>
+                                              <button className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`activity-view-day-${dayNum}-${actIdx}`}>VIEW</button>
+                                            </div>
+                                            <p className="text-sm text-gray-500">Duration: {activity.duration || '4 hrs'}</p>
+                                            {activity.highlights?.length > 0 && (
+                                              <div className="flex flex-wrap gap-1.5 mt-2">
+                                                {activity.highlights.slice(0, 4).map((h, hIdx) => (
+                                                  <span key={hIdx} className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-200">{h}</span>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
 
                                     {/* Overnight Stay */}
+                                    {hotel ? (
                                     <div className="flex items-center gap-3 pl-2">
                                       <Bed size={18} className="text-gray-400 flex-shrink-0" />
-                                      <p className="text-gray-600">Overnight stay at <span className="font-medium">{hotel?.name || 'Hotel'}</span></p>
+                                      <p className="text-gray-600">Overnight stay at <span className="font-medium">{hotel.name}</span></p>
                                     </div>
+                                    ) : (
+                                    <div className="flex items-center gap-3 pl-2">
+                                      <Bed size={18} className="text-gray-300 flex-shrink-0" />
+                                      <p className="text-gray-400 text-sm italic">No hotel selected</p>
+                                    </div>
+                                    )}
 
                                     {/* Meals Grid */}
                                     <div className="border-t border-gray-100 pt-4 mt-4">
@@ -1313,38 +1346,66 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                 {/* Middle Day Content */}
                                 {isMiddleDay && (
                                   <div className="pt-5 space-y-5">
-                                    {/* Activities */}
+                                    {/* Activities with photos and details */}
                                     {dayActivities.length > 0 ? (
                                       dayActivities.map((activity, actIdx) => (
                                         <div key={actIdx} className="pl-2">
-                                          <div className="flex items-start gap-3">
-                                            <Camera size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                                          <div className="flex gap-4">
+                                            {/* Activity Image */}
+                                            {activity.image && (
+                                              <img 
+                                                src={activity.image} 
+                                                alt={activity.name} 
+                                                className="w-32 h-24 rounded-lg object-cover flex-shrink-0" 
+                                                data-testid={`activity-img-day-${dayNum}-${actIdx}`}
+                                              />
+                                            )}
                                             <div className="flex-1">
                                               <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                <Camera size={16} className="text-gray-400" />
                                                 <span className="font-medium text-gray-700">{activity.name}</span>
                                                 <button className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`activity-view-day-${dayNum}-${actIdx}`}>
                                                   VIEW
                                                 </button>
                                               </div>
+                                              {activity.description && (
+                                                <p className="text-sm text-gray-500 mb-2 line-clamp-2">{activity.description}</p>
+                                              )}
                                               <p className="text-sm text-gray-500 mb-2">
                                                 {activity.start_times?.length > 0 
                                                   ? `Starts at ${activity.start_times.slice(0,3).join(', ')}` 
                                                   : 'Flexible timing'
                                                 } (Duration: {activity.duration || '4 hrs'})
                                               </p>
-                                              {/* Pickup info */}
-                                              <div className="space-y-1 text-sm mb-3">
-                                                <p className="flex items-center gap-2 text-gray-600">
-                                                  <Check size={13} className="text-gray-400" />
-                                                  Pick up time {activity.start_times?.[0] || '09:00 am'}
-                                                </p>
-                                                <p className="text-gray-500 ml-6">Start from {hotel?.name || 'Hotel'}</p>
-                                              </div>
-                                              {/* Transfer & Meal badges */}
+                                              {/* Highlights */}
+                                              {activity.highlights?.length > 0 && (
+                                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                                  {activity.highlights.slice(0, 5).map((h, hIdx) => (
+                                                    <span key={hIdx} className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-200">{h}</span>
+                                                  ))}
+                                                </div>
+                                              )}
+                                              {/* Inclusions */}
+                                              {activity.inclusions?.length > 0 && (
+                                                <div className="space-y-1 mb-2">
+                                                  {activity.inclusions.slice(0, 3).map((inc, iIdx) => (
+                                                    <p key={iIdx} className="flex items-center gap-2 text-sm text-gray-600">
+                                                      <Check size={13} className="text-teal-500 flex-shrink-0" />
+                                                      {inc}
+                                                    </p>
+                                                  ))}
+                                                </div>
+                                              )}
+                                              {/* Transfer & Vehicle badges */}
                                               <div className="flex gap-2 flex-wrap">
                                                 <span className="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs rounded-full border border-teal-200">
-                                                  {activity.transfer_type || 'Private'} Transfers
+                                                  {activity.selectedVehicle ? 'Private' : (activity.transfer_type || 'Private')} Transfers
                                                 </span>
+                                                {activity.vehiclePrice && (
+                                                  <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-xs rounded-full border border-blue-200">
+                                                    AED {activity.vehiclePrice}
+                                                  </span>
+                                                )}
                                                 {activity.inclusions?.some(inc => inc.toLowerCase().includes('meal') || inc.toLowerCase().includes('dinner') || inc.toLowerCase().includes('lunch')) && (
                                                   <span className="px-2.5 py-1 bg-green-50 text-green-600 text-xs rounded-full border border-green-200">
                                                     Meal Included
@@ -1363,10 +1424,17 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                     )}
 
                                     {/* Overnight Stay */}
+                                    {hotel ? (
                                     <div className="flex items-center gap-3 pl-2">
                                       <Bed size={18} className="text-gray-400 flex-shrink-0" />
-                                      <p className="text-gray-600">Overnight stay at <span className="font-medium">{hotel?.name || 'Hotel'}</span></p>
+                                      <p className="text-gray-600">Overnight stay at <span className="font-medium">{hotel.name}</span></p>
                                     </div>
+                                    ) : (
+                                    <div className="flex items-center gap-3 pl-2">
+                                      <Bed size={18} className="text-gray-300 flex-shrink-0" />
+                                      <p className="text-gray-400 text-sm italic">No hotel selected</p>
+                                    </div>
+                                    )}
 
                                     {/* Meals Grid */}
                                     <div className="border-t border-gray-100 pt-4 mt-4">
@@ -1404,50 +1472,66 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                 {/* Departure Day Content */}
                                 {isDepartureDay && (
                                   <div className="pt-5 space-y-5">
-                                    {/* Alert Banner */}
+                                    {/* Alert Banner - only if transfer selected */}
+                                    {proposal.departure_transfer && (
                                     <div className="bg-pink-50 border border-pink-200 rounded-lg p-4 flex items-start gap-3">
                                       <AlertTriangle size={18} className="text-pink-500 flex-shrink-0 mt-0.5" />
                                       <p className="text-sm text-pink-700">
                                         Please be available at the hotel lobby 15 minutes before the confirmed pick-up time for your airport transfer.
                                       </p>
                                     </div>
+                                    )}
 
-                                    {/* Transfer */}
+                                    {/* Transfer - from actual data */}
+                                    {proposal.departure_transfer ? (
                                     <div className="pl-2">
                                       <div className="flex items-start gap-3">
                                         <Car size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
                                         <div className="flex-1">
                                           <div className="flex items-center gap-2 flex-wrap">
                                             <p className="font-medium text-gray-700">
-                                              One-way transfer from {mainCity} Hotel to Airport
+                                              {proposal.departure_transfer.title || `One-way transfer from ${mainCity} Hotel to Airport`}
                                             </p>
                                             <button className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`transfer-view-day-${dayNum}`}>
                                               VIEW
                                             </button>
                                           </div>
+                                          {proposal.departure_transfer.duration && (
+                                            <p className="text-sm text-gray-500 mt-1">Duration: {proposal.departure_transfer.duration}</p>
+                                          )}
                                           <div className="flex gap-2 mt-2">
                                             <span className="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs rounded-full border border-teal-200">
                                               Private Transfers
                                             </span>
+                                            {proposal.vehicle_label && (
                                             <span className="px-2.5 py-1 bg-gray-50 text-gray-600 text-xs rounded-full border border-gray-200 flex items-center gap-1">
-                                              <Briefcase size={11} />
-                                              4 Bags
+                                              <Car size={11} />
+                                              {proposal.vehicle_label}
                                             </span>
+                                            )}
                                           </div>
                                         </div>
                                       </div>
                                     </div>
+                                    ) : (
+                                    <div className="pl-2 flex items-center gap-3">
+                                      <Car size={18} className="text-gray-300 flex-shrink-0" />
+                                      <p className="text-gray-400 text-sm italic">No departure transfer selected</p>
+                                    </div>
+                                    )}
 
-                                    {/* Flight Departure */}
+                                    {/* Flight Departure - only if flight data exists */}
+                                    {(proposal.departure_flight_info) && (
                                     <div className="flex items-start gap-3 pl-2">
                                       <Plane size={18} className="text-gray-400 rotate-45 mt-0.5 flex-shrink-0" />
                                       <div>
                                         <p className="font-medium text-gray-700">Flight Departure</p>
                                         <p className="text-sm text-gray-500">
-                                          {proposal.departure_flight_info?.flightNumber || 'IX-344'} departing on {formatDate(dayDate, 'day')} at {proposal.departure_flight_info?.flightTime || '06:40 PM'} - {mainCity} Intl Airport
+                                          {proposal.departure_flight_info.flightNumber} departing on {formatDate(dayDate, 'day')} at {proposal.departure_flight_info.flightTime} - {mainCity} Intl Airport
                                         </p>
                                       </div>
                                     </div>
+                                    )}
 
                                     {/* Meals Grid */}
                                     <div className="border-t border-gray-100 pt-4 mt-4">

@@ -1,0 +1,96 @@
+{
+  "summary": "Tested ProposalView page fixes for hiding flights when not selected, displaying hotel with image from selectedRoom.images, showing day-wise itinerary with transfers/activities. All core functionality tests PASS. Minor fix applied to hotel image path.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "MyProposals table",
+        "issues": ["React hydration warning about <tr>/<span> inside <tbody> - cosmetic only, doesn't affect functionality"]
+      }
+    ]
+  },
+  "features_tested": {
+    "flights_hidden_when_not_booked": {
+      "status": "PASS",
+      "details": "Flights section (data-testid='flights-section') is NOT rendered in DOM when proposal has flights_booked=false and no arrival/departure_flight_info"
+    },
+    "sidebar_no_flights_entry": {
+      "status": "PASS",
+      "details": "Left sidebar 'TRIP OVERVIEW' does NOT show 'Flights' entry when no flights are selected"
+    },
+    "hotel_no_selection_message": {
+      "status": "PASS",
+      "details": "Hotel section shows 'No hotel selected for {city}' message with icon when no hotel in selected_hotels"
+    },
+    "hotel_image_from_selectedRoom": {
+      "status": "PASS (FIX APPLIED)",
+      "details": "Fixed hotel image path to check selectedRoom.images as fallback: hotel.image || hotel.images?.[0] || hotel.selectedRoom?.images?.[0]"
+    },
+    "day_cards_no_transfer_message": {
+      "status": "PASS",
+      "details": "'No arrival transfer selected' and 'No departure transfer selected' messages displayed correctly"
+    },
+    "day_cards_expand_collapse": {
+      "status": "PASS",
+      "details": "Expand All Days button toggles between '+ EXPAND ALL DAYS' and '- COLLAPSE ALL DAYS'"
+    },
+    "activity_cards_display": {
+      "status": "PASS",
+      "details": "Activity cards show name (Dubai City Tour), VIEW button, duration (4 hours), and highlight badges (Dubai Museum, Gold Souk, etc.)"
+    },
+    "travel_insurance_section": {
+      "status": "PASS",
+      "details": "Travel Insurance section renders with '$50,000 coverage' and 'Not Included' status"
+    },
+    "download_pdf_button": {
+      "status": "PASS",
+      "details": "Download PDF button (data-testid='download-pdf-btn') visible and accessible in header"
+    }
+  },
+  "test_report_links": [
+    "/app/frontend/src/components/ProposalView.jsx"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Flights section conditional at line 786: (proposal.flights_booked === true || proposal.arrival_flight_info || proposal.departure_flight_info) - correctly hides when no flight data",
+    "Sidebar 'Flights' entry conditional at line 176-179 uses same logic - correctly hidden",
+    "Hotel section fallback at line 1118-1125 shows 'No hotel selected' message with helpful text",
+    "FIX APPLIED: Hotel image at line 1011 now checks selectedRoom.images as fallback",
+    "Day cards correctly show 'No arrival/departure transfer selected' when transfer data is null",
+    "Activity cards properly display name, duration, highlights (as badges), inclusions, and VIEW button"
+  ],
+  "updated_files": [
+    "/app/frontend/src/components/ProposalView.jsx"
+  ],
+  "fix_details": {
+    "file": "/app/frontend/src/components/ProposalView.jsx",
+    "line": 1011,
+    "change": "Added hotel.selectedRoom?.images?.[0] as fallback in hotel image src chain to support hotel data where images are only in selectedRoom"
+  },
+  "success_rate": {
+    "backend": "N/A - Frontend only testing",
+    "frontend": "100% - All 9 feature tests pass"
+  },
+  "test_credentials": {
+    "email": "testadmin@example.com",
+    "password": "password123"
+  },
+  "seed_data_creation": "Used existing proposals from database",
+  "proposals_tested": {
+    "proposal_without_flights_hotels": "Trip to Dubai (1B00D8B) - flights_booked=false, no hotels, no activities",
+    "proposal_with_activities": "Trip to Dubai (711ef597) - has Dubai City Tour activity with highlights",
+    "proposal_with_hotel": "Trip to Tbilisi (185e3a02) - has Horizont Hotel with room images and activities"
+  },
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_list": ["Flight Search", "AI Chatbot", "Google Sheets", "Stripe", "PayPal"]
+  },
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "ProposalView page now correctly: 1) Hides flights section when flights_booked=false and no flight info exists, 2) Shows 'No hotel selected' when selected_hotels is empty, 3) Displays hotel image from selectedRoom.images if hotel.image/images is null, 4) Shows 'No arrival/departure transfer selected' messages, 5) Displays activity cards with name, duration, highlights badges, and inclusions. Test flow: Login -> My Leads -> My Proposals -> View Proposal"
+}
