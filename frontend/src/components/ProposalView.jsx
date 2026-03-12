@@ -666,6 +666,23 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
               </div>
             </div>
             <button 
+              onClick={async () => {
+                try {
+                  const response = await api.get(`/proposals/${proposal.id}/pdf`, { responseType: 'blob' });
+                  const blob = new Blob([response.data], { type: 'application/pdf' });
+                  const url = window.URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `Travo_DMC_${(proposal.proposal_name || 'Proposal').replace(/\s+/g, '_')}.pdf`;
+                  document.body.appendChild(link);
+                  link.click();
+                  link.remove();
+                  window.URL.revokeObjectURL(url);
+                } catch (err) {
+                  console.error('PDF download error:', err);
+                  alert('Failed to generate PDF. Please try again.');
+                }
+              }}
               className="hidden md:flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700"
               data-testid="download-pdf-btn"
             >
