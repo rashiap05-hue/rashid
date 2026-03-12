@@ -151,6 +151,32 @@ Migrate and enhance a Google AI Studio B2B Travel Platform (Travo DMC) with:
 
 ### Test Results (iteration_20.json)
 - **Frontend:** 100% pass rate (9/9 features)
+
+### Test Results (iteration_21.json) - Visual Refinements
+- **Frontend:** 100% (10/10 features)
+- Flights section: always visible, shows "No Flight Included" when no flights
+- Hotel: shows "No hotel selected" when empty, actual hotel image/amenities when selected
+- Day cards: transfers, activities with highlights, no AED price badges
+- Meals: breakfast reflects hotel meal plan
+
+## Update: March 12, 2026 - ProposalView Visual Refinements
+
+### Changes Implemented
+
+#### 1. Flights Section Always Visible (Completed)
+- [x] Flights section now always renders (never hidden)
+- [x] Shows route (e.g., "Dubai International Airport to Dubai") and "No Flight Included" when no flights selected
+- [x] Shows full flight details when flights_booked=true
+- [x] Left sidebar always shows "Flights" entry
+
+#### 2. Removed AED Price Badges from Day Cards (Completed)
+- [x] Removed `vehiclePrice` AED badge from activity cards in day-wise itinerary
+
+#### 3. Meals Reflect Hotel Breakfast Plan (Completed)
+- [x] Added `hotelIncludesBreakfast()` helper that checks `selectedRoom.rate_plan.meal_plan` for breakfast/BB/half board/full board
+- [x] All 3 meals grids (arrival, middle, departure days) now show "Included" in teal when hotel has breakfast
+- [x] Inclusions tab also reflects breakfast status from hotel
+- [x] Lunch/Dinner check activity inclusions for meal-related items
 - Flights hidden correctly
 - Hotel empty/populated states working
 - Activity cards with highlights, inclusions
