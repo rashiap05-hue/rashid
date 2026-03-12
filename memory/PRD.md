@@ -120,6 +120,29 @@ Migrate and enhance a Google AI Studio B2B Travel Platform (Travo DMC) with:
 - Right sidebar price breakdown working
 - Old City Tour Section confirmed removed
 
+### Test Results (iteration_19.json) - PDF Generation
+- **Backend:** 100% (9/9 pytest tests passed)
+- **Frontend:** 100% - All PDF download features working
+- PDF endpoint returns valid PDF with TRAVO DMC branding
+- Download PDF button visible and functional on ProposalView
+- PDF contains: header, flights, hotels, day-wise itinerary, inclusions, terms & policies, pricing
+
+## Update: March 12, 2026 - Download as PDF Feature
+
+### Changes Implemented
+
+#### 1. PDF Generation Backend Endpoint (Completed)
+- [x] `GET /api/proposals/{proposal_id}/pdf` - Generates comprehensive branded PDF
+- [x] Uses fpdf2 library for server-side PDF generation
+- [x] PDF contains all sections: TRAVO DMC branded header, proposal title with trip summary, flight details (outbound + return), hotel details (per city), day-wise itinerary with activities/transfers/meals, inclusions with exclusions, terms & policies (from database), pricing breakdown with total
+- [x] Public endpoint (no auth required) for easy sharing via email/WhatsApp
+- [x] 404 handling for non-existent proposals
+
+#### 2. Frontend Download PDF Button (Completed)
+- [x] "Download PDF" button in ProposalView header with download icon
+- [x] Triggers blob download with filename pattern: `Travo_DMC_{proposal_name}.pdf`
+- [x] Error handling with user-friendly alert
+
 ### Files Modified
 - `/app/frontend/src/components/ProposalView.jsx` - Removed City Tour Section, refined day cards with collapsible behavior, added Travel Insurance section
 
