@@ -1017,12 +1017,13 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                       <div className="p-6">
                         <div className="flex gap-6">
                           {/* Hotel Image */}
-                          <div className="w-56 h-44 flex-shrink-0 rounded-lg overflow-hidden">
+                          <div className="w-56 h-44 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
                             <img 
                               src={hotel.image || hotel.images?.[0] || hotel.selectedRoom?.images?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'}
                               alt={hotel.name || 'Hotel'}
                               className="w-full h-full object-cover"
                               data-testid={`hotel-image-${cityIdx}`}
+                              onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'; }}
                             />
                           </div>
 
@@ -1073,7 +1074,8 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                             <div className="flex items-start gap-2 mb-3">
                               <CheckCircle size={18} className="text-teal-500 mt-0.5 flex-shrink-0" />
                               <p className="text-gray-700">
-                                1 x {hotel?.selectedRoom?.name || 'Double Room'} - includes 20% off Food & Beverage (excluding in-room dining)
+                                1 x {hotel?.selectedRoom?.name || 'Double Room'}
+                                {hotel?.selectedRoom?.rate_plan?.description ? ` - ${hotel.selectedRoom.rate_plan.description}` : ''}
                               </p>
                             </div>
 
@@ -1083,11 +1085,25 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                               {!hotel?.selectedRoom?.bedType && <p>1 Double Bed</p>}
                               <p>Package rate</p>
                               {hotel?.amenities?.includes('Free WiFi') || hotel?.amenities?.includes('WiFi') ? <p>Free WiFi</p> : null}
-                              {hotel?.selectedRoom?.cancellation_policy && <p>{hotel.selectedRoom.cancellation_policy}</p>}
                             </div>
 
-                            <p className="text-gray-500 text-sm mb-2">No meals included</p>
-                            <a href="#" className="text-teal-600 text-sm hover:underline">Fully refundable before {formatDate(new Date(checkInDate.getTime() - 86400000), 'day')}</a>
+                            {/* Meal Plan - from actual data */}
+                            {(() => {
+                              const mealPlan = hotel?.selectedRoom?.rate_plan?.meal_plan || hotel?.selectedRoom?.meals || '';
+                              if (mealPlan) {
+                                return <p className="text-teal-600 text-sm font-medium mb-2">{mealPlan}</p>;
+                              }
+                              return <p className="text-gray-500 text-sm mb-2">No meals included</p>;
+                            })()}
+
+                            {/* Refund Policy */}
+                            {hotel?.selectedRoom?.rate_plan?.refund_policy === 'Refundable' || hotel?.selectedRoom?.rate_plan?.refund_deadline ? (
+                              <p className="text-teal-600 text-sm">{hotel.selectedRoom.rate_plan.refund_deadline || `Fully refundable before ${formatDate(new Date(checkInDate.getTime() - 86400000), 'day')}`}</p>
+                            ) : hotel?.selectedRoom?.cancellation_policy ? (
+                              <p className="text-teal-600 text-sm">{hotel.selectedRoom.cancellation_policy}</p>
+                            ) : (
+                              <p className="text-teal-600 text-sm hover:underline">Fully refundable before {formatDate(new Date(checkInDate.getTime() - 86400000), 'day')}</p>
+                            )}
                           </div>
 
                           {/* 3-dot menu */}
