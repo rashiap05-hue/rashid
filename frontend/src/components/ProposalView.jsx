@@ -170,13 +170,9 @@ function LeftSidebarNav({ proposal, activeSection, onSectionChange }) {
   const mainCity = proposal?.cities?.[0]?.name || 'Unknown';
   
   // Build timeline items
-  const timelineItems = [];
-  
-  // Only add flights if flight data exists
-  const hasFlightData = proposal?.flights_booked === true || proposal?.arrival_flight_info || proposal?.departure_flight_info;
-  if (hasFlightData) {
-    timelineItems.push({ id: 'flights', type: 'section', icon: Plane, label: 'Flights' });
-  }
+  const timelineItems = [
+    { id: 'flights', type: 'section', icon: Plane, label: 'Flights' },
+  ];
   
   // Add city nights
   proposal?.cities?.forEach((city, idx) => {
@@ -565,6 +561,12 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
     return proposal.selected_hotels?.[cityName];
   };
 
+  // Check if hotel includes breakfast based on meal_plan
+  const hotelIncludesBreakfast = (hotel) => {
+    const mealPlan = hotel?.selectedRoom?.rate_plan?.meal_plan || hotel?.selectedRoom?.meals || '';
+    return mealPlan.toLowerCase().includes('breakfast') || mealPlan.toLowerCase().includes('bb') || mealPlan.toLowerCase().includes('half board') || mealPlan.toLowerCase().includes('full board');
+  };
+
   // Check-in/Check-out dates
   const checkInDate = new Date(proposal.leaving_on);
   const checkOutDate = addDays(proposal.leaving_on, nightsCount);
@@ -782,8 +784,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                   />
                 </div>
 
-                {/* Flights Section - Only show if flights are selected */}
-                {(proposal.flights_booked === true || proposal.arrival_flight_info || proposal.departure_flight_info) && (
+                {/* Flights Section */}
                 <div className="bg-white border border-gray-200 rounded-xl mb-8 shadow-sm" data-testid="flights-section">
                   {/* Flights Header */}
                   <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -796,6 +797,8 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                     </button>
                   </div>
 
+                  {(proposal.arrival_flight_info || proposal.departure_flight_info) ? (
+                  <>
                   {/* Outbound Flight */}
                   <div className="p-6">
                     {/* Flight Route Header */}
@@ -981,8 +984,16 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                       </div>
                     </div>
                   </div>
+                  </>
+                  ) : (
+                  <div className="p-6">
+                    <p className="text-gray-700 font-medium mb-1">
+                      {proposal.leaving_from?.split('(')[0]?.trim() || 'Origin'} to {mainCity}
+                    </p>
+                    <p className="text-gray-400 text-sm">No Flight Included</p>
+                  </div>
+                  )}
                 </div>
-                )}
 
                 {/* Hotel Section - Per City */}
                 {proposal.cities?.map((city, cityIdx) => {
@@ -1256,12 +1267,12 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                           )}
                                           <div className="flex gap-2 mt-2">
                                             <span className="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs rounded-full border border-teal-200">
-                                              {proposal.arrival_transfer.selectedVehicle ? 'Private' : 'Private'} Transfers
+                                              Private Transfers
                                             </span>
-                                            {proposal.vehicle_label && (
+                                            {(proposal.arrival_transfer.selectedVehicle || proposal.vehicle_label) && (
                                             <span className="px-2.5 py-1 bg-gray-50 text-gray-600 text-xs rounded-full border border-gray-200 flex items-center gap-1">
                                               <Car size={11} />
-                                              {proposal.vehicle_label}
+                                              {proposal.vehicle_label || proposal.arrival_transfer.selectedVehicle}
                                             </span>
                                             )}
                                           </div>
@@ -1318,10 +1329,14 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                     <div className="border-t border-gray-100 pt-4 mt-4">
                                       <div className="grid grid-cols-3 gap-4">
                                         <div className="flex items-center gap-3">
-                                          <Coffee size={16} className="text-gray-300" />
+                                          <Coffee size={16} className={hotelIncludesBreakfast(hotel) ? "text-teal-500" : "text-gray-300"} />
                                           <div>
                                             <p className="text-sm text-gray-500">Breakfast</p>
-                                            <p className="text-xs text-gray-400">Not Included</p>
+                                            {hotelIncludesBreakfast(hotel) ? (
+                                              <p className="text-xs text-teal-600 font-medium">Included</p>
+                                            ) : (
+                                              <p className="text-xs text-gray-400">Not Included</p>
+                                            )}
                                           </div>
                                         </div>
                                         <div className="flex items-center gap-3">
@@ -1401,11 +1416,6 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                                 <span className="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs rounded-full border border-teal-200">
                                                   {activity.selectedVehicle ? 'Private' : (activity.transfer_type || 'Private')} Transfers
                                                 </span>
-                                                {activity.vehiclePrice && (
-                                                  <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-xs rounded-full border border-blue-200">
-                                                    AED {activity.vehiclePrice}
-                                                  </span>
-                                                )}
                                                 {activity.inclusions?.some(inc => inc.toLowerCase().includes('meal') || inc.toLowerCase().includes('dinner') || inc.toLowerCase().includes('lunch')) && (
                                                   <span className="px-2.5 py-1 bg-green-50 text-green-600 text-xs rounded-full border border-green-200">
                                                     Meal Included
@@ -1440,24 +1450,32 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                     <div className="border-t border-gray-100 pt-4 mt-4">
                                       <div className="grid grid-cols-3 gap-4">
                                         <div className="flex items-center gap-3">
-                                          <Coffee size={16} className="text-gray-300" />
+                                          <Coffee size={16} className={hotelIncludesBreakfast(hotel) ? "text-teal-500" : "text-gray-300"} />
                                           <div>
                                             <p className="text-sm text-gray-500">Breakfast</p>
-                                            <p className="text-xs text-gray-400">Not Included</p>
+                                            {hotelIncludesBreakfast(hotel) ? (
+                                              <p className="text-xs text-teal-600 font-medium">Included</p>
+                                            ) : (
+                                              <p className="text-xs text-gray-400">Not Included</p>
+                                            )}
                                           </div>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                          <Utensils size={16} className="text-gray-300" />
+                                          <Utensils size={16} className={dayActivities.some(a => a.inclusions?.some(inc => inc.toLowerCase().includes('lunch'))) ? "text-teal-500" : "text-gray-300"} />
                                           <div>
                                             <p className="text-sm text-gray-500">Lunch</p>
-                                            <p className="text-xs text-gray-400">Not Included</p>
+                                            {dayActivities.some(a => a.inclusions?.some(inc => inc.toLowerCase().includes('lunch'))) ? (
+                                              <p className="text-xs text-teal-600 font-medium">Included</p>
+                                            ) : (
+                                              <p className="text-xs text-gray-400">Not Included</p>
+                                            )}
                                           </div>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                          <Utensils size={16} className="text-gray-300" />
+                                          <Utensils size={16} className={dayActivities.some(a => a.inclusions?.some(inc => inc.toLowerCase().includes('dinner') || inc.toLowerCase().includes('meal'))) ? "text-teal-500" : "text-gray-300"} />
                                           <div>
                                             <p className="text-sm text-gray-500">Dinner</p>
-                                            {dayActivities.some(a => a.inclusions?.some(inc => inc.toLowerCase().includes('meal') || inc.toLowerCase().includes('dinner'))) ? (
+                                            {dayActivities.some(a => a.inclusions?.some(inc => inc.toLowerCase().includes('dinner') || inc.toLowerCase().includes('meal'))) ? (
                                               <p className="text-xs text-teal-600 font-medium">Included</p>
                                             ) : (
                                               <p className="text-xs text-gray-400">Not Included</p>
@@ -1503,10 +1521,10 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                             <span className="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs rounded-full border border-teal-200">
                                               Private Transfers
                                             </span>
-                                            {proposal.vehicle_label && (
+                                            {(proposal.departure_transfer.selectedVehicle || proposal.vehicle_label) && (
                                             <span className="px-2.5 py-1 bg-gray-50 text-gray-600 text-xs rounded-full border border-gray-200 flex items-center gap-1">
                                               <Car size={11} />
-                                              {proposal.vehicle_label}
+                                              {proposal.vehicle_label || proposal.departure_transfer.selectedVehicle}
                                             </span>
                                             )}
                                           </div>
@@ -1537,10 +1555,14 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                     <div className="border-t border-gray-100 pt-4 mt-4">
                                       <div className="grid grid-cols-3 gap-4">
                                         <div className="flex items-center gap-3">
-                                          <Coffee size={16} className="text-gray-300" />
+                                          <Coffee size={16} className={hotelIncludesBreakfast(hotel) ? "text-teal-500" : "text-gray-300"} />
                                           <div>
                                             <p className="text-sm text-gray-500">Breakfast</p>
-                                            <p className="text-xs text-gray-400">Not Included</p>
+                                            {hotelIncludesBreakfast(hotel) ? (
+                                              <p className="text-xs text-teal-600 font-medium">Included</p>
+                                            ) : (
+                                              <p className="text-xs text-gray-400">Not Included</p>
+                                            )}
                                           </div>
                                         </div>
                                         <div className="flex items-center gap-3">
@@ -1682,10 +1704,14 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
 
                       <div className="grid grid-cols-3 gap-6 py-5 border-t border-gray-200">
                         <div className="flex items-center gap-3">
-                          <Utensils size={18} className="text-gray-400" />
+                          <Utensils size={18} className={(() => { const h = getHotelForCity(mainCity); return hotelIncludesBreakfast(h) ? "text-teal-500" : "text-gray-400"; })()} />
                           <div>
                             <p className="text-gray-800 font-medium">Breakfast</p>
-                            <p className="text-sm text-gray-400">Not Included</p>
+                            {(() => { const h = getHotelForCity(mainCity); return hotelIncludesBreakfast(h); })() ? (
+                              <p className="text-sm text-teal-600 font-medium">Included with hotel</p>
+                            ) : (
+                              <p className="text-sm text-gray-400">Not Included</p>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-3">

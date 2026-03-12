@@ -1,0 +1,93 @@
+{
+  "summary": "Tested ProposalView visual refinements: Flights section always visible with route and 'No Flight Included', Hotel section shows 'No hotel selected' with icon, Day cards show transfer selection messages, Activity cards display name/duration/highlights without AED price badges, Meals display based on hotel meal plan. All features working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "MyProposals table",
+        "issues": ["React hydration warning about <tr>/<span> inside <tbody> - cosmetic only, doesn't affect functionality"]
+      }
+    ]
+  },
+  "features_tested": {
+    "flights_section_always_visible": {
+      "status": "PASS",
+      "details": "Flights section (data-testid='flights-section') always renders with route 'Dubai International Airport to Dubai' and 'No Flight Included' text when no flight data"
+    },
+    "sidebar_flights_entry": {
+      "status": "PASS",
+      "details": "Left sidebar 'TRIP OVERVIEW' always shows 'Flights' entry regardless of flight selection"
+    },
+    "hotel_no_selection_message": {
+      "status": "PASS",
+      "details": "Hotel section shows 'No hotel selected for {city}' with hotel icon and helper text 'Go to Customize Your Trip to select a hotel'"
+    },
+    "day_arrival_transfer_message": {
+      "status": "PASS",
+      "details": "Day 1 (Arrival) card shows 'No arrival transfer selected' when no transfer data"
+    },
+    "day_departure_transfer_message": {
+      "status": "PASS",
+      "details": "Last day (Departure) card shows 'No departure transfer selected' when no transfer data"
+    },
+    "activity_cards_no_price_badges": {
+      "status": "PASS",
+      "details": "Activity cards show name (Dubai City Tour), VIEW button, duration (4 hours), and highlight badges but NO AED price badges"
+    },
+    "activity_card_highlights": {
+      "status": "PASS",
+      "details": "Activity highlight badges displayed correctly: Dubai Museum, Gold Souk, Spice Souk, Jumeirah Mosque"
+    },
+    "expand_collapse_days": {
+      "status": "PASS",
+      "details": "Expand/Collapse button toggles between '+ EXPAND ALL DAYS' and '- COLLAPSE ALL DAYS'"
+    },
+    "meals_display": {
+      "status": "PASS",
+      "details": "Meals grid shows Breakfast/Lunch/Dinner with 'Not Included' status (correct for hotels without breakfast plan)"
+    },
+    "inclusions_tab_breakfast": {
+      "status": "PASS",
+      "details": "Inclusions tab shows Breakfast 'Not Included' when hotel has no breakfast plan"
+    }
+  },
+  "test_report_links": [
+    "/app/frontend/src/components/ProposalView.jsx"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Flights section at line 788 always renders, shows route and 'No Flight Included' when no flight_info exists",
+    "Left sidebar at line 174 unconditionally adds Flights entry to timelineItems",
+    "Hotel section at lines 1129-1135 correctly shows 'No hotel selected' with icon when hotel is null",
+    "Transfer messages at lines 1283-1286 (arrival) and 1535-1537 (departure) show appropriate messages",
+    "Activity cards at lines 1370-1425 display image, name, description, duration, highlights, and inclusions without price badges",
+    "hotelIncludesBreakfast helper at line 565 correctly checks meal_plan for breakfast inclusion"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A - Frontend only testing",
+    "frontend": "100% - All 10 feature tests pass"
+  },
+  "test_credentials": {
+    "email": "testadmin@example.com",
+    "password": "password123"
+  },
+  "seed_data_creation": "Used existing proposals from database",
+  "proposals_tested": {
+    "proposal_without_flights_hotels": "Trip to Dubai (1B00D8B) - flights_booked=false, no hotels, no activities",
+    "proposal_with_activities": "Trip to Dubai (proposal index 7) - has Dubai City Tour activity with highlights (Dubai Museum, Gold Souk, etc.)",
+    "proposal_tbilisi": "Trip to Tbilisi (AE7FDBD) - no hotel selected"
+  },
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_list": ["Flight Search", "AI Chatbot", "Google Sheets", "Stripe", "PayPal"]
+  },
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "ProposalView page correctly implements: 1) Flights section always visible with route and 'No Flight Included', 2) Left sidebar always shows Flights entry, 3) Hotel section shows 'No hotel selected' with icon, 4) Day cards show 'No arrival/departure transfer selected' messages, 5) Activity cards display name, duration, highlights badges without AED price badges, 6) Meals grid reflects hotel breakfast inclusion. Test flow: Login -> My Leads -> My Proposals -> View Proposal. All proposals currently have flights_booked=false and no hotels selected. Proposal at index 7 has Dubai City Tour activity."
+}
