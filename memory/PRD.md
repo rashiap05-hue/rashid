@@ -89,6 +89,40 @@ Migrate and enhance a Google AI Studio B2B Travel Platform (Travo DMC) with:
 - [ ] PayPal (requires credentials)
 - [ ] Real Flight API (uses mock data, ready for Airlabs)
 
+## Update: March 12, 2026 - Day-wise Itinerary Cards & City Tour Section Cleanup
+
+### Changes Implemented
+
+#### 1. Removed Old City Tour Section (P0 - Completed)
+- [x] Completely removed the redundant "City Tour Section" from ProposalView.jsx
+- [x] This section was duplicating activities already displayed in the day-wise itinerary cards
+
+#### 2. Refined Day-wise Itinerary Cards (P0 - Completed)
+- [x] Cards are now **collapsible** with smooth AnimatePresence animations
+- [x] Day 1 (Arrival) expanded by default, other days collapsed
+- [x] Color-coded day circles: orange (arrival), pink (departure), teal (middle days)
+- [x] Alert banners: orange for arrival day, pink for departure day
+- [x] Transfer details with "Private Transfers" and "4 Bags" badges
+- [x] Meals displayed in 3-column grid with "Not Included" labels
+- [x] VIEW buttons on transfers and activities
+- [x] "EXPAND ALL DAYS" / "COLLAPSE ALL DAYS" toggle button
+- [x] Activities display with start times, duration, pickup info, and transfer type
+
+#### 3. Travel Insurance Section (P0 - Completed)
+- [x] Added Travel Insurance card at bottom of itinerary
+- [x] Shows $50,000 coverage, age restriction, "Not Included" status
+
+### Test Results (iteration_18.json)
+- **Frontend:** 100% pass rate (12/12 features)
+- All day cards render correctly
+- Expand/collapse functionality working
+- Tab navigation working
+- Right sidebar price breakdown working
+- Old City Tour Section confirmed removed
+
+### Files Modified
+- `/app/frontend/src/components/ProposalView.jsx` - Removed City Tour Section, refined day cards with collapsible behavior, added Travel Insurance section
+
 ## Prioritized Backlog
 
 ### P0 - Critical
