@@ -127,7 +127,34 @@ Migrate and enhance a Google AI Studio B2B Travel Platform (Travo DMC) with:
 - Download PDF button visible and functional on ProposalView
 - PDF contains: header, flights, hotels, day-wise itinerary, inclusions, terms & policies, pricing
 
-## Update: March 12, 2026 - Download as PDF Feature
+## Update: March 12, 2026 - ProposalView Data-Driven Display Fixes
+
+### Changes Implemented
+
+#### 1. Conditional Flights Section (Completed)
+- [x] Flights section hidden when `flights_booked=false` AND no `arrival_flight_info`/`departure_flight_info`
+- [x] Left sidebar "Flights" entry also conditionally hidden
+- [x] Flight info in day cards (arrival/departure) only shows when flight data exists
+
+#### 2. Hotel Photo & Details from Actual Data (Completed)
+- [x] Hotel image now sourced from `selected_hotels.image` || `images[0]` || `selectedRoom.images[0]`
+- [x] "No hotel selected" placeholder with icon when no hotel is in `selected_hotels`
+- [x] Amenities section dynamically shows actual hotel amenities (replaces hardcoded data)
+- [x] Room details from actual `selectedRoom` data
+
+#### 3. Day-wise Itinerary from Actual Data (Completed)
+- [x] Activities show name, description, duration, highlights (as badges), inclusions (with checkmarks), and photo
+- [x] Transfers show actual title, duration, vehicle info from `arrival_transfer`/`departure_transfer`
+- [x] "No arrival/departure transfer selected" message when no transfer data
+- [x] "No hotel selected" in overnight stay when no hotel data
+- [x] Activity images displayed alongside activity details
+
+### Test Results (iteration_20.json)
+- **Frontend:** 100% pass rate (9/9 features)
+- Flights hidden correctly
+- Hotel empty/populated states working
+- Activity cards with highlights, inclusions
+- Transfer conditional display working
 
 ### Changes Implemented
 
