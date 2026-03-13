@@ -1639,18 +1639,19 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
 
                 {/* Travel Insurance Section */}
                 <div className="bg-white border border-gray-200 rounded-xl mb-8 shadow-sm overflow-hidden" data-testid="travel-insurance-section">
-                  <div className="px-6 py-4 flex items-center gap-3 border-b border-gray-100">
-                    <Shield size={18} className="text-gray-600" />
-                    <h2 className="text-lg font-semibold text-gray-800">Travel Insurance</h2>
+                  <div className="px-6 py-5 flex items-center gap-3 border-b border-gray-100">
+                    <Shield size={20} className="text-[#002B5B]" />
+                    <h2 className="text-lg font-bold text-[#002B5B]">Travel Insurance</h2>
                   </div>
-                  <div className="p-6">
-                    <div className="flex items-start gap-3">
-                      <Shield size={18} className="text-gray-400 mt-0.5" />
+                  <div className="px-6 py-6">
+                    <div className="flex items-start justify-between">
                       <div>
-                        <p className="font-medium text-gray-800">Travel Insurance (min $50,000 coverage)</p>
-                        <p className="text-sm text-gray-500 mt-1">Only for Age Below 60 Yrs</p>
-                        <p className="text-sm text-red-400 mt-1">Not Included</p>
+                        <p className="text-gray-700">Travel Insurance with min $50,000 coverage - Only for Age Below 60 Yrs</p>
+                        <p className="text-sm text-red-500 mt-2">Not Included</p>
                       </div>
+                      <button className="px-4 py-2 border border-[#002B5B] text-[#002B5B] text-sm font-medium rounded hover:bg-[#002B5B]/5 transition-colors flex-shrink-0" data-testid="add-insurance-btn">
+                        + ADD
+                      </button>
                     </div>
                   </div>
                 </div>
