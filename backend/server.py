@@ -138,6 +138,7 @@ class ProposalCreate(BaseModel):
     markup_value: Optional[float] = None
     markup_type: Optional[str] = None
     discount_amount: Optional[float] = None
+    travel_insurance: Optional[bool] = None
     status: Optional[str] = None
 
 class ProposalResponse(BaseModel):
@@ -188,6 +189,7 @@ class ProposalResponse(BaseModel):
     markup_value: Optional[float] = None
     markup_type: Optional[str] = None
     discount_amount: Optional[float] = None
+    travel_insurance: Optional[bool] = None
 
 class FlightCreate(BaseModel):
     airline: str
@@ -530,7 +532,8 @@ async def create_proposal(proposal: ProposalCreate, user: dict = Depends(get_opt
         "flights_booked": proposal.flights_booked,
         "markup_value": proposal.markup_value,
         "markup_type": proposal.markup_type,
-        "discount_amount": proposal.discount_amount
+        "discount_amount": proposal.discount_amount,
+        "travel_insurance": proposal.travel_insurance
     }
     await db.proposals.insert_one(doc)
     return ProposalResponse(**doc)
@@ -907,8 +910,12 @@ async def generate_proposal_pdf(proposal_id: str):
     # Travel Insurance
     pdf.sub_section("Travel Insurance")
     pdf.set_font("Helvetica", "", 9)
-    pdf.set_text_color(180, 40, 40)
-    pdf.cell(0, 6, "Not Included (min $50,000 coverage recommended, Age Below 60 Yrs)", ln=True)
+    if proposal.get("travel_insurance"):
+        pdf.set_text_color(0, 128, 100)
+        pdf.cell(0, 6, "Included - Travel Insurance with min $50,000 coverage (Age Below 60 Yrs)", ln=True)
+    else:
+        pdf.set_text_color(180, 40, 40)
+        pdf.cell(0, 6, "Not Included (min $50,000 coverage recommended, Age Below 60 Yrs)", ln=True)
     pdf.set_text_color(0, 0, 0)
     pdf.ln(2)
 

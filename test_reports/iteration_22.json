@@ -1,0 +1,102 @@
+{
+  "summary": "Full E2E test of Travel Insurance feature completed successfully. Fixed critical bug: travel_insurance field was NOT being saved in create_proposal endpoint. All backend APIs (POST, GET, PATCH, PDF) working correctly. Frontend TripBuilder page displays Travel Insurance section with ADD/REMOVE toggle functionality. ProposalView page conditionally shows Travel Insurance section and sidebar entry ONLY when travel_insurance=true. PDF generation includes correct insurance status.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [],
+    "fixed": [
+      {
+        "endpoint": "POST /api/proposals",
+        "issue": "travel_insurance field was not being saved to MongoDB document",
+        "fix": "Added 'travel_insurance': proposal.travel_insurance to the doc dictionary in create_proposal function (line 536 of server.py)"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "MyProposals table",
+        "issues": ["React hydration warning about <tr>/<span> inside <tbody> - cosmetic only, doesn't affect functionality"]
+      }
+    ]
+  },
+  "features_tested": {
+    "backend_travel_insurance_storage": {
+      "status": "PASS",
+      "details": "POST /api/proposals correctly stores travel_insurance field (true/false/null) in MongoDB"
+    },
+    "backend_get_proposal_returns_insurance": {
+      "status": "PASS",
+      "details": "GET /api/proposals/{id} returns travel_insurance field in response"
+    },
+    "backend_patch_updates_insurance": {
+      "status": "PASS",
+      "details": "PATCH /api/proposals/{id} can update travel_insurance field"
+    },
+    "backend_pdf_includes_insurance_section": {
+      "status": "PASS",
+      "details": "GET /api/proposals/{id}/pdf includes Travel Insurance section with correct status (Included/Not Included)"
+    },
+    "frontend_tripbuilder_insurance_visible": {
+      "status": "PASS",
+      "details": "TripBuilder page shows Travel Insurance section at bottom with Shield icon, description, and status"
+    },
+    "frontend_tripbuilder_add_button": {
+      "status": "PASS",
+      "details": "TripBuilder shows '+ ADD' button with 'Not Included' text when travelInsurance=false"
+    },
+    "frontend_tripbuilder_toggle_to_added": {
+      "status": "PASS",
+      "details": "Clicking '+ ADD' toggles to 'Added to proposal' text and shows 'REMOVE' button"
+    },
+    "frontend_tripbuilder_remove_button": {
+      "status": "PASS",
+      "details": "Clicking 'REMOVE' toggles back to 'Not Included' with '+ ADD' button"
+    },
+    "frontend_proposalview_insurance_shown": {
+      "status": "PASS",
+      "details": "ProposalView shows Travel Insurance section with Shield icon, 'Included' status, and 'Added' badge when travel_insurance=true"
+    },
+    "frontend_proposalview_insurance_hidden": {
+      "status": "PASS",
+      "details": "ProposalView correctly HIDES Travel Insurance section when travel_insurance=false/null"
+    },
+    "frontend_sidebar_insurance_entry": {
+      "status": "PASS",
+      "details": "Left sidebar 'Travel Insurance' entry only appears when travel_insurance=true"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_travel_insurance.py",
+    "/app/test_reports/pytest/travel_insurance_tests.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "FIXED: server.py line 536 - Added travel_insurance to doc dictionary in create_proposal",
+    "TripBuilder.jsx line 53 - travelInsurance state initialized to false",
+    "TripBuilder.jsx line 632 - travel_insurance saved as part of proposalData",
+    "TripBuilder.jsx lines 1488-1522 - Travel Insurance UI section with data-testid='trip-builder-insurance'",
+    "ProposalView.jsx lines 202-206 - Conditional sidebar entry for Travel Insurance",
+    "ProposalView.jsx lines 1644-1660 - Conditional Travel Insurance section with data-testid='travel-insurance-section'"
+  ],
+  "updated_files": [
+    "/app/backend/server.py"
+  ],
+  "success_rate": {
+    "backend": "100% - 6/6 tests passed",
+    "frontend": "100% - All 7 feature tests passed"
+  },
+  "test_credentials": {
+    "email": "testadmin@example.com",
+    "password": "password123"
+  },
+  "seed_data_creation": "Created TEST_Insurance_True_View proposal via API for testing ProposalView",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_list": ["Flight Search", "AI Chatbot", "Google Sheets", "Stripe", "PayPal"]
+  },
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Travel Insurance feature fully tested and working. Key flow: TripBuilder page (Customize Your Trip) has Travel Insurance section at bottom - toggle ADD/REMOVE saves to travelInsurance state -> included in proposal save -> ProposalView conditionally renders section only when travel_insurance=true. Backend was missing travel_insurance in create_proposal doc - now fixed. All existing proposals have travel_insurance=null. Test via: Login -> My Leads -> My Proposals -> Edit (TripBuilder) or View Proposal (ProposalView)."
+}
