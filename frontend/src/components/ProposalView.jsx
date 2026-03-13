@@ -200,7 +200,10 @@ function LeftSidebarNav({ proposal, activeSection, onSectionChange }) {
   }
   
   // Add travel insurance
-  timelineItems.push({ id: 'insurance', type: 'section', icon: Shield, label: 'Travel Insurance' });
+  // Add Travel Insurance if added
+  if (proposal?.travel_insurance) {
+    timelineItems.push({ id: 'insurance', type: 'section', icon: Shield, label: 'Travel Insurance' });
+  }
   
   return (
     <div className="fixed left-0 top-1/3 bg-white border-r border-gray-200 shadow-lg z-30 hidden lg:flex flex-col py-2 rounded-r-lg max-h-[60vh] overflow-y-auto">
@@ -1637,7 +1640,8 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                   })}
                 </div>
 
-                {/* Travel Insurance Section */}
+                {/* Travel Insurance Section - only if added */}
+                {proposal.travel_insurance && (
                 <div className="bg-white border border-gray-200 rounded-xl mb-8 shadow-sm overflow-hidden" data-testid="travel-insurance-section">
                   <div className="px-6 py-5 flex items-center gap-3 border-b border-gray-100">
                     <Shield size={20} className="text-[#002B5B]" />
@@ -1647,14 +1651,13 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="text-gray-700">Travel Insurance with min $50,000 coverage - Only for Age Below 60 Yrs</p>
-                        <p className="text-sm text-red-500 mt-2">Not Included</p>
+                        <p className="text-sm text-teal-600 font-medium mt-2">Included</p>
                       </div>
-                      <button className="px-4 py-2 border border-[#002B5B] text-[#002B5B] text-sm font-medium rounded hover:bg-[#002B5B]/5 transition-colors flex-shrink-0" data-testid="add-insurance-btn">
-                        + ADD
-                      </button>
+                      <span className="px-3 py-1.5 bg-teal-50 text-teal-700 text-sm font-medium rounded border border-teal-200">Added</span>
                     </div>
                   </div>
                 </div>
+                )}
               </div>
             )}
 
