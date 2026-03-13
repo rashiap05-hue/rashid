@@ -149,8 +149,11 @@ Migrate and enhance a Google AI Studio B2B Travel Platform (Travo DMC) with:
 - [x] "No hotel selected" in overnight stay when no hotel data
 - [x] Activity images displayed alongside activity details
 
-### Test Results (iteration_20.json)
-- **Frontend:** 100% pass rate (9/9 features)
+### Test Results (iteration_22.json) - Travel Insurance E2E
+- **Backend:** 100% (6/6 tests) - POST/GET/PATCH/PDF all handle travel_insurance correctly
+- **Frontend:** 100% (7/7 features) - TripBuilder ADD/REMOVE toggle, ProposalView conditional display, sidebar conditional entry
+- **Critical fix applied:** travel_insurance field was missing from create_proposal MongoDB doc - now saved
+- Full flow verified: Add in TripBuilder → Save → View in ProposalView → PDF reflects status
 
 ### Test Results (iteration_21.json) - Visual Refinements
 - **Frontend:** 100% (10/10 features)
