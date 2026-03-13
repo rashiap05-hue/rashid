@@ -437,6 +437,35 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
   // Destination videos state
   const [destinationVideo, setDestinationVideo] = useState(null);
 
+  // Fresh hotel images from DB (in case saved proposal has stale/missing images)
+  const [freshHotelImages, setFreshHotelImages] = useState({});
+
+  // Fetch fresh hotel images from the API
+  useEffect(() => {
+    const fetchFreshHotelImages = async () => {
+      if (!proposal?.cities) return;
+      const hotelMap = {};
+      for (const city of proposal.cities) {
+        const cityName = city.name;
+        const savedHotel = proposal.selected_hotels?.[cityName];
+        if (savedHotel?.name) {
+          try {
+            const res = await api.get(`/hotels?city=${encodeURIComponent(cityName)}`);
+            const hotels = res.data?.hotels || [];
+            const match = hotels.find(h => h.id === savedHotel.id || h.name === savedHotel.name);
+            if (match?.images?.[0]) {
+              hotelMap[cityName] = match.images[0];
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+      }
+      setFreshHotelImages(hotelMap);
+    };
+    fetchFreshHotelImages();
+  }, [proposal]);
+
   // Fetch destination video from activities/transfers
   useEffect(() => {
     const fetchDestinationVideo = async () => {
@@ -1019,7 +1048,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                           {/* Hotel Image */}
                           <div className="w-56 h-44 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
                             <img 
-                              src={hotel.image || hotel.images?.[0] || hotel.selectedRoom?.images?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'}
+                              src={freshHotelImages[city.name] || hotel.image || hotel.images?.[0] || hotel.selectedRoom?.images?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'}
                               alt={hotel.name || 'Hotel'}
                               className="w-full h-full object-cover"
                               data-testid={`hotel-image-${cityIdx}`}
