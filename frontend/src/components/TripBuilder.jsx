@@ -542,12 +542,17 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           star_rating: hotel.star_rating,
           location: hotel.location,
           city: hotel.city,
-          image: hotel.image,
+          image: hotel.image || hotel.images?.[0] || '',
+          images: hotel.images || [],
           amenities: hotel.amenities,
           selectedRoom: hotel.selectedRoom,
           checkIn: hotel.checkIn,
           checkOut: hotel.checkOut,
-          nights: hotel.nights
+          nights: hotel.nights,
+          rating_score: hotel.rating_score,
+          rating_text: hotel.rating_text,
+          review_count: hotel.review_count,
+          address: hotel.address
         };
       });
 
