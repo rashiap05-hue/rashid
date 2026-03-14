@@ -42,6 +42,16 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   // Activity edit form state (separate from generic edit modal)
   const [activityEditModal, setActivityEditModal] = useState({ open: false, activity: null, isNew: false });
 
+  // Insurance settings state
+  const [insuranceSettings, setInsuranceSettings] = useState({
+    price_per_person: 50,
+    currency: 'AED',
+    min_coverage: 50000,
+    max_age: 60,
+    description: 'Travel Insurance with min $50,000 coverage - Only for Age Below 60 Yrs'
+  });
+  const [insuranceSaving, setInsuranceSaving] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -56,16 +66,18 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [citiesRes, hotelsRes, transfersRes, activitiesRes] = await Promise.all([
+      const [citiesRes, hotelsRes, transfersRes, activitiesRes, insuranceRes] = await Promise.all([
         api.get('/cities'),
         api.get('/hotels'),
         api.get('/transfers'),
-        api.get('/activities')
+        api.get('/activities'),
+        api.get('/settings/insurance')
       ]);
       setCities(citiesRes.data?.cities || []);
       setHotels(hotelsRes.data?.hotels || []);
       setTransfers(transfersRes.data?.transfers || []);
       setActivities(activitiesRes.data?.activities || []);
+      if (insuranceRes.data) setInsuranceSettings(insuranceRes.data);
       
       // Fetch airports separately with pagination
       await fetchAirports();
@@ -1102,7 +1114,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-gray-100 overflow-x-auto">
-            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'terms'].map((tab) => (
+            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'terms', 'insurance'].map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -1112,7 +1124,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   activeTab === tab ? "text-[#002B5B]" : "text-gray-400 hover:text-gray-600"
                 )}
               >
-                {tab === 'terms' ? 'Terms & Policies' : `${tab} Management`}
+                {tab === 'terms' ? 'Terms & Policies' : tab === 'insurance' ? 'Insurance' : `${tab} Management`}
                 {activeTab === tab && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-[#002B5B]" />}
               </button>
             ))}
@@ -1764,6 +1776,102 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
             {/* Terms & Policies Tab */}
             {activeTab === 'terms' && (
               <TermsPoliciesManager />
+            )}
+
+            {activeTab === 'insurance' && (
+              <div className="bg-white rounded-xl border border-gray-200 p-8" data-testid="insurance-management">
+                <div className="flex items-center gap-3 mb-6">
+                  <Shield size={24} className="text-[#002B5B]" />
+                  <h2 className="text-xl font-bold text-[#002B5B]">Insurance Settings</h2>
+                </div>
+
+                <div className="space-y-6 max-w-2xl">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Price Per Person</label>
+                    <div className="flex items-center gap-3">
+                      <select 
+                        value={insuranceSettings.currency}
+                        onChange={(e) => setInsuranceSettings({...insuranceSettings, currency: e.target.value})}
+                        className="px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 text-sm"
+                        data-testid="insurance-currency"
+                      >
+                        <option value="AED">AED</option>
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                        <option value="GBP">GBP</option>
+                        <option value="INR">INR</option>
+                      </select>
+                      <input 
+                        type="number"
+                        value={insuranceSettings.price_per_person}
+                        onChange={(e) => setInsuranceSettings({...insuranceSettings, price_per_person: parseFloat(e.target.value) || 0})}
+                        className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700"
+                        placeholder="Price per person"
+                        data-testid="insurance-price-input"
+                      />
+                      <span className="text-sm text-gray-500">per person</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Coverage Amount ($)</label>
+                    <input 
+                      type="number"
+                      value={insuranceSettings.min_coverage}
+                      onChange={(e) => setInsuranceSettings({...insuranceSettings, min_coverage: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700"
+                      placeholder="50000"
+                      data-testid="insurance-coverage-input"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Maximum Age</label>
+                    <input 
+                      type="number"
+                      value={insuranceSettings.max_age}
+                      onChange={(e) => setInsuranceSettings({...insuranceSettings, max_age: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700"
+                      placeholder="60"
+                      data-testid="insurance-age-input"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <textarea 
+                      value={insuranceSettings.description}
+                      onChange={(e) => setInsuranceSettings({...insuranceSettings, description: e.target.value})}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 h-20 resize-none"
+                      placeholder="Travel Insurance description..."
+                      data-testid="insurance-description-input"
+                    />
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-200 flex items-center justify-between">
+                    <p className="text-sm text-gray-500">Changes will apply to all new proposals</p>
+                    <button
+                      onClick={async () => {
+                        setInsuranceSaving(true);
+                        try {
+                          await api.put('/settings/insurance', insuranceSettings);
+                          alert('Insurance settings saved!');
+                        } catch (err) {
+                          alert('Failed to save settings');
+                        } finally {
+                          setInsuranceSaving(false);
+                        }
+                      }}
+                      disabled={insuranceSaving}
+                      className="px-6 py-2.5 bg-[#002B5B] text-white rounded-lg hover:bg-[#001d3d] transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
+                      data-testid="insurance-save-btn"
+                    >
+                      <Save size={16} />
+                      {insuranceSaving ? 'Saving...' : 'Save Settings'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>

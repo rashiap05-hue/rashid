@@ -491,7 +491,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     const childrenCount = data?.room_data?.reduce((acc, r) => acc + r.children?.length, 0) || 0;
     
     const subtotal = hotelTotal + flightPrice + transferTotal + activitiesTotal;
-    const pricePerAdult = Math.round(subtotal / adultsCount);
+    
+    // Calculate insurance cost (per person × adults)
+    const insuranceTotal = travelInsurance ? (insuranceSettings?.price_per_person || 0) * adultsCount : 0;
+    
+    const grandTotal = subtotal + insuranceTotal;
+    const pricePerAdult = Math.round(grandTotal / adultsCount);
     const pricePerChild = Math.round(pricePerAdult * 0.7); // 30% discount for children
 
     return {
@@ -499,6 +504,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       flightPrice,
       transferTotal,
       activitiesTotal,
+      insuranceTotal,
       arrivalTransferPrice,
       departureTransferPrice,
       pricePerAdult,
@@ -507,7 +513,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       childrenCount,
       totalPax: adultsCount + childrenCount,
       vehicleType: selectedVehicle,
-      total: subtotal
+      total: grandTotal
     };
   };
 
@@ -1441,6 +1447,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                       <div className="flex justify-between text-pink-600">
                         <span>Activities</span>
                         <span className="font-medium">AED {pricing.activitiesTotal.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {pricing.insuranceTotal > 0 && (
+                      <div className="flex justify-between text-indigo-600">
+                        <span>Insurance ({pricing.adultsCount} pax)</span>
+                        <span className="font-medium">AED {pricing.insuranceTotal.toLocaleString()}</span>
                       </div>
                     )}
                     

@@ -25,64 +25,57 @@ The user provided a zip file of a Travo DMC - B2B Travel Platform and requested 
 **User's preferred language**: English
 
 **what currently exists?**
-The application is a full-stack B2B travel platform using React, FastAPI, and MongoDB. It features multi-role authentication, a comprehensive Admin Dashboard, and a functional Trip Builder for creating detailed travel proposals. The core Save Proposal functionality and related UI bugs have been fixed.
+The application is a full-stack B2B travel platform using React, FastAPI, and MongoDB. It features multi-role authentication, a comprehensive Admin Dashboard, a functional Trip Builder, and a Proposal View page that dynamically displays data from saved proposals.
 
-A significant amount of work was done to refactor the monolithic  component into smaller, manageable modules. The  page has been heavily redesigned to match a user-provided reference design (Nexus DMC), now featuring a sophisticated layout with a timeline sidebar, styled cards for Flights and Hotels, and a new tabbed interface.
+Recent major completed features include:
+*   A Download as PDF feature for proposals.
+*   A full UI/UX overhaul of the  page to dynamically display flights, hotels, and day-wise itineraries based on saved data, including fixes for numerous data-flow and display bugs.
+*   A complete Travel Insurance feature, allowing admins to set a price in the Admin Dashboard, users to add it in the , and its cost being correctly calculated in the final Trip Summary.
 
 **Last working item**:
-- **Last item agent was working:** The agent was in the process of replacing the old City Tour Section on the  page with a new, user-requested Day-wise Itinerary card design. The user provided a screenshot for the new design, and the agent was about to remove the old component to make way for the new one.
-- **Status:** IN PROGRESS
-- **Agent Testing Done:** N
-- **Which testing method agent to use?** Frontend testing agent. This is a significant UI change. The agent should first use the screenshot tool to verify the new component renders correctly, then use the testing agent to ensure data is displayed properly and no regressions were introduced to the  page.
+- **Last item agent was working:** The agent finished implementing a feature for managing travel insurance pricing. This involved adding an Insurance tab to the Admin Dashboard for setting the price and updating the Trip Summary calculation in the  to include the insurance cost based on the number of travelers.
+- **Status:** USER VERIFICATION PENDING
+- **Agent Testing Done:** Y
+- **Which testing method agent to use?** Frontend testing agent. The test should cover the E2E flow: 1. Log in as admin, navigate to Admin Dashboard -> Insurance, and update the price. 2. Create a new trip, navigate to the  page, and verify the new insurance price is displayed. 3. Add insurance to the trip and confirm the Trip Summary total updates correctly. 4. Save and view the proposal to ensure the insurance data is correctly displayed.
 - **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: Complete Day-wise Itinerary Card Implementation (Priority: P0)**
+-   **Issue 1: Verify Insurance Price Feature (Priority: P0)**
 
 **Issues Detail:**
--   **Issue 1: Complete Day-wise Itinerary Card Implementation**
-    -   **Attempted fixes:** The user provided a screenshot of the desired day-wise card layout. The agent started implementing this and was identifying the old City Tour Section in  for removal.
+-   **Issue 1: Verify Insurance Price Feature**
+    -   **Attempted fixes:** The agent created a new Insurance tab in the Admin Dashboard for price management and updated the pricing calculation logic in .
     -   **Next debug checklist:**
-        1.  In , locate and completely remove the old City Tour Section component/JSX block.
-        2.  Implement the new Day-wise itinerary card component. This component should iterate through the  data.
-        3.  For each day in the itinerary, the card must display the day number, date, title (e.g., Arrival in Dubai), and a list of any activities or transfers scheduled for that day.
-        4.  Style the card to precisely match the user's last provided screenshot, including icons, layout, typography, and VIEW buttons for activities.
-        5.  Ensure the data is being passed correctly and rendered dynamically.
-    -   **Why fix this issue and what will be achieved with the fix?** This will complete the UI redesign of the proposal itinerary section, aligning it with the user's vision and creating a more professional and readable layout.
-    -   **Status:** IN PROGRESS
+        1.  Confirm with the user that the new Insurance tab in the Admin Dashboard meets their needs for managing the price.
+        2.  Confirm that the Trip Summary calculation correctly adds the insurance cost () when the insurance is added.
+    -   **Why fix this issue and what will be achieved with the fix?** This will complete the Travel Insurance feature, giving the admin full control over its pricing and ensuring accurate quotes for customers.
+    -   **Status:** USER VERIFICATION PENDING
     -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Should Test frontend/backend/both after fix?** both
     -   **Blocked on other issue:** None
 
 **In progress Task List**:
--   **Task 1: Redesign **
-    -   **Where to resume:** Continue working on . The Flights and Hotel cards are done. The final piece is to implement the day-wise itinerary cards.
-    -   **What will be achieved with this?** The  page will fully match the user's requested Nexus DMC-style design.
-    -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** frontend
-    -   **Blocked on something:** None
+-   None.
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
     -   **P1: Implement Google Sheets Sync:** Build out the placeholder  endpoint. **Blocked: Requires user credentials.**
     -   **P2: Implement Payment Integrations (Stripe & PayPal):** Implement backend logic and frontend checkout flows.
     -   **P2: Implement Remaining Gemini AI Features:** Build backend endpoints and frontend components for AI-powered trip recommendations and itineraries.
-    -   **P3: Implement Real Flight API (Airlabs):** The user requested Airlabs originally. An Aviationstack integration was built, but this original request is still pending. **Blocked: Requires user to provide an Airlabs API key.**
+    -   **P3: Implement Real Flight API (Airlabs):** An Aviationstack integration was built, but the original request for Airlabs is still pending. **Blocked: Requires user to provide an Airlabs API key.**
 -   **Future Tasks:**
     -   **Refactor :** Break down the monolithic backend file into a standard FastAPI project structure (e.g., separate directories for routes, models, services). This remains a critical technical debt item.
 
 **Completed work in this session**
--   **Fixed Save Proposal Functionality:** Resolved the critical bug preventing trip proposals from being saved. This involved updating the backend  model and the  endpoint to handle the full data payload from the frontend.
--   **Fixed Trip Builder UI Bugs:** Solved the airport dropdown interaction issue that was blocking E2E testing and fixed a data key mismatch that prevented selected activities from displaying correctly on the proposal view page.
--   **Refactored :** Decomposed the massive 3400+ line  component into seven smaller, modular components now located in the  directory.
--   **Redesigned :**
-    -   Overhauled the page to match the user's Nexus DMC reference design.
-    -   Implemented a new header with Save/Cancel buttons and a prominent total price.
-    -   Added new tabs for Messages and Request Changes.
-    -   Implemented a left-hand trip timeline for easy navigation.
-    -   Added beautifully styled, data-driven cards for Flights and Hotels.
-    -   Increased the overall width of the page layout for a more spacious feel.
--   **Testing:** Successfully used the  to validate the fixes for the Save Proposal and UI interaction bugs.
+-   **Completed Day-wise Itinerary Implementation:** Replaced the static City Tour Section with dynamic, collapsible day-wise itinerary cards on the  page.
+-   **Implemented Download as PDF Feature:** Added a backend endpoint and frontend button to generate a detailed PDF of trip proposals.
+-   **Fixed Dynamic Data Display on :** Resolved multiple bugs to ensure flights, hotels (with correct images), activities, transfers, and meal plans are all displayed dynamically based on the saved proposal data.
+-   **Implemented Full Travel Insurance Feature:**
+    -   Created backend CRUD endpoints () to manage pricing.
+    -   Added an Insurance management UI to the Admin Dashboard.
+    -   Added a UI section in  to add insurance to a trip.
+    -   Integrated insurance cost into the Trip Summary calculation.
+    -   The  page and PDF now conditionally show insurance details.
 
 **Earlier issues found/mentioned but not fixed**
 -   None.
@@ -94,53 +87,55 @@ A significant amount of work was done to refactor the monolithic  component into
 
 
 **Key Technical Concepts**
-*   **Backend:** FastAPI, PyMongo, Pydantic
-*   **Frontend:** React.js, Tailwind CSS, Axios, , Headless UI
+*   **Backend:** FastAPI, PyMongo, Pydantic, FPDF2
+*   **Frontend:** React.js, Tailwind CSS, Axios
 *   **Architecture:** Monolithic FastAPI backend () serving a React SPA.
-*   **Development:** Component decomposition, fixing data flow issues between frontend state and backend models, and detailed UI styling based on visual mockups.
+*   **Development:** Dynamic UI rendering from backend data, fixing complex data flow bugs, adding new CRUD features, and integrating new feature costs into existing pricing calculations.
 
 **key DB schema**
--   **proposals:** This model is now comprehensive, storing , , , , , ,  (using a  key format), , flight details, a full  object, and a .
+-   **proposals:** Updated to include  and .
+-   **settings:** A new implicit collection is used to store application-wide settings, currently for insurance: .
 
 **changes in tech stack**
--   None.
+-   **fpdf2:** Added as a new backend dependency for PDF generation.
 
 **All files of reference**
-*   : The primary file for the current task. It has been heavily modified to implement the new design and will be edited again to add the day-wise itinerary.
-*   : The refactored parent component for the trip creation flow.
-*    (directory): Location of all the newly extracted components.
-*   : The  and  Pydantic models were updated to fix the save functionality.
+*   : The monolithic backend file, modified to add insurance settings CRUD, update proposal models, and include insurance in PDF generation.
+*   : Modified to add the Insurance tab for price management.
+*   : Modified to fetch/display the insurance price and include it in the trip summary calculation.
+*   : Modified to conditionally display the Travel Insurance section.
 
 **Areas that need refactoring**:
-*   : **CRITICAL**. This remains a high-priority refactoring task. The file's size and lack of structure make it difficult to maintain.
+*   : **CRITICAL**. The file is becoming increasingly large and difficult to maintain. Refactoring should be a high-priority task after the current work is verified.
 
 **key api endpoints**
-*   : Successfully updated to handle the expanded proposal data structure, enabling correct saving of all trip details.
+*   : **NEW**. Generates a PDF of the proposal.
+*   : **NEW**. Fetches travel insurance price settings.
+*   : **NEW**. Updates travel insurance price settings (admin only).
+*   : Updated to handle  and  fields.
 
 **Critical Info for New Agent**
-*   **Top Priority:** Focus on finishing the  redesign. Your immediate task is to implement the day-wise itinerary cards based on the user's last screenshot and remove the old City Tour section.
-*   **Refactoring Success:** The frontend  component has been successfully refactored. The new, modular structure is in . Do not try to edit the old monolithic structure.
-*   **Backend Refactoring Needed:** The  file is a monolith. After the current UI task is complete and verified by the user, you should propose refactoring the backend as the next major step to improve maintainability.
-*   **Data is Key for UI:** The  page is highly data-driven. When implementing the itinerary cards, pay close attention to the structure of the  object to render the data correctly.
+*   **User Verification Required:** Your first action should be to confirm with the user that the new Insurance Management feature in the Admin Dashboard and its effect on the Trip Summary are correct. Propose a clear test plan for them to verify.
+*   **Backend Refactoring Priority:** The  monolith is a significant source of technical debt. After the user verifies the insurance feature, you should strongly advocate for refactoring the backend as the next major initiative to improve maintainability and scalability.
 
 **documents and test reports created in this job**
-*   
-*    (Updated)
+*    (and previous iterations)
+*    (Continuously updated)
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:**  (image of day-wise itinerary card) - **Status: In Progress**. This is the current P0 task.
-2.  **User:**  - **Status: In Progress**.
-3.  **User:**  (image of a hotel card to add) - **Status: Completed**.
-4.  **User:**  - **Status: Completed**.
-5.  **User:**  (flight card style) - **Status: Completed**.
-6.  **User:**  (flight card style) - **Status: Completed**.
-7.  **User:**  (flight card style) - **Status: Completed**.
-8.  **User:**  (request to add flight module) - **Status: Completed**.
-9.  **User:**  (request to remove a transfer card) - **Status: Completed**.
-10. **User:**  (request to remove a transfer card) - **Status: Completed**.
+1.  **User:** Provided a screenshot showing the desired insurance price display. (Status: Completed)
+2.  **User:** Asked where the insurance price can be changed and if it affects the trip summary. (Status: Completed)
+3.  **User:** Confirmed requirements: insurance management in the Admin Dashboard and per-person cost calculation in the summary. (Status: Completed)
+4.  **User:** Requested a full end-to-end test of the travel insurance feature. (Status: Completed)
+5.  **User:** Clarified that the Travel Insurance section should be added to the  page and only shown on the  if selected. (Status: Completed)
+6.  **User:** Reported the Travel Insurance section was not showing. (Status: Resolved, agent clarified its location).
+7.  **User:** Sent a screenshot of a broken hotel image. (Status: Resolved)
+8.  **User:** Sent another screenshot of a broken hotel image. (Status: Resolved, root cause fixed).
+9.  **User:** Sent a screenshot showing the hotel meal plan wasn't displaying correctly. (Status: Resolved)
+10. **User:** Sent a screenshot highlighting multiple UI bugs on the  page. (Status: Resolved)
 
 **Project Health Check:**
-*   **Broken:** None. The critical Save Proposal flow is now working.
+*   **Broken:** None.
 *   **Mocked:**
     *   Google Sheets synchronization.
     *   Stripe & PayPal payment processing.
@@ -148,6 +143,7 @@ A significant amount of work was done to refactor the monolithic  component into
     *   Airlabs Flight API.
 
 **3rd Party Integrations**
+*   **fpdf2:** For PDF generation. (Live & Implemented).
 *   **Gemini AI:** For chatbot. Uses Emergent LLM Key. (Live & Tested).
 *   **Aviationstack:** For live flight data. Requires User API Key. (Live & Implemented).
 *   **Stripe:** For payments. Requires User API Key. (Mocked).
@@ -155,7 +151,7 @@ A significant amount of work was done to refactor the monolithic  component into
 *   **Google Sheets:** For data sync. Requires User API Key/OAuth. (Mocked).
 
 **Testing status**
--   **Testing agent used after significant changes:** YES (used to validate the fix for the Save Proposal flow).
+-   **Testing agent used after significant changes:** YES (used for PDF generation, dynamic data fixes, and the Travel Insurance E2E flow).
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** []
 -   **Known regressions:** None.
@@ -164,4 +160,4 @@ A significant amount of work was done to refactor the monolithic  component into
 Use the admin account  with password  to access all features.
 
 **What agent forgot to execute**
-The agent has successfully followed user requests. No major tasks were forgotten. The progression from fixing critical bugs to refactoring and then implementing new UI features was logical and correct.</analysis>
+-   None. The agent successfully addressed a long and complex series of user requests and bug fixes in this session.</analysis>
