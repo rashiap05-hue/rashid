@@ -1651,7 +1651,10 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="text-gray-700">Travel Insurance with min $50,000 coverage - Only for Age Below 60 Yrs</p>
-                        <p className="text-sm text-teal-600 font-medium mt-2">Included</p>
+                        {proposal.travel_insurance_price > 0 && (
+                          <p className="text-base font-semibold text-[#002B5B] mt-2">AED {proposal.travel_insurance_price} <span className="text-xs font-normal text-gray-500">per person</span></p>
+                        )}
+                        <p className="text-sm text-teal-600 font-medium mt-1">Included</p>
                       </div>
                       <span className="px-3 py-1.5 bg-teal-50 text-teal-700 text-sm font-medium rounded border border-teal-200">Added</span>
                     </div>

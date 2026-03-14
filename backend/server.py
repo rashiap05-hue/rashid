@@ -64,6 +64,7 @@ sheets_router = APIRouter(prefix="/sheets", tags=["Google Sheets"])
 admin_router = APIRouter(prefix="/admin", tags=["Admin"])
 uploads_router = APIRouter(prefix="/uploads", tags=["File Uploads"])
 terms_router = APIRouter(prefix="/terms-policies", tags=["Terms and Policies"])
+settings_router = APIRouter(prefix="/settings", tags=["Settings"])
 
 security = HTTPBearer(auto_error=False)
 
@@ -139,6 +140,7 @@ class ProposalCreate(BaseModel):
     markup_type: Optional[str] = None
     discount_amount: Optional[float] = None
     travel_insurance: Optional[bool] = None
+    travel_insurance_price: Optional[float] = None
     status: Optional[str] = None
 
 class ProposalResponse(BaseModel):
@@ -190,6 +192,7 @@ class ProposalResponse(BaseModel):
     markup_type: Optional[str] = None
     discount_amount: Optional[float] = None
     travel_insurance: Optional[bool] = None
+    travel_insurance_price: Optional[float] = None
 
 class FlightCreate(BaseModel):
     airline: str
@@ -533,7 +536,8 @@ async def create_proposal(proposal: ProposalCreate, user: dict = Depends(get_opt
         "markup_value": proposal.markup_value,
         "markup_type": proposal.markup_type,
         "discount_amount": proposal.discount_amount,
-        "travel_insurance": proposal.travel_insurance
+        "travel_insurance": proposal.travel_insurance,
+        "travel_insurance_price": proposal.travel_insurance_price
     }
     await db.proposals.insert_one(doc)
     return ProposalResponse(**doc)
@@ -3201,6 +3205,45 @@ api_router.include_router(admin_router)
 api_router.include_router(supplier_router)
 api_router.include_router(uploads_router)
 api_router.include_router(terms_router)
+
+# ====== INSURANCE SETTINGS ENDPOINTS ======
+@settings_router.get("/insurance")
+async def get_insurance_settings():
+    """Get insurance pricing settings"""
+    settings = await db.settings.find_one({"type": "insurance"}, {"_id": 0})
+    if not settings:
+        # Return defaults
+        return {
+            "type": "insurance",
+            "price_per_person": 50,
+            "currency": "AED",
+            "min_coverage": 50000,
+            "max_age": 60,
+            "description": "Travel Insurance with min $50,000 coverage - Only for Age Below 60 Yrs"
+        }
+    return settings
+
+@settings_router.put("/insurance")
+async def update_insurance_settings(request: Request, user: dict = Depends(get_current_user)):
+    """Update insurance pricing settings (admin only)"""
+    data = await request.json()
+    settings = {
+        "type": "insurance",
+        "price_per_person": data.get("price_per_person", 50),
+        "currency": data.get("currency", "AED"),
+        "min_coverage": data.get("min_coverage", 50000),
+        "max_age": data.get("max_age", 60),
+        "description": data.get("description", "Travel Insurance with min $50,000 coverage - Only for Age Below 60 Yrs"),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.settings.update_one(
+        {"type": "insurance"},
+        {"$set": settings},
+        upsert=True
+    )
+    return settings
+
+api_router.include_router(settings_router)
 
 app.include_router(api_router)
 

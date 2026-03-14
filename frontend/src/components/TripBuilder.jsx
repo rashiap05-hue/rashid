@@ -51,6 +51,18 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
 
   // Travel Insurance state
   const [travelInsurance, setTravelInsurance] = useState(false);
+  const [insuranceSettings, setInsuranceSettings] = useState(null);
+
+  // Fetch insurance settings
+  useEffect(() => {
+    const fetchInsurance = async () => {
+      try {
+        const res = await api.get('/settings/insurance');
+        setInsuranceSettings(res.data);
+      } catch (e) { /* use defaults */ }
+    };
+    fetchInsurance();
+  }, []);
   
   // Transfer state
   const [availableTransfers, setAvailableTransfers] = useState([]);
@@ -630,6 +642,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
 
         // Travel Insurance
         travel_insurance: travelInsurance,
+        travel_insurance_price: travelInsurance ? (insuranceSettings?.price_per_person || 50) : 0,
         
         // Customer info from modal
         customer_name: formData.customer_name,
@@ -1493,11 +1506,14 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           <div className="px-6 py-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-gray-700">Travel Insurance with min $50,000 coverage - Only for Age Below 60 Yrs</p>
+                <p className="text-gray-700">{insuranceSettings?.description || 'Travel Insurance with min $50,000 coverage - Only for Age Below 60 Yrs'}</p>
+                <p className="text-base font-semibold text-[#002B5B] mt-2">
+                  {insuranceSettings?.currency || 'AED'} {insuranceSettings?.price_per_person || 50} <span className="text-xs font-normal text-gray-500">per person</span>
+                </p>
                 {travelInsurance ? (
-                  <p className="text-sm text-teal-600 font-medium mt-2">Added to proposal</p>
+                  <p className="text-sm text-teal-600 font-medium mt-1">Added to proposal</p>
                 ) : (
-                  <p className="text-sm text-red-500 mt-2">Not Included</p>
+                  <p className="text-sm text-red-500 mt-1">Not Included</p>
                 )}
               </div>
               {travelInsurance ? (
