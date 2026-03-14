@@ -224,6 +224,25 @@ Replaced the single global insurance price with a country-based pricing system. 
 - **Backend:** 100% (14/14 tests passed) - all CRUD ops, fallback logic, duplicate/empty protection
 - **Frontend:** 100% - table display, Add/Edit/Delete modals, Default protection
 
+## Update: March 14, 2026 - Recommended Hotels & Rooms Feature
+
+### Feature: Admin can mark hotels and rooms as "Recommended"
+
+#### Backend Changes (`/app/backend/server.py`)
+- Added `recommended: bool = False` to `HotelCreate` model
+- `GET /api/hotels` now sorts by `recommended` desc, then `rating_score` desc (recommended first)
+
+#### Frontend Changes
+- **HotelEditForm.jsx**: Added "Recommended Hotel" toggle in Basic Info tab with amber highlight box
+- **HotelEditForm.jsx**: Added "Recommended" toggle per room type in Room Types tab header
+- **AdminDashboard.jsx**: Hotel cards show "Recommended" badge (amber pill) when hotel.recommended=true
+- **HotelSelectionModal.jsx**: "Sort by: Recommended" is default sort, recommended hotels appear first
+- **HotelDetailsView.jsx**: "Recommended" badge on hotel name header and on room cards
+
+### Test Results (iteration_25.json)
+- **Backend:** 100% (5/5 tests passed)
+- **Frontend:** 100% - all recommended toggles, badges, and sorting verified
+
 ## Prioritized Backlog
 
 ### P0 - Critical
