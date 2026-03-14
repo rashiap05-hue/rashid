@@ -202,6 +202,28 @@ Migrate and enhance a Google AI Studio B2B Travel Platform (Travo DMC) with:
 ### Files Modified
 - `/app/frontend/src/components/ProposalView.jsx` - Removed City Tour Section, refined day cards with collapsible behavior, added Travel Insurance section
 
+## Update: March 14, 2026 - Country-Based Insurance Pricing
+
+### Feature: Country-Based Insurance Pricing in Admin Dashboard
+
+Replaced the single global insurance price with a country-based pricing system. Each country can now have its own insurance price, with a "Default" fallback for countries without a specific price.
+
+#### Backend Changes (`/app/backend/server.py`)
+- New collection: `insurance_prices` with documents: `{ id, country, price_per_person, currency, min_coverage, max_age, description }`
+- `GET /api/settings/insurance` - Returns all entries (no param) or country-specific/fallback (with `?country=X`)
+- `POST /api/settings/insurance` - Create new country price (admin only, duplicate check)
+- `PUT /api/settings/insurance/{id}` - Update existing entry
+- `DELETE /api/settings/insurance/{id}` - Delete entry (protected: Default cannot be deleted)
+- Seeded 3 entries: Default (AED 50), UAE (AED 75), Georgia (AED 40)
+
+#### Frontend Changes
+- **AdminDashboard.jsx**: Insurance tab now shows a table of country prices with Add/Edit/Delete. Modal form with country dropdown (195 countries), price, currency, coverage, age, description fields. Default entry shows "Fallback" badge and cannot be deleted.
+- **TripBuilder.jsx**: Insurance fetch now looks up the destination city's country first, then fetches the country-specific price (or Default fallback).
+
+### Test Results (iteration_23.json)
+- **Backend:** 100% (14/14 tests passed) - all CRUD ops, fallback logic, duplicate/empty protection
+- **Frontend:** 100% - table display, Add/Edit/Delete modals, Default protection
+
 ## Prioritized Backlog
 
 ### P0 - Critical
@@ -233,6 +255,7 @@ Migrate and enhance a Google AI Studio B2B Travel Platform (Travo DMC) with:
 3. Add PayPal payment option
 4. Implement invoice generation
 5. Add email notification system
+6. Refactor server.py into modular structure
 
 ## Update: Feb 28, 2026 - Admin User Dashboard Added
 
