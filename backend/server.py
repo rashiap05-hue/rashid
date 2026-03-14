@@ -3185,6 +3185,44 @@ async def seed_initial_data():
         await db.activities.insert_many(activities)
         logger.info(f"Seeded {len(activities)} activities")
     
+    # Check if insurance prices need seeding
+    insurance_count = await db.insurance_prices.count_documents({})
+    if insurance_count == 0:
+        insurance_entries = [
+            {
+                "id": str(uuid.uuid4()),
+                "country": "Default",
+                "price_per_person": 50,
+                "currency": "AED",
+                "min_coverage": 50000,
+                "max_age": 60,
+                "description": "Travel Insurance with min $50,000 coverage - Only for Age Below 60 Yrs",
+                "created_at": datetime.now(timezone.utc).isoformat()
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "country": "United Arab Emirates",
+                "price_per_person": 75,
+                "currency": "AED",
+                "min_coverage": 100000,
+                "max_age": 65,
+                "description": "UAE Travel Insurance with min $100,000 coverage - Only for Age Below 65 Yrs",
+                "created_at": datetime.now(timezone.utc).isoformat()
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "country": "Georgia",
+                "price_per_person": 40,
+                "currency": "AED",
+                "min_coverage": 50000,
+                "max_age": 60,
+                "description": "Georgia Travel Insurance with min $50,000 coverage",
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+        ]
+        await db.insurance_prices.insert_many(insurance_entries)
+        logger.info(f"Seeded {len(insurance_entries)} insurance price entries")
+
     logger.info("Data seeding check complete")
 
 # ============= APP SETUP =============
@@ -3206,42 +3244,99 @@ api_router.include_router(supplier_router)
 api_router.include_router(uploads_router)
 api_router.include_router(terms_router)
 
-# ====== INSURANCE SETTINGS ENDPOINTS ======
-@settings_router.get("/insurance")
-async def get_insurance_settings():
-    """Get insurance pricing settings"""
-    settings = await db.settings.find_one({"type": "insurance"}, {"_id": 0})
-    if not settings:
-        # Return defaults
-        return {
-            "type": "insurance",
-            "price_per_person": 50,
-            "currency": "AED",
-            "min_coverage": 50000,
-            "max_age": 60,
-            "description": "Travel Insurance with min $50,000 coverage - Only for Age Below 60 Yrs"
-        }
-    return settings
+# ====== INSURANCE SETTINGS ENDPOINTS (Country-Based Pricing) ======
 
-@settings_router.put("/insurance")
-async def update_insurance_settings(request: Request, user: dict = Depends(get_current_user)):
-    """Update insurance pricing settings (admin only)"""
+DEFAULT_INSURANCE = {
+    "country": "Default",
+    "price_per_person": 50,
+    "currency": "AED",
+    "min_coverage": 50000,
+    "max_age": 60,
+    "description": "Travel Insurance with min $50,000 coverage - Only for Age Below 60 Yrs"
+}
+
+@settings_router.get("/insurance")
+async def get_insurance_settings(country: Optional[str] = None):
+    """Get insurance pricing. If country is provided, return that country's price or fallback to Default."""
+    if country:
+        # Look for country-specific pricing first
+        entry = await db.insurance_prices.find_one({"country": country}, {"_id": 0})
+        if entry:
+            return entry
+        # Fallback to Default
+        default = await db.insurance_prices.find_one({"country": "Default"}, {"_id": 0})
+        return default or DEFAULT_INSURANCE
+    # No country specified - return all entries
+    entries = []
+    async for doc in db.insurance_prices.find({}, {"_id": 0}).sort("country", 1):
+        entries.append(doc)
+    if not entries:
+        # Seed default entry
+        seed = {**DEFAULT_INSURANCE, "id": str(uuid.uuid4()), "created_at": datetime.now(timezone.utc).isoformat()}
+        await db.insurance_prices.insert_one(seed)
+        entries = [{k: v for k, v in seed.items() if k != "_id"}]
+    return {"insurance_prices": entries}
+
+@settings_router.post("/insurance")
+async def create_insurance_price(request: Request, user: dict = Depends(get_current_user)):
+    """Create a new country-based insurance price entry (admin only)."""
     data = await request.json()
-    settings = {
-        "type": "insurance",
+    country = data.get("country", "").strip()
+    if not country:
+        raise HTTPException(status_code=400, detail="Country is required")
+    # Check duplicate
+    existing = await db.insurance_prices.find_one({"country": country})
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Insurance price for '{country}' already exists")
+    entry = {
+        "id": str(uuid.uuid4()),
+        "country": country,
         "price_per_person": data.get("price_per_person", 50),
         "currency": data.get("currency", "AED"),
         "min_coverage": data.get("min_coverage", 50000),
         "max_age": data.get("max_age", 60),
         "description": data.get("description", "Travel Insurance with min $50,000 coverage - Only for Age Below 60 Yrs"),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.insurance_prices.insert_one(entry)
+    entry.pop("_id", None)
+    return entry
+
+@settings_router.put("/insurance/{entry_id}")
+async def update_insurance_price(entry_id: str, request: Request, user: dict = Depends(get_current_user)):
+    """Update a country-based insurance price entry (admin only)."""
+    data = await request.json()
+    update_fields = {
+        "price_per_person": data.get("price_per_person", 50),
+        "currency": data.get("currency", "AED"),
+        "min_coverage": data.get("min_coverage", 50000),
+        "max_age": data.get("max_age", 60),
+        "description": data.get("description", ""),
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
-    await db.settings.update_one(
-        {"type": "insurance"},
-        {"$set": settings},
-        upsert=True
-    )
-    return settings
+    # Allow country rename only if not changing to an existing one
+    new_country = data.get("country", "").strip()
+    if new_country:
+        existing = await db.insurance_prices.find_one({"country": new_country, "id": {"$ne": entry_id}})
+        if existing:
+            raise HTTPException(status_code=400, detail=f"Insurance price for '{new_country}' already exists")
+        update_fields["country"] = new_country
+    result = await db.insurance_prices.update_one({"id": entry_id}, {"$set": update_fields})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Insurance price entry not found")
+    updated = await db.insurance_prices.find_one({"id": entry_id}, {"_id": 0})
+    return updated
+
+@settings_router.delete("/insurance/{entry_id}")
+async def delete_insurance_price(entry_id: str, user: dict = Depends(get_current_user)):
+    """Delete a country-based insurance price entry (admin only)."""
+    entry = await db.insurance_prices.find_one({"id": entry_id})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Insurance price entry not found")
+    if entry.get("country") == "Default":
+        raise HTTPException(status_code=400, detail="Cannot delete the Default pricing entry")
+    await db.insurance_prices.delete_one({"id": entry_id})
+    return {"message": "Insurance price entry deleted"}
 
 api_router.include_router(settings_router)
 

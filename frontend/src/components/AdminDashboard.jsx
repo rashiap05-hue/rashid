@@ -42,14 +42,9 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   // Activity edit form state (separate from generic edit modal)
   const [activityEditModal, setActivityEditModal] = useState({ open: false, activity: null, isNew: false });
 
-  // Insurance settings state
-  const [insuranceSettings, setInsuranceSettings] = useState({
-    price_per_person: 50,
-    currency: 'AED',
-    min_coverage: 50000,
-    max_age: 60,
-    description: 'Travel Insurance with min $50,000 coverage - Only for Age Below 60 Yrs'
-  });
+  // Insurance settings state (country-based)
+  const [insurancePrices, setInsurancePrices] = useState([]);
+  const [insuranceModal, setInsuranceModal] = useState({ open: false, data: null, isNew: false });
   const [insuranceSaving, setInsuranceSaving] = useState(false);
 
   useEffect(() => {
@@ -77,7 +72,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
       setHotels(hotelsRes.data?.hotels || []);
       setTransfers(transfersRes.data?.transfers || []);
       setActivities(activitiesRes.data?.activities || []);
-      if (insuranceRes.data) setInsuranceSettings(insuranceRes.data);
+      if (insuranceRes.data?.insurance_prices) setInsurancePrices(insuranceRes.data.insurance_prices);
       
       // Fetch airports separately with pagination
       await fetchAirports();
@@ -1779,98 +1774,181 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
             )}
 
             {activeTab === 'insurance' && (
-              <div className="bg-white rounded-xl border border-gray-200 p-8" data-testid="insurance-management">
-                <div className="flex items-center gap-3 mb-6">
-                  <Shield size={24} className="text-[#002B5B]" />
-                  <h2 className="text-xl font-bold text-[#002B5B]">Insurance Settings</h2>
+              <div className="bg-white rounded-xl border border-gray-200 p-6" data-testid="insurance-management">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <Shield size={24} className="text-[#002B5B]" />
+                    <h2 className="text-xl font-bold text-[#002B5B]">Country-Based Insurance Pricing</h2>
+                  </div>
+                  <button
+                    onClick={() => setInsuranceModal({ open: true, data: { country: '', price_per_person: 50, currency: 'AED', min_coverage: 50000, max_age: 60, description: '' }, isNew: true })}
+                    className="px-4 py-2 bg-[#002B5B] text-white rounded-lg hover:bg-[#001d3d] transition-colors font-medium flex items-center gap-2 text-sm"
+                    data-testid="add-insurance-price-btn"
+                  >
+                    <Plus size={16} /> Add Country Price
+                  </button>
                 </div>
 
-                <div className="space-y-6 max-w-2xl">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Price Per Person</label>
-                    <div className="flex items-center gap-3">
-                      <select 
-                        value={insuranceSettings.currency}
-                        onChange={(e) => setInsuranceSettings({...insuranceSettings, currency: e.target.value})}
-                        className="px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 text-sm"
-                        data-testid="insurance-currency"
-                      >
-                        <option value="AED">AED</option>
-                        <option value="USD">USD</option>
-                        <option value="EUR">EUR</option>
-                        <option value="GBP">GBP</option>
-                        <option value="INR">INR</option>
-                      </select>
-                      <input 
-                        type="number"
-                        value={insuranceSettings.price_per_person}
-                        onChange={(e) => setInsuranceSettings({...insuranceSettings, price_per_person: parseFloat(e.target.value) || 0})}
-                        className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700"
-                        placeholder="Price per person"
-                        data-testid="insurance-price-input"
-                      />
-                      <span className="text-sm text-gray-500">per person</span>
-                    </div>
-                  </div>
+                <p className="text-sm text-gray-500 mb-4">Set different insurance prices per country. The "Default" entry is used as fallback for countries without a specific price.</p>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Coverage Amount ($)</label>
-                    <input 
-                      type="number"
-                      value={insuranceSettings.min_coverage}
-                      onChange={(e) => setInsuranceSettings({...insuranceSettings, min_coverage: parseInt(e.target.value) || 0})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700"
-                      placeholder="50000"
-                      data-testid="insurance-coverage-input"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Maximum Age</label>
-                    <input 
-                      type="number"
-                      value={insuranceSettings.max_age}
-                      onChange={(e) => setInsuranceSettings({...insuranceSettings, max_age: parseInt(e.target.value) || 0})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700"
-                      placeholder="60"
-                      data-testid="insurance-age-input"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                    <textarea 
-                      value={insuranceSettings.description}
-                      onChange={(e) => setInsuranceSettings({...insuranceSettings, description: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 h-20 resize-none"
-                      placeholder="Travel Insurance description..."
-                      data-testid="insurance-description-input"
-                    />
-                  </div>
-
-                  <div className="pt-4 border-t border-gray-200 flex items-center justify-between">
-                    <p className="text-sm text-gray-500">Changes will apply to all new proposals</p>
-                    <button
-                      onClick={async () => {
-                        setInsuranceSaving(true);
-                        try {
-                          await api.put('/settings/insurance', insuranceSettings);
-                          alert('Insurance settings saved!');
-                        } catch (err) {
-                          alert('Failed to save settings');
-                        } finally {
-                          setInsuranceSaving(false);
-                        }
-                      }}
-                      disabled={insuranceSaving}
-                      className="px-6 py-2.5 bg-[#002B5B] text-white rounded-lg hover:bg-[#001d3d] transition-colors font-medium flex items-center gap-2 disabled:opacity-50"
-                      data-testid="insurance-save-btn"
-                    >
-                      <Save size={16} />
-                      {insuranceSaving ? 'Saving...' : 'Save Settings'}
-                    </button>
-                  </div>
+                {/* Insurance Prices Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm" data-testid="insurance-prices-table">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-left">
+                        <th className="py-3 px-4 font-semibold text-gray-600">Country</th>
+                        <th className="py-3 px-4 font-semibold text-gray-600">Price/Person</th>
+                        <th className="py-3 px-4 font-semibold text-gray-600">Currency</th>
+                        <th className="py-3 px-4 font-semibold text-gray-600">Min Coverage</th>
+                        <th className="py-3 px-4 font-semibold text-gray-600">Max Age</th>
+                        <th className="py-3 px-4 font-semibold text-gray-600">Description</th>
+                        <th className="py-3 px-4 font-semibold text-gray-600 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {insurancePrices.map((entry) => (
+                        <tr key={entry.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors" data-testid={`insurance-row-${entry.country}`}>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              <Globe size={14} className="text-gray-400" />
+                              <span className="font-medium text-gray-800">{entry.country}</span>
+                              {entry.country === 'Default' && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Fallback</span>}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 font-semibold text-[#002B5B]">{entry.price_per_person}</td>
+                          <td className="py-3 px-4 text-gray-600">{entry.currency}</td>
+                          <td className="py-3 px-4 text-gray-600">${(entry.min_coverage || 0).toLocaleString()}</td>
+                          <td className="py-3 px-4 text-gray-600">{entry.max_age} yrs</td>
+                          <td className="py-3 px-4 text-gray-500 max-w-[200px] truncate">{entry.description || '-'}</td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => setInsuranceModal({ open: true, data: { ...entry }, isNew: false })}
+                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                data-testid={`edit-insurance-${entry.country}`}
+                              >
+                                <Edit2 size={15} />
+                              </button>
+                              {entry.country !== 'Default' && (
+                                <button
+                                  onClick={async () => {
+                                    if (!window.confirm(`Delete insurance pricing for "${entry.country}"?`)) return;
+                                    try {
+                                      await api.delete(`/settings/insurance/${entry.id}`);
+                                      setInsurancePrices(prev => prev.filter(p => p.id !== entry.id));
+                                    } catch (err) {
+                                      alert('Failed to delete: ' + (err.response?.data?.detail || err.message));
+                                    }
+                                  }}
+                                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                  data-testid={`delete-insurance-${entry.country}`}
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {insurancePrices.length === 0 && (
+                        <tr><td colSpan={7} className="py-8 text-center text-gray-400">No insurance prices configured</td></tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
+
+                {/* Insurance Add/Edit Modal */}
+                <AnimatePresence>
+                  {insuranceModal.open && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setInsuranceModal({ open: false, data: null, isNew: false })}>
+                      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} onClick={e => e.stopPropagation()} className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6" data-testid="insurance-modal">
+                        <div className="flex items-center justify-between mb-5">
+                          <h3 className="text-lg font-bold text-[#002B5B]">{insuranceModal.isNew ? 'Add Country Price' : `Edit: ${insuranceModal.data?.country}`}</h3>
+                          <button onClick={() => setInsuranceModal({ open: false, data: null, isNew: false })} className="p-1 hover:bg-gray-100 rounded-lg"><X size={18} /></button>
+                        </div>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                            {insuranceModal.isNew ? (
+                              <select
+                                value={insuranceModal.data?.country || ''}
+                                onChange={e => setInsuranceModal(prev => ({ ...prev, data: { ...prev.data, country: e.target.value } }))}
+                                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm"
+                                data-testid="insurance-country-select"
+                              >
+                                <option value="">Select Country...</option>
+                                <option value="Default">Default (Fallback)</option>
+                                {["Afghanistan","Albania","Algeria","Andorra","Angola","Antigua and Barbuda","Argentina","Armenia","Australia","Austria","Azerbaijan","Bahamas","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Belize","Benin","Bhutan","Bolivia","Bosnia and Herzegovina","Botswana","Brazil","Brunei","Bulgaria","Burkina Faso","Burundi","Cabo Verde","Cambodia","Cameroon","Canada","Central African Republic","Chad","Chile","China","Colombia","Comoros","Congo (Brazzaville)","Congo (Kinshasa)","Costa Rica","Croatia","Cuba","Cyprus","Czech Republic","Denmark","Djibouti","Dominica","Dominican Republic","Ecuador","Egypt","El Salvador","Equatorial Guinea","Eritrea","Estonia","Eswatini","Ethiopia","Fiji","Finland","France","Gabon","Gambia","Georgia","Germany","Ghana","Greece","Grenada","Guatemala","Guinea","Guinea-Bissau","Guyana","Haiti","Honduras","Hungary","Iceland","India","Indonesia","Iran","Iraq","Ireland","Israel","Italy","Jamaica","Japan","Jordan","Kazakhstan","Kenya","Kiribati","Kosovo","Kuwait","Kyrgyzstan","Laos","Latvia","Lebanon","Lesotho","Liberia","Libya","Liechtenstein","Lithuania","Luxembourg","Madagascar","Malawi","Malaysia","Maldives","Mali","Malta","Marshall Islands","Mauritania","Mauritius","Mexico","Micronesia","Moldova","Monaco","Mongolia","Montenegro","Morocco","Mozambique","Myanmar","Namibia","Nauru","Nepal","Netherlands","New Zealand","Nicaragua","Niger","Nigeria","North Korea","North Macedonia","Norway","Oman","Pakistan","Palau","Palestine","Panama","Papua New Guinea","Paraguay","Peru","Philippines","Poland","Portugal","Qatar","Romania","Russia","Rwanda","Saint Kitts and Nevis","Saint Lucia","Samoa","San Marino","Saudi Arabia","Senegal","Serbia","Seychelles","Sierra Leone","Singapore","Slovakia","Slovenia","Solomon Islands","Somalia","South Africa","South Korea","South Sudan","Spain","Sri Lanka","Sudan","Suriname","Sweden","Switzerland","Syria","Taiwan","Tajikistan","Tanzania","Thailand","Timor-Leste","Togo","Tonga","Trinidad and Tobago","Tunisia","Turkey","Turkmenistan","Tuvalu","Uganda","Ukraine","United Arab Emirates","United Kingdom","United States","Uruguay","Uzbekistan","Vanuatu","Vatican City","Venezuela","Vietnam","Yemen","Zambia","Zimbabwe"]
+                                  .filter(c => !insurancePrices.some(p => p.country === c))
+                                  .map(c => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                            ) : (
+                              <input type="text" value={insuranceModal.data?.country || ''} disabled className="w-full px-3 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-500" />
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Price Per Person</label>
+                              <input type="number" value={insuranceModal.data?.price_per_person || ''} onChange={e => setInsuranceModal(prev => ({ ...prev, data: { ...prev.data, price_per_person: parseFloat(e.target.value) || 0 } }))} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm" data-testid="insurance-price-input" />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+                              <select value={insuranceModal.data?.currency || 'AED'} onChange={e => setInsuranceModal(prev => ({ ...prev, data: { ...prev.data, currency: e.target.value } }))} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm" data-testid="insurance-currency-select">
+                                <option value="AED">AED</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                                <option value="GBP">GBP</option>
+                                <option value="INR">INR</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Min Coverage ($)</label>
+                              <input type="number" value={insuranceModal.data?.min_coverage || ''} onChange={e => setInsuranceModal(prev => ({ ...prev, data: { ...prev.data, min_coverage: parseInt(e.target.value) || 0 } }))} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm" data-testid="insurance-coverage-input" />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Max Age</label>
+                              <input type="number" value={insuranceModal.data?.max_age || ''} onChange={e => setInsuranceModal(prev => ({ ...prev, data: { ...prev.data, max_age: parseInt(e.target.value) || 0 } }))} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm" data-testid="insurance-age-input" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                            <textarea value={insuranceModal.data?.description || ''} onChange={e => setInsuranceModal(prev => ({ ...prev, data: { ...prev.data, description: e.target.value } }))} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm h-20 resize-none" placeholder="Insurance description..." data-testid="insurance-description-input" />
+                          </div>
+                          <div className="flex justify-end gap-3 pt-3 border-t border-gray-200">
+                            <button onClick={() => setInsuranceModal({ open: false, data: null, isNew: false })} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-600 text-sm hover:bg-gray-50">Cancel</button>
+                            <button
+                              onClick={async () => {
+                                setInsuranceSaving(true);
+                                try {
+                                  if (insuranceModal.isNew) {
+                                    const res = await api.post('/settings/insurance', insuranceModal.data);
+                                    setInsurancePrices(prev => [...prev, res.data].sort((a, b) => a.country === 'Default' ? -1 : b.country === 'Default' ? 1 : a.country.localeCompare(b.country)));
+                                  } else {
+                                    const res = await api.put(`/settings/insurance/${insuranceModal.data.id}`, insuranceModal.data);
+                                    setInsurancePrices(prev => prev.map(p => p.id === res.data.id ? res.data : p));
+                                  }
+                                  setInsuranceModal({ open: false, data: null, isNew: false });
+                                } catch (err) {
+                                  alert('Failed to save: ' + (err.response?.data?.detail || err.message));
+                                } finally {
+                                  setInsuranceSaving(false);
+                                }
+                              }}
+                              disabled={insuranceSaving || (insuranceModal.isNew && !insuranceModal.data?.country)}
+                              className="px-5 py-2 bg-[#002B5B] text-white rounded-lg hover:bg-[#001d3d] transition-colors font-medium text-sm flex items-center gap-2 disabled:opacity-50"
+                              data-testid="insurance-save-btn"
+                            >
+                              <Save size={15} />
+                              {insuranceSaving ? 'Saving...' : insuranceModal.isNew ? 'Add Price' : 'Save Changes'}
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
           </div>

@@ -53,16 +53,24 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [travelInsurance, setTravelInsurance] = useState(false);
   const [insuranceSettings, setInsuranceSettings] = useState(null);
 
-  // Fetch insurance settings
+  // Fetch insurance settings based on destination country
   useEffect(() => {
     const fetchInsurance = async () => {
       try {
-        const res = await api.get('/settings/insurance');
+        // Get destination city and look up its country
+        const destinationCity = data?.cities?.[0]?.name;
+        let country = '';
+        if (destinationCity) {
+          const cityRes = await api.get(`/cities?search=${encodeURIComponent(destinationCity)}`);
+          country = cityRes.data?.cities?.[0]?.country || '';
+        }
+        const params = country ? `?country=${encodeURIComponent(country)}` : '';
+        const res = await api.get(`/settings/insurance${params}`);
         setInsuranceSettings(res.data);
       } catch (e) { /* use defaults */ }
     };
     fetchInsurance();
-  }, []);
+  }, [data?.cities]);
   
   // Transfer state
   const [availableTransfers, setAvailableTransfers] = useState([]);
