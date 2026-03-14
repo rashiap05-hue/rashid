@@ -500,6 +500,11 @@ function RoomTypeEditor({ roomTypes = [], onChange, hotelId = '' }) {
                       <span className="font-bold text-gray-800">
                         {room.name || 'Unnamed Room Type'}
                       </span>
+                      {room.recommended && (
+                        <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">
+                          RECOMMENDED
+                        </span>
+                      )}
                       {room.available === false && (
                         <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded font-medium">
                           UNAVAILABLE
@@ -521,6 +526,27 @@ function RoomTypeEditor({ roomTypes = [], onChange, hotelId = '' }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
+                  {/* Recommended Toggle */}
+                  <div 
+                    className="flex items-center gap-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span className="text-xs text-amber-600 font-medium">Recommended</span>
+                    <button
+                      type="button"
+                      onClick={() => updateRoomType(idx, 'recommended', !room.recommended)}
+                      className={cn(
+                        "relative w-11 h-6 rounded-full transition-colors",
+                        room.recommended ? "bg-amber-500" : "bg-gray-300"
+                      )}
+                      data-testid={`room-recommended-toggle-${idx}`}
+                    >
+                      <span className={cn(
+                        "absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform",
+                        room.recommended ? "left-[22px]" : "left-0.5"
+                      )} />
+                    </button>
+                  </div>
                   {/* Availability Toggle */}
                   <div 
                     className="flex items-center gap-2"
@@ -919,6 +945,22 @@ export default function HotelEditForm({ hotel, onSave, onClose, isNew = false })
                     {ALL_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
+              </div>
+
+              {/* Recommended Toggle */}
+              <div className="flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-xl" data-testid="hotel-recommended-toggle">
+                <div>
+                  <label className="text-sm font-bold text-gray-700">Recommended Hotel</label>
+                  <p className="text-xs text-gray-500 mt-0.5">Recommended hotels appear first in Trip Builder selection</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleFieldChange('recommended', !formData.recommended)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${formData.recommended ? 'bg-amber-500' : 'bg-gray-300'}`}
+                  data-testid="hotel-recommended-switch"
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${formData.recommended ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                </button>
               </div>
 
               <div className="grid grid-cols-3 gap-4">

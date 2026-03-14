@@ -122,7 +122,14 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
       case 'rating':
         filtered.sort((a, b) => (b.star_rating || 0) - (a.star_rating || 0));
         break;
+      case 'recommended':
       default:
+        // Recommended hotels first, then by rating
+        filtered.sort((a, b) => {
+          if (a.recommended && !b.recommended) return -1;
+          if (!a.recommended && b.recommended) return 1;
+          return (b.rating_score || 0) - (a.rating_score || 0);
+        });
         break;
     }
     
@@ -370,7 +377,14 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
                       <div className="flex-1 p-4">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h3 className="font-bold text-gray-800">{hotel.name}</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-bold text-gray-800">{hotel.name}</h3>
+                              {hotel.recommended && (
+                                <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold" data-testid={`hotel-recommended-${hotel.id}`}>
+                                  Recommended
+                                </span>
+                              )}
+                            </div>
                             <div className="flex items-center gap-1 mt-1">
                               {Array.from({ length: hotel.star_rating || 4 }).map((_, i) => (
                                 <Star key={i} className="w-4 h-4 text-yellow-400 fill-yellow-400" />

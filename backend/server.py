@@ -282,6 +282,7 @@ class HotelCreate(BaseModel):
     what_to_know: List[Dict] = []
     rooms: List[Dict] = []  # Legacy support
     room_types: List[Dict] = []  # New enhanced room types with rate plans
+    recommended: bool = False  # Admin can mark hotel as recommended
     # New fields based on PDF analysis
     check_in_time: str = "14:00"
     check_out_time: str = "12:00"
@@ -1139,7 +1140,7 @@ async def get_hotels(city: Optional[str] = None, country: Optional[str] = None, 
             {"country": {"$regex": search, "$options": "i"}}
         ]
     
-    hotels = await db.hotels.find(query, {"_id": 0}).to_list(1000)
+    hotels = await db.hotels.find(query, {"_id": 0}).sort([("recommended", -1), ("rating_score", -1)]).to_list(1000)
     return {"success": True, "hotels": hotels}
 
 @hotels_router.get("/{hotel_id}")

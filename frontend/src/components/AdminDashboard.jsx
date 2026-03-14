@@ -1372,7 +1372,14 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between">
                             <div className="cursor-pointer" onClick={() => onViewHotel && onViewHotel(hotel)}>
-                              <div className="font-bold text-gray-800 truncate">{hotel.name}</div>
+                              <div className="flex items-center gap-2">
+                                <div className="font-bold text-gray-800 truncate">{hotel.name}</div>
+                                {hotel.recommended && (
+                                  <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold whitespace-nowrap" data-testid={`hotel-recommended-badge-${hotel.id}`}>
+                                    Recommended
+                                  </span>
+                                )}
+                              </div>
                               <div className="flex items-center gap-1 mt-0.5">
                                 {Array.from({ length: hotel.star_rating || 4 }).map((_, j) => (
                                   <Star key={j} size={12} className="fill-yellow-400 text-yellow-400" />

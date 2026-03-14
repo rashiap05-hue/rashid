@@ -1,0 +1,67 @@
+{
+  "summary": "Tested 'Recommended' toggle feature for Hotels and Room Types. All backend tests pass (5/5). Frontend verification shows hotel recommended toggle in Basic Info tab with amber styling, room type recommended toggles visible on each room in Room Types tab, and recommended badge visible on hotel cards in Admin Dashboard. Trip Builder sorts by Recommended by default.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "hotel_recommended_toggle_basic_info": {
+      "status": "PASS",
+      "details": "Recommended Hotel toggle visible in HotelEditForm Basic Info tab with amber background, shows helper text 'Recommended hotels appear first in Trip Builder selection'"
+    },
+    "hotel_recommended_toggle_save": {
+      "status": "PASS",
+      "details": "Toggled recommended ON for Courtyard by Marriott Baku, saved successfully, hotel now has recommended=true in API response"
+    },
+    "room_type_recommended_toggle": {
+      "status": "PASS",
+      "details": "Room Types tab shows 'Recommended' toggle on each room type header (tested with Horizont Hotel Tbilisi which has 4 room types)"
+    },
+    "admin_dashboard_recommended_badge": {
+      "status": "PASS",
+      "details": "Hotel cards in Hotels Management show 'Recommended' badge (pink/salmon pill) next to hotel name when hotel.recommended=true"
+    },
+    "trip_builder_recommended_sort": {
+      "status": "PASS",
+      "details": "Hotel Selection modal in Trip Builder shows 'Sort by: Recommended' as default sort option"
+    },
+    "backend_api_recommended_field": {
+      "status": "PASS",
+      "details": "GET /api/hotels returns hotels sorted with recommended=true first, all CRUD operations support recommended field"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_recommended_feature.py",
+    "/app/test_reports/pytest/recommended_feature_tests.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "HotelEditForm.jsx correctly implements recommended toggle at lines 950-964 with data-testid='hotel-recommended-toggle'",
+    "Room type recommended toggle implemented at lines 529-548 with data-testid='room-recommended-toggle-{idx}'",
+    "Backend server.py correctly sorts hotels by recommended desc at line 1143"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_recommended_feature.py"
+  ],
+  "success_rate": {
+    "backend": "100% (5/5 tests passed)",
+    "frontend": "100% (all recommended features verified)"
+  },
+  "test_credentials": {
+    "email": "testadmin@example.com",
+    "password": "password123"
+  },
+  "seed_data_creation": "Courtyard by Marriott Baku was updated to recommended=true during testing",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_list": ["Flight Search", "AI Chatbot", "Google Sheets", "Stripe", "PayPal"]
+  },
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Recommended feature fully implemented and tested. Courtyard by Marriott Baku is now marked as recommended=true. Horizont Hotel Tbilisi has 4 room types with recommended toggles (all currently OFF). Test data-testid attributes: hotel-recommended-toggle, hotel-recommended-switch, room-recommended-toggle-{idx}, hotel-recommended-badge-{id}."
+}

@@ -262,6 +262,11 @@ function RoomOption({ room, onSelect, nights = 4, totalGuests = 2 }) {
             <div>
               <h4 className="font-bold text-gray-800 flex items-center gap-2">
                 {room.name}
+                {room.recommended && (
+                  <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold" data-testid="room-recommended-badge">
+                    Recommended
+                  </span>
+                )}
                 <button className="text-gray-400 hover:text-gray-600">
                   <Info size={16} />
                 </button>
@@ -434,7 +439,8 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
             meals: ratePlan.meal_plan || 'Room Only',
             images: roomType.images || [],
             rate_plan: ratePlan,
-            room_type: roomType
+            room_type: roomType,
+            recommended: roomType.recommended || false
           }));
         }
         // If no rate plans, create a single room entry
@@ -451,7 +457,8 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
           refundable: true,
           meals: 'Room Only',
           images: roomType.images || [],
-          room_type: roomType
+          room_type: roomType,
+          recommended: roomType.recommended || false
         }];
       });
     }
@@ -529,6 +536,11 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
         {/* Hotel Title */}
         <div className="flex items-center gap-3 mb-1">
           <h1 className="text-2xl font-bold text-gray-900">{hotel.name}</h1>
+          {hotel.recommended && (
+            <span className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-semibold" data-testid="hotel-detail-recommended-badge">
+              Recommended
+            </span>
+          )}
           <div className="flex items-center gap-0.5">
             {Array.from({ length: hotel.star_rating || 4 }).map((_, i) => (
               <Star key={i} size={16} className="fill-amber-400 text-amber-400" />
