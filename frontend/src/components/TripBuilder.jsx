@@ -322,6 +322,70 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     }
   };
 
+  // Apply AI itinerary to Trip Builder
+  const handleApplyAiItinerary = async () => {
+    if (!aiItinerary?.days) return;
+    try {
+      // Fetch all activities for the trip cities
+      const cityNames = cities.map(c => c.name);
+      const allActivities = [];
+      for (const cityName of cityNames) {
+        const res = await api.get(`/activities?city=${encodeURIComponent(cityName)}`);
+        if (res.data?.activities) allActivities.push(...res.data.activities);
+      }
+
+      const newSelectedActivities = { ...selectedActivities };
+      let appliedCount = 0;
+
+      for (const day of aiItinerary.days) {
+        if (!day.activities?.length) continue;
+        const dayCity = day.city;
+        const dayNum = day.day;
+        const key = `${dayCity}_${dayNum}`;
+        const existingIds = new Set((newSelectedActivities[key] || []).map(a => a.id));
+        const dayActivities = [...(newSelectedActivities[key] || [])];
+
+        for (const aiAct of day.activities) {
+          // Try to match by activity_id first
+          let dbActivity = null;
+          if (aiAct.activity_id) {
+            dbActivity = allActivities.find(a => a.id === aiAct.activity_id);
+          }
+          // Fallback: match by name similarity
+          if (!dbActivity) {
+            const aiName = (aiAct.name || '').toLowerCase();
+            dbActivity = allActivities.find(a =>
+              a.city?.toLowerCase() === dayCity.toLowerCase() &&
+              (a.name?.toLowerCase().includes(aiName) || aiName.includes(a.name?.toLowerCase()))
+            );
+          }
+          if (dbActivity && !existingIds.has(dbActivity.id)) {
+            // Auto-select default vehicle pricing
+            let vehicleKey = selectedVehicle.key;
+            let vehiclePrice = dbActivity.price || 0;
+            if (dbActivity.vehicle_pricing && dbActivity.vehicle_pricing[vehicleKey]) {
+              vehiclePrice = dbActivity.vehicle_pricing[vehicleKey].selling_price || vehiclePrice;
+            }
+            dayActivities.push({ ...dbActivity, selectedVehicle: vehicleKey, vehiclePrice });
+            existingIds.add(dbActivity.id);
+            appliedCount++;
+          }
+        }
+        newSelectedActivities[key] = dayActivities;
+      }
+
+      setSelectedActivities(newSelectedActivities);
+      setShowAiItinerary(false);
+      if (appliedCount > 0) {
+        alert(`Applied ${appliedCount} activities from the AI itinerary to your trip!`);
+      } else {
+        alert('No matching activities found in the database. You can add activities manually to each day.');
+      }
+    } catch (err) {
+      alert('Failed to apply itinerary: ' + err.message);
+    }
+  };
+
   // Get activities for a specific day
   const getActivitiesForDay = (cityName, dayNumber) => {
     const key = `${cityName}_${dayNumber}`;
@@ -1735,8 +1799,13 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                                 {day.activities.map((act, j) => (
                                   <div key={j} className="flex items-start gap-3 p-2.5 bg-indigo-50/50 rounded-lg">
                                     <span className="text-xs font-medium text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded whitespace-nowrap mt-0.5">{act.time}</span>
-                                    <div>
-                                      <p className="text-sm font-medium text-gray-800">{act.name}</p>
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <p className="text-sm font-medium text-gray-800">{act.name}</p>
+                                        {act.activity_id && (
+                                          <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">DB Match</span>
+                                        )}
+                                      </div>
                                       <p className="text-xs text-gray-500">{act.description}</p>
                                       {act.duration && <span className="text-[10px] text-gray-400">{act.duration}</span>}
                                     </div>
@@ -1823,11 +1892,20 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                       handleGenerateAiItinerary();
                       setShowAiItinerary(false);
                     }}
-                    className="px-4 py-2 text-sm bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-lg hover:from-violet-700 hover:to-indigo-700 transition-all font-medium flex items-center gap-2"
+                    className="px-4 py-2 text-sm border border-indigo-300 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-all font-medium flex items-center gap-2"
                     data-testid="ai-regenerate-btn"
                   >
                     <Compass size={14} /> Regenerate
                   </button>
+                  {aiItinerary?.days && (
+                    <button
+                      onClick={handleApplyAiItinerary}
+                      className="px-5 py-2 text-sm bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg hover:from-emerald-600 hover:to-teal-600 transition-all font-medium flex items-center gap-2 shadow-md"
+                      data-testid="ai-apply-to-trip-btn"
+                    >
+                      <Check size={14} /> Apply to Trip
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>
