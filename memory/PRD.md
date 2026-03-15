@@ -224,7 +224,32 @@ Replaced the single global insurance price with a country-based pricing system. 
 - **Backend:** 100% (14/14 tests passed) - all CRUD ops, fallback logic, duplicate/empty protection
 - **Frontend:** 100% - table display, Add/Edit/Delete modals, Default protection
 
-## Update: March 14, 2026 - Recommended Hotels & Rooms Feature
+## Update: March 15, 2026 - AI Itinerary Generator & Backend Refactoring
+
+### Feature: AI-Powered Day-by-Day Itinerary Generator
+- **Backend** (`server.py` + `routes/ai.py`): Enhanced `/api/ai/itinerary` endpoint that uses Gemini AI to generate **structured JSON** itineraries with:
+  - Day-by-day plan matching city stays
+  - Activities with time slots, descriptions, and DB activity IDs when available
+  - Meal suggestions per day (breakfast, lunch, dinner)
+  - Transfer recommendations for arrival/departure days
+  - Day-specific travel tips + general travel tips
+- **Frontend** (`TripBuilder.jsx`): "AI Generate Itinerary" button (purple gradient + compass icon) next to "Your Itinerary" heading. Clicking triggers Gemini AI generation and displays results in a beautiful modal with:
+  - Numbered day cards with city, title, activities, meals, transfers, tips
+  - Color-coded sections (indigo for activities, amber for meals, blue for transfers, green for tips)
+  - "Regenerate" button for new suggestions
+  - "Close" button
+
+### Backend Refactoring (Phase 1 - Models Extraction)
+- Created `/app/backend/models/schemas.py` (333 lines) — All Pydantic models extracted
+- Created `/app/backend/db.py` (83 lines) — Database connection, JWT config, auth helpers
+- Created `/app/backend/routes/` directory with 9 modular route files (645 lines total):
+  - auth.py, flights.py, hotels.py, airports.py, cities.py, transfers.py, activities.py, ai.py, settings.py
+- server.py now imports models from schemas.py (reduced from 3692 → 3353 lines)
+- Route files are ready-to-use modules for Phase 2 extraction
+
+### Test Results (iteration_26.json)
+- **Backend:** 100% (25/25 tests passed) — AI itinerary + full regression
+- **Frontend:** 100% — AI button, modal, content display all verified
 
 ### Feature: Admin can mark hotels and rooms as "Recommended"
 
