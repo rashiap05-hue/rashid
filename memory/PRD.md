@@ -251,6 +251,12 @@ Replaced the single global insurance price with a country-based pricing system. 
 - **Backend:** 100% (25/25 tests passed) — AI itinerary + full regression
 - **Frontend:** 100% — AI button, modal, content display all verified
 
+### Bug Fix: Independent Hotel Selection for Repeated Cities (iteration_28)
+- Fixed: When same city appears multiple times (e.g., Tbilisi → Gudauri → Tbilisi), selecting hotel for one stay no longer auto-selects for the other
+- Changed `selectedHotels` key from city name to `cityIndex` — each stay has independent hotel selection
+- Updated all hotel selection handlers, Trip Summary, and save payload
+- **Test Results:** Frontend 100% — all multi-city hotel selection features verified
+
 ### Feature: Apply AI Itinerary to Trip Builder (iteration_27)
 - "Apply to Trip" green button in AI modal footer auto-populates day cards with matching DB activities
 - DB Match badges shown on AI activities that have matching activity_id
