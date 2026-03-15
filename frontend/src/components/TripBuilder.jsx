@@ -180,18 +180,18 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   };
 
   // Handle hotel option selection
-  const handleChangeHotel = (cityName) => {
-    setActiveHotelCity(cityName);
-    setChangeRoomHotel(null); // Clear any change room hotel
+  const handleChangeHotel = (cityIndex) => {
+    setActiveHotelCity(cityIndex);
+    setChangeRoomHotel(null);
     setShowHotelOptions(true);
   };
 
   // Handle Change Room - directly show room options for the selected hotel
-  const handleChangeRoom = (cityName) => {
-    const currentHotel = selectedHotels[cityName];
+  const handleChangeRoom = (cityIndex) => {
+    const currentHotel = selectedHotels[cityIndex];
     if (currentHotel) {
-      setActiveHotelCity(cityName);
-      setChangeRoomHotel(currentHotel); // Set the hotel to show room options for
+      setActiveHotelCity(cityIndex);
+      setChangeRoomHotel(currentHotel);
       setShowHotelModal(true);
     }
   };
@@ -199,7 +199,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const handleViewAllHotels = () => {
     setShowHotelOptions(false);
     setHotelSearchQuery('');
-    setChangeRoomHotel(null); // Clear change room hotel when viewing all
+    setChangeRoomHotel(null);
     setShowHotelModal(true);
   };
 
@@ -429,7 +429,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           isFirst: dayNumber === 1,
           isLast: false,
           isDeparture: false,
-          hotel: selectedHotels[city.name]
+          hotel: selectedHotels[cityIndex]
         });
         currentDate.setDate(currentDate.getDate() + 1);
         dayNumber++;
@@ -659,10 +659,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         }));
       });
 
-      // Build hotels data with selected rooms
+      // Build hotels data with selected rooms (keyed by cityIndex)
       const hotelsWithRooms = {};
-      Object.entries(selectedHotels).forEach(([city, hotel]) => {
-        hotelsWithRooms[city] = {
+      Object.entries(selectedHotels).forEach(([cityIdx, hotel]) => {
+        const city = cities[parseInt(cityIdx)];
+        const cityLabel = city ? `${city.name}_${cityIdx}` : cityIdx;
+        hotelsWithRooms[cityLabel] = {
           id: hotel.id,
           name: hotel.name,
           star_rating: hotel.star_rating,
@@ -837,10 +839,10 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           setShowHotelModal(false);
           setChangeRoomHotel(null); // Clear change room hotel on close
         }}
-        city={activeHotelCity}
+        city={cities[activeHotelCity]?.name || ''}
         checkIn={formatDate(startDate)}
         checkOut={formatDate(new Date(startDate.getTime() + totalNights * 24 * 60 * 60 * 1000))}
-        nights={cities.find(c => c.name === activeHotelCity)?.nights || 1}
+        nights={cities[activeHotelCity]?.nights || 1}
         onSelect={handleHotelSelect}
         searchQuery={hotelSearchQuery}
         initialHotel={changeRoomHotel}
@@ -851,7 +853,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       <HotelOptionsModal
         isOpen={showHotelOptions}
         onClose={() => setShowHotelOptions(false)}
-        city={activeHotelCity}
+        city={cities[activeHotelCity]?.name || ''}
         onViewAll={handleViewAllHotels}
         onNoStay={handleNoStay}
         onSearch={handleSearchHotel}
@@ -1190,7 +1192,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
             
             {/* Hotel Stay Sections for each city */}
             {cities.map((city, cityIndex) => {
-              const cityHotel = selectedHotels[city.name];
+              const cityHotel = selectedHotels[cityIndex];
               const cityStartDate = new Date(startDate);
               // Calculate check-in date based on previous cities
               for (let i = 0; i < cityIndex; i++) {
@@ -1318,16 +1320,16 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                         {/* Action Buttons */}
                         <div className="flex gap-3 mt-6">
                           <button 
-                            onClick={() => handleChangeRoom(city.name)}
+                            onClick={() => handleChangeRoom(cityIndex)}
                             className="bg-[#8B4513] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#723a0f] transition-all"
-                            data-testid={`change-room-${city.name}`}
+                            data-testid={`change-room-${cityIndex}`}
                           >
                             Change Room
                           </button>
                           <button 
-                            onClick={() => handleChangeHotel(city.name)}
+                            onClick={() => handleChangeHotel(cityIndex)}
                             className="bg-[#8B4513] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#723a0f] transition-all"
-                            data-testid={`change-hotel-${city.name}`}
+                            data-testid={`change-hotel-${cityIndex}`}
                           >
                             Change Hotel
                           </button>
@@ -1358,17 +1360,17 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                             <Hotel className="text-gray-400" size={24} />
                           </div>
                           <div>
-                            <p className="font-medium text-gray-500">{noStayCities[city.name] ? 'No stay required' : 'No Hotel Selected'}</p>
+                            <p className="font-medium text-gray-500">{noStayCities[cityIndex] ? 'No stay required' : 'No Hotel Selected'}</p>
                             <p className="text-sm text-gray-400">Check-in: {formatDate(cityStartDate)} • Check-out: {formatDate(cityEndDate)}</p>
                           </div>
                         </div>
                         <button 
-                          onClick={() => handleChangeHotel(city.name)}
+                          onClick={() => handleChangeHotel(cityIndex)}
                           className="bg-[#002B5B] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#003d82] transition-all flex items-center gap-2"
-                          data-testid={`add-hotel-${city.name}`}
+                          data-testid={`add-hotel-${cityIndex}`}
                         >
                           <Hotel size={18} />
-                          {noStayCities[city.name] ? 'Change' : 'Add Hotel'}
+                          {noStayCities[cityIndex] ? 'Change' : 'Add Hotel'}
                         </button>
                       </div>
                     </div>
@@ -1387,7 +1389,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                 onAddActivity={() => handleAddActivity(day.city, day.day)}
                 onRemoveActivity={(activityId) => handleRemoveActivity(day.city, day.day, activityId)}
                 onChangeHotel={() => {
-                  setActiveHotelCity(day.city);
+                  setActiveHotelCity(day.cityIndex);
                   setShowHotelModal(true);
                 }}
                 onSelectArrivalTransfer={(city) => openTransferModal('arrival', city)}
@@ -1444,9 +1446,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                       <Hotel size={16} className="text-[#002B5B]" />
                       Hotels
                     </h4>
-                    {Object.entries(selectedHotels).map(([city, hotel]) => (
-                      <div key={city} className="mb-3 p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm font-medium text-gray-800">{city}</p>
+                    {Object.entries(selectedHotels).map(([cityIdx, hotel]) => {
+                      const city = cities[parseInt(cityIdx)];
+                      const cityName = city?.name || `City ${parseInt(cityIdx) + 1}`;
+                      return (
+                      <div key={cityIdx} className="mb-3 p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm font-medium text-gray-800">{cityName}</p>
                         <p className="text-sm text-gray-600">{hotel.name}</p>
                         <p className="text-xs text-gray-500">{hotel.selectedRoom?.name}</p>
                         {hotel.selectedRoom?.rate_plan && (
@@ -1461,7 +1466,8 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                           AED {(hotel.selectedRoom?.price || 0).toLocaleString()} x {hotel.nights || 1} night{(hotel.nights || 1) > 1 ? 's' : ''}
                         </p>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 

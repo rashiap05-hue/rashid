@@ -1,0 +1,74 @@
+{
+  "summary": "Multi-city hotel selection bug fix fully verified. Bug: When same city (e.g., Tbilisi) appears multiple times in a trip, selecting a hotel for one Tbilisi stay would auto-select the same hotel for the other. Fix: Changed selectedHotels key from city name to cityIndex. Test: Created trip with Tbilisi (1 night) -> Gudauri (1 night) -> Tbilisi (1 night). Selected Horizont Hotel for first Tbilisi only. Result: Second Tbilisi correctly shows 'No Hotel Selected' - each city stay has independent hotel selection.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "multi_city_trip_creation": {
+      "status": "PASS",
+      "details": "Created trip with 3 cities: Tbilisi (1 night), Gudauri (1 night), Tbilisi (1 night). Used + Add Another City button (data-testid='add-city-button') to add cities."
+    },
+    "three_separate_hotel_sections": {
+      "status": "PASS",
+      "details": "Trip Builder shows 3 separate 'Stay in X 1 night' sections with independent Add Hotel buttons (data-testid: add-hotel-0, add-hotel-1, add-hotel-2)"
+    },
+    "independent_hotel_selection_for_same_city": {
+      "status": "PASS",
+      "details": "Selected Horizont Hotel for first Tbilisi (index 0). Second Tbilisi (index 2) correctly shows 'No Hotel Selected' with its own Add Hotel button. Bug fix confirmed working.",
+      "evidence": "change-hotel-0 exists (hotel selected), add-hotel-1 and add-hotel-2 exist (no hotels selected)"
+    },
+    "trip_summary_shows_correct_cities": {
+      "status": "PASS",
+      "details": "Trip Summary shows: Tbilisi 1 night, Gudauri 1 night, Tbilisi 1 night - correct city names and nights"
+    },
+    "hotel_selection_modal": {
+      "status": "PASS",
+      "details": "Hotel Options Modal opens with 'View all stay options in Tbilisi', 'No stay required', and search. Hotel list shows Horizont Hotel Tbilisi and Iveria Inn Hotel."
+    },
+    "room_selection": {
+      "status": "PASS",
+      "details": "Selected Standard Triple Room for Horizont Hotel. Room shows: 1 x Standard Triple Room, 3 Single, Breakfast included, AED 257/night"
+    },
+    "change_room_change_hotel_buttons": {
+      "status": "PASS",
+      "details": "Change Room (data-testid='change-room-0') and Change Hotel (data-testid='change-hotel-0') buttons visible for hotel section with selected hotel"
+    },
+    "pricing_calculation": {
+      "status": "PASS",
+      "details": "Total price shows AED 257 (correct for 1 night at AED 257/night). Hotels in Price Breakdown: AED 257"
+    }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TripBuilder.jsx line 183: handleChangeHotel(cityIndex) correctly uses cityIndex instead of city name",
+    "TripBuilder.jsx line 190: handleChangeRoom(cityIndex) correctly uses cityIndex instead of city name",
+    "TripBuilder.jsx line 433: generateItinerary() correctly passes cityIndex to each day object",
+    "TripBuilder.jsx line 1196: selectedHotels[cityIndex] correctly retrieves hotel by index",
+    "TripBuilder.jsx line 1369: Add Hotel button uses data-testid='add-hotel-{cityIndex}' for each section",
+    "TripBuilder.jsx line 1449-1460: Trip Summary correctly resolves city names from cities[parseInt(cityIdx)]"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend only test)",
+    "frontend": "100% - All multi-city hotel selection features working correctly"
+  },
+  "test_credentials": {
+    "email": "testadmin@example.com",
+    "password": "password123"
+  },
+  "seed_data_creation": "Used existing hotels in Tbilisi: Horizont Hotel Tbilisi (AED 180-257), Iveria Inn Hotel (AED 180)",
+  "mocked_apis": {
+    "has_mocked_apis": true,
+    "mocked_list": ["Flight Search fallback", "Google Sheets", "Stripe", "PayPal"]
+  },
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Multi-city hotel selection bug fix verified. Key data-testids: add-hotel-{n} for Add Hotel buttons, change-hotel-{n} and change-room-{n} for Change buttons. selectedHotels state is now keyed by cityIndex (0, 1, 2...) instead of city name. Test flow: Login > Book FIT Package > Add 3 cities (Tbilisi, Gudauri, Tbilisi) > Create Proposal > Verify 3 hotel sections > Select hotel for one Tbilisi > Verify other Tbilisi still shows 'No Hotel Selected'."
+}
