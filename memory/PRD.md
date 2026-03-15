@@ -251,6 +251,12 @@ Replaced the single global insurance price with a country-based pricing system. 
 - **Backend:** 100% (25/25 tests passed) — AI itinerary + full regression
 - **Frontend:** 100% — AI button, modal, content display all verified
 
+### Feature: Apply AI Itinerary to Trip Builder (iteration_27)
+- "Apply to Trip" green button in AI modal footer auto-populates day cards with matching DB activities
+- DB Match badges shown on AI activities that have matching activity_id
+- Matches by activity_id (exact) or name similarity (fuzzy), auto-selects vehicle pricing
+- **Test Results:** Backend 100% (25/25), Frontend 100%
+
 ### Feature: Admin can mark hotels and rooms as "Recommended"
 
 #### Backend Changes (`/app/backend/server.py`)
