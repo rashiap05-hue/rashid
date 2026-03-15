@@ -8,6 +8,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 import shutil
+import json
+import re
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Dict, Any
@@ -73,333 +75,15 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 # ============= MODELS =============
-
-class UserCreate(BaseModel):
-    email: EmailStr
-    password: str
-    full_name: str
-    company_name: str
-    mobile: Optional[str] = None
-
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-class UserResponse(BaseModel):
-    id: str
-    email: str
-    full_name: str
-    company_name: str
-    mobile: Optional[str] = None
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    user: UserResponse
-
-class RoomData(BaseModel):
-    adults: int = 2
-    children: List[Dict[str, str]] = []
-
-class CityStop(BaseModel):
-    name: str
-    nights: int
-
-class ProposalCreate(BaseModel):
-    leaving_from: str
-    nationality: str
-    leaving_on: str
-    star_rating: str
-    add_transfers: bool = True
-    room_data: List[RoomData]
-    cities: List[CityStop]
-    # Extended fields for complete proposal
-    leaving_from_code: Optional[str] = None
-    selected_flight: Optional[Dict] = None
-    arrival_flight_info: Optional[Dict] = None
-    departure_flight_info: Optional[Dict] = None
-    selected_hotels: Optional[Dict] = None
-    selected_activities: Optional[Dict] = None
-    arrival_transfer: Optional[Dict] = None
-    departure_transfer: Optional[Dict] = None
-    pricing_breakdown: Optional[Dict] = None
-    total_price: Optional[float] = None
-    vehicle_type: Optional[str] = None
-    vehicle_label: Optional[str] = None
-    total_pax: Optional[int] = None
-    itinerary: Optional[List] = None
-    total_nights: Optional[int] = None
-    start_date: Optional[str] = None
-    customer_name: Optional[str] = None
-    customer_email: Optional[str] = None
-    customer_phone: Optional[str] = None
-    proposal_name: Optional[str] = None
-    expected_booking_date: Optional[str] = None
-    flights_booked: Optional[bool] = None
-    markup_value: Optional[float] = None
-    markup_type: Optional[str] = None
-    discount_amount: Optional[float] = None
-    travel_insurance: Optional[bool] = None
-    travel_insurance_price: Optional[float] = None
-    status: Optional[str] = None
-
-class ProposalResponse(BaseModel):
-    id: str
-    user_id: Optional[str] = None
-    leaving_from: str
-    leaving_from_code: Optional[str] = None
-    nationality: str
-    leaving_on: str
-    star_rating: str
-    add_transfers: bool
-    room_data: List[Dict]
-    cities: List[Dict]
-    status: str = "pending"
-    total_price: Optional[float] = None
-    created_at: str
-    updated_at: Optional[str] = None
-    # Flight information
-    selected_flight: Optional[Dict] = None
-    arrival_flight_info: Optional[Dict] = None
-    departure_flight_info: Optional[Dict] = None
-    # Hotel and Activity details
-    selected_hotels: Optional[Dict] = None
-    selected_activities: Optional[Dict] = None
-    # Transfer details
-    arrival_transfer: Optional[Dict] = None
-    departure_transfer: Optional[Dict] = None
-    # Pricing breakdown
-    pricing_breakdown: Optional[Dict] = None
-    # Vehicle info
-    vehicle_type: Optional[str] = None
-    vehicle_label: Optional[str] = None
-    total_pax: Optional[int] = None
-    # Itinerary
-    itinerary: Optional[List] = None
-    total_nights: Optional[int] = None
-    start_date: Optional[str] = None
-    # Customer info
-    customer_name: Optional[str] = None
-    customer_email: Optional[str] = None
-    customer_phone: Optional[str] = None
-    customer_mobile: Optional[str] = None
-    whatsapp_number: Optional[str] = None
-    # Proposal details
-    proposal_name: Optional[str] = None
-    expected_booking_date: Optional[str] = None
-    flights_booked: Optional[bool] = None
-    markup_value: Optional[float] = None
-    markup_type: Optional[str] = None
-    discount_amount: Optional[float] = None
-    travel_insurance: Optional[bool] = None
-    travel_insurance_price: Optional[float] = None
-
-class FlightCreate(BaseModel):
-    airline: str
-    flight_number: str
-    departure_airport: str
-    arrival_airport: str
-    departure_time: str
-    arrival_time: str
-    departure_date: str
-    arrival_day_offset: str = "0"
-    price: str
-    cabin_class: str = "Economy"
-    duration: str
-    logo: Optional[str]
-
-class FlightSearch(BaseModel):
-    from_airport: Optional[str]
-    to_airport: Optional[str]
-    depart_date: Optional[str]
-    return_date: Optional[str]
-    trip_type: str = "One-way"
-    cabin_class: str = "Economy"
-
-# Rate Plan model for room pricing
-class RatePlan(BaseModel):
-    id: str = ""
-    name: str  # e.g., "Room Only", "Breakfast Included"
-    price: float
-    original_price: Optional[float] = None
-    currency: str = "AED"
-    meal_plan: str = "Room Only"  # Room Only, Breakfast, Half Board, Full Board
-    meal_details: Optional[str] = None  # e.g., "Breakfast buffet", "Breakfast for 2"
-    refund_policy: str = "Refundable"  # Refundable, Non-refundable
-    refund_deadline: Optional[str] = None  # e.g., "11 Mar 2026"
-    inclusions: List[str] = []  # e.g., ["Free WiFi", "Free parking", "Breakfast for 2"]
-    taxes: List[str] = []  # e.g., ["Tourism Tax", "City Tax", "Sales Tax"]
-    available: bool = True
-
-# Enhanced Room Type model
-class RoomType(BaseModel):
-    id: str = ""
-    name: str  # e.g., "Superior Room, 1 King, City View"
-    category: str = "Standard"  # Superior, Deluxe, Junior Suite, Suite, etc.
-    bed_configuration: List[str] = []  # e.g., ["1 King"] or ["2 Twin", "Sofa Bed"]
-    view_type: str = ""  # City View, Garden View, Sea View, Pool View
-    room_size: Optional[float] = None  # Size in sqm or sqft
-    size_unit: str = "sqm"  # sqm or sqft
-    max_adults: int = 2
-    max_children: int = 1
-    smoking: bool = False
-    amenities: List[str] = []  # Room-specific amenities
-    images: List[str] = []
-    description: str = ""
-    rate_plans: List[Dict] = []  # List of rate plans for this room
-    available: bool = True  # Room availability status
-    total_inventory: int = 10  # Total number of rooms available
-
-class HotelRoom(BaseModel):
-    id: str
-    name: str
-    type: str
-    bed_type: str
-    view: str
-    size: str
-    price: float
-    original_price: float
-    currency: str = "AED"
-    amenities: List[str]
-    refundable: bool
-    refundable_until: Optional[str]
-    meals: str
-    images: List[str]
-
-class HotelCreate(BaseModel):
-    name: str
-    city: str
-    country: str
-    address: str = ""
-    description: str = ""
-    star_rating: int = 4
-    rating_score: float = 8.0
-    rating_text: str = "Very Good"
-    review_count: int = 0
-    images: List[str] = []
-    amenities: List[str] = []
-    detailed_ratings: Dict[str, float] = {}
-    what_to_know: List[Dict] = []
-    rooms: List[Dict] = []  # Legacy support
-    room_types: List[Dict] = []  # New enhanced room types with rate plans
-    recommended: bool = False  # Admin can mark hotel as recommended
-    # New fields based on PDF analysis
-    check_in_time: str = "14:00"
-    check_out_time: str = "12:00"
-    year_built: Optional[int] = None
-    total_rooms: Optional[int] = None
-    highlights: List[str] = []  # e.g., "Walking distance to metro", "Free WiFi"
-    board_types: List[str] = ["RO", "BB"]  # RO=Room Only, BB=Bed&Breakfast, HB=Half Board, FB=Full Board
-    cancellation_policy: str = "Flexible"
-    supplier_name: Optional[str] = None
-    supplier_cost_per_night: Optional[float] = None
-
-class AirportCreate(BaseModel):
-    name: str
-    code: str
-    city: str
-    country: str
-
-class CityCreate(BaseModel):
-    name: str
-    country: str
-    image: Optional[str] = None
-
-class TransferExtra(BaseModel):
-    name: str
-    description: Optional[str] = None
-    price: float
-    duration: Optional[str] = None
-
-class TransferCreate(BaseModel):
-    title: str
-    from_location: str
-    to_location: str
-    price: float
-    description: str
-    duration: str = "1 hrs"
-    confirmation_time: str = "4 hrs"
-    transfer_type: str = "Private"  # Private, Shared, Luxury
-    transfer_direction: str = "arrival"  # 'arrival' (Airport → Hotel) or 'departure' (Hotel → Airport)
-    city: str
-    extras: Optional[List[TransferExtra]] = []
-    is_available: bool = True
-    # New fields
-    vehicle_type: str = "Sedan"  # Sedan, SUV, Van, Minibus, Luxury Car, Coach
-    pickup_times: Optional[List[str]] = []  # e.g., ["06:00", "09:00", "12:00", "15:00", "18:00", "21:00"]
-    max_bags: int = 2  # Number of bags allowed
-    supplier_name: Optional[str] = None  # For supplier dashboard
-    supplier_cost: Optional[float] = None  # Cost from supplier (for margin calculation)
-    video: Optional[str] = None  # Video URL
-    # Vehicle-based pricing
-    vehicle_pricing: Optional[dict] = None  # { "sedan_4": { "selling_price": 100, "supplier_cost": 80 }, ... }
-
-# Activity/Excursion Model
-class ActivityCreate(BaseModel):
-    name: str
-    description: str = ""  # Detailed description/itinerary
-    city: str
-    country: str = ""
-    category: str = "City Tours"  # City Tours, Sightseeing, Adventure, Cultural, Food & Drink, Nature, Water Sports, etc.
-    duration: str = "5 hrs"  # e.g., "5 hrs", "Full Day", "Half Day"
-    price: float = 0
-    currency: str = "AED"
-    images: List[str] = []
-    video: Optional[str] = None  # Video URL (YouTube or direct)
-    highlights: List[str] = []  # Key highlights/features
-    inclusions: List[str] = []  # What's included (e.g., "Driver cum Guide", "Cable Car")
-    exclusions: List[str] = []  # What's not included
-    useful_information: List[str] = []  # Useful info bullet points
-    meeting_point: str = ""
-    start_times: List[str] = []  # Available start times e.g., ["10:00", "15:00", "15:30"]
-    languages: List[str] = ["English"]  # Tour languages
-    transfer_type: str = "Private"  # Private, Shared, Luxury
-    operating_days: List[str] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]  # Days activity operates
-    closed_days: List[str] = []  # Days activity is closed (e.g., ["Monday"])
-    age_restriction: str = "All ages"  # "All ages", "18+", "12+", etc.
-    cancellation_policy: str = "Free cancellation up to 24 hours"
-    supplier_name: Optional[str] = None
-    supplier_cost: Optional[float] = None
-    available: bool = True
-    rating: float = 4.5
-    review_count: int = 0
-    # Vehicle-based pricing
-    vehicle_pricing: Optional[dict] = None  # { "sedan_4": { "selling_price": 100, "supplier_cost": 80 }, ... }
-
-class ChatMessage(BaseModel):
-    message: str
-    session_id: Optional[str]
-
-class TripRecommendationRequest(BaseModel):
-    preferences: str
-    budget: Optional[str]
-    duration: Optional[str]
-    travelers: Optional[int]
-
-class ItineraryRequest(BaseModel):
-    cities: List[CityStop]
-    interests: Optional[str]
-    travelers: int = 2
-
-class PaymentCreate(BaseModel):
-    proposal_id: str
-    amount: float
-    currency: str = "AED"
-    payment_method: str = "stripe"
-
-# Terms and Policies Model
-class TermsPolicyCreate(BaseModel):
-    title: str  # e.g., "Important Notes", "Hotel Cancellation Policy"
-    category: str  # e.g., "General", "Hotel", "Tours and Transfers", "Europe", "Cancellation"
-    content: List[str] = []  # List of bullet points/items
-    sub_sections: List[Dict[str, Any]] = []  # For nested sections like "General", "Hotel", "Europe" under "Important Notes"
-    country: Optional[str] = None  # Country-specific policy (e.g., "Georgia", "UAE")
-    city: Optional[str] = None  # City-specific policy (e.g., "Tbilisi", "Dubai")
-    applies_to: str = "all"  # "all", "country", "city"
-    order: int = 0  # Display order
-    is_expanded_default: bool = False  # Whether to show expanded by default
-    is_active: bool = True
-    icon: str = "info"  # Icon name: info, shield, hotel, creditCard, check, etc.
+# Models are also available in models/schemas.py for modular imports
+from models.schemas import (
+    UserCreate, UserLogin, UserResponse, TokenResponse,
+    RoomData, CityStop, ProposalCreate, ProposalResponse,
+    FlightCreate, FlightSearch, RatePlan, RoomType, HotelRoom, HotelCreate,
+    AirportCreate, CityCreate, TransferExtra, TransferCreate, ActivityCreate,
+    ChatMessage, TripRecommendationRequest, ItineraryRequest, PaymentCreate,
+    TermsPolicyCreate, UserUpdate, AdminUserResponse
+)
 
 # ============= HELPERS =============
 
@@ -1620,32 +1304,94 @@ async def generate_itinerary(request: ItineraryRequest):
     if not EMERGENT_LLM_KEY:
         raise HTTPException(status_code=500, detail="AI service not configured")
     
+    # Fetch available activities and transfers from DB for the requested cities
+    city_names = [c.name for c in request.cities]
+    activities = await db.activities.find({"city": {"$in": city_names}}, {"_id": 0, "id": 1, "name": 1, "city": 1, "duration": 1, "description": 1}).to_list(200)
+    transfers = await db.transfers.find({"city": {"$in": city_names}}, {"_id": 0, "id": 1, "title": 1, "city": 1, "type": 1}).to_list(100)
+    
+    # Build context about available activities
+    activities_context = ""
+    for city_name in city_names:
+        city_acts = [a for a in activities if a.get("city") == city_name]
+        if city_acts:
+            activities_context += f"\nAvailable activities in {city_name}:\n"
+            for a in city_acts:
+                activities_context += f"  - {a['name']} (ID: {a['id']}, Duration: {a.get('duration', 'Half Day')}): {a.get('description', '')[:100]}\n"
+    
+    cities_info = "\n".join([f"- {c.name}: {c.nights} nights" for c in request.cities])
+    
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
         session_id=str(uuid.uuid4()),
-        system_message="""You are a professional travel itinerary planner. Create detailed day-by-day itineraries.
-Format your response as a structured itinerary with:
-- Day-by-day activities
-- Recommended hotels
-- Local restaurants
-- Travel tips
-- Estimated costs"""
+        system_message="""You are a professional travel itinerary planner for a DMC (Destination Management Company).
+You MUST respond with ONLY valid JSON, no markdown, no code blocks, no extra text.
+The JSON must follow this exact structure:
+{
+  "days": [
+    {
+      "day": 1,
+      "city": "City Name",
+      "title": "Arrival & City Exploration",
+      "activities": [
+        {
+          "activity_id": "use_actual_id_if_available_or_null",
+          "name": "Activity Name",
+          "time": "09:00 AM",
+          "duration": "3 hours",
+          "description": "Brief description of what to do"
+        }
+      ],
+      "meals": [
+        {"type": "Breakfast", "suggestion": "Hotel breakfast or local cafe"},
+        {"type": "Lunch", "suggestion": "Local restaurant recommendation"},
+        {"type": "Dinner", "suggestion": "Restaurant or area recommendation"}
+      ],
+      "transfers": [
+        {"type": "arrival", "description": "Airport to Hotel transfer"}
+      ],
+      "tips": "Any day-specific travel tips"
+    }
+  ],
+  "general_tips": ["tip1", "tip2"]
+}"""
     ).with_model("gemini", "gemini-3-flash-preview")
     
-    cities_info = "\n".join([f"- {c.name}: {c.nights} nights" for c in request.cities])
-    prompt = f"""Create a detailed travel itinerary for:
+    prompt = f"""Create a detailed day-by-day travel itinerary for:
+
 Cities & Duration:
 {cities_info}
 
-Interests: {request.interests or 'General sightseeing, culture, food'}
 Number of travelers: {request.travelers}
+Interests: {request.interests or 'General sightseeing, culture, food, local experiences'}
 
-Provide a comprehensive day-by-day itinerary."""
+{activities_context}
+
+IMPORTANT RULES:
+1. Match activity_id from available activities when possible, set null for suggested activities not in the list
+2. Day 1 should include arrival activities
+3. The last day should include departure/checkout activities
+4. Include 2-4 activities per full day
+5. Include meals for each day (breakfast, lunch, dinner)
+6. Include transfer suggestions for arrival and departure days
+7. Be specific with time slots
+8. Total days = total nights + 1 (include departure day)
+
+Respond with ONLY the JSON object, no markdown formatting."""
 
     user_msg = UserMessage(text=prompt)
     response = await chat.send_message(user_msg)
     
-    return {"success": True, "itinerary": response}
+    # Try to parse the response as JSON
+    try:
+        # Clean up response - remove markdown code blocks if present
+        cleaned = response.strip()
+        cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
+        cleaned = re.sub(r'\s*```$', '', cleaned)
+        parsed = json.loads(cleaned)
+        return {"success": True, "itinerary": parsed, "raw": None}
+    except (json.JSONDecodeError, Exception):
+        # Return raw text if JSON parsing fails
+        return {"success": True, "itinerary": None, "raw": response}
 
 @ai_router.get("/chat/history/{session_id}")
 async def get_chat_history(session_id: str):
@@ -1819,26 +1565,6 @@ async def sync_all_to_sheets():
     }
 
 # ============= ADMIN ROUTES =============
-
-class UserUpdate(BaseModel):
-    full_name: Optional[str] = None
-    email: Optional[EmailStr] = None
-    mobile: Optional[str] = None
-    company_name: Optional[str] = None
-    role: Optional[str] = None
-    status: Optional[str] = None
-
-class AdminUserResponse(BaseModel):
-    id: str
-    email: str
-    full_name: str
-    company_name: str
-    mobile: Optional[str]
-    role: str
-    status: str
-    created_at: str
-    proposals_count: int
-    total_bookings_value: float
 
 @admin_router.get("/users")
 async def get_all_users():
