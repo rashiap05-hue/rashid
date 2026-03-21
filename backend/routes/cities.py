@@ -1,43 +1,47 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
-from db import db, get_current_user, logger
+from fastapi import APIRouter, HTTPException, Query
+from db import db
 from models.schemas import CityCreate
-from datetime import datetime, timezone
 import uuid
 
 cities_router = APIRouter(prefix="/cities", tags=["Cities"])
 
+
 @cities_router.get("")
-async def get_cities(search: str = None):
+async def get_cities(
+    search: str = Query("", description="Search term for city name or country"),
+    limit: int = Query(500, ge=1, le=500, description="Max items to return")
+):
     query = {}
     if search:
-        query["$or"] = [
-            {"name": {"$regex": search, "$options": "i"}},
-            {"country": {"$regex": search, "$options": "i"}}
-        ]
-    cities = await db.cities.find(query, {"_id": 0}).to_list(500)
+        search_regex = {"$regex": search, "$options": "i"}
+        query = {
+            "$or": [
+                {"name": search_regex},
+                {"country": search_regex}
+            ]
+        }
+    cities = await db.cities.find(query, {"_id": 0}).limit(limit).to_list(limit)
     return {"success": True, "cities": cities}
 
+
 @cities_router.post("")
-async def create_city(city: CityCreate, user: dict = Depends(get_current_user)):
-    city_doc = city.dict()
-    city_doc["id"] = str(uuid.uuid4())
-    city_doc["created_at"] = datetime.now(timezone.utc).isoformat()
-    await db.cities.insert_one(city_doc)
-    city_doc.pop("_id", None)
-    return {"success": True, "city": city_doc}
+async def create_city(city: CityCreate):
+    city_id = str(uuid.uuid4())
+    doc = {"id": city_id, **city.model_dump()}
+    await db.cities.insert_one(doc)
+    return {"success": True, "id": city_id}
+
 
 @cities_router.put("/{city_id}")
-async def update_city(city_id: str, city: CityCreate, user: dict = Depends(get_current_user)):
-    city_data = city.dict()
-    city_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-    result = await db.cities.update_one({"id": city_id}, {"$set": city_data})
+async def update_city(city_id: str, city: CityCreate):
+    result = await db.cities.update_one({"id": city_id}, {"$set": city.model_dump()})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="City not found")
-    updated = await db.cities.find_one({"id": city_id}, {"_id": 0})
-    return {"success": True, "city": updated}
+    return {"success": True}
+
 
 @cities_router.delete("/{city_id}")
-async def delete_city(city_id: str, user: dict = Depends(get_current_user)):
+async def delete_city(city_id: str):
     result = await db.cities.delete_one({"id": city_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="City not found")

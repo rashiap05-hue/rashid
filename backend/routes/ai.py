@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
-from db import db, get_current_user, EMERGENT_LLM_KEY, logger
+from fastapi import APIRouter, HTTPException
+from db import db, EMERGENT_LLM_KEY, logger
 from models.schemas import ChatMessage, TripRecommendationRequest, ItineraryRequest
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from datetime import datetime, timezone
@@ -9,42 +9,52 @@ import re
 
 ai_router = APIRouter(prefix="/ai", tags=["AI Features"])
 
+
 @ai_router.post("/chat")
-async def chat_with_ai(message: ChatMessage):
+async def ai_chat(message: ChatMessage):
     if not EMERGENT_LLM_KEY:
         raise HTTPException(status_code=500, detail="AI service not configured")
-    
+
     session_id = message.session_id or str(uuid.uuid4())
-    
+
+    history = await db.chat_history.find({"session_id": session_id}, {"_id": 0}).sort("created_at", 1).to_list(50)
+
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
         session_id=session_id,
-        system_message="""You are a knowledgeable travel assistant for Travo DMC, a B2B travel platform specializing in destinations like Georgia, Azerbaijan, and the Middle East. Help users plan trips, suggest destinations, provide travel tips, and answer questions about visa requirements, best times to visit, local customs, and popular attractions.
-
-Be concise, helpful, and professional. Format responses with bullet points for readability when appropriate."""
+        system_message="""You are Travo AI, an intelligent travel assistant for Travo DMC B2B Travel Platform. 
+You help travel agents with:
+- Travel recommendations and destination information
+- Package suggestions based on preferences
+- Answering questions about hotels, flights, and activities
+- Providing local insights and travel tips
+Be professional, helpful, and knowledgeable about global destinations."""
     ).with_model("gemini", "gemini-3-flash-preview")
-    
+
     user_msg = UserMessage(text=message.message)
     response = await chat.send_message(user_msg)
-    
-    # Save to chat history
+
     await db.chat_history.insert_one({
         "session_id": session_id,
-        "user_message": message.message,
-        "ai_response": response,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "_id": None
+        "role": "user",
+        "content": message.message,
+        "created_at": datetime.now(timezone.utc).isoformat()
     })
-    # Remove _id before it gets committed
-    await db.chat_history.update_many({"_id": None}, {"$unset": {"_id": ""}})
-    
+    await db.chat_history.insert_one({
+        "session_id": session_id,
+        "role": "assistant",
+        "content": response,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+
     return {"success": True, "response": response, "session_id": session_id}
+
 
 @ai_router.post("/recommendations")
 async def get_recommendations(request: TripRecommendationRequest):
     if not EMERGENT_LLM_KEY:
         raise HTTPException(status_code=500, detail="AI service not configured")
-    
+
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
         session_id=str(uuid.uuid4()),
@@ -63,7 +73,7 @@ Format your response as JSON with this structure:
   "tips": ["tip1", "tip2"]
 }"""
     ).with_model("gemini", "gemini-3-flash-preview")
-    
+
     prompt = f"""Based on these preferences, suggest travel destinations:
 Preferences: {request.preferences}
 Budget: {request.budget or 'Flexible'}
@@ -74,20 +84,19 @@ Provide 3-5 destination recommendations."""
 
     user_msg = UserMessage(text=prompt)
     response = await chat.send_message(user_msg)
-    
+
     return {"success": True, "recommendations": response}
+
 
 @ai_router.post("/itinerary")
 async def generate_itinerary(request: ItineraryRequest):
     if not EMERGENT_LLM_KEY:
         raise HTTPException(status_code=500, detail="AI service not configured")
-    
-    # Fetch available activities and transfers from DB for the requested cities
+
     city_names = [c.name for c in request.cities]
     activities = await db.activities.find({"city": {"$in": city_names}}, {"_id": 0, "id": 1, "name": 1, "city": 1, "duration": 1, "description": 1}).to_list(200)
     transfers = await db.transfers.find({"city": {"$in": city_names}}, {"_id": 0, "id": 1, "title": 1, "city": 1, "type": 1}).to_list(100)
-    
-    # Build context about available activities
+
     activities_context = ""
     for city_name in city_names:
         city_acts = [a for a in activities if a.get("city") == city_name]
@@ -95,9 +104,9 @@ async def generate_itinerary(request: ItineraryRequest):
             activities_context += f"\nAvailable activities in {city_name}:\n"
             for a in city_acts:
                 activities_context += f"  - {a['name']} (ID: {a['id']}, Duration: {a.get('duration', 'Half Day')}): {a.get('description', '')[:100]}\n"
-    
+
     cities_info = "\n".join([f"- {c.name}: {c.nights} nights" for c in request.cities])
-    
+
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
         session_id=str(uuid.uuid4()),
@@ -133,7 +142,7 @@ The JSON must follow this exact structure:
   "general_tips": ["tip1", "tip2"]
 }"""
     ).with_model("gemini", "gemini-3-flash-preview")
-    
+
     prompt = f"""Create a detailed day-by-day travel itinerary for:
 
 Cities & Duration:
@@ -158,18 +167,16 @@ Respond with ONLY the JSON object, no markdown formatting."""
 
     user_msg = UserMessage(text=prompt)
     response = await chat.send_message(user_msg)
-    
-    # Try to parse the response as JSON
+
     try:
-        # Clean up response - remove markdown code blocks if present
         cleaned = response.strip()
         cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
         cleaned = re.sub(r'\s*```$', '', cleaned)
         parsed = json.loads(cleaned)
         return {"success": True, "itinerary": parsed, "raw": None}
     except (json.JSONDecodeError, Exception):
-        # Return raw text if JSON parsing fails
         return {"success": True, "itinerary": None, "raw": response}
+
 
 @ai_router.get("/chat/history/{session_id}")
 async def get_chat_history(session_id: str):

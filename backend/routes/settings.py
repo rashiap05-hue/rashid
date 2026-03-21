@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, Request
-from db import db, get_current_user, logger
 from typing import Optional
+from db import db, get_current_user
 from datetime import datetime, timezone
 import uuid
 
@@ -15,6 +15,7 @@ DEFAULT_INSURANCE = {
     "description": "Travel Insurance with min $50,000 coverage - Only for Age Below 60 Yrs"
 }
 
+
 @settings_router.get("/insurance")
 async def get_insurance_settings(country: Optional[str] = None):
     if country:
@@ -23,6 +24,7 @@ async def get_insurance_settings(country: Optional[str] = None):
             return entry
         default = await db.insurance_prices.find_one({"country": "Default"}, {"_id": 0})
         return default or DEFAULT_INSURANCE
+
     entries = []
     async for doc in db.insurance_prices.find({}, {"_id": 0}).sort("country", 1):
         entries.append(doc)
@@ -31,6 +33,7 @@ async def get_insurance_settings(country: Optional[str] = None):
         await db.insurance_prices.insert_one(seed)
         entries = [{k: v for k, v in seed.items() if k != "_id"}]
     return {"insurance_prices": entries}
+
 
 @settings_router.post("/insurance")
 async def create_insurance_price(request: Request, user: dict = Depends(get_current_user)):
@@ -55,6 +58,7 @@ async def create_insurance_price(request: Request, user: dict = Depends(get_curr
     entry.pop("_id", None)
     return entry
 
+
 @settings_router.put("/insurance/{entry_id}")
 async def update_insurance_price(entry_id: str, request: Request, user: dict = Depends(get_current_user)):
     data = await request.json()
@@ -77,6 +81,7 @@ async def update_insurance_price(entry_id: str, request: Request, user: dict = D
         raise HTTPException(status_code=404, detail="Insurance price entry not found")
     updated = await db.insurance_prices.find_one({"id": entry_id}, {"_id": 0})
     return updated
+
 
 @settings_router.delete("/insurance/{entry_id}")
 async def delete_insurance_price(entry_id: str, user: dict = Depends(get_current_user)):
