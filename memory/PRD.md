@@ -251,6 +251,12 @@ Replaced the single global insurance price with a country-based pricing system. 
 - **Backend:** 100% (25/25 tests passed) — AI itinerary + full regression
 - **Frontend:** 100% — AI button, modal, content display all verified
 
+### Feature: Inter-City Transfers (iteration_29)
+- **Backend**: Added `/api/transfers/inter-city/search?from_city=X&to_city=Y` endpoint for finding transfers between cities
+- **Frontend DayCard**: Transition days show "Transfer from X to Y" header with Add/Change/Remove transfer buttons
+- **Frontend TripBuilder**: Inter-City Transfer Modal with vehicle pricing, Select button, pricing integrated into Trip Summary
+- **Test Results:** Backend 100% (9/9), Frontend 100%
+
 ### Bug Fix: Independent Hotel Selection for Repeated Cities (iteration_28)
 - Fixed: When same city appears multiple times (e.g., Tbilisi → Gudauri → Tbilisi), selecting hotel for one stay no longer auto-selects for the other
 - Changed `selectedHotels` key from city name to `cityIndex` — each stay has independent hotel selection
