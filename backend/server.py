@@ -1025,9 +1025,11 @@ async def delete_transfer(transfer_id: str):
 
 @transfers_router.get("/inter-city/search")
 async def search_inter_city_transfers(from_city: str, to_city: str):
-    """Find transfers between two cities (inter-city transfers)."""
+    """Find transfers between two cities (inter-city/inter-hotel transfers)."""
     query = {
         "$or": [
+            {"transfer_direction": "inter-hotel", "city": {"$regex": from_city, "$options": "i"}},
+            {"transfer_direction": "inter-hotel", "from_location": {"$regex": from_city, "$options": "i"}},
             {"from_location": {"$regex": from_city, "$options": "i"}, "to_location": {"$regex": to_city, "$options": "i"}},
             {"title": {"$regex": f"{from_city}.*{to_city}", "$options": "i"}},
             {"title": {"$regex": f"{to_city}.*{from_city}", "$options": "i"}},

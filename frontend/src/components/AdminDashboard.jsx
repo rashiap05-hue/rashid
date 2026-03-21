@@ -803,6 +803,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                     >
                       <option value="arrival">Arrival (Airport → Hotel)</option>
                       <option value="departure">Departure (Hotel → Airport)</option>
+                      <option value="inter-hotel">Inter-Hotel (Hotel → Hotel)</option>
                     </select>
                   </div>
                 </div>
@@ -1499,9 +1500,9 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                                 {transfer.transfer_type}
                               </span>
                               <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                                transfer.transfer_direction === 'departure' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
+                                transfer.transfer_direction === 'departure' ? 'bg-orange-100 text-orange-700' : transfer.transfer_direction === 'inter-hotel' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
                               }`}>
-                                {transfer.transfer_direction === 'departure' ? '✈️ Departure' : '🛬 Arrival'}
+                                {transfer.transfer_direction === 'departure' ? 'Departure' : transfer.transfer_direction === 'inter-hotel' ? 'Inter-Hotel' : 'Arrival'}
                               </span>
                             </div>
                           </div>
