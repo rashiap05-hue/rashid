@@ -17,25 +17,12 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   seed.py            (All seed data + migrations)
   airports_data.py   (Static airport data)
   models/
-    schemas.py       (All Pydantic models)
+    schemas.py       (All Pydantic models incl. ActivityExtra)
   routes/
-    auth.py          (Login, signup, me)
-    proposals.py     (CRUD + PDF generation)
-    flights.py       (CRUD + mock search)
-    hotels.py        (CRUD with recommended sorting)
-    airports.py      (CRUD with pagination)
-    cities.py        (CRUD with search)
-    transfers.py     (CRUD + inter-city search)
-    activities.py    (CRUD with partial update)
-    terms.py         (Terms & policies CRUD)
-    ai.py            (Chat, recommendations, itinerary)
-    payments.py      (Stripe checkout + webhook)
-    sheets.py        (Google Sheets - MOCKED)
-    admin.py         (User management, stats)
-    supplier.py      (Dashboard, bookings, earnings)
-    uploads.py       (Image/video upload)
-    settings.py      (Insurance pricing)
-    flight_api.py    (Aviationstack integration)
+    auth.py, proposals.py, flights.py, hotels.py, airports.py,
+    cities.py, transfers.py, activities.py, terms.py, ai.py,
+    payments.py, sheets.py, admin.py, supplier.py, uploads.py,
+    settings.py, flight_api.py
 ```
 
 ## Completed Features
@@ -45,15 +32,16 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - Trip Builder with dynamic pricing, vehicle-based pricing
 - AI Itinerary Generator (Gemini) with auto-fill to Day Cards
 - Multi-city hotel selection (keyed by cityIndex)
-- Inter-city transfer support (excluding inter-hotel in modal)
+- Inter-city transfer support (inter-hotel only in modal)
 - Country-based insurance pricing with fallback
 - Country dropdowns for Admin forms
 - Recommended hotels/rooms with badges
 - Admin Dashboard, Supplier Dashboard
 - Terms & Policies management
 - Backend refactoring Phase 1: Models extracted to schemas.py
-- Backend refactoring Phase 2: Routes extracted to modular files (server.py 3370 → 87 lines)
-- P0 Bug Fix: Inter-city transfer search now excludes inter-hotel direction
+- Backend refactoring Phase 2: Routes extracted to modular files (server.py 3370 -> 87 lines)
+- P0 Bug Fix: Inter-city transfer search filters to inter-hotel direction only
+- **Activity Extras**: Purchasable add-ons per activity with name, description, price, optional vehicle-based pricing. Admin form has "Extras" tab. Trip Builder DayCard shows extras as checkboxes. Selected extras add to trip total.
 
 ## Test Credentials
 - Admin: testadmin@example.com / password123
