@@ -439,7 +439,10 @@ function DayCard({
                             <p className="text-sm font-medium text-gray-800">{interCityTransfer.title}</p>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-xs text-gray-500">{interCityTransfer.duration || ''}</span>
-                              {interCityTransfer.vehicle_type && (
+                              {interCityTransfer.vehicleLabel && (
+                                <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">{interCityTransfer.vehicleLabel}</span>
+                              )}
+                              {!interCityTransfer.vehicleLabel && interCityTransfer.vehicle_type && (
                                 <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{interCityTransfer.vehicle_type}</span>
                               )}
                             </div>

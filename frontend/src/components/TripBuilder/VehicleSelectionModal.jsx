@@ -63,7 +63,7 @@ function VehicleSelectionModal({ isOpen, onClose, activity, onSelectVehicle, tot
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-bold text-lg">Select Vehicle Type</h3>
-              <p className="text-blue-100 text-sm">{activity.name}</p>
+              <p className="text-blue-100 text-sm">{activity.name || activity.title}</p>
             </div>
             <button 
               onClick={onClose}
@@ -128,7 +128,7 @@ function VehicleSelectionModal({ isOpen, onClose, activity, onSelectVehicle, tot
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-lg text-green-600">${price}</div>
+                      <div className="font-bold text-lg text-green-600">AED {price}</div>
                       <div className="text-xs text-gray-400">per vehicle</div>
                     </div>
                   </div>

@@ -93,6 +93,8 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [interCityTransferModal, setInterCityTransferModal] = useState({ open: false, fromCityIdx: null, toCityIdx: null, fromCity: '', toCity: '' });
   const [interCityTransferOptions, setInterCityTransferOptions] = useState([]);
   const [interCityLoading, setInterCityLoading] = useState(false);
+  const [showInterCityVehicleModal, setShowInterCityVehicleModal] = useState(false);
+  const [pendingInterCityTransfer, setPendingInterCityTransfer] = useState(null);
   
   // Vehicle selection state for transfers
   const [showTransferVehicleModal, setShowTransferVehicleModal] = useState(false);
@@ -618,15 +620,38 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   };
 
   const handleSelectInterCityTransfer = (transfer) => {
-    const key = `${interCityTransferModal.fromCityIdx}_${interCityTransferModal.toCityIdx}`;
-    let price = transfer.price || 0;
-    if (transfer.vehicle_pricing && transfer.vehicle_pricing[selectedVehicle.key]) {
-      price = transfer.vehicle_pricing[selectedVehicle.key].selling_price || price;
+    // If transfer has vehicle pricing, show vehicle selection modal
+    if (transfer.vehicle_pricing && Object.keys(transfer.vehicle_pricing).length > 0) {
+      setPendingInterCityTransfer(transfer);
+      setShowInterCityVehicleModal(true);
+    } else {
+      // No vehicle pricing, select directly
+      const key = `${interCityTransferModal.fromCityIdx}_${interCityTransferModal.toCityIdx}`;
+      setInterCityTransfers(prev => ({
+        ...prev,
+        [key]: { ...transfer, selectedPrice: transfer.price || 0, selectedVehicle: null, vehicleLabel: null }
+      }));
+      setInterCityTransferModal({ open: false, fromCityIdx: null, toCityIdx: null, fromCity: '', toCity: '' });
     }
+  };
+
+  const handleInterCityVehicleSelect = (transfer, vehicleKey, price) => {
+    const vehicleLabels = {
+      'sedan_4': '4 Seater Sedan',
+      'car_7': '7 Seater Car',
+      'van_8': '8 Seater Van',
+      'van_17': '17 Seater Van',
+      'bus_29': '29 Seater Bus',
+      'bus_45': '45 Seater Bus',
+      'bus_55': '55 Seater Bus'
+    };
+    const key = `${interCityTransferModal.fromCityIdx}_${interCityTransferModal.toCityIdx}`;
     setInterCityTransfers(prev => ({
       ...prev,
-      [key]: { ...transfer, selectedPrice: price }
+      [key]: { ...transfer, selectedPrice: price, selectedVehicle: vehicleKey, vehicleLabel: vehicleLabels[vehicleKey] || vehicleKey }
     }));
+    setShowInterCityVehicleModal(false);
+    setPendingInterCityTransfer(null);
     setInterCityTransferModal({ open: false, fromCityIdx: null, toCityIdx: null, fromCity: '', toCity: '' });
   };
 
@@ -2158,26 +2183,9 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                                 )}
                               </div>
 
-                              {/* Vehicle pricing options if available */}
+                              {/* Vehicle pricing - hint */}
                               {transfer.vehicle_pricing && Object.keys(transfer.vehicle_pricing).length > 0 && (
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                  {Object.entries(transfer.vehicle_pricing).map(([vKey, vData]) => {
-                                    const vehicleLabels = {
-                                      'sedan_4': '4 Seater',
-                                      'car_7': '7 Seater',
-                                      'van_8': '8 Seater',
-                                      'van_17': '17 Seater',
-                                      'bus_29': '29 Seater',
-                                      'bus_45': '45 Seater',
-                                      'bus_55': '55 Seater'
-                                    };
-                                    return (
-                                      <span key={vKey} className={`text-xs px-2 py-1 rounded border ${vKey === selectedVehicle.key ? 'bg-blue-50 border-blue-300 text-blue-700 font-medium' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
-                                        {vehicleLabels[vKey] || vKey.replace(/_/g, ' ')}: AED {vData.selling_price}
-                                      </span>
-                                    );
-                                  })}
-                                </div>
+                                <p className="mt-2 text-xs text-blue-600 font-medium">Vehicle selection available on next step</p>
                               )}
                             </div>
 
@@ -2218,6 +2226,23 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Inter-City Transfer Vehicle Selection Modal */}
+      <AnimatePresence>
+        {showInterCityVehicleModal && pendingInterCityTransfer && (
+          <VehicleSelectionModal
+            isOpen={showInterCityVehicleModal}
+            onClose={() => {
+              setShowInterCityVehicleModal(false);
+              setPendingInterCityTransfer(null);
+            }}
+            activity={pendingInterCityTransfer}
+            onSelectVehicle={handleInterCityVehicleSelect}
+            totalPax={totalPax}
+            currentVehicle={null}
+          />
         )}
       </AnimatePresence>
     </div>
