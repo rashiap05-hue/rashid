@@ -1023,6 +1023,31 @@ async def delete_transfer(transfer_id: str):
         raise HTTPException(status_code=404, detail="Transfer not found")
     return {"success": True}
 
+@transfers_router.get("/inter-city/search")
+async def search_inter_city_transfers(from_city: str, to_city: str):
+    """Find transfers between two cities (inter-city transfers)."""
+    query = {
+        "$or": [
+            {"from_location": {"$regex": from_city, "$options": "i"}, "to_location": {"$regex": to_city, "$options": "i"}},
+            {"title": {"$regex": f"{from_city}.*{to_city}", "$options": "i"}},
+            {"title": {"$regex": f"{to_city}.*{from_city}", "$options": "i"}},
+            {"city": {"$regex": from_city, "$options": "i"}, "to_location": {"$regex": to_city, "$options": "i"}},
+        ]
+    }
+    transfers = await db.transfers.find(query, {"_id": 0}).to_list(50)
+    
+    # If no specific inter-city transfers found, search more broadly
+    if not transfers:
+        broader_query = {
+            "$or": [
+                {"city": {"$regex": from_city, "$options": "i"}},
+                {"city": {"$regex": to_city, "$options": "i"}},
+            ]
+        }
+        transfers = await db.transfers.find(broader_query, {"_id": 0}).to_list(50)
+    
+    return {"success": True, "transfers": transfers, "from_city": from_city, "to_city": to_city}
+
 # ============= ACTIVITIES ROUTES =============
 
 @activities_router.get("")

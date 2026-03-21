@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronDown, Plane, Car, Hotel, Sun, Moon, Utensils, 
-  Check, Trash2, Plus 
+  Check, Trash2, Plus, ArrowRight 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,7 +24,12 @@ function DayCard({
   selectedDepartureTransfer, 
   onUpdateFlightInfo, 
   arrivalFlightInfo, 
-  departureFlightInfo 
+  departureFlightInfo,
+  isTransitionDay,
+  nextCity,
+  interCityTransfer,
+  onChangeInterCityTransfer,
+  onRemoveInterCityTransfer
 }) {
   const [expanded, setExpanded] = useState(true);
 
@@ -333,6 +338,74 @@ function DayCard({
                 <Plus size={18} />
                 Add Activity in {city}
               </button>
+
+              {/* Inter-City Transfer Section */}
+              {isTransitionDay && nextCity && (
+                <div className="mt-4 border border-blue-200 rounded-xl overflow-hidden" data-testid={`inter-city-transfer-day-${day}`}>
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 flex items-center gap-3 border-b border-blue-200">
+                    <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                      <ArrowRight size={16} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-blue-800">
+                        Transfer from {city} to {nextCity}
+                      </p>
+                      <p className="text-xs text-blue-500">
+                        {interCityTransfer ? interCityTransfer.title : 'No Transfer Selected'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {interCityTransfer ? (
+                    <div className="p-4 bg-white">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <Car size={18} className="text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{interCityTransfer.title}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs text-gray-500">{interCityTransfer.duration || ''}</span>
+                              {interCityTransfer.vehicle_type && (
+                                <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{interCityTransfer.vehicle_type}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-green-600">AED {(interCityTransfer.selectedPrice || interCityTransfer.price || 0).toLocaleString()}</span>
+                          <button
+                            onClick={onRemoveInterCityTransfer}
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
+                            title="Remove transfer"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                      <button
+                        onClick={onChangeInterCityTransfer}
+                        className="mt-3 w-full py-2 border border-blue-200 rounded-lg text-blue-600 text-sm font-medium hover:bg-blue-50 transition-colors"
+                        data-testid={`change-inter-transfer-day-${day}`}
+                      >
+                        Change Transfer to {nextCity}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-white">
+                      <button
+                        onClick={onChangeInterCityTransfer}
+                        className="w-full py-3 border-2 border-dashed border-blue-200 rounded-xl text-blue-600 font-medium hover:border-blue-500 hover:bg-blue-50 transition-all flex items-center justify-center gap-2"
+                        data-testid={`add-inter-transfer-day-${day}`}
+                      >
+                        <Plus size={18} />
+                        Add Transfer to {nextCity}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </motion.div>
         )}

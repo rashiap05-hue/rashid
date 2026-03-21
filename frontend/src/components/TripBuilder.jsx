@@ -84,6 +84,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferModalType, setTransferModalType] = useState('arrival'); // 'arrival' or 'departure'
   const [transferCity, setTransferCity] = useState(null);
+
+  // Inter-city transfer state
+  const [interCityTransfers, setInterCityTransfers] = useState({}); // keyed by "fromIdx_toIdx"
+  const [interCityTransferModal, setInterCityTransferModal] = useState({ open: false, fromCityIdx: null, toCityIdx: null, fromCity: '', toCity: '' });
+  const [interCityTransferOptions, setInterCityTransferOptions] = useState([]);
+  const [interCityLoading, setInterCityLoading] = useState(false);
   
   // Vehicle selection state for transfers
   const [showTransferVehicleModal, setShowTransferVehicleModal] = useState(false);
@@ -421,6 +427,9 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     // Generate days for each city's nights
     cities.forEach((city, cityIndex) => {
       for (let night = 0; night < (city.nights || 1); night++) {
+        const isLastNightInCity = night === (city.nights || 1) - 1;
+        const nextCity = cities[cityIndex + 1];
+        const isTransitionDay = isLastNightInCity && nextCity && nextCity.name !== city.name;
         days.push({
           day: dayNumber,
           date: formatDate(currentDate),
@@ -429,7 +438,11 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           isFirst: dayNumber === 1,
           isLast: false,
           isDeparture: false,
-          hotel: selectedHotels[cityIndex]
+          hotel: selectedHotels[cityIndex],
+          isTransitionDay,
+          nextCity: isTransitionDay ? nextCity.name : null,
+          nextCityIndex: isTransitionDay ? cityIndex + 1 : null,
+          interCityTransfer: isTransitionDay ? interCityTransfers[`${cityIndex}_${cityIndex + 1}`] : null
         });
         currentDate.setDate(currentDate.getDate() + 1);
         dayNumber++;
@@ -567,6 +580,42 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     return null;
   };
 
+  // Inter-city transfer modal handler
+  const handleOpenInterCityTransfer = async (fromCityIdx, toCityIdx, fromCity, toCity) => {
+    setInterCityTransferModal({ open: true, fromCityIdx, toCityIdx, fromCity, toCity });
+    setInterCityLoading(true);
+    try {
+      const res = await api.get(`/transfers/inter-city/search?from_city=${encodeURIComponent(fromCity)}&to_city=${encodeURIComponent(toCity)}`);
+      setInterCityTransferOptions(res.data?.transfers || []);
+    } catch (err) {
+      setInterCityTransferOptions([]);
+    } finally {
+      setInterCityLoading(false);
+    }
+  };
+
+  const handleSelectInterCityTransfer = (transfer) => {
+    const key = `${interCityTransferModal.fromCityIdx}_${interCityTransferModal.toCityIdx}`;
+    let price = transfer.price || 0;
+    if (transfer.vehicle_pricing && transfer.vehicle_pricing[selectedVehicle.key]) {
+      price = transfer.vehicle_pricing[selectedVehicle.key].selling_price || price;
+    }
+    setInterCityTransfers(prev => ({
+      ...prev,
+      [key]: { ...transfer, selectedPrice: price }
+    }));
+    setInterCityTransferModal({ open: false, fromCityIdx: null, toCityIdx: null, fromCity: '', toCity: '' });
+  };
+
+  const handleRemoveInterCityTransfer = (fromCityIdx, toCityIdx) => {
+    const key = `${fromCityIdx}_${toCityIdx}`;
+    setInterCityTransfers(prev => {
+      const updated = { ...prev };
+      delete updated[key];
+      return updated;
+    });
+  };
+
   // Calculate pricing
   const calculatePricing = () => {
     let hotelTotal = 0;
@@ -581,7 +630,14 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     // Use vehicle-based pricing for transfers
     const arrivalTransferPrice = getTransferPriceForVehicle(selectedArrivalTransfer);
     const departureTransferPrice = getTransferPriceForVehicle(selectedDepartureTransfer);
-    const transferTotal = arrivalTransferPrice + departureTransferPrice;
+    
+    // Inter-city transfer costs
+    let interCityTransferTotal = 0;
+    Object.values(interCityTransfers).forEach(t => {
+      interCityTransferTotal += t.selectedPrice || t.price || 0;
+    });
+    
+    const transferTotal = arrivalTransferPrice + departureTransferPrice + interCityTransferTotal;
     
     // Calculate activities total using vehicle-based pricing
     let activitiesTotal = 0;
@@ -751,6 +807,21 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         itinerary: itinerary,
         total_nights: totalNights,
         start_date: startDate.toISOString(),
+
+        // Inter-city transfers
+        inter_city_transfers: Object.entries(interCityTransfers).reduce((acc, [key, t]) => {
+          const [fromIdx, toIdx] = key.split('_');
+          acc[key] = {
+            id: t.id,
+            title: t.title,
+            from_city: cities[parseInt(fromIdx)]?.name,
+            to_city: cities[parseInt(toIdx)]?.name,
+            price: t.selectedPrice || t.price,
+            vehicle_type: t.vehicle_type,
+            duration: t.duration
+          };
+          return acc;
+        }, {}),
 
         // Travel Insurance
         travel_insurance: travelInsurance,
@@ -1399,6 +1470,16 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                 onUpdateFlightInfo={handleOpenFlightInfoModal}
                 arrivalFlightInfo={arrivalFlightInfo}
                 departureFlightInfo={departureFlightInfo}
+                onChangeInterCityTransfer={() => {
+                  if (day.isTransitionDay && day.nextCity) {
+                    handleOpenInterCityTransfer(day.cityIndex, day.nextCityIndex, day.city, day.nextCity);
+                  }
+                }}
+                onRemoveInterCityTransfer={() => {
+                  if (day.isTransitionDay) {
+                    handleRemoveInterCityTransfer(day.cityIndex, day.nextCityIndex);
+                  }
+                }}
               />
             ))}
           </div>
@@ -1511,6 +1592,34 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                           )}
                         </div>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Inter-City Transfers */}
+                {Object.keys(interCityTransfers).length > 0 && (
+                  <div>
+                    <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                      <ArrowRight size={16} className="text-indigo-600" />
+                      Inter-City Transfers
+                    </h4>
+                    <div className="space-y-2">
+                      {Object.entries(interCityTransfers).map(([key, transfer]) => {
+                        const [fromIdx, toIdx] = key.split('_');
+                        const fromCity = cities[parseInt(fromIdx)]?.name || '';
+                        const toCity = cities[parseInt(toIdx)]?.name || '';
+                        return (
+                          <div key={key} className="p-3 bg-indigo-50 rounded-lg">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-600">{fromCity} → {toCity}</span>
+                              <span className="text-sm font-bold text-indigo-600">
+                                AED {(transfer.selectedPrice || transfer.price || 0).toLocaleString()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-0.5">{transfer.title}</p>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1913,6 +2022,141 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                     </button>
                   )}
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Inter-City Transfer Modal */}
+      <AnimatePresence>
+        {interCityTransferModal.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={() => setInterCityTransferModal({ open: false, fromCityIdx: null, toCityIdx: null, fromCity: '', toCity: '' })}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col"
+              data-testid="inter-city-transfer-modal"
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-4 rounded-t-2xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Car size={20} />
+                    <div>
+                      <h2 className="text-lg font-bold">Add Transfer to {interCityTransferModal.toCity}</h2>
+                      <p className="text-sm text-blue-200">{interCityTransferModal.fromCity} → {interCityTransferModal.toCity}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setInterCityTransferModal({ open: false, fromCityIdx: null, toCityIdx: null, fromCity: '', toCity: '' })}
+                    className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Transfer Options List */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {interCityLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 size={24} className="animate-spin text-blue-600" />
+                    <span className="ml-3 text-gray-500">Searching transfers...</span>
+                  </div>
+                ) : interCityTransferOptions.length > 0 ? (
+                  interCityTransferOptions.map((transfer) => {
+                    const price = (transfer.vehicle_pricing && transfer.vehicle_pricing[selectedVehicle.key])
+                      ? transfer.vehicle_pricing[selectedVehicle.key].selling_price
+                      : transfer.price || 0;
+                    const isSelected = interCityTransfers[`${interCityTransferModal.fromCityIdx}_${interCityTransferModal.toCityIdx}`]?.id === transfer.id;
+                    return (
+                      <div
+                        key={transfer.id}
+                        className={`border rounded-xl overflow-hidden transition-all ${isSelected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-blue-300'}`}
+                        data-testid={`inter-transfer-option-${transfer.id}`}
+                      >
+                        <div className="p-5">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-bold text-gray-800">{transfer.title}</h3>
+                                {transfer.transfer_type && (
+                                  <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">{transfer.transfer_type}</span>
+                                )}
+                              </div>
+                              {transfer.description && (
+                                <p className="text-sm text-gray-500 mt-1 line-clamp-2">{transfer.description}</p>
+                              )}
+                              <div className="flex items-center gap-4 mt-3">
+                                {transfer.duration && (
+                                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                                    <Clock size={12} />
+                                    <span>{transfer.duration}</span>
+                                  </div>
+                                )}
+                                {transfer.vehicle_type && (
+                                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{transfer.vehicle_type}</span>
+                                )}
+                                {transfer.max_bags && (
+                                  <span className="text-xs text-gray-500">{transfer.max_bags} bags</span>
+                                )}
+                              </div>
+
+                              {/* Vehicle pricing options if available */}
+                              {transfer.vehicle_pricing && Object.keys(transfer.vehicle_pricing).length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {Object.entries(transfer.vehicle_pricing).map(([vKey, vData]) => (
+                                    <span key={vKey} className={`text-xs px-2 py-1 rounded border ${vKey === selectedVehicle.key ? 'bg-blue-50 border-blue-300 text-blue-700 font-medium' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+                                      {vKey.replace(/_/g, ' ')}: AED {vData.selling_price}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex flex-col items-end ml-4">
+                              <span className="text-2xl font-bold text-green-600">AED {price.toLocaleString()}</span>
+                              <span className="text-xs text-gray-400">per vehicle</span>
+                              <button
+                                onClick={() => handleSelectInterCityTransfer(transfer)}
+                                className={`mt-3 px-5 py-2 rounded-lg text-sm font-medium transition-all ${isSelected ? 'bg-green-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                data-testid={`select-inter-transfer-${transfer.id}`}
+                              >
+                                {isSelected ? 'Selected' : 'Select'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-12">
+                    <Car size={40} className="mx-auto text-gray-300 mb-3" />
+                    <p className="text-gray-500 font-medium">No transfers found</p>
+                    <p className="text-sm text-gray-400 mt-1">No transfers available from {interCityTransferModal.fromCity} to {interCityTransferModal.toCity}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50 rounded-b-2xl">
+                <p className="text-xs text-gray-400">{interCityTransferOptions.length} transfer{interCityTransferOptions.length !== 1 ? 's' : ''} available</p>
+                <button
+                  onClick={() => setInterCityTransferModal({ open: false, fromCityIdx: null, toCityIdx: null, fromCity: '', toCity: '' })}
+                  className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  Close
+                </button>
               </div>
             </motion.div>
           </motion.div>
