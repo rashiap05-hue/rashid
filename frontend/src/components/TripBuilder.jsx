@@ -2161,11 +2161,22 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                               {/* Vehicle pricing options if available */}
                               {transfer.vehicle_pricing && Object.keys(transfer.vehicle_pricing).length > 0 && (
                                 <div className="mt-3 flex flex-wrap gap-2">
-                                  {Object.entries(transfer.vehicle_pricing).map(([vKey, vData]) => (
-                                    <span key={vKey} className={`text-xs px-2 py-1 rounded border ${vKey === selectedVehicle.key ? 'bg-blue-50 border-blue-300 text-blue-700 font-medium' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
-                                      {vKey.replace(/_/g, ' ')}: AED {vData.selling_price}
-                                    </span>
-                                  ))}
+                                  {Object.entries(transfer.vehicle_pricing).map(([vKey, vData]) => {
+                                    const vehicleLabels = {
+                                      'sedan_4': '4 Seater',
+                                      'car_7': '7 Seater',
+                                      'van_8': '8 Seater',
+                                      'van_17': '17 Seater',
+                                      'bus_29': '29 Seater',
+                                      'bus_45': '45 Seater',
+                                      'bus_55': '55 Seater'
+                                    };
+                                    return (
+                                      <span key={vKey} className={`text-xs px-2 py-1 rounded border ${vKey === selectedVehicle.key ? 'bg-blue-50 border-blue-300 text-blue-700 font-medium' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+                                        {vehicleLabels[vKey] || vKey.replace(/_/g, ' ')}: AED {vData.selling_price}
+                                      </span>
+                                    );
+                                  })}
                                 </div>
                               )}
                             </div>
