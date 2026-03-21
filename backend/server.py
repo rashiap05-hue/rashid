@@ -1025,28 +1025,18 @@ async def delete_transfer(transfer_id: str):
 
 @transfers_router.get("/inter-city/search")
 async def search_inter_city_transfers(from_city: str, to_city: str):
-    """Find transfers between two cities (inter-city/inter-hotel transfers)."""
+    """Find inter-hotel transfers between two cities only."""
     query = {
+        "transfer_direction": "inter-hotel",
         "$or": [
-            {"transfer_direction": "inter-hotel", "city": {"$regex": from_city, "$options": "i"}},
-            {"transfer_direction": "inter-hotel", "from_location": {"$regex": from_city, "$options": "i"}},
-            {"from_location": {"$regex": from_city, "$options": "i"}, "to_location": {"$regex": to_city, "$options": "i"}},
+            {"city": {"$regex": from_city, "$options": "i"}},
+            {"from_location": {"$regex": from_city, "$options": "i"}},
+            {"to_location": {"$regex": to_city, "$options": "i"}},
             {"title": {"$regex": f"{from_city}.*{to_city}", "$options": "i"}},
             {"title": {"$regex": f"{to_city}.*{from_city}", "$options": "i"}},
-            {"city": {"$regex": from_city, "$options": "i"}, "to_location": {"$regex": to_city, "$options": "i"}},
         ]
     }
     transfers = await db.transfers.find(query, {"_id": 0}).to_list(50)
-    
-    # If no specific inter-city transfers found, search more broadly
-    if not transfers:
-        broader_query = {
-            "$or": [
-                {"city": {"$regex": from_city, "$options": "i"}},
-                {"city": {"$regex": to_city, "$options": "i"}},
-            ]
-        }
-        transfers = await db.transfers.find(broader_query, {"_id": 0}).to_list(50)
     
     return {"success": True, "transfers": transfers, "from_city": from_city, "to_city": to_city}
 
