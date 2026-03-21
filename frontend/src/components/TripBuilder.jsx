@@ -44,6 +44,9 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [activeActivityDay, setActiveActivityDay] = useState(null);
   const [selectedActivities, setSelectedActivities] = useState({}); // { "city_day": [activities] }
   
+  // Selected extras state: { "activityId": [{ id, name, price, ... }] }
+  const [selectedExtras, setSelectedExtras] = useState({});
+  
   // Vehicle selection state for activities
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [pendingActivity, setPendingActivity] = useState(null);
@@ -299,6 +302,26 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       ...prev,
       [key]: (prev[key] || []).filter(a => a.id !== activityId)
     }));
+    // Also clean up extras for removed activity
+    setSelectedExtras(prev => {
+      const next = { ...prev };
+      delete next[activityId];
+      return next;
+    });
+  };
+
+  // Toggle an extra for a specific activity
+  const handleToggleExtra = (activityId, extra) => {
+    setSelectedExtras(prev => {
+      const current = prev[activityId] || [];
+      const extraKey = extra.id || extra.name;
+      const exists = current.some(e => (e.id || e.name) === extraKey);
+      if (exists) {
+        return { ...prev, [activityId]: current.filter(e => (e.id || e.name) !== extraKey) };
+      } else {
+        return { ...prev, [activityId]: [...current, extra] };
+      }
+    });
   };
 
   // AI Itinerary Generator
@@ -647,6 +670,25 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       });
     });
     
+    // Calculate extras total
+    let extrasTotal = 0;
+    Object.entries(selectedExtras).forEach(([activityId, extras]) => {
+      extras.forEach(extra => {
+        // Find the activity to check vehicle selection
+        let activityVehicle = null;
+        Object.values(selectedActivities).forEach(dayActs => {
+          const found = dayActs.find(a => a.id === activityId);
+          if (found) activityVehicle = found.selectedVehicle;
+        });
+        if (extra.vehicle_pricing && activityVehicle && extra.vehicle_pricing[activityVehicle]) {
+          extrasTotal += extra.vehicle_pricing[activityVehicle];
+        } else {
+          extrasTotal += extra.price || 0;
+        }
+      });
+    });
+    activitiesTotal += extrasTotal;
+    
     const adultsCount = data?.room_data?.reduce((acc, r) => acc + r.adults, 0) || 2;
     const childrenCount = data?.room_data?.reduce((acc, r) => acc + r.children?.length, 0) || 0;
     
@@ -761,6 +803,9 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         
         // Activities with full details
         selected_activities: activitiesWithDetails,
+        
+        // Selected extras per activity
+        selected_extras: selectedExtras,
         
         // Transfers with vehicle selection
         arrival_transfer: selectedArrivalTransfer ? {
@@ -1480,6 +1525,8 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                     handleRemoveInterCityTransfer(day.cityIndex, day.nextCityIndex);
                   }
                 }}
+                selectedExtras={selectedExtras}
+                onToggleExtra={handleToggleExtra}
               />
             ))}
           </div>

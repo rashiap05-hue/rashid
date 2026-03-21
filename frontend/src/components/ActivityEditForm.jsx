@@ -579,7 +579,9 @@ export default function ActivityEditForm({ activity, onSave, onClose, isNew = fa
       bus_29: { selling_price: 0, supplier_cost: 0 },
       bus_45: { selling_price: 0, supplier_cost: 0 },
       bus_55: { selling_price: 0, supplier_cost: 0 }
-    }
+    },
+    // Purchasable extras
+    extras: activity?.extras || []
   });
 
   const handleFieldChange = useCallback((field, value) => {
@@ -612,6 +614,7 @@ export default function ActivityEditForm({ activity, onSave, onClose, isNew = fa
     { id: 'photos', label: 'Photos & Video', icon: Image },
     { id: 'timing', label: 'Timing & Schedule', icon: Clock },
     { id: 'details', label: 'Tour Details', icon: CheckCircle },
+    { id: 'extras', label: 'Extras', icon: Plus },
     { id: 'supplier', label: 'Supplier & Pricing', icon: Building2 }
   ];
 
@@ -931,6 +934,185 @@ Example:
                     <option value="Free cancellation up to 72 hours">Free cancellation up to 72 hours</option>
                     <option value="Non-refundable">Non-refundable</option>
                   </select>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Extras Tab */}
+            {activeTab === 'extras' && (
+              <motion.div
+                key="extras"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-gray-700">Extras Available for Purchase</h4>
+                    <p className="text-xs text-gray-500 mt-0.5">Add optional add-ons that agents can select when booking this activity</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newExtra = {
+                        id: `extra_${Date.now()}`,
+                        name: '',
+                        description: '',
+                        price: 0,
+                        vehicle_pricing: null
+                      };
+                      handleFieldChange('extras', [...formData.extras, newExtra]);
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-2"
+                    data-testid="add-extra-button"
+                  >
+                    <Plus size={16} />
+                    Add Extra
+                  </button>
+                </div>
+
+                {formData.extras.length === 0 && (
+                  <div className="text-center py-10 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                    <DollarSign size={32} className="text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-500 font-medium">No extras added yet</p>
+                    <p className="text-xs text-gray-400 mt-1">Click "Add Extra" to create purchasable add-ons</p>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {formData.extras.map((extra, idx) => (
+                    <div key={extra.id || idx} className="border border-gray-200 rounded-xl p-4 bg-white hover:border-gray-300 transition-colors" data-testid={`extra-item-${idx}`}>
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 space-y-3">
+                          <div className="grid grid-cols-[1fr_120px] gap-3">
+                            <div>
+                              <label className="block text-xs font-bold text-gray-500 mb-1">Extra Name *</label>
+                              <input
+                                type="text"
+                                value={extra.name}
+                                onChange={(e) => {
+                                  const updated = [...formData.extras];
+                                  updated[idx] = { ...updated[idx], name: e.target.value };
+                                  handleFieldChange('extras', updated);
+                                }}
+                                placeholder="e.g., Goa Gajah (Elephant Cave)"
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                data-testid={`extra-name-${idx}`}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-500 mb-1">Price ({formData.currency})</label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={extra.price || ''}
+                                onChange={(e) => {
+                                  const updated = [...formData.extras];
+                                  updated[idx] = { ...updated[idx], price: parseFloat(e.target.value) || 0 };
+                                  handleFieldChange('extras', updated);
+                                }}
+                                placeholder="0"
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                data-testid={`extra-price-${idx}`}
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">Description / Note</label>
+                            <input
+                              type="text"
+                              value={extra.description || ''}
+                              onChange={(e) => {
+                                const updated = [...formData.extras];
+                                updated[idx] = { ...updated[idx], description: e.target.value };
+                                handleFieldChange('extras', updated);
+                              }}
+                              placeholder="e.g., Requires 3 hours, can be combined with 2 other activities"
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              data-testid={`extra-desc-${idx}`}
+                            />
+                          </div>
+
+                          {/* Vehicle pricing toggle for extra */}
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = [...formData.extras];
+                                if (updated[idx].vehicle_pricing) {
+                                  updated[idx] = { ...updated[idx], vehicle_pricing: null };
+                                } else {
+                                  updated[idx] = {
+                                    ...updated[idx],
+                                    vehicle_pricing: {
+                                      sedan_4: 0, car_7: 0, van_8: 0, van_17: 0,
+                                      bus_29: 0, bus_45: 0, bus_55: 0
+                                    }
+                                  };
+                                }
+                                handleFieldChange('extras', updated);
+                              }}
+                              className={cn(
+                                "text-xs px-3 py-1.5 rounded-lg font-medium transition-colors",
+                                extra.vehicle_pricing
+                                  ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                              )}
+                            >
+                              <Car size={12} className="inline mr-1" />
+                              {extra.vehicle_pricing ? 'Vehicle Pricing Enabled' : 'Enable Vehicle Pricing'}
+                            </button>
+
+                            {extra.vehicle_pricing && (
+                              <div className="mt-2 grid grid-cols-4 gap-2">
+                                {[
+                                  { key: 'sedan_4', label: 'Sedan (4)' },
+                                  { key: 'car_7', label: 'Car (7)' },
+                                  { key: 'van_17', label: 'Van (17)' },
+                                  { key: 'bus_45', label: 'Bus (45)' }
+                                ].map(v => (
+                                  <div key={v.key}>
+                                    <label className="block text-[10px] text-gray-400 mb-0.5">{v.label}</label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={extra.vehicle_pricing[v.key] || ''}
+                                      onChange={(e) => {
+                                        const updated = [...formData.extras];
+                                        updated[idx] = {
+                                          ...updated[idx],
+                                          vehicle_pricing: {
+                                            ...updated[idx].vehicle_pricing,
+                                            [v.key]: parseFloat(e.target.value) || 0
+                                          }
+                                        };
+                                        handleFieldChange('extras', updated);
+                                      }}
+                                      placeholder="0"
+                                      className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleFieldChange('extras', formData.extras.filter((_, i) => i !== idx));
+                          }}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                          data-testid={`delete-extra-${idx}`}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </motion.div>
             )}

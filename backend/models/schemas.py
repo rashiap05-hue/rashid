@@ -248,6 +248,13 @@ class TransferCreate(BaseModel):
     video: Optional[str] = None
     vehicle_pricing: Optional[dict] = None
 
+class ActivityExtra(BaseModel):
+    id: Optional[str] = None
+    name: str
+    description: Optional[str] = None
+    price: float = 0
+    vehicle_pricing: Optional[dict] = None
+
 class ActivityCreate(BaseModel):
     name: str
     description: str = ""
@@ -277,6 +284,7 @@ class ActivityCreate(BaseModel):
     rating: float = 4.5
     review_count: int = 0
     vehicle_pricing: Optional[dict] = None
+    extras: Optional[List[ActivityExtra]] = []
 
 class ChatMessage(BaseModel):
     message: str

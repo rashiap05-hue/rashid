@@ -29,7 +29,9 @@ function DayCard({
   nextCity,
   interCityTransfer,
   onChangeInterCityTransfer,
-  onRemoveInterCityTransfer
+  onRemoveInterCityTransfer,
+  selectedExtras,
+  onToggleExtra
 }) {
   const [expanded, setExpanded] = useState(true);
 
@@ -282,50 +284,120 @@ function DayCard({
               {/* Activities */}
               {activities?.length > 0 && (
                 <div className="space-y-2">
-                  {activities.map((activity, i) => (
-                    <div key={activity.id || i} className="flex items-center gap-4 p-4 bg-purple-50 rounded-xl border border-purple-100 group">
-                      <img 
-                        src={activity.images?.[0] || 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=100'}
-                        alt={activity.name}
-                        className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-gray-800 line-clamp-1">{activity.name}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[10px] bg-pink-100 text-pink-600 px-2 py-0.5 rounded-full font-medium">
-                            {activity.category || 'Activity'}
-                          </span>
-                          {activity.transfer_type && (
-                            <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">
-                              {activity.transfer_type}
-                            </span>
-                          )}
+                  {activities.map((activity, i) => {
+                    const activityExtras = activity.extras || [];
+                    const activitySelectedExtras = selectedExtras?.[activity.id] || [];
+                    
+                    return (
+                      <div key={activity.id || i} className="rounded-xl border border-purple-100 overflow-hidden group">
+                        <div className="flex items-center gap-4 p-4 bg-purple-50">
+                          <img 
+                            src={activity.images?.[0] || 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=100'}
+                            alt={activity.name}
+                            className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-gray-800 line-clamp-1">{activity.name}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] bg-pink-100 text-pink-600 px-2 py-0.5 rounded-full font-medium">
+                                {activity.category || 'Activity'}
+                              </span>
+                              {activity.transfer_type && (
+                                <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+                                  {activity.transfer_type}
+                                </span>
+                              )}
+                              {activityExtras.length > 0 && (
+                                <span className="text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-medium">
+                                  {activityExtras.length} extras
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {activity.start_times?.length > 0 
+                                ? `${activity.start_times[0]} • ${activity.duration}`
+                                : activity.duration
+                              }
+                              {activity.languages?.length > 0 && ` • ${activity.languages[0]}`}
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <span className="font-bold text-green-600">AED {activity.vehiclePrice || activity.price}</span>
+                            {activitySelectedExtras.length > 0 && (
+                              <p className="text-[10px] text-green-500 mt-0.5">
+                                +{activitySelectedExtras.length} extra{activitySelectedExtras.length > 1 ? 's' : ''}
+                              </p>
+                            )}
+                            {onRemoveActivity && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onRemoveActivity(activity.id);
+                                }}
+                                className="ml-2 p-1.5 text-red-500 hover:bg-red-100 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Remove activity"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {activity.start_times?.length > 0 
-                            ? `${activity.start_times[0]} • ${activity.duration}`
-                            : activity.duration
-                          }
-                          {activity.languages?.length > 0 && ` • ${activity.languages[0]}`}
-                        </p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <span className="font-bold text-green-600">AED {activity.price}</span>
-                        {onRemoveActivity && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onRemoveActivity(activity.id);
-                            }}
-                            className="ml-2 p-1.5 text-red-500 hover:bg-red-100 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Remove activity"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                        
+                        {/* Extras Section */}
+                        {activityExtras.length > 0 && (
+                          <div className="px-4 py-3 bg-white border-t border-purple-100">
+                            <p className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">Extras available for purchase</p>
+                            <div className="space-y-1.5">
+                              {activityExtras.map((extra, eIdx) => {
+                                const isChecked = activitySelectedExtras.some(e => (e.id || e.name) === (extra.id || extra.name));
+                                const extraPrice = extra.vehicle_pricing && activity.selectedVehicle
+                                  ? (extra.vehicle_pricing[activity.selectedVehicle] || extra.price || 0)
+                                  : (extra.price || 0);
+                                
+                                return (
+                                  <label 
+                                    key={extra.id || eIdx}
+                                    className={cn(
+                                      "flex items-start gap-3 p-2.5 rounded-lg cursor-pointer transition-colors",
+                                      isChecked ? "bg-green-50 border border-green-200" : "hover:bg-gray-50 border border-transparent"
+                                    )}
+                                    data-testid={`extra-checkbox-${activity.id}-${eIdx}`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => onToggleExtra && onToggleExtra(activity.id, extra)}
+                                      className="mt-0.5 w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <p className={cn(
+                                        "text-sm font-medium",
+                                        isChecked ? "text-green-700" : "text-gray-700"
+                                      )}>
+                                        {extra.name}
+                                      </p>
+                                      {extra.description && (
+                                        <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{extra.description}</p>
+                                      )}
+                                    </div>
+                                    <div className="text-right flex-shrink-0">
+                                      <span className="text-[10px] text-gray-400">starting from</span>
+                                      <p className={cn(
+                                        "text-sm font-bold",
+                                        isChecked ? "text-green-600" : "text-gray-700"
+                                      )}>
+                                        AED {extraPrice}
+                                      </p>
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
                         )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 

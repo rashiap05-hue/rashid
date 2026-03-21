@@ -1,0 +1,58 @@
+{
+  "summary": "Tested 'Extras available for purchase' feature for activities. All backend API tests passed (9/9). Frontend testing verified: Admin Dashboard Extras tab works correctly with add/remove/vehicle pricing functionality. Trip Builder shows extras as checkboxes when activity with extras is added to a day.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Console warnings", "issues": ["Hydration errors in HTML: <span> cannot be child of <tbody>/<tr>/<select>/<option> - these are React hydration warnings that should be addressed"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_activity_extras.py",
+    "/app/test_reports/pytest/activity_extras_tests.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "React hydration warnings in console - <span> elements being rendered inside <tbody>, <tr>, <select>, <option> elements. This is likely from the visual editor wrapper spans. Should be addressed to prevent hydration mismatches."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_activity_extras.py"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 tests passed)",
+    "frontend": "100% (all features verified)"
+  },
+  "seed_data_creation": "Added 3 extras to 'Full Day Tbilisi City Tour' activity (Wine Tasting Experience, Traditional Georgian Lunch, Narikala Cable Car Ride) and 3 extras to 'Desert Safari with BBQ Dinner' activity (Quad Bike Ride, Camel Ride Experience, VIP Seating Area)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Activity Extras feature is fully implemented and working. Backend API supports extras field in POST/PUT/GET /api/activities. Admin Dashboard has Extras tab in ActivityEditForm for managing extras per activity. Trip Builder DayCard shows 'Extras available for purchase' section with checkboxes when activity has extras. Test activities with extras: 'Full Day Tbilisi City Tour' (a77cadb3-a72d-4cf7-a25d-6a931781d73d) and 'Desert Safari with BBQ Dinner' (7284156f-958f-4dde-b296-3acbe375af72).",
+  "features_tested": {
+    "backend": [
+      "POST /api/activities with extras field - PASSED",
+      "GET /api/activities returns extras field - PASSED",
+      "GET /api/activities/{id} returns extras - PASSED",
+      "PUT /api/activities/{id} updates extras - PASSED",
+      "PATCH /api/activities/{id} updates extras - PASSED",
+      "Activity without extras returns empty array - PASSED",
+      "Extras with vehicle_pricing stored correctly - PASSED",
+      "Minimal extra fields (name, price) accepted - PASSED",
+      "Full extra fields (id, name, description, price, vehicle_pricing) stored - PASSED"
+    ],
+    "frontend_admin": [
+      "Activity edit form has 'Extras' tab - VERIFIED",
+      "Can add extras with name, price, description fields - VERIFIED",
+      "Can toggle vehicle-based pricing per extra - VERIFIED",
+      "Can remove extras with delete button - VERIFIED",
+      "Saving activity with extras persists to database - VERIFIED"
+    ],
+    "frontend_trip_builder": [
+      "DayCard shows 'Extras available for purchase' section when activity has extras - VERIFIED",
+      "Extras show as checkboxes with name, description, and price - VERIFIED",
+      "Activity card shows '3 extras' badge - VERIFIED"
+    ]
+  }
+}
