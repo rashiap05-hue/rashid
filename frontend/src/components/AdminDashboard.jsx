@@ -954,18 +954,6 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">Max Bags</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="20"
-                      value={editForm.max_bags || 2}
-                      onChange={(e) => handleFieldChange('max_bags', parseInt(e.target.value))}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-                      data-testid="edit-transfer-max-bags"
-                    />
-                  </div>
-                  <div>
                     <label className="block text-sm font-bold text-gray-600 mb-1">Supplier Name</label>
                     <input
                       type="text"
@@ -1539,10 +1527,6 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                         
                         {/* Vehicle Info Row */}
                         <div className="flex items-center gap-3 mt-3 text-xs text-gray-500">
-                          <div className="flex items-center gap-1" title="Max Bags">
-                            <Briefcase size={12} />
-                            <span>{transfer.max_bags || 2} bags</span>
-                          </div>
                           {transfer.pickup_times && transfer.pickup_times.length > 0 && (
                             <div className="flex items-center gap-1" title="Pick-up Times">
                               <Clock size={12} />
