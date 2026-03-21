@@ -29,9 +29,9 @@ async def get_transfers(
 
 @transfers_router.get("/inter-city/search")
 async def search_inter_city_transfers(from_city: str, to_city: str):
-    """Find arrival/departure transfers between two cities, excluding inter-hotel."""
+    """Find inter-hotel transfers between two cities only."""
     query = {
-        "transfer_direction": {"$ne": "inter-hotel"},
+        "transfer_direction": "inter-hotel",
         "$or": [
             {"city": {"$regex": from_city, "$options": "i"}},
             {"from_location": {"$regex": from_city, "$options": "i"}},
