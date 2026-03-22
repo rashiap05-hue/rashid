@@ -40,6 +40,8 @@ async def create_proposal(proposal: ProposalCreate, user: dict = Depends(get_opt
         "departure_flight_info": proposal.departure_flight_info,
         "selected_hotels": proposal.selected_hotels,
         "selected_activities": proposal.selected_activities,
+        "selected_extras": proposal.selected_extras,
+        "inter_city_transfers": proposal.inter_city_transfers,
         "arrival_transfer": proposal.arrival_transfer,
         "departure_transfer": proposal.departure_transfer,
         "pricing_breakdown": proposal.pricing_breakdown,

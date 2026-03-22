@@ -47,6 +47,8 @@ class ProposalCreate(BaseModel):
     departure_flight_info: Optional[Dict] = None
     selected_hotels: Optional[Dict] = None
     selected_activities: Optional[Dict] = None
+    selected_extras: Optional[Dict] = None
+    inter_city_transfers: Optional[Dict] = None
     arrival_transfer: Optional[Dict] = None
     departure_transfer: Optional[Dict] = None
     pricing_breakdown: Optional[Dict] = None
@@ -90,6 +92,8 @@ class ProposalResponse(BaseModel):
     departure_flight_info: Optional[Dict] = None
     selected_hotels: Optional[Dict] = None
     selected_activities: Optional[Dict] = None
+    selected_extras: Optional[Dict] = None
+    inter_city_transfers: Optional[Dict] = None
     arrival_transfer: Optional[Dict] = None
     departure_transfer: Optional[Dict] = None
     pricing_breakdown: Optional[Dict] = None

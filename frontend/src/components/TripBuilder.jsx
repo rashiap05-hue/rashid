@@ -112,23 +112,39 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     if (!data?.isEditing) return;
     
     // Restore selected hotels (keyed by cityIndex)
-    if (data.selected_hotels) {
+    if (data.selected_hotels && typeof data.selected_hotels === 'object') {
       const hotels = {};
-      if (typeof data.selected_hotels === 'object' && !Array.isArray(data.selected_hotels)) {
-        // Handle both cityIndex-keyed (e.g., "0") and cityName_cityIndex-keyed (e.g., "Tbilisi_0") formats
-        Object.entries(data.selected_hotels).forEach(([key, hotel]) => {
-          // Extract the numeric index from keys like "Tbilisi_0" or use key directly if numeric
-          const parts = key.split('_');
-          const cityIndex = parts.length > 1 ? parts[parts.length - 1] : key;
-          hotels[cityIndex] = hotel;
-        });
-      }
+      const vehiclesMap = {};
+      Object.entries(data.selected_hotels).forEach(([key, hotel]) => {
+        if (!hotel) return;
+        // Handle both pure numeric keys ("0") and "CityName_idx" format
+        let cityIndex = key;
+        if (!/^\d+$/.test(key)) {
+          // Key like "Tbilisi_0" - extract the last numeric segment
+          const lastUnderscore = key.lastIndexOf('_');
+          if (lastUnderscore !== -1) {
+            cityIndex = key.substring(lastUnderscore + 1);
+          }
+        }
+        hotels[cityIndex] = hotel;
+      });
       if (Object.keys(hotels).length > 0) setSelectedHotels(hotels);
     }
 
-    // Restore selected activities
+    // Restore selected activities and rebuild activityVehicles map
     if (data.selected_activities && typeof data.selected_activities === 'object') {
+      const restoredVehicles = {};
+      Object.values(data.selected_activities).forEach(dayActivities => {
+        if (Array.isArray(dayActivities)) {
+          dayActivities.forEach(act => {
+            if (act?.id && act?.selectedVehicle) {
+              restoredVehicles[act.id] = act.selectedVehicle;
+            }
+          });
+        }
+      });
       setSelectedActivities(data.selected_activities);
+      if (Object.keys(restoredVehicles).length > 0) setActivityVehicles(restoredVehicles);
     }
 
     // Restore selected extras
@@ -136,9 +152,24 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       setSelectedExtras(data.selected_extras);
     }
 
-    // Restore arrival/departure transfers
-    if (data.arrival_transfer) setSelectedArrivalTransfer(data.arrival_transfer);
-    if (data.departure_transfer) setSelectedDepartureTransfer(data.departure_transfer);
+    // Restore arrival/departure transfers and rebuild transferVehicles map
+    if (data.arrival_transfer) {
+      setSelectedArrivalTransfer(data.arrival_transfer);
+      if (data.arrival_transfer.id && data.arrival_transfer.selectedVehicle) {
+        setTransferVehicles(prev => ({ ...prev, [data.arrival_transfer.id]: data.arrival_transfer.selectedVehicle }));
+      }
+    }
+    if (data.departure_transfer) {
+      setSelectedDepartureTransfer(data.departure_transfer);
+      if (data.departure_transfer.id && data.departure_transfer.selectedVehicle) {
+        setTransferVehicles(prev => ({ ...prev, [data.departure_transfer.id]: data.departure_transfer.selectedVehicle }));
+      }
+    }
+
+    // Restore inter-city transfers
+    if (data.inter_city_transfers && typeof data.inter_city_transfers === 'object') {
+      setInterCityTransfers(data.inter_city_transfers);
+    }
 
     // Restore flight info
     if (data.arrival_flight_info) setArrivalFlightInfo(data.arrival_flight_info);

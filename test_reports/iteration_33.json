@@ -1,0 +1,66 @@
+{
+  "summary": "Tested P0 bug fix for proposal edit hydration. Backend API correctly saves and returns selected_extras and inter_city_transfers fields. Frontend TripBuilder correctly loads all saved data when editing a proposal including hotels, activities, transfers, inter-city transfers, and extras.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "TripBuilder Hotel Card",
+        "issues": ["Hotel address shows 'undefined, undefined' - minor display issue"]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_proposal_extras_intercity.py",
+    "/app/test_reports/pytest/proposal_extras_intercity_tests.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Console warnings about HTML hydration errors (<tr> cannot be child of <span>) in MyProposals.jsx - not blocking but should be fixed for cleaner React rendering"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_proposal_extras_intercity.py"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 tests passed)",
+    "frontend": "100% (all edit flow verifications passed)"
+  },
+  "seed_data_creation": "Created test proposals via API with selected_extras and inter_city_transfers fields",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The P0 bug fix is verified working. Backend schemas (ProposalCreate, ProposalResponse) now include selected_extras and inter_city_transfers fields. The create_proposal route saves these fields to MongoDB. TripBuilder.jsx useEffect at line ~111 correctly hydrates all state including selectedExtras, interCityTransfers, activityVehicles, and transferVehicles from the data prop when isEditing is true.",
+  "features_tested": {
+    "backend_api": {
+      "POST /api/proposals with selected_extras": "PASSED - field saved and returned",
+      "POST /api/proposals with inter_city_transfers": "PASSED - field saved and returned",
+      "GET /api/proposals/{id} returns selected_extras": "PASSED",
+      "GET /api/proposals/{id} returns inter_city_transfers": "PASSED",
+      "GET /api/proposals list returns both fields": "PASSED",
+      "Full proposal with all fields": "PASSED"
+    },
+    "frontend_edit_flow": {
+      "login_flow": "PASSED - testadmin@example.com / password123",
+      "navigate_to_my_proposals": "PASSED",
+      "click_edit_button": "PASSED",
+      "tripbuilder_loads": "PASSED",
+      "hotels_hydrated": "PASSED - Test Hotel with Deluxe room displayed",
+      "activities_hydrated": "PASSED - City Tour with vehicle selection displayed",
+      "arrival_transfer_hydrated": "PASSED - AED 30, 4 Seater Sedan",
+      "departure_transfer_hydrated": "PASSED - AED 30, 4 Seater Sedan",
+      "inter_city_transfers_hydrated": "PASSED - Tbilisi to Batumi AED 200",
+      "selected_extras_hydrated": "PASSED - '+1 extra' indicator shown on activity",
+      "total_price_reflects_selections": "PASSED - AED 430"
+    }
+  },
+  "test_proposal_used": {
+    "id": "bf0328bb-2c14-4cc6-9937-3f7dc0918750",
+    "name": "Test Hydration",
+    "selected_extras": {"a1": [{"name": "Lunch", "price": 20}]},
+    "inter_city_transfers": {"0_1": {"id": "t1", "title": "Tbilisi to Batumi", "selectedPrice": 200}}
+  },
+  "mocked_apis_note": "Google Sheets sync, Stripe & PayPal payments, AI Trip Recommendations are MOCKED as per original spec"
+}
