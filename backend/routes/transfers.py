@@ -32,13 +32,7 @@ async def search_inter_city_transfers(from_city: str, to_city: str):
     """Find inter-hotel transfers between two cities only."""
     query = {
         "transfer_direction": "inter-hotel",
-        "$or": [
-            {"city": {"$regex": from_city, "$options": "i"}},
-            {"from_location": {"$regex": from_city, "$options": "i"}},
-            {"to_location": {"$regex": to_city, "$options": "i"}},
-            {"title": {"$regex": f"{from_city}.*{to_city}", "$options": "i"}},
-            {"title": {"$regex": f"{to_city}.*{from_city}", "$options": "i"}},
-        ]
+        "to_location": {"$regex": to_city, "$options": "i"},
     }
     transfers = await db.transfers.find(query, {"_id": 0}).to_list(50)
     return {"success": True, "transfers": transfers, "from_city": from_city, "to_city": to_city}
