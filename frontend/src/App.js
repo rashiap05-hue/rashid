@@ -40,12 +40,47 @@ api.interceptors.request.use((config) => {
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [currentView, setCurrentView] = useState('dashboard');
-  const [activeTab, setActiveTab] = useState('Home');
+  const [currentView, setCurrentView] = useState(() => {
+    return sessionStorage.getItem('travo_currentView') || 'dashboard';
+  });
+  const [activeTab, setActiveTab] = useState(() => {
+    return sessionStorage.getItem('travo_activeTab') || 'Home';
+  });
   const [selectedProposalId, setSelectedProposalId] = useState(null);
-  const [pendingProposalData, setPendingProposalData] = useState(null);
+  const [pendingProposalData, setPendingProposalData] = useState(() => {
+    const saved = sessionStorage.getItem('travo_pendingProposal');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [showChatbot, setShowChatbot] = useState(false);
-  const [savedProposal, setSavedProposal] = useState(null); // For viewing saved proposal
+  const [savedProposal, setSavedProposal] = useState(() => {
+    const saved = sessionStorage.getItem('travo_savedProposal');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  // Persist view state to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem('travo_currentView', currentView);
+  }, [currentView]);
+
+  useEffect(() => {
+    sessionStorage.setItem('travo_activeTab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (pendingProposalData) {
+      sessionStorage.setItem('travo_pendingProposal', JSON.stringify(pendingProposalData));
+    } else {
+      sessionStorage.removeItem('travo_pendingProposal');
+    }
+  }, [pendingProposalData]);
+
+  useEffect(() => {
+    if (savedProposal) {
+      sessionStorage.setItem('travo_savedProposal', JSON.stringify(savedProposal));
+    } else {
+      sessionStorage.removeItem('travo_savedProposal');
+    }
+  }, [savedProposal]);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('travo_user');
@@ -66,6 +101,10 @@ function App() {
     setUser(null);
     localStorage.removeItem('travo_user');
     localStorage.removeItem('travo_token');
+    sessionStorage.removeItem('travo_currentView');
+    sessionStorage.removeItem('travo_activeTab');
+    sessionStorage.removeItem('travo_pendingProposal');
+    sessionStorage.removeItem('travo_savedProposal');
   };
 
   if (loading) {

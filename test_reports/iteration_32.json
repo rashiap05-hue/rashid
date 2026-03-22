@@ -1,0 +1,50 @@
+{
+  "summary": "Tested two bug fixes: 1) Page refresh persistence - PASSED, 2) Edit proposal loads saved data - PASSED after fix. Found and fixed an issue where hotels were not loading correctly due to key format mismatch (cityName_cityIndex vs cityIndex).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/frontend/src/components/TripBuilder.jsx"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/frontend/src/components/TripBuilder.jsx"
+  ],
+  "success_rate": {
+    "backend": "N/A (frontend only testing)",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "None - used existing proposals",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Session storage persistence is working correctly. Edit proposal flow now correctly loads hotels, activities, and transfers. The fix was in TripBuilder.jsx line 119 - extracting numeric cityIndex from keys like 'Tbilisi_0' to match the expected format.",
+  "features_tested": {
+    "page_refresh_persistence": {
+      "my_proposals_tab": "PASSED - stays on My Proposals after refresh",
+      "fit_form_view": "PASSED - stays on FIT form after refresh",
+      "session_storage_values": "PASSED - currentView and activeTab persisted correctly"
+    },
+    "logout_clears_session": {
+      "session_storage_cleared": "PASSED - all travo_* keys removed on logout"
+    },
+    "edit_proposal_loads_data": {
+      "hotels_loaded": "PASSED - Horizont Hotel Tbilisi, Best Western Gudauri, Iveria Inn Hotel all loaded correctly",
+      "activities_loaded": "PASSED - Full Day Tbilisi City Tour loaded",
+      "transfers_loaded": "PASSED - Arrival and Departure transfers with vehicle selection loaded",
+      "fix_applied": "Changed TripBuilder.jsx to extract numeric cityIndex from keys like 'Tbilisi_0'"
+    }
+  },
+  "fix_details": {
+    "file": "/app/frontend/src/components/TripBuilder.jsx",
+    "line": "119",
+    "issue": "Hotels were stored with keys like 'Tbilisi_0' (cityName_cityIndex) but TripBuilder expected numeric keys like '0'",
+    "fix": "Added logic to extract the numeric index from the last part of the key after splitting by '_'"
+  }
+}

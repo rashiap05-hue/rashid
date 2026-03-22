@@ -107,6 +107,50 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [arrivalFlightInfo, setArrivalFlightInfo] = useState(null);
   const [departureFlightInfo, setDepartureFlightInfo] = useState(null);
 
+  // Load saved proposal data when editing
+  useEffect(() => {
+    if (!data?.isEditing) return;
+    
+    // Restore selected hotels (keyed by cityIndex)
+    if (data.selected_hotels) {
+      const hotels = {};
+      if (typeof data.selected_hotels === 'object' && !Array.isArray(data.selected_hotels)) {
+        // Handle both cityIndex-keyed (e.g., "0") and cityName_cityIndex-keyed (e.g., "Tbilisi_0") formats
+        Object.entries(data.selected_hotels).forEach(([key, hotel]) => {
+          // Extract the numeric index from keys like "Tbilisi_0" or use key directly if numeric
+          const parts = key.split('_');
+          const cityIndex = parts.length > 1 ? parts[parts.length - 1] : key;
+          hotels[cityIndex] = hotel;
+        });
+      }
+      if (Object.keys(hotels).length > 0) setSelectedHotels(hotels);
+    }
+
+    // Restore selected activities
+    if (data.selected_activities && typeof data.selected_activities === 'object') {
+      setSelectedActivities(data.selected_activities);
+    }
+
+    // Restore selected extras
+    if (data.selected_extras && typeof data.selected_extras === 'object') {
+      setSelectedExtras(data.selected_extras);
+    }
+
+    // Restore arrival/departure transfers
+    if (data.arrival_transfer) setSelectedArrivalTransfer(data.arrival_transfer);
+    if (data.departure_transfer) setSelectedDepartureTransfer(data.departure_transfer);
+
+    // Restore flight info
+    if (data.arrival_flight_info) setArrivalFlightInfo(data.arrival_flight_info);
+    if (data.departure_flight_info) setDepartureFlightInfo(data.departure_flight_info);
+
+    // Restore selected flight
+    if (data.selected_flight) setSelectedFlight(data.selected_flight);
+
+    // Restore travel insurance
+    if (data.travel_insurance) setTravelInsurance(data.travel_insurance);
+  }, [data?.isEditing]);
+
   // Fetch transfers for the destination country
   useEffect(() => {
     const fetchTransfers = async () => {
