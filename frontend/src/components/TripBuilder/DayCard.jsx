@@ -404,8 +404,8 @@ function DayCard({
                 </div>
               )}
 
-              {/* Add Activity Button - hidden on check-in/check-out transfer days */}
-              {!isCheckInDay && !isCheckOutDay && (
+              {/* Add Activity Button - hidden on inter-city check-in days only */}
+              {!isCheckInDay && (
                 <button 
                   onClick={onAddActivity}
                   className="w-full py-3 border-2 border-dashed border-pink-200 rounded-xl text-pink-500 font-medium hover:border-pink-500 hover:bg-pink-50 transition-all flex items-center justify-center gap-2"
