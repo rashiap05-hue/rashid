@@ -25,9 +25,12 @@ function DayCard({
   onUpdateFlightInfo, 
   arrivalFlightInfo, 
   departureFlightInfo,
-  isTransitionDay,
-  nextCity,
-  interCityTransfer,
+  isCheckInDay,
+  incomingFromCity,
+  incomingTransfer,
+  isCheckOutDay,
+  outgoingToCity,
+  outgoingTransfer,
   onChangeInterCityTransfer,
   onRemoveInterCityTransfer,
   selectedExtras,
@@ -411,47 +414,47 @@ function DayCard({
                 Add Activity in {city}
               </button>
 
-              {/* Inter-City Transfer Section */}
-              {isTransitionDay && nextCity && (
-                <div className="mt-4 border border-blue-200 rounded-xl overflow-hidden" data-testid={`inter-city-transfer-day-${day}`}>
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 flex items-center gap-3 border-b border-blue-200">
-                    <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+              {/* Incoming Inter-City Transfer (Check-in day) */}
+              {isCheckInDay && incomingFromCity && (
+                <div className="mt-4 border border-green-200 rounded-xl overflow-hidden" data-testid={`incoming-transfer-day-${day}`}>
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-4 py-3 flex items-center gap-3 border-b border-green-200">
+                    <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
                       <ArrowRight size={16} className="text-white" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-bold text-blue-800">
-                        Transfer from {city} to {nextCity}
+                      <p className="text-sm font-bold text-green-800">
+                        Arrival Transfer from {incomingFromCity} to {city}
                       </p>
-                      <p className="text-xs text-blue-500">
-                        {interCityTransfer ? interCityTransfer.title : 'No Transfer Selected'}
+                      <p className="text-xs text-green-500">
+                        {incomingTransfer ? incomingTransfer.title : 'No Transfer Selected'}
                       </p>
                     </div>
                   </div>
 
-                  {interCityTransfer ? (
+                  {incomingTransfer ? (
                     <div className="p-4 bg-white">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <Car size={18} className="text-blue-600" />
+                          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                            <Car size={18} className="text-green-600" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-gray-800">{interCityTransfer.title}</p>
+                            <p className="text-sm font-medium text-gray-800">{incomingTransfer.title}</p>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-xs text-gray-500">{interCityTransfer.duration || ''}</span>
-                              {interCityTransfer.vehicleLabel && (
-                                <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">{interCityTransfer.vehicleLabel}</span>
+                              <span className="text-xs text-gray-500">{incomingTransfer.duration || ''}</span>
+                              {incomingTransfer.vehicleLabel && (
+                                <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">{incomingTransfer.vehicleLabel}</span>
                               )}
-                              {!interCityTransfer.vehicleLabel && interCityTransfer.vehicle_type && (
-                                <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{interCityTransfer.vehicle_type}</span>
+                              {!incomingTransfer.vehicleLabel && incomingTransfer.vehicle_type && (
+                                <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{incomingTransfer.vehicle_type}</span>
                               )}
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="font-bold text-green-600">AED {(interCityTransfer.selectedPrice || interCityTransfer.price || 0).toLocaleString()}</span>
+                          <span className="font-bold text-green-600">AED {(incomingTransfer.selectedPrice || incomingTransfer.price || 0).toLocaleString()}</span>
                           <button
-                            onClick={onRemoveInterCityTransfer}
+                            onClick={() => onRemoveInterCityTransfer('incoming')}
                             className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
                             title="Remove transfer"
                           >
@@ -460,22 +463,93 @@ function DayCard({
                         </div>
                       </div>
                       <button
-                        onClick={onChangeInterCityTransfer}
-                        className="mt-3 w-full py-2 border border-blue-200 rounded-lg text-blue-600 text-sm font-medium hover:bg-blue-50 transition-colors"
-                        data-testid={`change-inter-transfer-day-${day}`}
+                        onClick={() => onChangeInterCityTransfer('incoming')}
+                        className="mt-3 w-full py-2 border border-green-200 rounded-lg text-green-600 text-sm font-medium hover:bg-green-50 transition-colors"
+                        data-testid={`change-incoming-transfer-day-${day}`}
                       >
-                        Change Transfer to {nextCity}
+                        Change Transfer from {incomingFromCity}
                       </button>
                     </div>
                   ) : (
                     <div className="p-4 bg-white">
                       <button
-                        onClick={onChangeInterCityTransfer}
-                        className="w-full py-3 border-2 border-dashed border-blue-200 rounded-xl text-blue-600 font-medium hover:border-blue-500 hover:bg-blue-50 transition-all flex items-center justify-center gap-2"
-                        data-testid={`add-inter-transfer-day-${day}`}
+                        onClick={() => onChangeInterCityTransfer('incoming')}
+                        className="w-full py-3 border-2 border-dashed border-green-200 rounded-xl text-green-600 font-medium hover:border-green-500 hover:bg-green-50 transition-all flex items-center justify-center gap-2"
+                        data-testid={`add-incoming-transfer-day-${day}`}
                       >
                         <Plus size={18} />
-                        Add Transfer to {nextCity}
+                        Add Transfer from {incomingFromCity}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Outgoing Inter-City Transfer (Check-out day) */}
+              {isCheckOutDay && outgoingToCity && (
+                <div className="mt-4 border border-blue-200 rounded-xl overflow-hidden" data-testid={`outgoing-transfer-day-${day}`}>
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 flex items-center gap-3 border-b border-blue-200">
+                    <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                      <ArrowRight size={16} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-blue-800">
+                        Departure Transfer from {city} to {outgoingToCity}
+                      </p>
+                      <p className="text-xs text-blue-500">
+                        {outgoingTransfer ? outgoingTransfer.title : 'No Transfer Selected'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {outgoingTransfer ? (
+                    <div className="p-4 bg-white">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <Car size={18} className="text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{outgoingTransfer.title}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs text-gray-500">{outgoingTransfer.duration || ''}</span>
+                              {outgoingTransfer.vehicleLabel && (
+                                <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">{outgoingTransfer.vehicleLabel}</span>
+                              )}
+                              {!outgoingTransfer.vehicleLabel && outgoingTransfer.vehicle_type && (
+                                <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{outgoingTransfer.vehicle_type}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-green-600">AED {(outgoingTransfer.selectedPrice || outgoingTransfer.price || 0).toLocaleString()}</span>
+                          <button
+                            onClick={() => onRemoveInterCityTransfer('outgoing')}
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
+                            title="Remove transfer"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => onChangeInterCityTransfer('outgoing')}
+                        className="mt-3 w-full py-2 border border-blue-200 rounded-lg text-blue-600 text-sm font-medium hover:bg-blue-50 transition-colors"
+                        data-testid={`change-outgoing-transfer-day-${day}`}
+                      >
+                        Change Transfer to {outgoingToCity}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-white">
+                      <button
+                        onClick={() => onChangeInterCityTransfer('outgoing')}
+                        className="w-full py-3 border-2 border-dashed border-blue-200 rounded-xl text-blue-600 font-medium hover:border-blue-500 hover:bg-blue-50 transition-all flex items-center justify-center gap-2"
+                        data-testid={`add-outgoing-transfer-day-${day}`}
+                      >
+                        <Plus size={18} />
+                        Add Transfer to {outgoingToCity}
                       </button>
                     </div>
                   )}

@@ -452,9 +452,16 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     // Generate days for each city's nights
     cities.forEach((city, cityIndex) => {
       for (let night = 0; night < (city.nights || 1); night++) {
+        const isFirstNightInCity = night === 0;
         const isLastNightInCity = night === (city.nights || 1) - 1;
+        const prevCity = cityIndex > 0 ? cities[cityIndex - 1] : null;
         const nextCity = cities[cityIndex + 1];
-        const isTransitionDay = isLastNightInCity && nextCity && nextCity.name !== city.name;
+        
+        // Check-in day: first night in city, has a previous different city
+        const isCheckInDay = isFirstNightInCity && prevCity && prevCity.name !== city.name;
+        // Check-out day: last night in city, has a next different city
+        const isCheckOutDay = isLastNightInCity && nextCity && nextCity.name !== city.name;
+        
         days.push({
           day: dayNumber,
           date: formatDate(currentDate),
@@ -464,10 +471,21 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           isLast: false,
           isDeparture: false,
           hotel: selectedHotels[cityIndex],
-          isTransitionDay,
-          nextCity: isTransitionDay ? nextCity.name : null,
-          nextCityIndex: isTransitionDay ? cityIndex + 1 : null,
-          interCityTransfer: isTransitionDay ? interCityTransfers[`${cityIndex}_${cityIndex + 1}`] : null
+          // Incoming transfer (shown on check-in day of destination)
+          isCheckInDay,
+          incomingFromCity: isCheckInDay ? prevCity.name : null,
+          incomingFromCityIdx: isCheckInDay ? cityIndex - 1 : null,
+          incomingTransfer: isCheckInDay ? interCityTransfers[`${cityIndex - 1}_${cityIndex}`] : null,
+          // Outgoing transfer (shown on check-out day of source)
+          isCheckOutDay,
+          outgoingToCity: isCheckOutDay ? nextCity.name : null,
+          outgoingToCityIdx: isCheckOutDay ? cityIndex + 1 : null,
+          outgoingTransfer: isCheckOutDay ? interCityTransfers[`${cityIndex}_${cityIndex + 1}`] : null,
+          // Keep for backward compat
+          isTransitionDay: false,
+          nextCity: null,
+          nextCityIndex: null,
+          interCityTransfer: null
         });
         currentDate.setDate(currentDate.getDate() + 1);
         dayNumber++;
@@ -1540,14 +1558,18 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                 onUpdateFlightInfo={handleOpenFlightInfoModal}
                 arrivalFlightInfo={arrivalFlightInfo}
                 departureFlightInfo={departureFlightInfo}
-                onChangeInterCityTransfer={() => {
-                  if (day.isTransitionDay && day.nextCity) {
-                    handleOpenInterCityTransfer(day.cityIndex, day.nextCityIndex, day.city, day.nextCity);
+                onChangeInterCityTransfer={(type) => {
+                  if (type === 'incoming' && day.isCheckInDay) {
+                    handleOpenInterCityTransfer(day.incomingFromCityIdx, day.cityIndex, day.incomingFromCity, day.city);
+                  } else if (type === 'outgoing' && day.isCheckOutDay) {
+                    handleOpenInterCityTransfer(day.cityIndex, day.outgoingToCityIdx, day.city, day.outgoingToCity);
                   }
                 }}
-                onRemoveInterCityTransfer={() => {
-                  if (day.isTransitionDay) {
-                    handleRemoveInterCityTransfer(day.cityIndex, day.nextCityIndex);
+                onRemoveInterCityTransfer={(type) => {
+                  if (type === 'incoming' && day.isCheckInDay) {
+                    handleRemoveInterCityTransfer(day.incomingFromCityIdx, day.cityIndex);
+                  } else if (type === 'outgoing' && day.isCheckOutDay) {
+                    handleRemoveInterCityTransfer(day.cityIndex, day.outgoingToCityIdx);
                   }
                 }}
                 selectedExtras={selectedExtras}
