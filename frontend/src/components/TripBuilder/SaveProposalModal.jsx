@@ -180,7 +180,13 @@ function SaveProposalModal({ isOpen, onClose, onSave, tripData, pricing }) {
                     className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
                     required
                     min={new Date().toISOString().split('T')[0]}
-                    max={tripData?.start_date ? new Date(new Date(tripData.start_date).getTime() - 26 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : undefined}
+                    max={(() => {
+                      const travelDate = tripData?.leaving_on || tripData?.start_date;
+                      if (!travelDate) return undefined;
+                      const d = new Date(travelDate);
+                      d.setDate(d.getDate() - 26);
+                      return d.toISOString().split('T')[0];
+                    })()}
                     data-testid="booking-date-input"
                   />
                   <p className="text-xs text-gray-500 mt-1">
