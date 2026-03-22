@@ -42,6 +42,7 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - Backend refactoring Phase 2: Routes extracted to modular files (server.py 3370 -> 87 lines)
 - P0 Bug Fix: Inter-city transfer search filters to inter-hotel direction only
 - **Activity Extras**: Purchasable add-ons per activity with name, description, price, optional vehicle-based pricing. Admin form has "Extras" tab. Trip Builder DayCard shows extras as checkboxes. Selected extras add to trip total.
+- **P0 Fix: Proposal Edit Hydration (March 2026)**: Fixed critical bug where editing a saved proposal would not populate previously selected hotels, activities, extras, and transfers in the TripBuilder. Root cause: `selected_extras` and `inter_city_transfers` were missing from Pydantic schemas and backend save document. Also enhanced TripBuilder useEffect to restore activityVehicles, transferVehicles, and interCityTransfers state maps.
 
 ## Test Credentials
 - Admin: testadmin@example.com / password123
