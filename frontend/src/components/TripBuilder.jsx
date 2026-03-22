@@ -1446,15 +1446,6 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                           ) : (
                             <p className="text-red-500 font-medium text-sm ml-7">Non-refundable</p>
                           )}
-                          {/* Price per night */}
-                          <div className="flex items-center gap-2 text-sm mt-2 pt-2 border-t border-gray-100">
-                            <DollarSign className="w-5 h-5 text-green-600" />
-                            <span className="text-gray-700">
-                              Price: <strong className="text-[#002B5B]">AED {(cityHotel.selectedRoom?.price || 0).toLocaleString()}</strong> / night
-                              <span className="text-gray-400 ml-2">x {city.nights} nights = </span>
-                              <strong className="text-[#002B5B]">AED {((cityHotel.selectedRoom?.price || 0) * city.nights).toLocaleString()}</strong>
-                            </span>
-                          </div>
                         </div>
                         
                         {/* Selected Meals */}
