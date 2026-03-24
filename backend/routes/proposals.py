@@ -120,6 +120,73 @@ async def delete_proposal(proposal_id: str, user: dict = Depends(get_current_use
     return {"success": True}
 
 
+
+# ─── Proposal Versioning ───
+
+@proposals_router.post("/{proposal_id}/versions")
+async def save_proposal_version(proposal_id: str, body: dict = Body(...), user: dict = Depends(get_optional_user)):
+    """Save current proposal state as a named version snapshot"""
+    proposal = await db.proposals.find_one({"id": proposal_id}, {"_id": 0})
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+
+    # Get next version number
+    last_version = await db.proposal_versions.find_one(
+        {"proposal_id": proposal_id}, {"_id": 0}, sort=[("version_number", -1)]
+    )
+    next_version = (last_version["version_number"] + 1) if last_version else 1
+
+    version_doc = {
+        "id": str(uuid.uuid4()),
+        "proposal_id": proposal_id,
+        "version_number": next_version,
+        "version_note": body.get("version_note", ""),
+        "snapshot": {k: v for k, v in proposal.items() if k != "_id"},
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": user["id"] if user else None,
+        "created_by_name": user.get("full_name", "") if user else ""
+    }
+    await db.proposal_versions.insert_one(version_doc)
+    version_doc.pop("_id", None)
+    return version_doc
+
+
+@proposals_router.get("/{proposal_id}/versions")
+async def get_proposal_versions(proposal_id: str):
+    """Get all saved versions for a proposal"""
+    versions = await db.proposal_versions.find(
+        {"proposal_id": proposal_id}, {"_id": 0}
+    ).sort("version_number", -1).to_list(100)
+    return {"versions": versions}
+
+
+@proposals_router.post("/{proposal_id}/versions/{version_id}/restore")
+async def restore_version_as_new(proposal_id: str, version_id: str, user: dict = Depends(get_optional_user)):
+    """Create a new proposal from a saved version snapshot"""
+    version = await db.proposal_versions.find_one(
+        {"id": version_id, "proposal_id": proposal_id}, {"_id": 0}
+    )
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+
+    snapshot = version.get("snapshot", {})
+    new_id = str(uuid.uuid4())
+
+    # Create new proposal from the snapshot
+    new_doc = {**snapshot}
+    new_doc["id"] = new_id
+    new_doc["user_id"] = user["id"] if user else snapshot.get("user_id")
+    new_doc["status"] = "pending"
+    new_doc["created_at"] = datetime.now(timezone.utc).isoformat()
+    new_doc["proposal_name"] = f"{snapshot.get('proposal_name', 'Proposal')} (Restored v{version['version_number']})"
+    new_doc.pop("_id", None)
+
+    await db.proposals.insert_one(new_doc)
+    new_doc.pop("_id", None)
+    return {"success": True, "new_proposal_id": new_id, "proposal": new_doc}
+
+
+
 @proposals_router.get("/{proposal_id}/pdf")
 async def generate_proposal_pdf(proposal_id: str):
     """Generate a professional PDF for a proposal"""

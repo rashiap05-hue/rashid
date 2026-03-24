@@ -20,6 +20,7 @@ import UpdateFlightInfoModal from './TripBuilder/UpdateFlightInfoModal';
 import HotelOptionsModal from './TripBuilder/HotelOptionsModal';
 import HotelSelectionModal from './TripBuilder/HotelSelectionModal';
 import DayCard from './TripBuilder/DayCard';
+import VersionHistoryPanel from './TripBuilder/VersionHistoryPanel';
 
 // Main Trip Builder Component
 export default function TripBuilder({ data, user, onBack, onConfirm }) {
@@ -1648,12 +1649,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
 
           {/* Right Column - Trip Summary */}
           <div className="w-96 flex-shrink-0">
-            <div className="bg-white rounded-xl border border-gray-200 sticky top-32">
-              <div className="bg-[#002B5B] text-white px-6 py-4 rounded-t-xl">
+            <div className="bg-white rounded-xl border border-gray-200 sticky top-32 max-h-[calc(100vh-10rem)] flex flex-col">
+              <div className="bg-[#002B5B] text-white px-6 py-4 rounded-t-xl flex-shrink-0">
                 <h3 className="text-lg font-bold">Trip Summary</h3>
               </div>
               
-              <div className="p-6 space-y-6">
+              <div className="p-6 space-y-6 overflow-y-auto flex-1">
                 {/* Destinations */}
                 <div>
                   <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
@@ -1905,6 +1906,22 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                     Save As Proposal
                   </button>
                 </div>
+
+                {/* Version History - only when editing */}
+                {data?.isEditing && data?.editProposalId && (
+                  <VersionHistoryPanel
+                    proposalId={data.editProposalId}
+                    onRestoreAsNew={(newId, newProposal) => {
+                      // Navigate to the restored proposal
+                      if (newProposal) {
+                        onConfirm({
+                          id: newId,
+                          ...newProposal,
+                        });
+                      }
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>
