@@ -1003,13 +1003,15 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         status: 'pending'
       };
 
-      const response = await api.post('/proposals', proposalData);
+      const response = formData._isEditing && formData._editProposalId
+        ? await api.put(`/proposals/${formData._editProposalId}`, proposalData)
+        : await api.post('/proposals', proposalData);
       
       // Create full proposal object for the view page
       const savedProposal = {
-        id: response.data.id,
+        id: formData._isEditing ? formData._editProposalId : response.data.id,
         ...proposalData,
-        created_at: new Date().toISOString()
+        created_at: data.created_at || new Date().toISOString()
       };
 
       setShowSaveProposalModal(false);
@@ -2013,6 +2015,8 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
             onSave={handleSaveProposalWithData}
             tripData={data}
             pricing={pricing}
+            selectedHotels={selectedHotels}
+            cities={cities}
           />
         )}
       </AnimatePresence>
