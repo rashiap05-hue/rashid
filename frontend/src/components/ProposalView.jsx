@@ -448,16 +448,17 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
     const fetchFreshHotelImages = async () => {
       if (!proposal?.cities) return;
       const hotelMap = {};
-      for (const city of proposal.cities) {
+      for (let idx = 0; idx < proposal.cities.length; idx++) {
+        const city = proposal.cities[idx];
         const cityName = city.name;
-        const savedHotel = proposal.selected_hotels?.[cityName];
+        const savedHotel = proposal.selected_hotels?.[`${cityName}_${idx}`] || proposal.selected_hotels?.[cityName];
         if (savedHotel?.name) {
           try {
             const res = await api.get(`/hotels?city=${encodeURIComponent(cityName)}`);
             const hotels = res.data?.hotels || [];
             const match = hotels.find(h => h.id === savedHotel.id || h.name === savedHotel.name);
             if (match?.images?.[0]) {
-              hotelMap[cityName] = match.images[0];
+              hotelMap[`${cityName}_${idx}`] = match.images[0];
             }
           } catch (e) {
             // ignore
@@ -588,9 +589,36 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
   const mainCity = proposal.cities?.[0]?.name || 'Unknown';
   const proposalNumber = proposal.id?.slice(-7).toUpperCase() || '0000000';
 
-  // Get hotel for city
-  const getHotelForCity = (cityName) => {
-    return proposal.selected_hotels?.[cityName];
+  // Get hotel for city using the cityName_cityIndex key format (matching TripBuilder save format)
+  const getHotelForCity = (cityName, cityIdx) => {
+    if (!proposal.selected_hotels) return null;
+    // Try exact key: "CityName_cityIndex"
+    const exactKey = `${cityName}_${cityIdx}`;
+    if (proposal.selected_hotels[exactKey]) return proposal.selected_hotels[exactKey];
+    // Fallback: try plain cityName for backward compat
+    if (proposal.selected_hotels[cityName]) return proposal.selected_hotels[cityName];
+    // Fallback: try numeric index
+    if (proposal.selected_hotels[cityIdx] || proposal.selected_hotels[String(cityIdx)]) {
+      return proposal.selected_hotels[cityIdx] || proposal.selected_hotels[String(cityIdx)];
+    }
+    return null;
+  };
+
+  // Map a day number (1-based) to its city name and city index
+  const getDayCityInfo = (dayNum) => {
+    let dayCounter = 0;
+    for (let cityIdx = 0; cityIdx < (proposal.cities || []).length; cityIdx++) {
+      const city = proposal.cities[cityIdx];
+      for (let night = 0; night < (city.nights || 1); night++) {
+        dayCounter++;
+        if (dayCounter === dayNum) {
+          return { cityName: city.name, cityIndex: cityIdx };
+        }
+      }
+    }
+    // Departure day - belongs to last city
+    const lastIdx = (proposal.cities?.length || 1) - 1;
+    return { cityName: proposal.cities?.[lastIdx]?.name || 'Unknown', cityIndex: lastIdx };
   };
 
   // Check if hotel includes breakfast based on meal_plan
@@ -1029,9 +1057,15 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
 
                 {/* Hotel Section - Per City */}
                 {proposal.cities?.map((city, cityIdx) => {
-                  const hotel = getHotelForCity(city.name);
+                  const hotel = getHotelForCity(city.name, cityIdx);
+                  // Calculate cumulative check-in date based on previous cities' nights
+                  let cumulativeNights = 0;
+                  for (let i = 0; i < cityIdx; i++) {
+                    cumulativeNights += proposal.cities[i].nights || 1;
+                  }
                   const checkInDate = new Date(proposal.leaving_on);
-                  const checkOutDate = new Date(proposal.leaving_on);
+                  checkInDate.setDate(checkInDate.getDate() + cumulativeNights);
+                  const checkOutDate = new Date(checkInDate);
                   checkOutDate.setDate(checkOutDate.getDate() + (city.nights || 1));
                   
                   return (
@@ -1051,7 +1085,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                           {/* Hotel Image */}
                           <div className="w-56 h-44 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
                             <img 
-                              src={freshHotelImages[city.name] || hotel.image || hotel.images?.[0] || hotel.selectedRoom?.images?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'}
+                              src={freshHotelImages[`${city.name}_${cityIdx}`] || freshHotelImages[city.name] || hotel.image || hotel.images?.[0] || hotel.selectedRoom?.images?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'}
                               alt={hotel.name || 'Hotel'}
                               className="w-full h-full object-cover"
                               data-testid={`hotel-image-${cityIdx}`}
@@ -1209,22 +1243,27 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                     const dayDate = new Date(proposal.leaving_on);
                     dayDate.setDate(dayDate.getDate() + dayIndex);
                     
+                    // Get the city this day belongs to
+                    const dayCityInfo = getDayCityInfo(dayNum);
+                    const dayCity = dayCityInfo.cityName;
+                    const dayCityIdx = dayCityInfo.cityIndex;
+                    
                     // Get activities for this day
-                    const dayActivities = proposal.selected_activities?.[`${mainCity}_${dayNum}`] || [];
-                    const hotel = getHotelForCity(mainCity);
+                    const dayActivities = proposal.selected_activities?.[`${dayCity}_${dayNum}`] || [];
+                    const hotel = getHotelForCity(dayCity, dayCityIdx);
                     
                     // Generate day title
                     let dayTitle = '';
                     if (isArrivalDay) {
-                      dayTitle = `Arrival into ${mainCity}`;
+                      dayTitle = `Arrival into ${dayCity}`;
                     } else if (isDepartureDay) {
-                      dayTitle = `Departure from ${mainCity}`;
+                      dayTitle = `Departure from ${dayCity}`;
                     } else {
                       if (dayActivities.length > 0) {
                         const activityNames = dayActivities.slice(0, 2).map(a => a.name?.split(' - ')[0] || a.name).join(' - ');
                         dayTitle = activityNames;
                       } else {
-                        dayTitle = `Day at leisure in ${mainCity}`;
+                        dayTitle = `Day at leisure in ${dayCity}`;
                       }
                     }
 
@@ -1290,7 +1329,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                       <div>
                                         <p className="font-medium text-gray-700">Flight Arrival</p>
                                         <p className="text-sm text-gray-500">
-                                          {proposal.arrival_flight_info.flightNumber} arriving on {formatDate(dayDate, 'day')} at {proposal.arrival_flight_info.arrivalTime} - {mainCity} Intl Airport
+                                          {proposal.arrival_flight_info.flightNumber} arriving on {formatDate(dayDate, 'day')} at {proposal.arrival_flight_info.arrivalTime} - {dayCity} Intl Airport
                                         </p>
                                       </div>
                                     </div>
@@ -1304,7 +1343,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                         <div className="flex-1">
                                           <div className="flex items-center gap-2 flex-wrap">
                                             <p className="font-medium text-gray-700">
-                                              {proposal.arrival_transfer.title || `One-way transfer from ${proposal.leaving_from?.split('(')[0]?.trim() || 'Airport'} to ${mainCity} Hotel`}
+                                              {proposal.arrival_transfer.title || `One-way transfer from ${proposal.leaving_from?.split('(')[0]?.trim() || 'Airport'} to ${dayCity} Hotel`}
                                             </p>
                                             <button className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`transfer-view-day-${dayNum}`}>
                                               VIEW
@@ -1477,7 +1516,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                     ) : (
                                       <div className="pl-2 flex items-start gap-3">
                                         <Sun size={18} className="text-amber-400 mt-0.5 flex-shrink-0" />
-                                        <p className="text-gray-500 italic">Free day to explore {mainCity} at your leisure.</p>
+                                        <p className="text-gray-500 italic">Free day to explore {dayCity} at your leisure.</p>
                                       </div>
                                     )}
 
@@ -1556,7 +1595,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                         <div className="flex-1">
                                           <div className="flex items-center gap-2 flex-wrap">
                                             <p className="font-medium text-gray-700">
-                                              {proposal.departure_transfer.title || `One-way transfer from ${mainCity} Hotel to Airport`}
+                                              {proposal.departure_transfer.title || `One-way transfer from ${dayCity} Hotel to Airport`}
                                             </p>
                                             <button className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`transfer-view-day-${dayNum}`}>
                                               VIEW
@@ -1593,7 +1632,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                       <div>
                                         <p className="font-medium text-gray-700">Flight Departure</p>
                                         <p className="text-sm text-gray-500">
-                                          {proposal.departure_flight_info.flightNumber} departing on {formatDate(dayDate, 'day')} at {proposal.departure_flight_info.flightTime} - {mainCity} Intl Airport
+                                          {proposal.departure_flight_info.flightNumber} departing on {formatDate(dayDate, 'day')} at {proposal.departure_flight_info.flightTime} - {dayCity} Intl Airport
                                         </p>
                                       </div>
                                     </div>
@@ -1674,7 +1713,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                 </div>
 
                 {proposal.cities?.map((city, idx) => {
-                  const hotel = getHotelForCity(city.name);
+                  const hotel = getHotelForCity(city.name, idx);
                   // Get activities for this city - handle multiple key formats
                   const getAllActivitiesForCityInclusions = () => {
                     const activities = [];
@@ -1756,10 +1795,10 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
 
                       <div className="grid grid-cols-3 gap-6 py-5 border-t border-gray-200">
                         <div className="flex items-center gap-3">
-                          <Utensils size={18} className={(() => { const h = getHotelForCity(mainCity); return hotelIncludesBreakfast(h) ? "text-teal-500" : "text-gray-400"; })()} />
+                          <Utensils size={18} className={(() => { const h = getHotelForCity(city.name, idx); return hotelIncludesBreakfast(h) ? "text-teal-500" : "text-gray-400"; })()} />
                           <div>
                             <p className="text-gray-800 font-medium">Breakfast</p>
-                            {(() => { const h = getHotelForCity(mainCity); return hotelIncludesBreakfast(h); })() ? (
+                            {(() => { const h = getHotelForCity(city.name, idx); return hotelIncludesBreakfast(h); })() ? (
                               <p className="text-sm text-teal-600 font-medium">Included with hotel</p>
                             ) : (
                               <p className="text-sm text-gray-400">Not Included</p>

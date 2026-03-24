@@ -1,0 +1,74 @@
+{
+  "summary": "Tested ProposalView page fix for displaying saved hotels, activities, and transfers. Backend API (100% pass - 12/12 tests). Frontend UI (100% pass after bug fix). Fixed a JavaScript error in Inclusions tab where 'dayCity' was not defined.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_proposal_view_hydration.py",
+    "/app/test_reports/pytest/proposal_view_hydration_tests.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/frontend/src/components/ProposalView.jsx",
+    "/app/backend/tests/test_proposal_view_hydration.py"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 tests passed)",
+    "frontend": "100% (all ProposalView features working)"
+  },
+  "seed_data_creation": "Used existing test proposal bf0328bb-2c14-4cc6-9937-3f7dc0918750",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "ProposalView page now correctly displays saved hotels, activities, and transfers. Key fix was in getHotelForCity() function which now accepts (cityName, cityIdx) and looks up 'CityName_cityIdx' key format. Activities are looked up per-day using getDayCityInfo() helper. Fixed bug in Inclusions tab where 'dayCity' variable was used outside its scope - changed to use 'city.name' and 'idx' from the loop variables.",
+  "features_tested": {
+    "backend_api": {
+      "GET /api/proposals/{id}": "PASSED - returns 200 with all required fields",
+      "selected_hotels keyed as CityName_cityIndex": "PASSED - 'Tbilisi_0' format",
+      "selected_activities keyed as CityName_dayNumber": "PASSED - 'Tbilisi_1' format",
+      "arrival_transfer with title and selectedVehicle": "PASSED",
+      "departure_transfer with title and selectedVehicle": "PASSED",
+      "cities array with name and nights": "PASSED",
+      "inter_city_transfers": "PASSED",
+      "404 for non-existent proposal": "PASSED"
+    },
+    "frontend_ui": {
+      "login_flow": "PASSED - testadmin@example.com / password123",
+      "navigate_to_my_proposals": "PASSED",
+      "click_view_proposal": "PASSED",
+      "proposal_view_page_loads": "PASSED",
+      "hotel_section_shows_hotel_name": "PASSED - 'Test Hotel' displayed with 3 stars",
+      "hotel_section_shows_room_details": "PASSED - 'Deluxe' room, check-in/out dates",
+      "day_cards_show_activities": "PASSED - 'City Tour' on Day 1",
+      "arrival_day_shows_transfer": "PASSED - 'Airport Transfer' with sedan_4",
+      "departure_day_shows_transfer": "PASSED - 'Hotel Transfer' with sedan_4",
+      "inclusions_tab_works": "PASSED - after bug fix",
+      "price_breakdown_sidebar": "PASSED - AED 500 total"
+    }
+  },
+  "bugs_fixed": [
+    {
+      "file": "/app/frontend/src/components/ProposalView.jsx",
+      "line": "1798-1801",
+      "issue": "ReferenceError: dayCity is not defined - in Inclusions tab",
+      "fix": "Changed 'dayCity' and 'dayCityIdx' to 'city.name' and 'idx' (loop variables from line 1715)"
+    }
+  ],
+  "test_proposal_used": {
+    "id": "bf0328bb-2c14-4cc6-9937-3f7dc0918750",
+    "name": "Test Hydration",
+    "data": {
+      "selected_hotels": {"Tbilisi_0": {"name": "Test Hotel", "selectedRoom": {"name": "Deluxe"}}},
+      "selected_activities": {"Tbilisi_1": [{"name": "City Tour"}]},
+      "arrival_transfer": {"title": "Airport Transfer", "selectedVehicle": "sedan_4"},
+      "departure_transfer": {"title": "Hotel Transfer", "selectedVehicle": "sedan_4"}
+    }
+  },
+  "mocked_apis_note": "Google Sheets sync, Stripe & PayPal payments are MOCKED as per original spec"
+}
