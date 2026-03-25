@@ -169,16 +169,6 @@ function DetailViewModal({ isOpen, onClose, item, type }) {
               </span>
             )}
             {item.transfer_type && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-700 text-sm rounded-lg border border-purple-200">
-                {item.transfer_type}
-              </span>
-            )}
-            {(item.vehiclePrice || item.price) && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 text-sm rounded-lg border border-green-200">
-                <DollarSign size={14} />
-                AED {item.vehiclePrice || item.price}
-              </span>
-            )}
           </div>
 
           {/* Transfer Route */}
