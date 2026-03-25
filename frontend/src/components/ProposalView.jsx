@@ -1532,8 +1532,8 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                     {/* Left - Large Image */}
                                     <div className="w-72 flex-shrink-0">
                                       <img 
-                                        src={dayActivities[0]?.image || hotel?.image || hotel?.images?.[0] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
-                                        alt={dayCity}
+                                        src={dayActivities[0]?.image || dayActivities[0]?.images?.[0] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
+                                        alt={dayActivities[0]?.name || dayCity}
                                         className="w-full h-full object-cover rounded-lg min-h-[400px]"
                                         onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600'; }}
                                         data-testid={`day-image-${dayNum}`}
@@ -1686,8 +1686,8 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                     {/* Left - Large Image */}
                                     <div className="w-72 flex-shrink-0">
                                       <img 
-                                        src={dayActivities[0]?.image || hotel?.image || hotel?.images?.[0] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
-                                        alt={dayCity}
+                                        src={dayActivities[0]?.image || dayActivities[0]?.images?.[0] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
+                                        alt={dayActivities[0]?.name || dayCity}
                                         className="w-full h-full object-cover rounded-lg min-h-[300px]"
                                         onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600'; }}
                                         data-testid={`day-image-${dayNum}`}
@@ -1798,10 +1798,9 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                     {/* Left - Large Image */}
                                     <div className="w-72 flex-shrink-0">
                                       <img 
-                                        src={hotel?.image || hotel?.images?.[0] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
+                                        src={`https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
                                         alt={dayCity}
                                         className="w-full h-full object-cover rounded-lg min-h-[250px]"
-                                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600'; }}
                                         data-testid={`day-image-${dayNum}`}
                                       />
                                     </div>
