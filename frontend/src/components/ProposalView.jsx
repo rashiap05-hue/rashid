@@ -657,6 +657,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
 
   // Fresh hotel images from DB (in case saved proposal has stale/missing images)
   const [freshHotelImages, setFreshHotelImages] = useState({});
+  const [freshActivityImages, setFreshActivityImages] = useState({});
 
   // Fetch fresh hotel images from the API
   useEffect(() => {
@@ -683,6 +684,37 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
       setFreshHotelImages(hotelMap);
     };
     fetchFreshHotelImages();
+  }, [proposal]);
+
+  // Fetch fresh activity images from the API
+  useEffect(() => {
+    const fetchFreshActivityImages = async () => {
+      if (!proposal?.selected_activities) return;
+      const imgMap = {};
+      const fetchedCities = new Set();
+      for (const [key, acts] of Object.entries(proposal.selected_activities)) {
+        if (!Array.isArray(acts)) continue;
+        // Extract city name from key (format: "CityName_DayNumber")
+        const lastUnderscore = key.lastIndexOf('_');
+        const cityName = lastUnderscore > 0 ? key.substring(0, lastUnderscore) : key;
+        if (!fetchedCities.has(cityName)) {
+          try {
+            const res = await api.get(`/activities?city=${encodeURIComponent(cityName)}`);
+            const dbActivities = res.data?.activities || (Array.isArray(res.data) ? res.data : []);
+            for (const dbAct of dbActivities) {
+              const img = dbAct.images?.[0] || dbAct.image;
+              if (img) imgMap[dbAct.id] = img;
+              if (dbAct.name && img) imgMap[dbAct.name] = img;
+            }
+            fetchedCities.add(cityName);
+          } catch (e) {
+            // ignore
+          }
+        }
+      }
+      setFreshActivityImages(imgMap);
+    };
+    fetchFreshActivityImages();
   }, [proposal]);
 
   // Fetch destination video from activities/transfers
@@ -1532,7 +1564,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                     {/* Left - Large Image */}
                                     <div className="w-72 flex-shrink-0">
                                       <img 
-                                        src={dayActivities[0]?.image || dayActivities[0]?.images?.[0] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
+                                        src={freshActivityImages[dayActivities[0]?.id] || freshActivityImages[dayActivities[0]?.name] || dayActivities[0]?.image || dayActivities[0]?.images?.[0] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
                                         alt={dayActivities[0]?.name || dayCity}
                                         className="w-full h-full object-cover rounded-lg min-h-[400px]"
                                         onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600'; }}
@@ -1686,7 +1718,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                     {/* Left - Large Image */}
                                     <div className="w-72 flex-shrink-0">
                                       <img 
-                                        src={dayActivities[0]?.image || dayActivities[0]?.images?.[0] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
+                                        src={freshActivityImages[dayActivities[0]?.id] || freshActivityImages[dayActivities[0]?.name] || dayActivities[0]?.image || dayActivities[0]?.images?.[0] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
                                         alt={dayActivities[0]?.name || dayCity}
                                         className="w-full h-full object-cover rounded-lg min-h-[300px]"
                                         onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600'; }}
