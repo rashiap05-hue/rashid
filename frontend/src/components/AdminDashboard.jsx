@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { api } from '@/App';
 import HotelEditForm from './HotelEditForm';
 import ActivityEditForm from './ActivityEditForm';
+import TransferEditForm from './TransferEditForm';
 import TermsPoliciesManager from './TermsPoliciesManager';
 
 const ALL_COUNTRIES = ["Afghanistan","Albania","Algeria","Andorra","Angola","Antigua and Barbuda","Argentina","Armenia","Australia","Austria","Azerbaijan","Bahamas","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Belize","Benin","Bhutan","Bolivia","Bosnia and Herzegovina","Botswana","Brazil","Brunei","Bulgaria","Burkina Faso","Burundi","Cabo Verde","Cambodia","Cameroon","Canada","Central African Republic","Chad","Chile","China","Colombia","Comoros","Congo (Brazzaville)","Congo (Kinshasa)","Costa Rica","Croatia","Cuba","Cyprus","Czech Republic","Denmark","Djibouti","Dominica","Dominican Republic","Ecuador","Egypt","El Salvador","Equatorial Guinea","Eritrea","Estonia","Eswatini","Ethiopia","Fiji","Finland","France","Gabon","Gambia","Georgia","Germany","Ghana","Greece","Grenada","Guatemala","Guinea","Guinea-Bissau","Guyana","Haiti","Honduras","Hungary","Iceland","India","Indonesia","Iran","Iraq","Ireland","Israel","Italy","Jamaica","Japan","Jordan","Kazakhstan","Kenya","Kiribati","Kosovo","Kuwait","Kyrgyzstan","Laos","Latvia","Lebanon","Lesotho","Liberia","Libya","Liechtenstein","Lithuania","Luxembourg","Madagascar","Malawi","Malaysia","Maldives","Mali","Malta","Marshall Islands","Mauritania","Mauritius","Mexico","Micronesia","Moldova","Monaco","Mongolia","Montenegro","Morocco","Mozambique","Myanmar","Namibia","Nauru","Nepal","Netherlands","New Zealand","Nicaragua","Niger","Nigeria","North Korea","North Macedonia","Norway","Oman","Pakistan","Palau","Palestine","Panama","Papua New Guinea","Paraguay","Peru","Philippines","Poland","Portugal","Qatar","Romania","Russia","Rwanda","Saint Kitts and Nevis","Saint Lucia","Samoa","San Marino","Saudi Arabia","Senegal","Serbia","Seychelles","Sierra Leone","Singapore","Slovakia","Slovenia","Solomon Islands","Somalia","South Africa","South Korea","South Sudan","Spain","Sri Lanka","Sudan","Suriname","Sweden","Switzerland","Syria","Taiwan","Tajikistan","Tanzania","Thailand","Timor-Leste","Togo","Tonga","Trinidad and Tobago","Tunisia","Turkey","Turkmenistan","Tuvalu","Uganda","Ukraine","United Arab Emirates","United Kingdom","United States","Uruguay","Uzbekistan","Vanuatu","Vatican City","Venezuela","Vietnam","Yemen","Zambia","Zimbabwe"];
@@ -43,6 +44,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   
   // Activity edit form state (separate from generic edit modal)
   const [activityEditModal, setActivityEditModal] = useState({ open: false, activity: null, isNew: false });
+  const [transferEditModal, setTransferEditModal] = useState({ open: false, transfer: null, isNew: false });
 
   // Insurance settings state (country-based)
   const [insurancePrices, setInsurancePrices] = useState([]);
@@ -1438,7 +1440,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
               <div>
                 <div className="flex justify-end mb-4">
                   <button
-                    onClick={() => openEditModal('transfer')}
+                    onClick={() => setTransferEditModal({ open: true, transfer: null, isNew: true })}
                     className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-colors"
                     data-testid="add-transfer-button"
                   >
@@ -1496,7 +1498,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 
-                              onClick={() => openEditModal('transfer', transfer)}
+                              onClick={() => setTransferEditModal({ open: true, transfer: transfer, isNew: false })}
                               className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
                               data-testid={`edit-transfer-${transfer.id}`}
                             >
@@ -2000,6 +2002,32 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                 setActivityEditModal({ open: false, activity: null, isNew: false });
               } catch (error) {
                 console.error('Error saving activity:', error);
+                throw error;
+              }
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Transfer Edit Form Modal */}
+      <AnimatePresence>
+        {transferEditModal.open && (
+          <TransferEditForm
+            transfer={transferEditModal.transfer}
+            isNew={transferEditModal.isNew}
+            onClose={() => setTransferEditModal({ open: false, transfer: null, isNew: false })}
+            onSave={async (transferData) => {
+              try {
+                if (transferEditModal.isNew) {
+                  const res = await api.post('/transfers', transferData);
+                  setTransfers([...transfers, { id: res.data.id, ...transferData }]);
+                } else {
+                  await api.put(`/transfers/${transferEditModal.transfer.id}`, transferData);
+                  setTransfers(transfers.map(t => t.id === transferEditModal.transfer.id ? { ...t, ...transferData } : t));
+                }
+                setTransferEditModal({ open: false, transfer: null, isNew: false });
+              } catch (error) {
+                console.error('Error saving transfer:', error);
                 throw error;
               }
             }}

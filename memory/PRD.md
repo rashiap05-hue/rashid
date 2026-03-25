@@ -48,6 +48,7 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - **ProposalView Data Display Fix (March 2026)**: Fixed critical bug where ProposalView showed "No hotel selected" and missing activities/transfers despite data being saved. Root cause: hotel keys saved as `CityName_cityIndex` (e.g., `Tbilisi_0`) but viewed by plain city name. Added `getDayCityInfo()` helper for multi-city day-to-city mapping. Fixed cumulative check-in date calculation for multi-city trips.
 - **Detail View Modals (March 2026)**: VIEW buttons on transfers and activities in ProposalView now open a detail modal showing full information — title, vehicle type, route (from/to), description, highlights, inclusions, start times, and photos.
 - **Day Card Two-Column Layout (March 2026)**: Restructured ProposalView day cards with large image on left, content on right (warning → description with "...more" → notes → transfer → activity → hotel → meals). Applied to all day types.
+- **Transfer Edit Form (March 2026)**: Created rich tabbed TransferEditForm matching ActivityEditForm — tabs: Basic Info, Photos & Video, Timing & Schedule, Route Details, Vehicle Pricing, Supplier. Added images, highlights, inclusions, exclusions, notes fields to Transfer schema.
 
 ## Test Credentials
 - Admin: testadmin@example.com / password123

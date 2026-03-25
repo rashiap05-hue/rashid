@@ -233,10 +233,10 @@ class TransferExtra(BaseModel):
 
 class TransferCreate(BaseModel):
     title: str
-    from_location: str
-    to_location: str
-    price: float
-    description: str
+    from_location: str = ""
+    to_location: str = ""
+    price: float = 0
+    description: str = ""
     duration: str = "1 hrs"
     confirmation_time: str = "4 hrs"
     transfer_type: str = "Private"
@@ -246,11 +246,16 @@ class TransferCreate(BaseModel):
     is_available: bool = True
     vehicle_type: str = "Sedan"
     pickup_times: Optional[List[str]] = []
-    max_bags: int = 2
+    max_bags: int = 0
     supplier_name: Optional[str] = None
     supplier_cost: Optional[float] = None
     video: Optional[str] = None
     vehicle_pricing: Optional[dict] = None
+    images: Optional[List[str]] = []
+    highlights: Optional[List[str]] = []
+    inclusions: Optional[List[str]] = []
+    exclusions: Optional[List[str]] = []
+    notes: Optional[str] = None
 
 class ActivityExtra(BaseModel):
     id: Optional[str] = None
