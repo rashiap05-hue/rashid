@@ -93,6 +93,51 @@ function VideoModal({ isOpen, onClose, videoUrl, title }) {
 }
 
 // Detail View Modal for Transfer/Activity details
+// Day description component with "...more" truncation
+function DayDescription({ dayCity, isArrival, isDeparture, activities, hotel }) {
+  const [expanded, setExpanded] = useState(false);
+
+  let text = '';
+  if (isArrival) {
+    text = `Arrive at the ${dayCity} International Airport into the city of ${dayCity} and enjoy a stress-free start to your visit. Upon arrival check in to ${hotel?.name || 'your hotel'}. `;
+    if (activities?.length > 0) {
+      text += activities.map(a => a.description || a.name).join('. ') + '. ';
+    } else {
+      text += `Rest of the day at leisure to explore the city. `;
+    }
+    text += `Overnight stay at ${hotel?.name || 'hotel'}.`;
+  } else if (isDeparture) {
+    text = `Check out from ${hotel?.name || 'your hotel'} in ${dayCity}. Transfer to the airport for your departure flight.`;
+  } else {
+    if (activities?.length > 0) {
+      text = activities.map(a => a.description || a.name).join('. ') + '. ';
+      text += `Overnight stay at ${hotel?.name || 'hotel'} in ${dayCity}.`;
+    } else {
+      text = `Free day at leisure to explore ${dayCity} on your own. Overnight stay at ${hotel?.name || 'hotel'}.`;
+    }
+  }
+
+  const truncated = text.length > 280 && !expanded;
+  
+  return (
+    <div className="text-sm text-gray-600 leading-relaxed">
+      {truncated ? (
+        <>
+          {text.slice(0, 280)}...
+          <button onClick={() => setExpanded(true)} className="text-blue-600 hover:underline ml-1 font-medium">more</button>
+        </>
+      ) : (
+        <>
+          {text}
+          {text.length > 280 && (
+            <button onClick={() => setExpanded(false)} className="text-blue-600 hover:underline ml-1 font-medium">less</button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function DetailViewModal({ isOpen, onClose, item, type }) {
   if (!isOpen || !item) return null;
   
@@ -1483,136 +1528,150 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                               <div className="px-6 pb-6 border-t border-gray-100">
                                 {/* Arrival Day Content */}
                                 {isArrivalDay && (
-                                  <div className="pt-5 space-y-5">
-                                    {/* Alert Banner - only if transfer selected */}
-                                    {proposal.arrival_transfer && (
-                                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-start gap-3">
-                                      <AlertTriangle size={18} className="text-orange-500 flex-shrink-0 mt-0.5" />
-                                      <p className="text-sm text-orange-700">
-                                        You will be met by our representative at the Airport Arrival Terminal. Our representative will be holding a signage card with your name on it.
-                                      </p>
+                                  <div className="pt-5 flex gap-6">
+                                    {/* Left - Large Image */}
+                                    <div className="w-72 flex-shrink-0">
+                                      <img 
+                                        src={dayActivities[0]?.image || hotel?.image || hotel?.images?.[0] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
+                                        alt={dayCity}
+                                        className="w-full h-full object-cover rounded-lg min-h-[400px]"
+                                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600'; }}
+                                        data-testid={`day-image-${dayNum}`}
+                                      />
                                     </div>
-                                    )}
+                                    
+                                    {/* Right - Content */}
+                                    <div className="flex-1 space-y-5">
+                                      {/* Alert Banner */}
+                                      {!proposal.arrival_flight_info && (
+                                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                                          <p className="text-sm text-red-500 font-semibold">Arrival information is missing</p>
+                                        </div>
+                                      )}
+                                      {proposal.arrival_transfer && proposal.arrival_flight_info && (
+                                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-start gap-3">
+                                          <AlertTriangle size={18} className="text-orange-500 flex-shrink-0 mt-0.5" />
+                                          <p className="text-sm text-orange-700">
+                                            You will be met by our representative at the Airport Arrival Terminal. Our representative will be holding a signage card with your name on it.
+                                          </p>
+                                        </div>
+                                      )}
 
-                                    {/* Flight Info - only if flight data exists */}
-                                    {(proposal.arrival_flight_info) && (
-                                    <div className="flex items-start gap-3 pl-2">
-                                      <Plane size={18} className="text-gray-400 -rotate-45 mt-0.5 flex-shrink-0" />
-                                      <div>
-                                        <p className="font-medium text-gray-700">Flight Arrival</p>
-                                        <p className="text-sm text-gray-500">
-                                          {proposal.arrival_flight_info.flightNumber} arriving on {formatDate(dayDate, 'day')} at {proposal.arrival_flight_info.arrivalTime} - {dayCity} Intl Airport
-                                        </p>
-                                      </div>
-                                    </div>
-                                    )}
+                                      {/* Description */}
+                                      <DayDescription 
+                                        dayCity={dayCity}
+                                        isArrival={true}
+                                        isDeparture={false}
+                                        activities={dayActivities}
+                                        hotel={hotel}
+                                      />
 
-                                    {/* Transfer - from actual data */}
-                                    {proposal.arrival_transfer ? (
-                                    <div className="pl-2">
-                                      <div className="flex items-start gap-3">
-                                        <Car size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                                        <div className="flex-1">
-                                          <div className="flex items-center gap-2 flex-wrap">
-                                            <p className="font-medium text-gray-700">
-                                              {proposal.arrival_transfer.title || `One-way transfer from ${proposal.leaving_from?.split('(')[0]?.trim() || 'Airport'} to ${dayCity} Hotel`}
-                                            </p>
-                                            <button 
-                                              onClick={() => setDetailModal({ open: true, item: proposal.arrival_transfer, type: 'transfer' })}
-                                              className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`transfer-view-day-${dayNum}`}>
-                                              VIEW
-                                            </button>
-                                          </div>
-                                          {proposal.arrival_transfer.duration && (
-                                            <p className="text-sm text-gray-500 mt-1">Duration: {proposal.arrival_transfer.duration}</p>
-                                          )}
-                                          <div className="flex gap-2 mt-2">
-                                            <span className="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs rounded-full border border-teal-200">
-                                              Private Transfers
-                                            </span>
-                                            {(proposal.arrival_transfer.selectedVehicle || proposal.vehicle_label) && (
-                                            <span className="px-2.5 py-1 bg-gray-50 text-gray-600 text-xs rounded-full border border-gray-200 flex items-center gap-1">
-                                              <Car size={11} />
-                                              {proposal.vehicle_label || proposal.arrival_transfer.selectedVehicle}
-                                            </span>
-                                            )}
+                                      {/* Notes */}
+                                      {(dayActivities.some(a => a.notes) || proposal.arrival_transfer?.notes) && (
+                                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                          <p className="font-semibold text-gray-700 text-sm mb-2 flex items-center gap-2">
+                                            <AlertCircle size={14} className="text-gray-500" />
+                                            Notes:
+                                          </p>
+                                          <ul className="space-y-1.5 text-sm text-gray-600 list-disc list-inside">
+                                            {proposal.arrival_transfer?.notes && <li>{proposal.arrival_transfer.notes}</li>}
+                                            {dayActivities.filter(a => a.notes).map((a, i) => <li key={i}>{a.notes}</li>)}
+                                            <li>Small vehicle upto 6 pax will come with Drive cum Guide (with limited English) if you require an additional Guide, please request for it at applicable additional charges.</li>
+                                            <li>7 people and above will be provided a Sprinter where Guide is mandatory and included.</li>
+                                          </ul>
+                                        </div>
+                                      )}
+
+                                      {/* Transfer */}
+                                      {proposal.arrival_transfer ? (
+                                        <div className="flex items-start gap-3">
+                                          <Car size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                                          <div className="flex-1">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <p className="font-semibold text-gray-800">
+                                                {proposal.arrival_transfer.title || `One-way transfer from ${proposal.leaving_from?.split('(')[0]?.trim() || 'Airport'} to ${dayCity} center`} - Private
+                                                {proposal.arrival_transfer.from_location && ` from ${proposal.arrival_transfer.from_location}`}
+                                              </p>
+                                              <button 
+                                                onClick={() => setDetailModal({ open: true, item: proposal.arrival_transfer, type: 'transfer' })}
+                                                className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`transfer-view-day-${dayNum}`}>
+                                                VIEW
+                                              </button>
+                                            </div>
+                                            <div className="flex gap-2 mt-2 flex-wrap">
+                                              <span className="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs rounded-full border border-teal-200">Private Transfers</span>
+                                              {proposal.arrival_transfer.max_bags && (
+                                                <span className="px-2.5 py-1 bg-gray-50 text-gray-600 text-xs rounded-full border border-gray-200 flex items-center gap-1">
+                                                  {proposal.arrival_transfer.max_bags} Bags
+                                                </span>
+                                              )}
+                                            </div>
                                           </div>
                                         </div>
-                                      </div>
-                                    </div>
-                                    ) : (
-                                    <div className="pl-2 flex items-center gap-3">
-                                      <Car size={18} className="text-gray-300 flex-shrink-0" />
-                                      <p className="text-gray-400 text-sm italic">No arrival transfer selected</p>
-                                    </div>
-                                    )}
+                                      ) : (
+                                        <div className="flex items-center gap-3">
+                                          <Car size={18} className="text-gray-300 flex-shrink-0" />
+                                          <p className="text-gray-400 text-sm italic">No arrival transfer selected</p>
+                                        </div>
+                                      )}
 
-                                    {/* Arrival Activities if any */}
-                                    {dayActivities.length > 0 && dayActivities.map((activity, actIdx) => (
-                                      <div key={actIdx} className="pl-2">
-                                        <div className="flex gap-4">
-                                          {activity.image && (
-                                            <img src={activity.image} alt={activity.name} className="w-24 h-20 rounded-lg object-cover flex-shrink-0" data-testid={`activity-img-day-${dayNum}-${actIdx}`} />
-                                          )}
+                                      {/* Activities */}
+                                      {dayActivities.map((activity, actIdx) => (
+                                        <div key={actIdx} className="flex items-start gap-3">
+                                          <Camera size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
                                           <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                              <Camera size={16} className="text-gray-400" />
-                                              <span className="font-medium text-gray-700">{activity.name}</span>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <p className="font-semibold text-gray-800">{activity.name} - Private Transfers</p>
                                               <button 
                                                 onClick={() => setDetailModal({ open: true, item: activity, type: 'activity' })}
-                                                className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`activity-view-day-${dayNum}-${actIdx}`}>VIEW</button>
+                                                className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`activity-view-day-${dayNum}-${actIdx}`}>
+                                                VIEW
+                                              </button>
                                             </div>
-                                            <p className="text-sm text-gray-500">Duration: {activity.duration || '4 hrs'}</p>
-                                            {activity.highlights?.length > 0 && (
-                                              <div className="flex flex-wrap gap-1.5 mt-2">
-                                                {activity.highlights.slice(0, 4).map((h, hIdx) => (
-                                                  <span key={hIdx} className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-200">{h}</span>
-                                                ))}
-                                              </div>
-                                            )}
+                                            <p className="text-sm text-gray-500 mt-1">
+                                              {activity.start_times?.length > 0 
+                                                ? `Starts at ${activity.start_times.join(', ')}` 
+                                                : 'Flexible timing'
+                                              }
+                                              {activity.duration ? ` (Duration: ${activity.duration})` : ''}
+                                            </p>
+                                            <div className="flex gap-2 mt-2">
+                                              <span className="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs rounded-full border border-teal-200">Private Transfers</span>
+                                            </div>
                                           </div>
                                         </div>
-                                      </div>
-                                    ))}
+                                      ))}
 
-                                    {/* Overnight Stay */}
-                                    {hotel ? (
-                                    <div className="flex items-center gap-3 pl-2">
-                                      <Bed size={18} className="text-gray-400 flex-shrink-0" />
-                                      <p className="text-gray-600">Overnight stay at <span className="font-medium">{hotel.name}</span></p>
-                                    </div>
-                                    ) : (
-                                    <div className="flex items-center gap-3 pl-2">
-                                      <Bed size={18} className="text-gray-300 flex-shrink-0" />
-                                      <p className="text-gray-400 text-sm italic">No hotel selected</p>
-                                    </div>
-                                    )}
-
-                                    {/* Meals Grid */}
-                                    <div className="border-t border-gray-100 pt-4 mt-4">
-                                      <div className="grid grid-cols-3 gap-4">
+                                      {/* Overnight Stay */}
+                                      {hotel && (
                                         <div className="flex items-center gap-3">
-                                          <Coffee size={16} className={hotelIncludesBreakfast(hotel) ? "text-teal-500" : "text-gray-300"} />
-                                          <div>
-                                            <p className="text-sm text-gray-500">Breakfast</p>
-                                            {hotelIncludesBreakfast(hotel) ? (
-                                              <p className="text-xs text-teal-600 font-medium">Included</p>
-                                            ) : (
-                                              <p className="text-xs text-gray-400">Not Included</p>
-                                            )}
-                                          </div>
+                                          <Bed size={18} className="text-gray-400 flex-shrink-0" />
+                                          <p className="text-gray-700">Overnight stay at <span className="font-semibold">{hotel.name}</span></p>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                          <Utensils size={16} className="text-gray-300" />
+                                      )}
+
+                                      {/* Meals - Stacked */}
+                                      <div className="space-y-4 pt-3 border-t border-gray-100">
+                                        {hotelIncludesBreakfast(hotel) && (
+                                          <div className="flex items-start gap-3">
+                                            <Coffee size={18} className="text-teal-500 flex-shrink-0 mt-0.5" />
+                                            <div>
+                                              <p className="text-gray-700 font-medium">Breakfast</p>
+                                              <p className="text-xs text-teal-600">Included at hotel</p>
+                                            </div>
+                                          </div>
+                                        )}
+                                        <div className="flex items-start gap-3">
+                                          <Utensils size={18} className="text-gray-300 flex-shrink-0 mt-0.5" />
                                           <div>
-                                            <p className="text-sm text-gray-500">Lunch</p>
+                                            <p className="text-gray-700 font-medium">Lunch</p>
                                             <p className="text-xs text-gray-400">Not Included</p>
                                           </div>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                          <Utensils size={16} className="text-gray-300" />
+                                        <div className="flex items-start gap-3">
+                                          <Utensils size={18} className="text-gray-300 flex-shrink-0 mt-0.5" />
                                           <div>
-                                            <p className="text-sm text-gray-500">Dinner</p>
+                                            <p className="text-gray-700 font-medium">Dinner</p>
                                             <p className="text-xs text-gray-400">Not Included</p>
                                           </div>
                                         </div>
@@ -1623,128 +1682,109 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
 
                                 {/* Middle Day Content */}
                                 {isMiddleDay && (
-                                  <div className="pt-5 space-y-5">
-                                    {/* Activities with photos and details */}
-                                    {dayActivities.length > 0 ? (
-                                      dayActivities.map((activity, actIdx) => (
-                                        <div key={actIdx} className="pl-2">
-                                          <div className="flex gap-4">
-                                            {/* Activity Image */}
-                                            {activity.image && (
-                                              <img 
-                                                src={activity.image} 
-                                                alt={activity.name} 
-                                                className="w-32 h-24 rounded-lg object-cover flex-shrink-0" 
-                                                data-testid={`activity-img-day-${dayNum}-${actIdx}`}
-                                              />
-                                            )}
+                                  <div className="pt-5 flex gap-6">
+                                    {/* Left - Large Image */}
+                                    <div className="w-72 flex-shrink-0">
+                                      <img 
+                                        src={dayActivities[0]?.image || hotel?.image || hotel?.images?.[0] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
+                                        alt={dayCity}
+                                        className="w-full h-full object-cover rounded-lg min-h-[300px]"
+                                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600'; }}
+                                        data-testid={`day-image-${dayNum}`}
+                                      />
+                                    </div>
+                                    
+                                    {/* Right - Content */}
+                                    <div className="flex-1 space-y-5">
+                                      {/* Description */}
+                                      <DayDescription 
+                                        dayCity={dayCity}
+                                        isArrival={false}
+                                        isDeparture={false}
+                                        activities={dayActivities}
+                                        hotel={hotel}
+                                      />
+
+                                      {/* Notes */}
+                                      {dayActivities.some(a => a.notes) && (
+                                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                          <p className="font-semibold text-gray-700 text-sm mb-2 flex items-center gap-2">
+                                            <AlertCircle size={14} className="text-gray-500" />
+                                            Notes:
+                                          </p>
+                                          <ul className="space-y-1.5 text-sm text-gray-600 list-disc list-inside">
+                                            {dayActivities.filter(a => a.notes).map((a, i) => <li key={i}>{a.notes}</li>)}
+                                            <li>Small vehicle upto 6 pax will come with Drive cum Guide (with limited English) if you require an additional Guide, please request for it at applicable additional charges.</li>
+                                            <li>7 people and above will be provided a Sprinter where Guide is mandatory and included.</li>
+                                          </ul>
+                                        </div>
+                                      )}
+
+                                      {/* Activities */}
+                                      {dayActivities.length > 0 ? (
+                                        dayActivities.map((activity, actIdx) => (
+                                          <div key={actIdx} className="flex items-start gap-3">
+                                            <Camera size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
                                             <div className="flex-1">
-                                              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                <Camera size={16} className="text-gray-400" />
-                                                <span className="font-medium text-gray-700">{activity.name}</span>
+                                              <div className="flex items-center gap-2 flex-wrap">
+                                                <p className="font-semibold text-gray-800">{activity.name} - Private Transfers</p>
                                                 <button 
                                                   onClick={() => setDetailModal({ open: true, item: activity, type: 'activity' })}
                                                   className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`activity-view-day-${dayNum}-${actIdx}`}>
                                                   VIEW
                                                 </button>
                                               </div>
-                                              {activity.description && (
-                                                <p className="text-sm text-gray-500 mb-2 line-clamp-2">{activity.description}</p>
-                                              )}
-                                              <p className="text-sm text-gray-500 mb-2">
+                                              <p className="text-sm text-gray-500 mt-1">
                                                 {activity.start_times?.length > 0 
-                                                  ? `Starts at ${activity.start_times.slice(0,3).join(', ')}` 
+                                                  ? `Starts at ${activity.start_times.join(', ')}` 
                                                   : 'Flexible timing'
-                                                } (Duration: {activity.duration || '4 hrs'})
+                                                }
+                                                {activity.duration ? ` (Duration: ${activity.duration})` : ''}
                                               </p>
-                                              {/* Highlights */}
-                                              {activity.highlights?.length > 0 && (
-                                                <div className="flex flex-wrap gap-1.5 mb-2">
-                                                  {activity.highlights.slice(0, 5).map((h, hIdx) => (
-                                                    <span key={hIdx} className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-200">{h}</span>
-                                                  ))}
-                                                </div>
-                                              )}
-                                              {/* Inclusions */}
-                                              {activity.inclusions?.length > 0 && (
-                                                <div className="space-y-1 mb-2">
-                                                  {activity.inclusions.slice(0, 3).map((inc, iIdx) => (
-                                                    <p key={iIdx} className="flex items-center gap-2 text-sm text-gray-600">
-                                                      <Check size={13} className="text-teal-500 flex-shrink-0" />
-                                                      {inc}
-                                                    </p>
-                                                  ))}
-                                                </div>
-                                              )}
-                                              {/* Transfer & Vehicle badges */}
-                                              <div className="flex gap-2 flex-wrap">
-                                                <span className="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs rounded-full border border-teal-200">
-                                                  {activity.selectedVehicle ? 'Private' : (activity.transfer_type || 'Private')} Transfers
-                                                </span>
-                                                {activity.inclusions?.some(inc => inc.toLowerCase().includes('meal') || inc.toLowerCase().includes('dinner') || inc.toLowerCase().includes('lunch')) && (
-                                                  <span className="px-2.5 py-1 bg-green-50 text-green-600 text-xs rounded-full border border-green-200">
-                                                    Meal Included
-                                                  </span>
-                                                )}
+                                              <div className="flex gap-2 mt-2">
+                                                <span className="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs rounded-full border border-teal-200">Private Transfers</span>
                                               </div>
                                             </div>
                                           </div>
+                                        ))
+                                      ) : (
+                                        <div className="flex items-start gap-3">
+                                          <Sun size={18} className="text-amber-400 mt-0.5 flex-shrink-0" />
+                                          <p className="text-gray-500 italic">Free day to explore {dayCity} at your leisure.</p>
                                         </div>
-                                      ))
-                                    ) : (
-                                      <div className="pl-2 flex items-start gap-3">
-                                        <Sun size={18} className="text-amber-400 mt-0.5 flex-shrink-0" />
-                                        <p className="text-gray-500 italic">Free day to explore {dayCity} at your leisure.</p>
-                                      </div>
-                                    )}
+                                      )}
 
-                                    {/* Overnight Stay */}
-                                    {hotel ? (
-                                    <div className="flex items-center gap-3 pl-2">
-                                      <Bed size={18} className="text-gray-400 flex-shrink-0" />
-                                      <p className="text-gray-600">Overnight stay at <span className="font-medium">{hotel.name}</span></p>
-                                    </div>
-                                    ) : (
-                                    <div className="flex items-center gap-3 pl-2">
-                                      <Bed size={18} className="text-gray-300 flex-shrink-0" />
-                                      <p className="text-gray-400 text-sm italic">No hotel selected</p>
-                                    </div>
-                                    )}
-
-                                    {/* Meals Grid */}
-                                    <div className="border-t border-gray-100 pt-4 mt-4">
-                                      <div className="grid grid-cols-3 gap-4">
+                                      {/* Overnight Stay */}
+                                      {hotel && (
                                         <div className="flex items-center gap-3">
-                                          <Coffee size={16} className={hotelIncludesBreakfast(hotel) ? "text-teal-500" : "text-gray-300"} />
+                                          <Bed size={18} className="text-gray-400 flex-shrink-0" />
+                                          <p className="text-gray-700">Overnight stay at <span className="font-semibold">{hotel.name}</span></p>
+                                        </div>
+                                      )}
+
+                                      {/* Meals - Stacked */}
+                                      <div className="space-y-4 pt-3 border-t border-gray-100">
+                                        {hotelIncludesBreakfast(hotel) && (
+                                          <div className="flex items-start gap-3">
+                                            <Coffee size={18} className="text-teal-500 flex-shrink-0 mt-0.5" />
+                                            <div>
+                                              <p className="text-gray-700 font-medium">Breakfast</p>
+                                              <p className="text-xs text-teal-600">Included at hotel</p>
+                                            </div>
+                                          </div>
+                                        )}
+                                        <div className="flex items-start gap-3">
+                                          <Utensils size={18} className="text-gray-300 flex-shrink-0 mt-0.5" />
                                           <div>
-                                            <p className="text-sm text-gray-500">Breakfast</p>
-                                            {hotelIncludesBreakfast(hotel) ? (
-                                              <p className="text-xs text-teal-600 font-medium">Included</p>
-                                            ) : (
-                                              <p className="text-xs text-gray-400">Not Included</p>
-                                            )}
+                                            <p className="text-gray-700 font-medium">Lunch</p>
+                                            <p className="text-xs text-gray-400">Not Included</p>
                                           </div>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                          <Utensils size={16} className={dayActivities.some(a => a.inclusions?.some(inc => inc.toLowerCase().includes('lunch'))) ? "text-teal-500" : "text-gray-300"} />
+                                        <div className="flex items-start gap-3">
+                                          <Utensils size={18} className="text-gray-300 flex-shrink-0 mt-0.5" />
                                           <div>
-                                            <p className="text-sm text-gray-500">Lunch</p>
-                                            {dayActivities.some(a => a.inclusions?.some(inc => inc.toLowerCase().includes('lunch'))) ? (
-                                              <p className="text-xs text-teal-600 font-medium">Included</p>
-                                            ) : (
-                                              <p className="text-xs text-gray-400">Not Included</p>
-                                            )}
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                          <Utensils size={16} className={dayActivities.some(a => a.inclusions?.some(inc => inc.toLowerCase().includes('dinner') || inc.toLowerCase().includes('meal'))) ? "text-teal-500" : "text-gray-300"} />
-                                          <div>
-                                            <p className="text-sm text-gray-500">Dinner</p>
-                                            {dayActivities.some(a => a.inclusions?.some(inc => inc.toLowerCase().includes('dinner') || inc.toLowerCase().includes('meal'))) ? (
-                                              <p className="text-xs text-teal-600 font-medium">Included</p>
-                                            ) : (
-                                              <p className="text-xs text-gray-400">Not Included</p>
-                                            )}
+                                            <p className="text-gray-700 font-medium">Dinner</p>
+                                            <p className="text-xs text-gray-400">Not Included</p>
                                           </div>
                                         </div>
                                       </div>
@@ -1754,95 +1794,106 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
 
                                 {/* Departure Day Content */}
                                 {isDepartureDay && (
-                                  <div className="pt-5 space-y-5">
-                                    {/* Alert Banner - only if transfer selected */}
-                                    {proposal.departure_transfer && (
-                                    <div className="bg-pink-50 border border-pink-200 rounded-lg p-4 flex items-start gap-3">
-                                      <AlertTriangle size={18} className="text-pink-500 flex-shrink-0 mt-0.5" />
-                                      <p className="text-sm text-pink-700">
-                                        Please be available at the hotel lobby 15 minutes before the confirmed pick-up time for your airport transfer.
-                                      </p>
+                                  <div className="pt-5 flex gap-6">
+                                    {/* Left - Large Image */}
+                                    <div className="w-72 flex-shrink-0">
+                                      <img 
+                                        src={hotel?.image || hotel?.images?.[0] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
+                                        alt={dayCity}
+                                        className="w-full h-full object-cover rounded-lg min-h-[250px]"
+                                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600'; }}
+                                        data-testid={`day-image-${dayNum}`}
+                                      />
                                     </div>
-                                    )}
+                                    
+                                    {/* Right - Content */}
+                                    <div className="flex-1 space-y-5">
+                                      {/* Alert Banner */}
+                                      {proposal.departure_transfer && (
+                                        <div className="bg-pink-50 border border-pink-200 rounded-lg p-4 flex items-start gap-3">
+                                          <AlertTriangle size={18} className="text-pink-500 flex-shrink-0 mt-0.5" />
+                                          <p className="text-sm text-pink-700">
+                                            Please be available at the hotel lobby 15 minutes before the confirmed pick-up time for your airport transfer.
+                                          </p>
+                                        </div>
+                                      )}
 
-                                    {/* Transfer - from actual data */}
-                                    {proposal.departure_transfer ? (
-                                    <div className="pl-2">
-                                      <div className="flex items-start gap-3">
-                                        <Car size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                                        <div className="flex-1">
-                                          <div className="flex items-center gap-2 flex-wrap">
-                                            <p className="font-medium text-gray-700">
-                                              {proposal.departure_transfer.title || `One-way transfer from ${dayCity} Hotel to Airport`}
+                                      {/* Description */}
+                                      <DayDescription 
+                                        dayCity={dayCity}
+                                        isArrival={false}
+                                        isDeparture={true}
+                                        activities={[]}
+                                        hotel={hotel}
+                                      />
+
+                                      {/* Transfer */}
+                                      {proposal.departure_transfer ? (
+                                        <div className="flex items-start gap-3">
+                                          <Car size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                                          <div className="flex-1">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <p className="font-semibold text-gray-800">
+                                                {proposal.departure_transfer.title || `One-way transfer from ${dayCity} Hotel to Airport`} - Private
+                                              </p>
+                                              <button 
+                                                onClick={() => setDetailModal({ open: true, item: proposal.departure_transfer, type: 'transfer' })}
+                                                className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`transfer-view-day-${dayNum}`}>
+                                                VIEW
+                                              </button>
+                                            </div>
+                                            <div className="flex gap-2 mt-2">
+                                              <span className="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs rounded-full border border-teal-200">Private Transfers</span>
+                                              {proposal.departure_transfer.max_bags && (
+                                                <span className="px-2.5 py-1 bg-gray-50 text-gray-600 text-xs rounded-full border border-gray-200 flex items-center gap-1">
+                                                  {proposal.departure_transfer.max_bags} Bags
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-3">
+                                          <Car size={18} className="text-gray-300 flex-shrink-0" />
+                                          <p className="text-gray-400 text-sm italic">No departure transfer selected</p>
+                                        </div>
+                                      )}
+
+                                      {/* Flight Departure */}
+                                      {proposal.departure_flight_info && (
+                                        <div className="flex items-start gap-3">
+                                          <Plane size={18} className="text-gray-400 rotate-45 mt-0.5 flex-shrink-0" />
+                                          <div>
+                                            <p className="font-medium text-gray-700">Flight Departure</p>
+                                            <p className="text-sm text-gray-500">
+                                              {proposal.departure_flight_info.flightNumber} departing on {formatDate(dayDate, 'day')} at {proposal.departure_flight_info.flightTime} - {dayCity} Intl Airport
                                             </p>
-                                            <button 
-                                              onClick={() => setDetailModal({ open: true, item: proposal.departure_transfer, type: 'transfer' })}
-                                              className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`transfer-view-day-${dayNum}`}>
-                                              VIEW
-                                            </button>
-                                          </div>
-                                          {proposal.departure_transfer.duration && (
-                                            <p className="text-sm text-gray-500 mt-1">Duration: {proposal.departure_transfer.duration}</p>
-                                          )}
-                                          <div className="flex gap-2 mt-2">
-                                            <span className="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs rounded-full border border-teal-200">
-                                              Private Transfers
-                                            </span>
-                                            {(proposal.departure_transfer.selectedVehicle || proposal.vehicle_label) && (
-                                            <span className="px-2.5 py-1 bg-gray-50 text-gray-600 text-xs rounded-full border border-gray-200 flex items-center gap-1">
-                                              <Car size={11} />
-                                              {proposal.vehicle_label || proposal.departure_transfer.selectedVehicle}
-                                            </span>
-                                            )}
                                           </div>
                                         </div>
-                                      </div>
-                                    </div>
-                                    ) : (
-                                    <div className="pl-2 flex items-center gap-3">
-                                      <Car size={18} className="text-gray-300 flex-shrink-0" />
-                                      <p className="text-gray-400 text-sm italic">No departure transfer selected</p>
-                                    </div>
-                                    )}
+                                      )}
 
-                                    {/* Flight Departure - only if flight data exists */}
-                                    {(proposal.departure_flight_info) && (
-                                    <div className="flex items-start gap-3 pl-2">
-                                      <Plane size={18} className="text-gray-400 rotate-45 mt-0.5 flex-shrink-0" />
-                                      <div>
-                                        <p className="font-medium text-gray-700">Flight Departure</p>
-                                        <p className="text-sm text-gray-500">
-                                          {proposal.departure_flight_info.flightNumber} departing on {formatDate(dayDate, 'day')} at {proposal.departure_flight_info.flightTime} - {dayCity} Intl Airport
-                                        </p>
-                                      </div>
-                                    </div>
-                                    )}
-
-                                    {/* Meals Grid */}
-                                    <div className="border-t border-gray-100 pt-4 mt-4">
-                                      <div className="grid grid-cols-3 gap-4">
-                                        <div className="flex items-center gap-3">
-                                          <Coffee size={16} className={hotelIncludesBreakfast(hotel) ? "text-teal-500" : "text-gray-300"} />
-                                          <div>
-                                            <p className="text-sm text-gray-500">Breakfast</p>
-                                            {hotelIncludesBreakfast(hotel) ? (
-                                              <p className="text-xs text-teal-600 font-medium">Included</p>
-                                            ) : (
-                                              <p className="text-xs text-gray-400">Not Included</p>
-                                            )}
+                                      {/* Meals - Stacked */}
+                                      <div className="space-y-4 pt-3 border-t border-gray-100">
+                                        {hotelIncludesBreakfast(hotel) && (
+                                          <div className="flex items-start gap-3">
+                                            <Coffee size={18} className="text-teal-500 flex-shrink-0 mt-0.5" />
+                                            <div>
+                                              <p className="text-gray-700 font-medium">Breakfast</p>
+                                              <p className="text-xs text-teal-600">Included at hotel</p>
+                                            </div>
                                           </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                          <Utensils size={16} className="text-gray-300" />
+                                        )}
+                                        <div className="flex items-start gap-3">
+                                          <Utensils size={18} className="text-gray-300 flex-shrink-0 mt-0.5" />
                                           <div>
-                                            <p className="text-sm text-gray-500">Lunch</p>
+                                            <p className="text-gray-700 font-medium">Lunch</p>
                                             <p className="text-xs text-gray-400">Not Included</p>
                                           </div>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                          <Utensils size={16} className="text-gray-300" />
+                                        <div className="flex items-start gap-3">
+                                          <Utensils size={18} className="text-gray-300 flex-shrink-0 mt-0.5" />
                                           <div>
-                                            <p className="text-sm text-gray-500">Dinner</p>
+                                            <p className="text-gray-700 font-medium">Dinner</p>
                                             <p className="text-xs text-gray-400">Not Included</p>
                                           </div>
                                         </div>
