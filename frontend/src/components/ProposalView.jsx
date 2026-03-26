@@ -421,17 +421,18 @@ function LeftSidebarNav({ proposal, activeSection, onSectionChange }) {
   }
   
   return (
-    <div className="fixed left-0 top-1/3 bg-white border-r border-gray-200 shadow-lg z-30 hidden lg:flex flex-col py-2 rounded-r-lg max-h-[60vh] overflow-y-auto">
-      <div className="px-3 py-2 border-b border-gray-100">
-        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Trip Overview</span>
+    <div className="group/sidebar fixed left-0 top-1/3 bg-white border-r border-gray-200 shadow-lg z-30 hidden lg:flex flex-col py-2 rounded-r-lg max-h-[60vh] overflow-y-auto overflow-x-hidden w-10 hover:w-44 transition-all duration-200 ease-in-out">
+      <div className="px-2.5 py-2 border-b border-gray-100 min-h-[28px]">
+        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200">Trip Overview</span>
       </div>
       
       {timelineItems.map((item, idx) => (
         <button
           key={item.id}
           onClick={() => onSectionChange(item.id)}
+          title={item.label}
           className={cn(
-            "flex items-center gap-2 px-3 py-2 text-left transition-colors text-sm",
+            "flex items-center gap-2 px-2.5 py-2 text-left transition-colors text-sm whitespace-nowrap",
             activeSection === item.id 
               ? "bg-teal-50 text-teal-700 border-l-2 border-teal-500" 
               : "text-gray-600 hover:bg-gray-50 border-l-2 border-transparent"
@@ -450,7 +451,7 @@ function LeftSidebarNav({ proposal, activeSection, onSectionChange }) {
               <span className="text-[10px] font-bold text-gray-500">{item.day}</span>
             </div>
           )}
-          <span className="truncate text-xs">{item.label}</span>
+          <span className="truncate text-xs opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200">{item.label}</span>
         </button>
       ))}
     </div>
