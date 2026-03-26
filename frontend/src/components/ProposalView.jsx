@@ -1682,17 +1682,15 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                         </div>
                                       )}
 
-                                      {/* Meals - Stacked */}
+                                      {/* Meals - Stacked (Arrival day: no breakfast) */}
                                       <div className="space-y-4 pt-3 border-t border-gray-100">
-                                        {hotelIncludesBreakfast(hotel) && (
-                                          <div className="flex items-start gap-3">
-                                            <Coffee size={18} className="text-teal-500 flex-shrink-0 mt-0.5" />
-                                            <div>
-                                              <p className="text-gray-700 font-medium">Breakfast</p>
-                                              <p className="text-xs text-teal-600">Included at hotel</p>
-                                            </div>
+                                        <div className="flex items-start gap-3">
+                                          <Coffee size={18} className="text-gray-300 flex-shrink-0 mt-0.5" />
+                                          <div>
+                                            <p className="text-gray-700 font-medium">Breakfast</p>
+                                            <p className="text-xs text-gray-400">Not Included</p>
                                           </div>
-                                        )}
+                                        </div>
                                         <div className="flex items-start gap-3">
                                           <Utensils size={18} className="text-gray-300 flex-shrink-0 mt-0.5" />
                                           <div>
