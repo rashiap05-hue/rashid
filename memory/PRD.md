@@ -27,7 +27,7 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 /app/frontend/src/
   App.js             (Routes, api instance, resolveImageUrl utility)
   components/
-    ProposalView.jsx (2-col layout, DetailViewModals, openTransferDetail with API fetch)
+    ProposalView.jsx (2-col layout, DetailViewModals, openTransferDetail, freshTransferImages)
     TransferEditForm.jsx (Rich tabbed form, stores relative image paths)
     TripBuilder.jsx  (Edit hydration, inter-city transfers)
     AdminDashboard.jsx, Dashboard.jsx, etc.
@@ -55,20 +55,19 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - Day Card Two-Column Layout
 - Transfer Edit Form (rich tabbed UI)
 - Breakfast/Meal Logic fix
-- **Transfer Image URL Fix (March 2026)**: Fixed double `/api/api/` paths and wrong domain in stored transfer image URLs. Added backend migration (`migrate_transfer_image_urls`) to normalize to relative paths. Added `resolveImageUrl()` frontend utility. DetailViewModal now fetches full transfer data via API for images/description.
-- **PDF Generation Enhancement (March 2026)**: Fixed multi-city hotel/activity lookups in PDF to use `cityName_cityIndex` keys. Added inter-city transfer rendering. Fixed cumulative check-in/check-out date calculation. Departure day now shows correct breakfast logic.
+- Transfer Image URL Fix: Fixed double `/api/api/` paths. Backend migration + `resolveImageUrl()` utility. DetailViewModal fetches full transfer data via API.
+- PDF Generation Enhancement: Multi-city hotel/activity lookups with `cityName_cityIndex` keys. Inter-city transfers, cumulative check-in dates, correct breakfast logic.
+- **Day Card Image Priority Fix (March 2026)**: Removed hotel images from day-wise cards. New priority: Activity image > Transfer/Inter-city transfer image > Generic fallback. Added `freshTransferImages` state with API fetch for transfer images. All 3 day types (arrival, middle, departure) updated.
 
 ## Test Credentials
 - Admin: testadmin@example.com / password123
 - Agent: rashid@travotours.ae / password123
 
-## DB Name
-- `test_database` (from .env DB_NAME)
-
 ## Key Technical Concepts
 - **Data Mapping Rule**: Hotels/activities keyed as `{cityName}_{cityIndex}` (e.g., `Tbilisi_0`, `Gudauri_1`)
 - **Image URLs**: Stored as relative paths (`/api/static/activities/xxx.jpg`), resolved via `resolveImageUrl()` in frontend
 - **Breakfast Logic**: Arrival Day = Not Included. Middle/Departure Days = Included at hotel
+- **Day Card Image Priority**: Activity > Transfer > Generic fallback (no hotel images in day cards)
 
 ## Upcoming Tasks
 - P1: Google Sheets Sync (blocked on user credentials)
@@ -80,7 +79,7 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - P3: Mobile optimization
 
 ## Refactoring Needed
-- ProposalView.jsx (~2400 lines) - Extract Day Cards, Detail Modals into sub-components
+- ProposalView.jsx (~2500 lines) - Extract Day Cards, Detail Modals into sub-components
 - MyProposals.jsx - Fix HTML hydration warning (`<tr>` inside `<span>`)
 
 ## MOCKED APIs

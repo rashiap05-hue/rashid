@@ -674,6 +674,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
   // Fresh hotel images from DB (in case saved proposal has stale/missing images)
   const [freshHotelImages, setFreshHotelImages] = useState({});
   const [freshActivityImages, setFreshActivityImages] = useState({});
+  const [freshTransferImages, setFreshTransferImages] = useState({});
 
   // Fetch fresh hotel images from the API
   useEffect(() => {
@@ -731,6 +732,38 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
       setFreshActivityImages(imgMap);
     };
     fetchFreshActivityImages();
+  }, [proposal]);
+
+  // Fetch fresh transfer images from the API
+  useEffect(() => {
+    const fetchFreshTransferImages = async () => {
+      if (!proposal) return;
+      const imgMap = {};
+      const transferIds = new Set();
+      
+      // Collect all transfer IDs from the proposal
+      if (proposal.arrival_transfer?.id) transferIds.add(proposal.arrival_transfer.id);
+      if (proposal.departure_transfer?.id) transferIds.add(proposal.departure_transfer.id);
+      if (proposal.inter_city_transfers) {
+        for (const [key, t] of Object.entries(proposal.inter_city_transfers)) {
+          if (t?.id) transferIds.add(t.id);
+        }
+      }
+      
+      // Fetch image for each transfer
+      for (const tid of transferIds) {
+        try {
+          const res = await api.get(`/transfers/${tid}`);
+          const transfer = res.data?.transfer || res.data;
+          const img = transfer?.images?.[0];
+          if (img) imgMap[tid] = img;
+        } catch (e) {
+          // ignore
+        }
+      }
+      setFreshTransferImages(imgMap);
+    };
+    fetchFreshTransferImages();
   }, [proposal]);
 
   // Fetch destination video from activities/transfers
@@ -1598,7 +1631,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                     {/* Left - Large Image */}
                                     <div className="w-72 flex-shrink-0">
                                       <img 
-                                        src={freshActivityImages[dayActivities[0]?.id] || freshActivityImages[dayActivities[0]?.name] || dayActivities[0]?.image || dayActivities[0]?.images?.[0] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
+                                        src={resolveImageUrl(freshActivityImages[dayActivities[0]?.id] || freshActivityImages[dayActivities[0]?.name] || dayActivities[0]?.image || dayActivities[0]?.images?.[0] || freshTransferImages[proposal.arrival_transfer?.id] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`)}
                                         alt={dayActivities[0]?.name || dayCity}
                                         className="w-full h-full object-cover rounded-lg min-h-[400px]"
                                         onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600'; }}
@@ -1750,7 +1783,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                     {/* Left - Large Image */}
                                     <div className="w-72 flex-shrink-0">
                                       <img 
-                                        src={freshActivityImages[dayActivities[0]?.id] || freshActivityImages[dayActivities[0]?.name] || dayActivities[0]?.image || dayActivities[0]?.images?.[0] || freshHotelImages[`${dayCity}_${dayCityIdx}`] || hotel?.image || hotel?.images?.[0] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
+                                        src={resolveImageUrl(freshActivityImages[dayActivities[0]?.id] || freshActivityImages[dayActivities[0]?.name] || dayActivities[0]?.image || dayActivities[0]?.images?.[0] || freshTransferImages[interCityTransfer?.id] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`)}
                                         alt={dayActivities[0]?.name || dayCity}
                                         className="w-full h-full object-cover rounded-lg min-h-[300px]"
                                         onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600'; }}
@@ -1888,9 +1921,10 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                     {/* Left - Large Image */}
                                     <div className="w-72 flex-shrink-0">
                                       <img 
-                                        src={`https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
+                                        src={resolveImageUrl(freshTransferImages[proposal.departure_transfer?.id] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`)}
                                         alt={dayCity}
                                         className="w-full h-full object-cover rounded-lg min-h-[250px]"
+                                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600'; }}
                                         data-testid={`day-image-${dayNum}`}
                                       />
                                     </div>
