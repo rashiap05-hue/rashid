@@ -20,6 +20,15 @@ import ProposalView from '@/components/ProposalView';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
 
+// Resolve image URLs - handles relative (/api/static/...) and absolute (http://...) paths
+export function resolveImageUrl(url) {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('/api/static/')) return `${BACKEND_URL}${url}`;
+  if (url.startsWith('/')) return `${BACKEND_URL}${url}`;
+  return url;
+}
+
 // Create axios instance
 export const api = axios.create({
   baseURL: API,

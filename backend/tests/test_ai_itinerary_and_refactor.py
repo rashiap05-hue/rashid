@@ -14,7 +14,7 @@ import requests
 import os
 import time
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://proposal-hub-46.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://trip-builder-ui.preview.emergentagent.com').rstrip('/')
 
 # Test credentials from main agent
 TEST_EMAIL = "testadmin@example.com"

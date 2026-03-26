@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Check, Clock, Info, Image, Car, CheckCircle, Building2 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { api } from '../App';
+import { api, resolveImageUrl } from '../App';
 
 // Image Uploader for transfers
 function TransferImageUploader({ images = [], onImagesChange, transferId = '' }) {
@@ -19,8 +19,7 @@ function TransferImageUploader({ images = [], onImagesChange, transferId = '' })
         const res = await api.post('/uploads/activity-image', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
-        const fullUrl = res.data.url?.startsWith('http') ? res.data.url : `${api.defaults.baseURL}${res.data.url}`;
-        onImagesChange([...images, fullUrl]);
+        onImagesChange([...images, res.data.url]);
       }
     } catch (error) {
       alert(`Upload failed: ${error.response?.data?.detail || error.message}`);
@@ -45,7 +44,7 @@ function TransferImageUploader({ images = [], onImagesChange, transferId = '' })
         <div className="grid grid-cols-3 gap-2">
           {images.map((img, idx) => (
             <div key={idx} className="relative group aspect-video bg-gray-100 rounded-lg overflow-hidden">
-              <img src={img} alt={`Transfer ${idx + 1}`} className="w-full h-full object-cover" />
+              <img src={resolveImageUrl(img)} alt={`Transfer ${idx + 1}`} className="w-full h-full object-cover" />
               <button
                 type="button"
                 onClick={() => removeImage(idx)}
@@ -111,8 +110,7 @@ function TransferVideoUploader({ video = null, onVideoChange, transferId = '' })
       const res = await api.post('/uploads/activity-video', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      const fullUrl = res.data.url?.startsWith('http') ? res.data.url : `${api.defaults.baseURL}${res.data.url}`;
-      onVideoChange(fullUrl);
+      onVideoChange(res.data.url);
     } catch (error) {
       alert(`Video upload failed: ${error.response?.data?.detail || error.message}`);
     } finally {

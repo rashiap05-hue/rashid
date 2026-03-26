@@ -9,7 +9,7 @@ import {
   MessageSquare, Phone, CheckCircle, Menu, Camera, Loader2, MoreVertical, User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { api } from '@/App';
+import { api, resolveImageUrl } from '@/App';
 
 // Icon mapping for terms/policies
 const TERMS_ICONS = {
@@ -143,6 +143,7 @@ function DetailViewModal({ isOpen, onClose, item, type }) {
   
   const isTransfer = type === 'transfer';
   const isActivity = type === 'activity';
+  const headerImage = item.image || item.images?.[0];
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -162,9 +163,9 @@ function DetailViewModal({ isOpen, onClose, item, type }) {
         data-testid="detail-view-modal"
       >
         {/* Header with image */}
-        {item.image && (
+        {headerImage && (
           <div className="w-full h-48 flex-shrink-0 relative">
-            <img src={item.image} alt={item.name || item.title} className="w-full h-full object-cover" />
+            <img src={resolveImageUrl(headerImage)} alt={item.name || item.title} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
             <button
               onClick={onClose}
@@ -181,7 +182,7 @@ function DetailViewModal({ isOpen, onClose, item, type }) {
         )}
 
         {/* Header without image */}
-        {!item.image && (
+        {!headerImage && (
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
             <div>
               <h2 className="text-xl font-bold text-gray-800">{item.name || item.title}</h2>
@@ -295,7 +296,7 @@ function DetailViewModal({ isOpen, onClose, item, type }) {
               <h4 className="font-semibold text-gray-700 mb-2 text-sm">Photos</h4>
               <div className="grid grid-cols-3 gap-2">
                 {item.images.slice(0, 6).map((img, i) => (
-                  <img key={i} src={img} alt={`${item.name || item.title} ${i + 1}`} className="rounded-lg object-cover h-28 w-full" />
+                  <img key={i} src={resolveImageUrl(img)} alt={`${item.name || item.title} ${i + 1}`} className="rounded-lg object-cover h-28 w-full" />
                 ))}
               </div>
             </div>
@@ -646,6 +647,21 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
   // Video modal state
   const [videoModal, setVideoModal] = useState({ open: false, url: null, title: '' });
   const [detailModal, setDetailModal] = useState({ open: false, item: null, type: null });
+  
+  // Helper to open transfer detail modal with full data from API
+  const openTransferDetail = async (transfer) => {
+    if (!transfer?.id) {
+      setDetailModal({ open: true, item: transfer, type: 'transfer' });
+      return;
+    }
+    try {
+      const res = await api.get(`/transfers/${transfer.id}`);
+      const fullTransfer = res.data?.transfer || res.data;
+      setDetailModal({ open: true, item: { ...transfer, ...fullTransfer, image: fullTransfer.images?.[0] || null }, type: 'transfer' });
+    } catch {
+      setDetailModal({ open: true, item: transfer, type: 'transfer' });
+    }
+  };
   
   // Dynamic Terms & Policies state
   const [termsAndPolicies, setTermsAndPolicies] = useState([]);
@@ -1643,7 +1659,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                                 {proposal.arrival_transfer.from_location && ` from ${proposal.arrival_transfer.from_location}`}
                                               </p>
                                               <button 
-                                                onClick={() => setDetailModal({ open: true, item: proposal.arrival_transfer, type: 'transfer' })}
+                                                onClick={() => openTransferDetail(proposal.arrival_transfer)}
                                                 className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`transfer-view-day-${dayNum}`}>
                                                 VIEW
                                               </button>
@@ -1778,7 +1794,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                                 {interCityTransfer.title || `Transfer from ${interCityTransfer.from_city || ''} to ${interCityTransfer.to_city || dayCity}`} - Private
                                               </p>
                                               <button 
-                                                onClick={() => setDetailModal({ open: true, item: interCityTransfer, type: 'transfer' })}
+                                                onClick={() => openTransferDetail(interCityTransfer)}
                                                 className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`intercity-transfer-view-day-${dayNum}`}>
                                                 VIEW
                                               </button>
@@ -1910,7 +1926,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                                 {proposal.departure_transfer.title || `One-way transfer from ${dayCity} Hotel to Airport`} - Private
                                               </p>
                                               <button 
-                                                onClick={() => setDetailModal({ open: true, item: proposal.departure_transfer, type: 'transfer' })}
+                                                onClick={() => openTransferDetail(proposal.departure_transfer)}
                                                 className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`transfer-view-day-${dayNum}`}>
                                                 VIEW
                                               </button>

@@ -363,10 +363,12 @@ async def generate_proposal_pdf(proposal_id: str):
     # HOTELS SECTION
     pdf.section_title("HOTELS")
     selected_hotels = proposal.get("selected_hotels", {}) or {}
-    for city in cities:
+    cumulative_nights = 0
+    for ci, city in enumerate(cities):
         city_name = city.get("name", "")
         city_nights = city.get("nights", 1)
-        hotel = selected_hotels.get(city_name, {})
+        hotel_key = f"{city_name}_{ci}"
+        hotel = selected_hotels.get(hotel_key, selected_hotels.get(city_name, {}))
         hotel_name = hotel.get("name", "Hotel") if hotel else "Hotel"
 
         pdf.sub_section(f"{city_name} - {city_nights} nights")
@@ -380,8 +382,8 @@ async def generate_proposal_pdf(proposal_id: str):
             room_name = hotel.get("selectedRoom", {}).get("name", "Double Room") if hotel.get("selectedRoom") else "Double Room"
             pdf.info_row("Room", f"1 x {room_name}")
 
-            check_in = add_days_to(proposal.get("leaving_on", ""), 0)
-            check_out = add_days_to(proposal.get("leaving_on", ""), city_nights)
+            check_in = add_days_to(proposal.get("leaving_on", ""), cumulative_nights)
+            check_out = add_days_to(proposal.get("leaving_on", ""), cumulative_nights + city_nights)
             pdf.info_row("Check-in", f"02:00 PM, {check_in.strftime('%d %b %Y')}")
             pdf.info_row("Check-out", f"12:00 PM, {check_out.strftime('%d %b %Y')}")
 
@@ -389,27 +391,55 @@ async def generate_proposal_pdf(proposal_id: str):
                 amenities = hotel["amenities"]
                 if isinstance(amenities, list):
                     pdf.info_row("Amenities", ", ".join(amenities[:6]))
+        cumulative_nights += city_nights
         pdf.ln(4)
 
     # DAY-WISE ITINERARY
     pdf.section_title("DAY-WISE ITINERARY")
     selected_activities = proposal.get("selected_activities", {}) or {}
+    inter_city_transfers = proposal.get("inter_city_transfers", {}) or {}
+    arrival_transfer = proposal.get("arrival_transfer", {}) or {}
+    departure_transfer = proposal.get("departure_transfer", {}) or {}
+
+    # Build day-to-city mapping
+    def get_day_city_info(day_idx):
+        cumul = 0
+        for ci, c in enumerate(cities):
+            cn = c.get("nights", 0)
+            if day_idx < cumul + cn:
+                return c.get("name", ""), ci
+            cumul += cn
+        return cities[-1].get("name", "") if cities else "", len(cities) - 1
 
     for day_idx in range(days_count):
         day_num = day_idx + 1
         is_arrival = day_num == 1
         is_departure = day_num == days_count
         day_date = add_days_to(proposal.get("leaving_on", ""), day_idx)
-        day_acts = selected_activities.get(f"{main_city}_{day_num}", [])
+        day_city, day_city_idx = get_day_city_info(day_idx)
+        city_key = f"{day_city}_{day_city_idx}"
+
+        # Get activities for this city
+        day_acts = selected_activities.get(city_key, [])
+        if not isinstance(day_acts, list):
+            day_acts = [day_acts] if day_acts else []
+
+        # Check for inter-city transfer
+        ict = None
+        if not is_arrival and not is_departure and day_city_idx > 0:
+            prev_city, prev_idx = get_day_city_info(day_idx - 1)
+            if prev_idx != day_city_idx:
+                transfer_key = f"{prev_idx}_{day_city_idx}"
+                ict = inter_city_transfers.get(transfer_key)
 
         if is_arrival:
-            day_title = f"Arrival into {main_city}"
+            day_title = f"Arrival into {day_city}"
         elif is_departure:
-            day_title = f"Departure from {main_city}"
+            day_title = f"Departure from {day_city}"
         elif day_acts:
             day_title = " - ".join([a.get("name", "").split(" - ")[0] for a in day_acts[:2]])
         else:
-            day_title = f"Day at leisure in {main_city}"
+            day_title = f"Day at leisure in {day_city}"
 
         pdf.set_fill_color(245, 245, 250)
         pdf.set_font("Helvetica", "B", 10)
@@ -423,19 +453,29 @@ async def generate_proposal_pdf(proposal_id: str):
         if is_arrival:
             pdf.para("You will be met by our representative at the Airport Arrival Terminal with a signage card bearing your name.")
             flight_num = arr_info.get("flightNumber", "IX-343")
-            pdf.info_row("Flight", f"{flight_num} arriving at {arr_info.get('arrivalTime', '05:05 PM')} - {main_city} Intl Airport")
-            pdf.info_row("Transfer", f"Private transfer from Airport to {main_city} Hotel (4 Bags)")
-            first_hotel = selected_hotels.get(main_city, {})
-            h_name = first_hotel.get("name", "Hotel") if first_hotel else "Hotel"
+            pdf.info_row("Flight", f"{flight_num} arriving at {arr_info.get('arrivalTime', '05:05 PM')} - {day_city} Intl Airport")
+            if arrival_transfer:
+                pdf.info_row("Transfer", arrival_transfer.get("title", f"Private transfer from Airport to {day_city} Hotel"))
+            else:
+                pdf.info_row("Transfer", f"Private transfer from Airport to {day_city} Hotel")
+            hotel = selected_hotels.get(city_key, selected_hotels.get(day_city, {}))
+            h_name = hotel.get("name", "Hotel") if hotel else "Hotel"
             pdf.info_row("Overnight", f"Stay at {h_name}")
             pdf.info_row("Meals", "Breakfast: Not Included  |  Lunch: Not Included  |  Dinner: Not Included")
         elif is_departure:
             pdf.para("Please be available at the hotel lobby 15 minutes before the confirmed pick-up time for your airport transfer.")
-            pdf.info_row("Transfer", f"Private transfer from {main_city} Hotel to Airport (4 Bags)")
+            if departure_transfer:
+                pdf.info_row("Transfer", departure_transfer.get("title", f"Private transfer from {day_city} Hotel to Airport"))
+            else:
+                pdf.info_row("Transfer", f"Private transfer from {day_city} Hotel to Airport")
             flight_num = dep_info.get("flightNumber", "IX-344")
-            pdf.info_row("Flight", f"{flight_num} departing at {dep_info.get('flightTime', '06:40 PM')} - {main_city} Intl Airport")
-            pdf.info_row("Meals", "Breakfast: Not Included  |  Lunch: Not Included")
+            pdf.info_row("Flight", f"{flight_num} departing at {dep_info.get('flightTime', '06:40 PM')} - {day_city} Intl Airport")
+            pdf.info_row("Meals", "Breakfast: Included at hotel  |  Lunch: Not Included")
         else:
+            # Inter-city transfer
+            if ict:
+                pdf.info_row("Transfer", ict.get("title", "Inter-city Transfer"), bold_value=True)
+
             if day_acts:
                 for act in day_acts:
                     act_name = act.get("name", "Activity")
@@ -451,12 +491,12 @@ async def generate_proposal_pdf(proposal_id: str):
                         pdf.info_row("Includes", ", ".join(inclusions[:4]))
                     pdf.ln(1)
             else:
-                pdf.para(f"Free day to explore {main_city} at your leisure.")
+                pdf.para(f"Free day to explore {day_city} at your leisure.")
 
-            first_hotel = selected_hotels.get(main_city, {})
-            h_name = first_hotel.get("name", "Hotel") if first_hotel else "Hotel"
+            hotel = selected_hotels.get(city_key, selected_hotels.get(day_city, {}))
+            h_name = hotel.get("name", "Hotel") if hotel else "Hotel"
             pdf.info_row("Overnight", f"Stay at {h_name}")
-            pdf.info_row("Meals", "Breakfast: Not Included  |  Lunch: Not Included  |  Dinner: Not Included")
+            pdf.info_row("Meals", "Breakfast: Included at hotel  |  Lunch: Not Included  |  Dinner: Not Included")
 
         pdf.ln(3)
 
@@ -464,10 +504,11 @@ async def generate_proposal_pdf(proposal_id: str):
     pdf.add_page()
     pdf.section_title("INCLUSIONS")
 
-    for city in cities:
+    for ci, city in enumerate(cities):
         city_name = city.get("name", "")
         city_nights = city.get("nights", 1)
-        hotel = selected_hotels.get(city_name, {})
+        hotel_key = f"{city_name}_{ci}"
+        hotel = selected_hotels.get(hotel_key, selected_hotels.get(city_name, {}))
         hotel_name = hotel.get("name", "Hotel") if hotel else "Hotel"
 
         pdf.sub_section(f"{city_name} - {city_nights} nights")
@@ -475,18 +516,29 @@ async def generate_proposal_pdf(proposal_id: str):
         if hotel and hotel.get("selectedRoom"):
             pdf.info_row("Room", f"1 x {hotel['selectedRoom'].get('name', 'Double Room')}")
 
-        city_acts = []
-        for key, acts in selected_activities.items():
-            if key.startswith(f"{city_name}_") and isinstance(acts, list):
-                city_acts.extend(acts)
+        # Get activities for this city
+        city_key = f"{city_name}_{ci}"
+        city_acts = selected_activities.get(city_key, [])
+        if not isinstance(city_acts, list):
+            city_acts = [city_acts] if city_acts else []
         if city_acts:
             for act in city_acts:
                 pdf.info_row("Activity", f"{act.get('name', '')} ({act.get('duration', '')})")
         pdf.ln(2)
 
     pdf.sub_section("Transfers")
-    pdf.info_row("Arrival", f"Private transfer from Airport to {main_city} Hotel")
-    pdf.info_row("Departure", f"Private transfer from {main_city} Hotel to Airport")
+    if arrival_transfer:
+        pdf.info_row("Arrival", arrival_transfer.get("title", f"Private transfer from Airport to {main_city} Hotel"))
+    else:
+        pdf.info_row("Arrival", f"Private transfer from Airport to {main_city} Hotel")
+    if inter_city_transfers:
+        for key, ict in inter_city_transfers.items():
+            if ict and ict.get("title"):
+                pdf.info_row("Inter-city", ict["title"])
+    if departure_transfer:
+        pdf.info_row("Departure", departure_transfer.get("title", f"Private transfer from {main_city} Hotel to Airport"))
+    else:
+        pdf.info_row("Departure", f"Private transfer from {main_city} Hotel to Airport")
     pdf.ln(2)
 
     pdf.sub_section("Travel Insurance")

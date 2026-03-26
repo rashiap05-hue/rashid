@@ -23,7 +23,7 @@ from routes.uploads import uploads_router
 from routes.settings import settings_router
 from routes.flight_api import flight_api_router
 
-from seed import seed_initial_data, seed_terms_policies, migrate_image_urls, migrate_activities_fields
+from seed import seed_initial_data, seed_terms_policies, migrate_image_urls, migrate_activities_fields, migrate_transfer_image_urls
 
 app = FastAPI(title="Travo DMC B2B Travel Platform", redirect_slashes=False)
 
@@ -78,6 +78,7 @@ app.add_middleware(
 async def startup_event():
     await seed_initial_data()
     await migrate_image_urls()
+    await migrate_transfer_image_urls()
     await migrate_activities_fields()
     await seed_terms_policies()
 
