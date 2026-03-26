@@ -1501,6 +1501,18 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                     const dayActivities = proposal.selected_activities?.[`${dayCity}_${dayNum}`] || [];
                     const hotel = getHotelForCity(dayCity, dayCityIdx);
                     
+                    // Check for inter-city transfer arriving on this day
+                    let interCityTransfer = null;
+                    if (proposal.inter_city_transfers && dayCityIdx > 0) {
+                      // Check if this is the first day in this city (check-in day)
+                      const prevDayCityInfo = dayNum > 1 ? getDayCityInfo(dayNum - 1) : null;
+                      if (prevDayCityInfo && prevDayCityInfo.cityIndex !== dayCityIdx) {
+                        // This is a check-in day for a new city — find the inter-city transfer
+                        const transferKey = `${prevDayCityInfo.cityIndex}_${dayCityIdx}`;
+                        interCityTransfer = proposal.inter_city_transfers[transferKey];
+                      }
+                    }
+                    
                     // Generate day title
                     let dayTitle = '';
                     if (isArrivalDay) {
@@ -1508,7 +1520,13 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                     } else if (isDepartureDay) {
                       dayTitle = `Departure from ${dayCity}`;
                     } else {
-                      if (dayActivities.length > 0) {
+                      if (interCityTransfer) {
+                        const fromCity = interCityTransfer.from_city || proposal.cities?.[getDayCityInfo(dayNum - 1)?.cityIndex]?.name || '';
+                        dayTitle = `${fromCity} to ${dayCity}`;
+                        if (dayActivities.length > 0) {
+                          dayTitle += ` - ${dayActivities[0]?.name?.split(' - ')[0] || dayActivities[0]?.name}`;
+                        }
+                      } else if (dayActivities.length > 0) {
                         const activityNames = dayActivities.slice(0, 2).map(a => a.name?.split(' - ')[0] || a.name).join(' - ');
                         dayTitle = activityNames;
                       } else {
@@ -1716,7 +1734,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                     {/* Left - Large Image */}
                                     <div className="w-72 flex-shrink-0">
                                       <img 
-                                        src={freshActivityImages[dayActivities[0]?.id] || freshActivityImages[dayActivities[0]?.name] || dayActivities[0]?.image || dayActivities[0]?.images?.[0] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
+                                        src={freshActivityImages[dayActivities[0]?.id] || freshActivityImages[dayActivities[0]?.name] || dayActivities[0]?.image || dayActivities[0]?.images?.[0] || freshHotelImages[`${dayCity}_${dayCityIdx}`] || hotel?.image || hotel?.images?.[0] || `https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600`}
                                         alt={dayActivities[0]?.name || dayCity}
                                         className="w-full h-full object-cover rounded-lg min-h-[300px]"
                                         onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1565008576549-57569a49371d?w=600'; }}
@@ -1750,7 +1768,33 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                         </div>
                                       )}
 
-                                      {/* Activities */}
+                                      {/* Inter-city Transfer */}
+                                      {interCityTransfer && (
+                                        <div className="flex items-start gap-3">
+                                          <Car size={18} className="text-blue-500 mt-0.5 flex-shrink-0" />
+                                          <div className="flex-1">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <p className="font-semibold text-gray-800">
+                                                {interCityTransfer.title || `Transfer from ${interCityTransfer.from_city || ''} to ${interCityTransfer.to_city || dayCity}`} - Private
+                                              </p>
+                                              <button 
+                                                onClick={() => setDetailModal({ open: true, item: interCityTransfer, type: 'transfer' })}
+                                                className="px-2 py-0.5 border border-teal-500 text-teal-600 text-xs rounded hover:bg-teal-50" data-testid={`intercity-transfer-view-day-${dayNum}`}>
+                                                VIEW
+                                              </button>
+                                            </div>
+                                            {interCityTransfer.duration && (
+                                              <p className="text-sm text-gray-500 mt-1">Duration: {interCityTransfer.duration}</p>
+                                            )}
+                                            <div className="flex gap-2 mt-2">
+                                              <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-200">Inter-City Transfer</span>
+                                              <span className="px-2.5 py-1 bg-teal-50 text-teal-700 text-xs rounded-full border border-teal-200">Private</span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Middle Day Activities */}
                                       {dayActivities.length > 0 ? (
                                         dayActivities.map((activity, actIdx) => (
                                           <div key={actIdx} className="flex items-start gap-3">
@@ -1777,12 +1821,12 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                                             </div>
                                           </div>
                                         ))
-                                      ) : (
+                                      ) : !interCityTransfer ? (
                                         <div className="flex items-start gap-3">
                                           <Sun size={18} className="text-amber-400 mt-0.5 flex-shrink-0" />
                                           <p className="text-gray-500 italic">Free day to explore {dayCity} at your leisure.</p>
                                         </div>
-                                      )}
+                                      ) : null}
 
                                       {/* Overnight Stay */}
                                       {hotel && (
