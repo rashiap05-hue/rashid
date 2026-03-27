@@ -994,21 +994,6 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
             <div>
               <div className="flex items-center gap-4 mb-2">
                 <p className="text-sm text-gray-500">Proposal No: <span className="font-semibold text-gray-700">{proposalNumber}</span></p>
-                <div className="flex items-center gap-2">
-                  <button 
-                    className="px-4 py-1.5 bg-[#002B5B] text-white text-sm font-medium rounded hover:bg-[#003d82] transition-colors"
-                    data-testid="save-proposal-btn"
-                  >
-                    Save
-                  </button>
-                  <button 
-                    onClick={onBack}
-                    className="px-4 py-1.5 border border-gray-300 text-gray-600 text-sm font-medium rounded hover:bg-gray-50 transition-colors"
-                    data-testid="cancel-proposal-btn"
-                  >
-                    Cancel
-                  </button>
-                </div>
               </div>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4" data-testid="proposal-title">
                 {proposal.proposal_name || `Option 1 - Trip to ${mainCity}`}
