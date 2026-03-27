@@ -520,17 +520,6 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal }) {
             <p>Departure City: {departureCity}</p>
           </div>
           
-          {/* Vehicle Type Badge */}
-          <div className="flex items-center justify-between bg-blue-50 rounded-lg p-2 mb-3 border border-blue-100">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">{vehicleType.icon}</span>
-              <span className="text-sm font-medium text-blue-800">{vehicleType.label}</span>
-            </div>
-            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
-              {totalPax} pax
-            </span>
-          </div>
-
           <button className="text-blue-600 text-sm hover:underline mb-4 block">
             Update Markup / Discount
           </button>
