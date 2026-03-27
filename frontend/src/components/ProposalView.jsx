@@ -459,7 +459,12 @@ function LeftSidebarNav({ proposal, activeSection, onSectionChange }) {
 }
 
 // Price Sidebar Component - Yellow/Cream Background Style
-function PriceSidebar({ proposal, onBookNow, onEditProposal }) {
+function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal }) {
+  const [showMarkupModal, setShowMarkupModal] = useState(false);
+  const [markupLandValue, setMarkupLandValue] = useState(proposal.markup_value || 0);
+  const [discountValue, setDiscountValue] = useState(proposal.discount_amount || 0);
+  const [updating, setUpdating] = useState(false);
+
   const adultsCount = proposal.room_data?.reduce((acc, r) => acc + (r.adults || 0), 0) || 2;
   const childrenCount = proposal.room_data?.reduce((acc, r) => acc + (r.children?.length || 0), 0) || 0;
   const roomsCount = proposal.room_data?.length || 1;
@@ -520,9 +525,97 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal }) {
             <p>Departure City: {departureCity}</p>
           </div>
           
-          <button className="text-blue-600 text-sm hover:underline mb-4 block">
+          <button 
+            onClick={() => { setMarkupLandValue(proposal.markup_value || 0); setDiscountValue(proposal.discount_amount || 0); setShowMarkupModal(true); }}
+            className="text-blue-600 text-sm hover:underline mb-4 block"
+            data-testid="update-markup-btn"
+          >
             Update Markup / Discount
           </button>
+
+          {/* Markup/Discount Modal */}
+          {showMarkupModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowMarkupModal(false)} />
+              <div className="relative bg-white w-full max-w-md rounded-xl shadow-2xl" data-testid="markup-discount-modal">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200">
+                  <h2 className="text-lg font-bold text-gray-900">Update Markup / Discount</h2>
+                  <button onClick={() => setShowMarkupModal(false)} className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500">
+                    <X size={16} />
+                  </button>
+                </div>
+
+                {/* Form */}
+                <div className="px-6 py-6">
+                  <fieldset className="border border-gray-200 rounded-lg p-5">
+                    <legend className="text-sm font-bold text-gray-800 px-2">Markup</legend>
+                    
+                    <div className="mb-5">
+                      <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">Land</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={markupLandValue}
+                        onChange={(e) => setMarkupLandValue(parseFloat(e.target.value) || 0)}
+                        className="w-full max-w-[240px] px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none"
+                        data-testid="markup-land-input"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">Discount Amount</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={discountValue}
+                        onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
+                        className="w-full max-w-[240px] px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none"
+                        data-testid="discount-amount-input"
+                      />
+                      <p className="text-xs text-gray-400 mt-2 max-w-[240px]">Discount will be adjusted against and limited by the commission/markup</p>
+                    </div>
+                  </fieldset>
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
+                  <button
+                    onClick={async () => {
+                      setUpdating(true);
+                      try {
+                        const basePrice = (proposal.pricing_breakdown?.hotels || 0) + (proposal.pricing_breakdown?.activities || 0) + (proposal.pricing_breakdown?.transfers || 0) + (proposal.pricing_breakdown?.extras || 0);
+                        const newTotal = basePrice + markupLandValue - discountValue;
+                        await api.patch(`/proposals/${proposal.id}`, {
+                          markup_value: markupLandValue,
+                          markup_land: markupLandValue,
+                          discount_amount: discountValue,
+                          total_price: newTotal,
+                          pricing_breakdown: {
+                            ...proposal.pricing_breakdown,
+                            markup: markupLandValue || null,
+                            discount: discountValue,
+                            total: newTotal
+                          }
+                        });
+                        onUpdateProposal?.();
+                        setShowMarkupModal(false);
+                      } catch (e) {
+                        console.error('Failed to update markup/discount', e);
+                      } finally {
+                        setUpdating(false);
+                      }
+                    }}
+                    disabled={updating}
+                    className="px-6 py-2.5 bg-[#002B5B] text-white text-sm font-bold rounded-lg hover:bg-[#003d82] transition-colors disabled:opacity-50"
+                    data-testid="update-markup-submit"
+                  >
+                    {updating ? 'UPDATING...' : 'UPDATE'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Price Lines */}
           <div className="space-y-3 text-sm border-t border-[#E8D9A0] pt-4">
@@ -628,7 +721,17 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal }) {
 }
 
 // Main Proposal View Component
-export default function ProposalView({ proposal, onBack, onBookNow, onEditProposal }) {
+export default function ProposalView({ proposal: initialProposal, onBack, onBookNow, onEditProposal }) {
+  const [proposal, setProposal] = useState(initialProposal);
+  
+  const refreshProposal = async () => {
+    try {
+      const res = await api.get(`/proposals/${proposal.id}`);
+      setProposal(res.data);
+    } catch (e) {
+      console.error('Failed to refresh proposal', e);
+    }
+  };
   const [activeTab, setActiveTab] = useState('itinerary');
   const [expandedDays, setExpandedDays] = useState({1: true});
   const [allExpanded, setAllExpanded] = useState(false);
@@ -2686,6 +2789,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
               proposal={proposal} 
               onBookNow={onBookNow}
               onEditProposal={() => onEditProposal?.(proposal)}
+              onUpdateProposal={refreshProposal}
             />
           </div>
         </div>
