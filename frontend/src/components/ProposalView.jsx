@@ -464,6 +464,7 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal })
   const [markupLandValue, setMarkupLandValue] = useState(proposal.markup_value || 0);
   const [discountValue, setDiscountValue] = useState(proposal.discount_amount || 0);
   const [updating, setUpdating] = useState(false);
+  const [showNetPrice, setShowNetPrice] = useState(true);
 
   const adultsCount = proposal.room_data?.reduce((acc, r) => acc + (r.adults || 0), 0) || 2;
   const childrenCount = proposal.room_data?.reduce((acc, r) => acc + (r.children?.length || 0), 0) || 0;
@@ -646,7 +647,7 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal })
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <span className="text-gray-600">Price after discount</span>
-                  <Eye size={14} className="text-blue-500 cursor-pointer" />
+                  <Eye size={14} className="text-blue-500 cursor-pointer" onClick={() => setShowNetPrice(!showNetPrice)} data-testid="toggle-net-price" />
                 </div>
                 <span className="text-2xl font-bold text-gray-800">AED {priceAfterDiscount.toLocaleString()}</span>
               </div>
@@ -656,7 +657,7 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal })
             {/* Net Price */}
             <div className="flex justify-between pt-2 border-t border-[#E8D9A0]">
               <span className="text-gray-600">Net Price</span>
-              <span className="text-gray-800 font-medium">AED {netPrice.toLocaleString()}</span>
+              <span className="text-gray-800 font-medium">{showNetPrice ? `AED ${netPrice.toLocaleString()}` : '******'}</span>
             </div>
           </div>
         </div>
