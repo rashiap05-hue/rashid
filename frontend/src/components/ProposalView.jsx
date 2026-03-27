@@ -620,6 +620,8 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal })
 
           {/* Price Lines */}
           <div className="space-y-3 text-sm border-t border-[#E8D9A0] pt-4">
+            {showNetPrice && (
+            <>
             <div className="flex justify-between">
               <span className="text-gray-600">Price per adult</span>
               <span className="text-gray-800 font-medium">AED {pricePerAdult.toLocaleString()}</span>
@@ -641,6 +643,8 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal })
                 )}
               </div>
             )}
+            </>
+            )}
 
             {/* Price after discount */}
             <div className="pt-3 border-t border-[#E8D9A0]">
@@ -655,10 +659,12 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal })
             </div>
 
             {/* Net Price */}
+            {showNetPrice && (
             <div className="flex justify-between pt-2 border-t border-[#E8D9A0]">
               <span className="text-gray-600">Net Price</span>
-              <span className="text-gray-800 font-medium">{showNetPrice ? `AED ${netPrice.toLocaleString()}` : '******'}</span>
+              <span className="text-gray-800 font-medium">AED {netPrice.toLocaleString()}</span>
             </div>
+            )}
           </div>
         </div>
 
