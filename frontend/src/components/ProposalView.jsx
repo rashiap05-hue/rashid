@@ -677,6 +677,19 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal })
           >
             BOOK NOW
           </button>
+
+          <button 
+            className="w-full py-3 bg-[#2D2D2D] hover:bg-[#1a1a1a] text-white font-semibold rounded-lg transition-colors"
+            data-testid="hold-booking-btn"
+          >
+            HOLD BOOKING UNTIL {(() => {
+              try {
+                const d = new Date(proposal.leaving_on);
+                d.setDate(d.getDate() - 7);
+                return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+              } catch { return 'N/A'; }
+            })()}
+          </button>
           
           <button 
             className="w-full py-3 bg-[#8B4513] hover:bg-[#723A0F] text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
