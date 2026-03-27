@@ -511,7 +511,7 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal }) {
         <div className="pt-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-lg text-gray-800">Price Breakdown</h3>
-            <button className="text-blue-600 text-sm hover:underline font-medium">Edit</button>
+            <button onClick={onEditProposal} className="text-blue-600 text-sm hover:underline font-medium" data-testid="edit-proposal-btn">Edit</button>
           </div>
           
           <div className="text-sm text-gray-600 space-y-0.5 mb-3">
@@ -2696,7 +2696,7 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
             <PriceSidebar 
               proposal={proposal} 
               onBookNow={onBookNow}
-              onEditProposal={() => {}}
+              onEditProposal={() => onEditProposal?.(proposal)}
             />
           </div>
         </div>
