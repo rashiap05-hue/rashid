@@ -1063,18 +1063,6 @@ export default function ProposalView({ proposal, onBack, onBookNow, onEditPropos
                 </button>
               ))}
             </div>
-            <div className="hidden md:flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-xs text-gray-400">Total Price</p>
-                <p className="text-lg font-bold text-teal-400">AED {proposal.total_price || 1500}</p>
-              </div>
-              <button 
-                className="px-5 py-2.5 bg-orange-500 text-white text-sm font-bold rounded-lg hover:bg-orange-600 transition-colors flex items-center gap-2"
-                data-testid="book-now-header-btn"
-              >
-                Book Now
-              </button>
-            </div>
           </div>
         </div>
       </div>
