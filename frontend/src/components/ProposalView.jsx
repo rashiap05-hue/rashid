@@ -465,6 +465,7 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal })
   const [discountValue, setDiscountValue] = useState(proposal.discount_amount || 0);
   const [updating, setUpdating] = useState(false);
   const [showNetPrice, setShowNetPrice] = useState(true);
+  const [showBookingTerms, setShowBookingTerms] = useState(false);
 
   const adultsCount = proposal.room_data?.reduce((acc, r) => acc + (r.adults || 0), 0) || 2;
   const childrenCount = proposal.room_data?.reduce((acc, r) => acc + (r.children?.length || 0), 0) || 0;
@@ -671,12 +672,96 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal })
         {/* Action Buttons */}
         <div className="space-y-3 mt-6">
           <button 
-            onClick={onBookNow}
+            onClick={() => setShowBookingTerms(true)}
             className="w-full py-3 bg-[#8B4513] hover:bg-[#723A0F] text-white font-semibold rounded-lg transition-colors"
             data-testid="book-now-btn"
           >
             BOOK NOW
           </button>
+
+          {/* Booking Terms Modal */}
+          {showBookingTerms && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowBookingTerms(false)} />
+              <div className="relative bg-white w-full max-w-2xl max-h-[85vh] rounded-xl shadow-2xl flex flex-col" data-testid="booking-terms-modal">
+                {/* Header */}
+                <div className="flex items-start justify-between px-6 py-5 border-b border-gray-200 flex-shrink-0">
+                  <h2 className="text-lg font-bold text-gray-900 pr-4">Please make sure you explain to the guest following points before booking</h2>
+                  <button onClick={() => setShowBookingTerms(false)} className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex-shrink-0">
+                    <X size={16} />
+                  </button>
+                </div>
+
+                {/* Scrollable Content */}
+                <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
+                  {/* Hotel Warning */}
+                  {proposal.cities?.length > 0 && (
+                    <div className="bg-teal-50 border border-teal-200 rounded-lg px-4 py-3 text-sm text-teal-800">
+                      Selected hotel in {proposal.cities.map((c, i) => {
+                        const hotel = proposal.selected_hotels?.[`${c.name}_${i}`];
+                        const stars = hotel?.star_rating || hotel?.stars || '';
+                        return `${c.name}${stars ? ` (${stars} Star)` : ''}`;
+                      }).join(', ')} offer inconsistent experience to customer.
+                    </div>
+                  )}
+
+                  {/* General */}
+                  <div>
+                    <h3 className="font-bold text-gray-900 mb-2">General</h3>
+                    <ol className="list-decimal list-outside ml-5 space-y-2 text-sm text-gray-700">
+                      <li>Any ticket to attractions, museums, train, cable car, ferries, rides, safari, etc. are not included unless explicitly mentioned as an inclusion.</li>
+                      <li>For queries regarding cancellations and refunds, please refer to our Cancellation Policy.</li>
+                      <li>We reserve the right to issue a full refund in case we believe we are unable to fulfil the services for any technical reasons.</li>
+                      <li>Please make sure that the passport of all guests travelling is valid for at least 6 months from the date of travel.</li>
+                      <li>We can only facilitate the visa application for the travelling passengers. Granting of visa is solely at the discretion of Embassy. If visa is rejected or delayed by the Embassy for any reason then we are not liable to give any refund and respective cancellation policies will apply.</li>
+                    </ol>
+                  </div>
+
+                  {/* Hotel */}
+                  <div>
+                    <h3 className="font-bold text-gray-900 mb-2">Hotel</h3>
+                    <ol className="list-decimal list-outside ml-5 space-y-2 text-sm text-gray-700">
+                      <li>At the time of check-in to your hotel, hotel may ask you to make an advance/security deposit (amount depends upon hotel policy). This amount is refunded at the time of check-out, minus the cost of any items taken from the mini-bar or other charges (like late check-out or any damages done to the accommodation).</li>
+                    </ol>
+                  </div>
+
+                  {/* Tours and Transfers */}
+                  <div>
+                    <h3 className="font-bold text-gray-900 mb-2">Tours and Transfers</h3>
+                    <ol className="list-decimal list-outside ml-5 space-y-2 text-sm text-gray-700">
+                      <li>The cost and ticket issued for various attractions with regards to any children travelling are based on the age provided at the time of creating the package quote. If the service provider decide to charge extra cost based on the height of the children or wrong information as per Passport, then the cost has to be borne by the customer on site.</li>
+                    </ol>
+                  </div>
+
+                  {/* Europe Section */}
+                  <div className="bg-gray-50 border-l-4 border-gray-300 px-4 py-2">
+                    <h3 className="font-bold text-gray-900">Europe</h3>
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-gray-900 mb-2">General</h3>
+                    <ol className="list-decimal list-outside ml-5 space-y-2 text-sm text-gray-700">
+                      <li>Please make sure to download the telegram app before your travel starts, where driver details for all tours and transfers shall be shared.</li>
+                      <li>The driver details for private airport transfers or train station transfers or tours shall be shared within 24 hours of scheduled time only on the telegram app.</li>
+                      <li>On arrival in case you cannot locate your driver please call the service provider and give your complete name and confirmation number for them to guide you.</li>
+                      <li>In case of any emergency or issue during the trip, please contact us immediately on the provided emergency number.</li>
+                    </ol>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 border-t border-gray-200 flex justify-end flex-shrink-0">
+                  <button
+                    onClick={() => { setShowBookingTerms(false); onBookNow?.(); }}
+                    className="px-6 py-2.5 bg-[#002B5B] text-white text-sm font-bold rounded-lg hover:bg-[#003d82] transition-colors"
+                    data-testid="continue-to-book-btn"
+                  >
+                    I Understand, Continue to Book
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <button 
             className="w-full py-3 bg-[#2D2D2D] hover:bg-[#1a1a1a] text-white font-semibold rounded-lg transition-colors"
