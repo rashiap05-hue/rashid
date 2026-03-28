@@ -12,7 +12,7 @@ function SaveProposalModal({ isOpen, onClose, onSave, tripData, pricing, selecte
     customer_email: '',
     customer_phone: '',
     proposal_name: '',
-    expected_booking_date: '',
+    expected_booking_date: new Date().toISOString().split('T')[0],
     flights_booked: null,
     markup_value: 0,
     markup_type: 'percentage',
