@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Loader2, Save, AlertTriangle, Edit2, CalendarIcon } from 'lucide-react';
 import { Calendar } from '../../components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover';
-import { Button } from '../../components/ui/button';
 import { cn } from '../../lib/utils';
 
 function SaveProposalModal({ isOpen, onClose, onSave, tripData, pricing, selectedHotels, cities }) {
@@ -23,6 +21,7 @@ function SaveProposalModal({ isOpen, onClose, onSave, tripData, pricing, selecte
     discount_amount: 0
   });
   const [saving, setSaving] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   // Pre-fill form data from tripData (works for both new and edit modes)
   useEffect(() => {
@@ -314,40 +313,48 @@ function SaveProposalModal({ isOpen, onClose, onSave, tripData, pricing, selecte
                   Estimated Date of Booking<span className="text-red-500">*</span>
                 </label>
                 <div className="flex-1">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "justify-start text-left font-normal gap-2",
-                          !formData.expected_booking_date && "text-muted-foreground"
-                        )}
-                        data-testid="booking-date-input"
+                  <button
+                    type="button"
+                    onClick={() => setShowCalendar(!showCalendar)}
+                    className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 transition-colors"
+                    data-testid="booking-date-input"
+                  >
+                    <CalendarIcon className="h-4 w-4 text-gray-500" />
+                    {formData.expected_booking_date
+                      ? new Date(formData.expected_booking_date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                      : 'Select'}
+                  </button>
+                  {showCalendar && (
+                    <div className="fixed inset-0 z-[200]" onClick={() => setShowCalendar(false)}>
+                      <div 
+                        className="absolute bg-white border border-gray-200 rounded-lg shadow-xl p-1"
+                        style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <CalendarIcon className="h-4 w-4" />
-                        {formData.expected_booking_date
-                          ? new Date(formData.expected_booking_date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-                          : 'Select'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-[200]" align="start">
-                      <Calendar
-                        mode="single"
-                        numberOfMonths={2}
-                        selected={formData.expected_booking_date ? new Date(formData.expected_booking_date + 'T00:00:00') : undefined}
-                        onSelect={(date) => {
-                          if (date) {
-                            const y = date.getFullYear();
-                            const m = String(date.getMonth() + 1).padStart(2, '0');
-                            const d = String(date.getDate()).padStart(2, '0');
-                            setFormData({ ...formData, expected_booking_date: `${y}-${m}-${d}` });
-                          }
-                        }}
-                        disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                        <div className="flex items-center justify-between px-3 pt-2 pb-1 border-b border-gray-100 mb-1">
+                          <span className="text-sm font-semibold text-gray-700">Select Date</span>
+                          <button type="button" onClick={() => setShowCalendar(false)} className="text-gray-400 hover:text-gray-600">
+                            <X size={16} />
+                          </button>
+                        </div>
+                        <Calendar
+                          mode="single"
+                          numberOfMonths={2}
+                          selected={formData.expected_booking_date ? new Date(formData.expected_booking_date + 'T00:00:00') : undefined}
+                          onSelect={(date) => {
+                            if (date) {
+                              const y = date.getFullYear();
+                              const m = String(date.getMonth() + 1).padStart(2, '0');
+                              const d = String(date.getDate()).padStart(2, '0');
+                              setFormData(prev => ({ ...prev, expected_booking_date: `${y}-${m}-${d}` }));
+                              setShowCalendar(false);
+                            }
+                          }}
+                          disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
+                        />
+                      </div>
+                    </div>
+                  )}
                   <p className="text-xs text-gray-500 mt-1">
                     Please select a date when you expect this quote to close
                   </p>
