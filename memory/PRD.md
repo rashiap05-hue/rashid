@@ -27,10 +27,13 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 /app/frontend/src/
   App.js             (Routes, api instance, resolveImageUrl utility)
   components/
-    ProposalView.jsx (2-col layout, DetailViewModals, openTransferDetail, freshTransferImages)
+    ProposalView.jsx (~3000 lines - 2-col layout, DetailViewModals, Inclusions tab, pricing sidebar)
     TransferEditForm.jsx (Rich tabbed form, stores relative image paths)
     TripBuilder.jsx  (Edit hydration, inter-city transfers)
     AdminDashboard.jsx, Dashboard.jsx, etc.
+    TripBuilder/
+      SaveProposalModal.jsx (Shadcn dual-month calendar)
+      VersionHistoryPanel.jsx
 ```
 
 ## Completed Features
@@ -55,19 +58,27 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - Day Card Two-Column Layout
 - Transfer Edit Form (rich tabbed UI)
 - Breakfast/Meal Logic fix
-- Transfer Image URL Fix: Fixed double `/api/api/` paths. Backend migration + `resolveImageUrl()` utility. DetailViewModal fetches full transfer data via API.
-- PDF Generation Enhancement: Multi-city hotel/activity lookups with `cityName_cityIndex` keys. Inter-city transfers, cumulative check-in dates, correct breakfast logic.
-- **Day Card Image Priority Fix (March 2026)**: Removed hotel images from day-wise cards. New priority: Activity image > Transfer/Inter-city transfer image > Generic fallback. Added `freshTransferImages` state with API fetch for transfer images. All 3 day types (arrival, middle, departure) updated.
+- Transfer Image URL Fix
+- PDF Generation Enhancement
+- Day Card Image Priority Fix
+- Database URL Migration (absolute -> relative paths)
+- UI Left Sidebar (icons, expand on hover)
+- Price Breakdown Interactive Features (markup/discount modal, eye toggle)
+- Interactive Modals (Hold Booking, Book Now Terms)
+- Dual-Month Calendar Date Picker
+- Inclusions Section: Flat day-wise layout with chronological sorting (transfers + activities merged, sorted by day number)
 
 ## Test Credentials
 - Admin: testadmin@example.com / password123
 - Agent: rashid@travotours.ae / password123
 
 ## Key Technical Concepts
-- **Data Mapping Rule**: Hotels/activities keyed as `{cityName}_{cityIndex}` (e.g., `Tbilisi_0`, `Gudauri_1`)
+- **Data Mapping Rule**: Hotels/activities keyed as `{cityName}_{cityIndex}` (e.g., `Tbilisi_0`, `Gudauri_1`). Activity lookup uses `startsWith(cityName_)` for broader matching.
 - **Image URLs**: Stored as relative paths (`/api/static/activities/xxx.jpg`), resolved via `resolveImageUrl()` in frontend
 - **Breakfast Logic**: Arrival Day = Not Included. Middle/Departure Days = Included at hotel
 - **Day Card Image Priority**: Activity > Transfer > Generic fallback (no hotel images in day cards)
+- **Inclusions Rendering**: Two versions exist - inline (itinerary tab) and tab-based. Both merge transfers + activities and sort by day number chronologically.
+- **Calendar Form Collision**: Calendar day-picker buttons inside forms trigger native submission. Render in portal/overlay outside form tree.
 
 ## Upcoming Tasks
 - P1: Google Sheets Sync (blocked on user credentials)
@@ -79,8 +90,7 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - P3: Mobile optimization
 
 ## Refactoring Needed
-- ProposalView.jsx (~2500 lines) - Extract Day Cards, Detail Modals into sub-components
-- MyProposals.jsx - Fix HTML hydration warning (`<tr>` inside `<span>`)
+- ProposalView.jsx (~3000 lines) - Extract PriceSidebar, LeftSidebarNav, Inclusions into sub-components under /components/Proposal/
 
 ## MOCKED APIs
 - Google Sheets sync (/api/sheets/*)
