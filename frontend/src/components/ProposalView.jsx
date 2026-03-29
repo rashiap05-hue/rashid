@@ -2260,10 +2260,17 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                     const cityActivities = [];
                     const selectedActs = proposal.selected_activities || {};
                     Object.keys(selectedActs).forEach(key => {
-                      if (key === `${city.name}_${cityIdx}`) {
+                      if (key === `${city.name}_${cityIdx}` || key.startsWith(city.name + '_')) {
                         const acts = selectedActs[key];
-                        if (Array.isArray(acts)) cityActivities.push(...acts);
-                        else if (acts) cityActivities.push(acts);
+                        if (Array.isArray(acts)) {
+                          acts.forEach(a => {
+                            if (!cityActivities.some(existing => existing.name === a.name)) {
+                              cityActivities.push(a);
+                            }
+                          });
+                        } else if (acts && !cityActivities.some(existing => existing.name === acts.name)) {
+                          cityActivities.push(acts);
+                        }
                       }
                     });
 
@@ -2300,72 +2307,84 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                             </div>
                           )}
 
-                          {/* Transfers (flat) */}
-                          {transfers.map((transfer, tIdx) => (
-                            <div key={`t-${tIdx}`} className="flex items-start gap-4">
-                              <Car size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                              <div className="flex-1">
-                                <div className="flex items-start justify-between gap-4">
-                                  <div className="flex-1">
-                                    <p className="text-[15px] text-gray-800">
-                                      {transfer.title || 'Private Transfer'}
-                                      <button
-                                        onClick={() => openTransferDetail(transfer)}
-                                        className="ml-3 px-2.5 py-0.5 text-[11px] font-semibold text-teal-600 border border-teal-300 rounded bg-white hover:bg-teal-50 transition-colors align-middle"
-                                        data-testid={`inclusion-transfer-view-${cityIdx}-${tIdx}`}
-                                      >
-                                        VIEW
-                                      </button>
-                                    </p>
-                                    {transfer.duration && (
-                                      <p className="text-sm text-gray-400 mt-1">Duration: {transfer.duration}</p>
-                                    )}
-                                    <span className="inline-block mt-2 px-2.5 py-0.5 text-[11px] font-medium text-teal-700 border border-teal-200 rounded">
-                                      Private Transfers
-                                    </span>
-                                  </div>
-                                  <div className="text-right flex-shrink-0">
-                                    <p className="text-sm text-gray-500">Day {transfer._dayNum}</p>
-                                    <p className="text-sm text-gray-400">{formatDate(transfer._date, 'long')}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
+                          {/* Merge transfers + activities, sort by day number */}
+                          {(() => {
+                            const allItems = [
+                              ...transfers.map((t, tIdx) => ({ ...t, _type: 'transfer', _sortDay: t._dayNum, _idx: tIdx })),
+                              ...cityActivities.map((a, aIdx) => ({
+                                ...a,
+                                _type: 'activity',
+                                _sortDay: cumulativeNights + 1 + Math.min(aIdx, city.nights - 1),
+                                _date: addDays(proposal.leaving_on, cumulativeNights + Math.min(aIdx, city.nights - 1)),
+                                _idx: aIdx
+                              }))
+                            ].sort((a, b) => a._sortDay - b._sortDay);
 
-                          {/* Activities (flat) */}
-                          {cityActivities.map((activity, actIdx) => {
-                            const actDayNum = cumulativeNights + 1 + Math.min(actIdx, city.nights - 1);
-                            const actDate = addDays(proposal.leaving_on, actDayNum - 1);
-                            return (
-                              <div key={`a-${actIdx}`} className="flex items-start gap-4">
-                                <Camera size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                                <div className="flex-1">
-                                  <div className="flex items-start justify-between gap-4">
+                            return allItems.map((item, idx) => {
+                              if (item._type === 'transfer') {
+                                return (
+                                  <div key={`t-${item._idx}`} className="flex items-start gap-4">
+                                    <Car size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
                                     <div className="flex-1">
-                                      <p className="text-[15px] text-gray-800">
-                                        {activity.name}
-                                        <button
-                                          onClick={() => setDetailModal({ open: true, item: activity, type: 'activity' })}
-                                          className="ml-3 px-2.5 py-0.5 text-[11px] font-semibold text-teal-600 border border-teal-300 rounded bg-white hover:bg-teal-50 transition-colors align-middle"
-                                          data-testid={`inclusion-activity-view-${cityIdx}-${actIdx}`}
-                                        >
-                                          VIEW
-                                        </button>
-                                      </p>
-                                      <span className="inline-block mt-2 px-2.5 py-0.5 text-[11px] font-medium text-teal-700 border border-teal-200 rounded">
-                                        {activity.transfer_type || 'Private'} Transfers
-                                      </span>
-                                    </div>
-                                    <div className="text-right flex-shrink-0">
-                                      <p className="text-sm text-gray-500">Day {actDayNum}</p>
-                                      <p className="text-sm text-gray-400">{formatDate(actDate, 'long')}</p>
+                                      <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1">
+                                          <p className="text-[15px] text-gray-800">
+                                            {item.title || 'Private Transfer'}
+                                            <button
+                                              onClick={() => openTransferDetail(item)}
+                                              className="ml-3 px-2.5 py-0.5 text-[11px] font-semibold text-teal-600 border border-teal-300 rounded bg-white hover:bg-teal-50 transition-colors align-middle"
+                                              data-testid={`inclusion-transfer-view-${cityIdx}-${item._idx}`}
+                                            >
+                                              VIEW
+                                            </button>
+                                          </p>
+                                          {item.duration && (
+                                            <p className="text-sm text-gray-400 mt-1">Duration: {item.duration}</p>
+                                          )}
+                                          <span className="inline-block mt-2 px-2.5 py-0.5 text-[11px] font-medium text-teal-700 border border-teal-200 rounded">
+                                            Private Transfers
+                                          </span>
+                                        </div>
+                                        <div className="text-right flex-shrink-0">
+                                          <p className="text-sm text-gray-500">Day {item._dayNum}</p>
+                                          <p className="text-sm text-gray-400">{formatDate(item._date, 'long')}</p>
+                                        </div>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                                );
+                              } else {
+                                return (
+                                  <div key={`a-${item._idx}`} className="flex items-start gap-4">
+                                    <Camera size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                                    <div className="flex-1">
+                                      <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1">
+                                          <p className="text-[15px] text-gray-800">
+                                            {item.name}
+                                            <button
+                                              onClick={() => setDetailModal({ open: true, item: item, type: 'activity' })}
+                                              className="ml-3 px-2.5 py-0.5 text-[11px] font-semibold text-teal-600 border border-teal-300 rounded bg-white hover:bg-teal-50 transition-colors align-middle"
+                                              data-testid={`inclusion-activity-view-${cityIdx}-${item._idx}`}
+                                            >
+                                              VIEW
+                                            </button>
+                                          </p>
+                                          <span className="inline-block mt-2 px-2.5 py-0.5 text-[11px] font-medium text-teal-700 border border-teal-200 rounded">
+                                            {item.transfer_type || 'Private'} Transfers
+                                          </span>
+                                        </div>
+                                        <div className="text-right flex-shrink-0">
+                                          <p className="text-sm text-gray-500">Day {item._sortDay}</p>
+                                          <p className="text-sm text-gray-400">{formatDate(item._date, 'long')}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            });
+                          })()}
                         </div>
                       </div>
                     );
@@ -2503,33 +2522,54 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
 
                 {proposal.cities?.map((city, idx) => {
                   const hotel = getHotelForCity(city.name, idx);
-                  // Get activities for this city - handle multiple key formats
-                  const getAllActivitiesForCityInclusions = () => {
-                    const activities = [];
-                    const selectedActs = proposal.selected_activities || {};
-                    
-                    // Check for city_day format (e.g., "Tbilisi_1", "Tbilisi_2")
-                    Object.keys(selectedActs).forEach(key => {
-                      if (key.startsWith(city.name + '_')) {
-                        const dayActivities = selectedActs[key];
-                        if (Array.isArray(dayActivities)) {
-                          activities.push(...dayActivities);
-                        }
-                      }
-                    });
-                    
-                    // Also check numeric/string index formats
-                    if (activities.length === 0) {
-                      const indexActivities = selectedActs[idx] || selectedActs[String(idx)] || [];
-                      if (Array.isArray(indexActivities)) {
-                        activities.push(...indexActivities);
+                  let cumulativeNightsTab = 0;
+                  for (let i = 0; i < idx; i++) cumulativeNightsTab += proposal.cities[i]?.nights || 0;
+                  const cityStartDateTab = addDays(proposal.leaving_on, cumulativeNightsTab);
+                  const isLastCityTab = idx === proposal.cities.length - 1;
+                  const totalNightsTab = proposal.cities?.reduce((acc, c) => acc + (c.nights || 0), 0) || 1;
+
+                  // Collect transfers for this city
+                  const cityTransfersTab = [];
+                  if (idx === 0 && proposal.arrival_transfer) {
+                    cityTransfersTab.push({ ...proposal.arrival_transfer, _dayNum: 1, _date: addDays(proposal.leaving_on, 0) });
+                  }
+                  if (idx > 0 && proposal.inter_city_transfers) {
+                    const ict = proposal.inter_city_transfers[`${idx - 1}_${idx}`];
+                    if (ict) cityTransfersTab.push({ ...ict, _dayNum: cumulativeNightsTab + 1, _date: cityStartDateTab });
+                  }
+                  if (isLastCityTab && proposal.departure_transfer) {
+                    cityTransfersTab.push({ ...proposal.departure_transfer, _dayNum: totalNightsTab + 1, _date: addDays(proposal.leaving_on, totalNightsTab) });
+                  }
+
+                  // Collect activities for this city
+                  const cityActivitiesTab = [];
+                  const selectedActsTab = proposal.selected_activities || {};
+                  Object.keys(selectedActsTab).forEach(key => {
+                    if (key === `${city.name}_${idx}` || key.startsWith(city.name + '_')) {
+                      const acts = selectedActsTab[key];
+                      if (Array.isArray(acts)) {
+                        acts.forEach(a => {
+                          if (!cityActivitiesTab.some(existing => existing.name === a.name)) {
+                            cityActivitiesTab.push(a);
+                          }
+                        });
+                      } else if (acts && !cityActivitiesTab.some(existing => existing.name === acts.name)) {
+                        cityActivitiesTab.push(acts);
                       }
                     }
-                    
-                    return activities;
-                  };
-                  
-                  const cityActivities = getAllActivitiesForCityInclusions();
+                  });
+
+                  // Merge and sort by day number
+                  const allItemsTab = [
+                    ...cityTransfersTab.map((t, tIdx) => ({ ...t, _type: 'transfer', _sortDay: t._dayNum, _idx: tIdx })),
+                    ...cityActivitiesTab.map((a, aIdx) => ({
+                      ...a,
+                      _type: 'activity',
+                      _sortDay: cumulativeNightsTab + 1 + Math.min(aIdx, city.nights - 1),
+                      _date: addDays(proposal.leaving_on, cumulativeNightsTab + Math.min(aIdx, city.nights - 1)),
+                      _idx: aIdx
+                    }))
+                  ].sort((a, b) => a._sortDay - b._sortDay);
                   
                   return (
                     <div key={idx} className="mb-10 bg-gray-50 rounded-xl p-6">
@@ -2538,7 +2578,7 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                           <MapPin size={16} className="text-white" />
                         </div>
                         <span className="text-lg font-bold text-gray-800">{city.name}</span>
-                        <span className="text-gray-500">{city.nights} nights</span>
+                        <span className="text-gray-500">{city.nights} night{city.nights > 1 ? 's' : ''} - {formatDate(cityStartDateTab, 'short')}</span>
                       </div>
 
                       {hotel && (
@@ -2546,48 +2586,102 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                           <div className="flex items-start gap-4">
                             <Hotel size={18} className="text-gray-400 mt-1" />
                             <div>
-                              <p className="font-medium text-gray-800">Stay for {city.nights} nights at {hotel.name}</p>
-                              <p className="text-sm text-gray-500">{hotel.selectedRoom?.name || '1 x Double Room'}</p>
+                              <p className="font-medium text-gray-800">Stay for {city.nights} night{city.nights > 1 ? 's' : ''} at {hotel.name}</p>
+                              <p className="text-sm text-gray-500">{hotel.selectedRoom?.name || '1 x Double Room'}{hotel.selectedRoom?.bed_type ? `, ${hotel.selectedRoom.bed_type}` : ''}</p>
+                              {hotelIncludesBreakfast(hotel) && (
+                                <p className="text-sm text-gray-400">Breakfast</p>
+                              )}
                             </div>
                           </div>
                         </div>
                       )}
 
-                      {/* Show Activities with Inclusions */}
-                      {cityActivities.length > 0 && (
+                      {/* Transfers + Activities merged and sorted by day */}
+                      {allItemsTab.length > 0 && (
                         <div className="mb-6 space-y-4">
-                          {cityActivities.map((activity, actIdx) => (
-                            <div key={actIdx} className="pl-4 border-l-2 border-teal-200">
-                              <div className="flex items-start gap-4">
-                                <Camera size={18} className="text-teal-500 mt-1" />
-                                <div className="flex-1">
-                                  <p className="font-medium text-gray-800">{activity.name}</p>
-                                  <p className="text-sm text-gray-500">{activity.duration || 'Full Day'} • {activity.transfer_type || 'Private'}</p>
-                                  
-                                  {/* Activity Inclusions */}
-                                  {activity.inclusions?.length > 0 && (
-                                    <div className="mt-2 space-y-1">
-                                      {activity.inclusions.map((inclusion, incIdx) => (
-                                        <div key={incIdx} className="flex items-start gap-2">
-                                          <Check size={12} className="text-green-500 mt-1 flex-shrink-0" />
-                                          <span className="text-sm text-gray-600">{inclusion}</span>
+                          {allItemsTab.map((item, itemIdx) => {
+                            if (item._type === 'transfer') {
+                              return (
+                                <div key={`t-${item._idx}`} className="pl-4 border-l-2 border-teal-200">
+                                  <div className="flex items-start gap-4">
+                                    <Car size={18} className="text-teal-500 mt-1" />
+                                    <div className="flex-1">
+                                      <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1">
+                                          <p className="font-medium text-gray-800">
+                                            {item.title || 'Private Transfer'}
+                                            <button
+                                              onClick={() => openTransferDetail(item)}
+                                              className="ml-3 px-2.5 py-0.5 text-[11px] font-semibold text-teal-600 border border-teal-300 rounded bg-white hover:bg-teal-50 transition-colors align-middle"
+                                            >
+                                              VIEW
+                                            </button>
+                                          </p>
+                                          {item.duration && (
+                                            <p className="text-sm text-gray-500 mt-1">Duration: {item.duration}</p>
+                                          )}
+                                          <span className="inline-block mt-2 px-2.5 py-0.5 text-[11px] font-medium text-teal-700 border border-teal-200 rounded">
+                                            Private Transfers
+                                          </span>
                                         </div>
-                                      ))}
+                                        <div className="text-right flex-shrink-0">
+                                          <p className="text-sm text-gray-500">Day {item._dayNum}</p>
+                                          <p className="text-sm text-gray-400">{formatDate(item._date, 'long')}</p>
+                                        </div>
+                                      </div>
                                     </div>
-                                  )}
+                                  </div>
                                 </div>
-                              </div>
-                            </div>
-                          ))}
+                              );
+                            } else {
+                              return (
+                                <div key={`a-${item._idx}`} className="pl-4 border-l-2 border-teal-200">
+                                  <div className="flex items-start gap-4">
+                                    <Camera size={18} className="text-teal-500 mt-1" />
+                                    <div className="flex-1">
+                                      <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1">
+                                          <p className="font-medium text-gray-800">
+                                            {item.name}
+                                            <button
+                                              onClick={() => setDetailModal({ open: true, item: item, type: 'activity' })}
+                                              className="ml-3 px-2.5 py-0.5 text-[11px] font-semibold text-teal-600 border border-teal-300 rounded bg-white hover:bg-teal-50 transition-colors align-middle"
+                                            >
+                                              VIEW
+                                            </button>
+                                          </p>
+                                          <p className="text-sm text-gray-500">{item.duration || 'Full Day'} • {item.transfer_type || 'Private'}</p>
+                                          {item.inclusions?.length > 0 && (
+                                            <div className="mt-2 space-y-1">
+                                              {item.inclusions.map((inc, incIdx) => (
+                                                <div key={incIdx} className="flex items-start gap-2">
+                                                  <Check size={12} className="text-green-500 mt-1 flex-shrink-0" />
+                                                  <span className="text-sm text-gray-600">{inc}</span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="text-right flex-shrink-0">
+                                          <p className="text-sm text-gray-500">Day {item._sortDay}</p>
+                                          <p className="text-sm text-gray-400">{formatDate(item._date, 'long')}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            }
+                          })}
                         </div>
                       )}
 
                       <div className="grid grid-cols-3 gap-6 py-5 border-t border-gray-200">
                         <div className="flex items-center gap-3">
-                          <Utensils size={18} className={(() => { const h = getHotelForCity(city.name, idx); return hotelIncludesBreakfast(h) ? "text-teal-500" : "text-gray-400"; })()} />
+                          <Utensils size={18} className={hotelIncludesBreakfast(hotel) ? "text-teal-500" : "text-gray-400"} />
                           <div>
                             <p className="text-gray-800 font-medium">Breakfast</p>
-                            {(() => { const h = getHotelForCity(city.name, idx); return hotelIncludesBreakfast(h); })() ? (
+                            {hotelIncludesBreakfast(hotel) ? (
                               <p className="text-sm text-teal-600 font-medium">Included with hotel</p>
                             ) : (
                               <p className="text-sm text-gray-400">Not Included</p>
