@@ -16,6 +16,7 @@ import AIChatbot from '@/components/AIChatbot';
 import PaymentSuccess from '@/components/PaymentSuccess';
 import PaymentCancel from '@/components/PaymentCancel';
 import ProposalView from '@/components/ProposalView';
+import BookingConfirmation from '@/components/BookingConfirmation';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
@@ -265,8 +266,7 @@ function App() {
                       setActiveTab('My Proposals');
                     }}
                     onBookNow={() => {
-                      // Handle booking
-                      alert('Book Now feature coming soon!');
+                      setCurrentView('booking-confirmation');
                     }}
                     onEditProposal={(proposal) => {
                       // Navigate to Trip Builder with proposal data for editing
@@ -276,6 +276,17 @@ function App() {
                         editProposalId: proposal.id
                       });
                       setCurrentView('customize');
+                    }}
+                  />
+                )}
+
+                {currentView === 'booking-confirmation' && savedProposal && (
+                  <BookingConfirmation
+                    proposal={savedProposal}
+                    onBack={() => setCurrentView('proposal-view')}
+                    onConfirmBooking={(bookingData) => {
+                      console.log('Booking confirmed:', bookingData);
+                      alert('Booking confirmed! Proceeding to payment...');
                     }}
                   />
                 )}

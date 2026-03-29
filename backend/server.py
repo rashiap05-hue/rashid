@@ -22,6 +22,7 @@ from routes.supplier import supplier_router
 from routes.uploads import uploads_router
 from routes.settings import settings_router
 from routes.flight_api import flight_api_router
+from routes.bookings import router as bookings_router
 
 from seed import seed_initial_data, seed_terms_policies, migrate_image_urls, migrate_activities_fields, migrate_transfer_image_urls
 
@@ -58,6 +59,7 @@ api_router.include_router(supplier_router)
 api_router.include_router(uploads_router)
 api_router.include_router(settings_router)
 api_router.include_router(flight_api_router)
+api_router.include_router(bookings_router)
 
 app.include_router(api_router)
 
