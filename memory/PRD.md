@@ -22,13 +22,14 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
     auth.py, proposals.py (incl. PDF generation), flights.py, hotels.py,
     airports.py, cities.py, transfers.py, activities.py, terms.py, ai.py,
     payments.py, sheets.py, admin.py, supplier.py, uploads.py,
-    settings.py, flight_api.py
+    settings.py, flight_api.py, bookings.py
 
 /app/frontend/src/
   App.js             (Routes, api instance, resolveImageUrl utility)
   components/
-    ProposalView.jsx (~3000 lines - 2-col layout, DetailViewModals, Inclusions tab, pricing sidebar)
-    TransferEditForm.jsx (Rich tabbed form, stores relative image paths)
+    ProposalView.jsx (~3000 lines - Inclusions tab, pricing sidebar, Detail modals)
+    BookingConfirmation.jsx (NEW - Traveler forms, payment, attachments, consent)
+    TransferEditForm.jsx (Rich tabbed form)
     TripBuilder.jsx  (Edit hydration, inter-city transfers)
     AdminDashboard.jsx, Dashboard.jsx, etc.
     TripBuilder/
@@ -66,7 +67,8 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - Price Breakdown Interactive Features (markup/discount modal, eye toggle)
 - Interactive Modals (Hold Booking, Book Now Terms)
 - Dual-Month Calendar Date Picker
-- Inclusions Section: Flat day-wise layout with chronological sorting (transfers + activities merged, sorted by day number)
+- Inclusions Section: Flat day-wise layout with chronological sorting
+- **Booking Confirmation Page** (March 2026): Full traveler details form, attachment upload, special occasion selection, contact information, collapsible important info, payment options (partial/full), consent validation, timestamp recording, right sidebar with price summary/coupon/trip details, guaranteed security section. Backend API: POST/GET /api/bookings.
 
 ## Test Credentials
 - Admin: testadmin@example.com / password123
@@ -77,12 +79,12 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - **Image URLs**: Stored as relative paths (`/api/static/activities/xxx.jpg`), resolved via `resolveImageUrl()` in frontend
 - **Breakfast Logic**: Arrival Day = Not Included. Middle/Departure Days = Included at hotel
 - **Day Card Image Priority**: Activity > Transfer > Generic fallback (no hotel images in day cards)
-- **Inclusions Rendering**: Two versions exist - inline (itinerary tab) and tab-based. Both merge transfers + activities and sort by day number chronologically.
-- **Calendar Form Collision**: Calendar day-picker buttons inside forms trigger native submission. Render in portal/overlay outside form tree.
+- **Inclusions Rendering**: Two versions (inline + tab). Both merge transfers + activities and sort by day number chronologically.
+- **State-based Routing**: App uses `currentView` state, not URL routing. Views: dashboard, form, customize, proposal-view, booking-confirmation, admin, etc.
 
 ## Upcoming Tasks
 - P1: Google Sheets Sync (blocked on user credentials)
-- P2: Payment integrations (Stripe & PayPal)
+- P2: Payment integrations (Stripe & PayPal) - connect to Booking Confirmation page
 - P2: AI-powered trip recommendations frontend
 - P3: Real Flight API (Airlabs) - needs API key
 - P3: Email notifications
@@ -91,11 +93,13 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 
 ## Refactoring Needed
 - ProposalView.jsx (~3000 lines) - Extract PriceSidebar, LeftSidebarNav, Inclusions into sub-components under /components/Proposal/
+- MyProposals.jsx - Fix HTML hydration warning (<tr> inside <span>)
 
 ## MOCKED APIs
 - Google Sheets sync (/api/sheets/*)
 - PayPal checkout (/api/payments/paypal/checkout)
 - Aviationstack flight API (requires user API key)
+- Payment processing in BookingConfirmation (currently shows alert)
 
 ## 3rd Party Integrations
 - Gemini AI (Chatbot & Itineraries) - Emergent LLM Key
