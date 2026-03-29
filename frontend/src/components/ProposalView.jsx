@@ -2238,187 +2238,174 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                   {/* City-wise inclusions */}
                   {proposal.cities?.map((city, cityIdx) => {
                     const hotel = getHotelForCity(city.name, cityIdx);
-                    const cityKey = `${city.name}_${cityIdx}`;
-                    
-                    // Calculate cumulative start day for this city
                     let cumulativeNights = 0;
-                    for (let i = 0; i < cityIdx; i++) {
-                      cumulativeNights += proposal.cities[i]?.nights || 0;
-                    }
+                    for (let i = 0; i < cityIdx; i++) cumulativeNights += proposal.cities[i]?.nights || 0;
                     const cityStartDate = addDays(proposal.leaving_on, cumulativeNights);
-                    
-                    // Get all activities for this city
+                    const isLastCity = cityIdx === proposal.cities.length - 1;
+
+                    // Collect ALL transfers for this city
+                    const transfers = [];
+                    if (cityIdx === 0 && proposal.arrival_transfer) {
+                      transfers.push({ ...proposal.arrival_transfer, _dayNum: 1, _date: addDays(proposal.leaving_on, 0) });
+                    }
+                    if (cityIdx > 0 && proposal.inter_city_transfers) {
+                      const ict = proposal.inter_city_transfers[`${cityIdx - 1}_${cityIdx}`];
+                      if (ict) transfers.push({ ...ict, _dayNum: cumulativeNights + 1, _date: cityStartDate });
+                    }
+                    if (isLastCity && proposal.departure_transfer) {
+                      transfers.push({ ...proposal.departure_transfer, _dayNum: nightsCount + 1, _date: addDays(proposal.leaving_on, nightsCount) });
+                    }
+
+                    // Collect ALL activities for this city
                     const cityActivities = [];
                     const selectedActs = proposal.selected_activities || {};
                     Object.keys(selectedActs).forEach(key => {
-                      if (key.startsWith(city.name + '_')) {
+                      if (key === `${city.name}_${cityIdx}`) {
                         const acts = selectedActs[key];
                         if (Array.isArray(acts)) cityActivities.push(...acts);
+                        else if (acts) cityActivities.push(acts);
                       }
                     });
 
-                    // Get transfers for this city
-                    const transfers = [];
-                    // Arrival transfer (first city only)
-                    if (cityIdx === 0 && proposal.arrival_transfer) {
-                      transfers.push({ ...proposal.arrival_transfer, _type: 'arrival', _dayNum: 1, _date: addDays(proposal.leaving_on, 0) });
-                    }
-                    // Inter-city transfers arriving at this city
-                    if (cityIdx > 0 && proposal.inter_city_transfers) {
-                      const prevIdx = cityIdx - 1;
-                      const ict = proposal.inter_city_transfers[`${prevIdx}_${cityIdx}`];
-                      if (ict) {
-                        transfers.push({ ...ict, _type: 'inter_city', _dayNum: cumulativeNights + 1, _date: cityStartDate });
-                      }
-                    }
-                    // Departure transfer (last city only)
-                    const isLastCity = cityIdx === proposal.cities.length - 1;
-                    if (isLastCity && proposal.departure_transfer) {
-                      const depDayNum = nightsCount + 1;
-                      transfers.push({ ...proposal.departure_transfer, _type: 'departure', _dayNum: depDayNum, _date: addDays(proposal.leaving_on, nightsCount) });
-                    }
-
                     return (
-                      <div key={cityIdx} className="mb-2" data-testid={`inclusion-city-${cityIdx}`}>
+                      <div key={cityIdx} data-testid={`inclusion-city-${cityIdx}`}>
                         {/* City Header */}
-                        <div className="bg-gray-50 px-6 py-4 flex items-center gap-3 border-y border-gray-100">
-                          <div className="w-7 h-7 rounded-full bg-teal-500 flex items-center justify-center flex-shrink-0">
-                            <MapPin size={14} className="text-white" />
+                        <div className="bg-gray-50 px-8 py-5 flex items-center gap-3 border-y border-gray-100">
+                          <div className="w-8 h-8 rounded-full bg-teal-500 flex items-center justify-center flex-shrink-0">
+                            <MapPin size={15} className="text-white" />
                           </div>
-                          <span className="text-base font-bold text-gray-800">{city.name}</span>
-                          <span className="text-sm text-gray-500">{city.nights} night{city.nights > 1 ? 's' : ''} - {formatDate(cityStartDate, 'short')}</span>
+                          <span className="text-lg font-bold text-gray-800">{city.name}</span>
+                          <span className="text-sm text-gray-400 ml-1">{city.nights} night{city.nights > 1 ? 's' : ''} - {formatDate(cityStartDate, 'short')}</span>
                         </div>
 
-                        <div className="px-6 py-4 space-y-4">
-                          {/* Hotel Info */}
+                        <div className="px-8 py-6 space-y-6">
+                          {/* Hotel */}
                           {hotel && (
-                            <div className="flex items-start gap-3 py-2 border-b border-gray-50">
-                              <Hotel size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                              <div className="flex-1">
-                                <p className="text-sm text-gray-800">
-                                  Stay for {city.nights} night{city.nights > 1 ? 's' : ''} at <span className="font-semibold">{hotel.name}</span>
+                            <div className="flex items-start gap-4">
+                              <Hotel size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-[15px] text-gray-800">
+                                  Stay for {city.nights} night{city.nights > 1 ? 's' : ''} at <span className="font-bold">{hotel.name}</span>
                                 </p>
                                 {hotel.selectedRoom && (
-                                  <>
-                                    <p className="text-xs text-gray-500 mt-0.5">
-                                      1 x {hotel.selectedRoom.name || 'Standard Room'}
-                                      {hotel.selectedRoom.bed_type ? `, ${hotel.selectedRoom.bed_type}` : ''}
-                                    </p>
-                                    {hotel.selectedRoom.rate_plan?.meal_plan && (
-                                      <p className="text-xs text-gray-500">{hotel.selectedRoom.rate_plan.meal_plan}</p>
-                                    )}
-                                  </>
+                                  <p className="text-sm text-gray-400 mt-1">
+                                    1 x {hotel.selectedRoom.name || 'Standard Room'}
+                                    {hotel.selectedRoom.bed_type ? `, ${hotel.selectedRoom.bed_type}` : ''}
+                                  </p>
+                                )}
+                                {hotelIncludesBreakfast(hotel) && (
+                                  <p className="text-sm text-gray-400">Breakfast</p>
                                 )}
                               </div>
                             </div>
                           )}
 
-                          {/* Transfers */}
+                          {/* Transfers (flat) */}
                           {transfers.map((transfer, tIdx) => (
-                            <div key={`transfer-${tIdx}`} className="flex items-start gap-3 py-2 border-b border-gray-50">
-                              <Car size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                            <div key={`t-${tIdx}`} className="flex items-start gap-4">
+                              <Car size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
                               <div className="flex-1">
                                 <div className="flex items-start justify-between gap-4">
                                   <div className="flex-1">
-                                    <p className="text-sm text-gray-800">
+                                    <p className="text-[15px] text-gray-800">
                                       {transfer.title || 'Private Transfer'}
                                       <button
                                         onClick={() => openTransferDetail(transfer)}
-                                        className="ml-2 px-2 py-0.5 text-[10px] font-semibold text-teal-600 border border-teal-300 rounded bg-white hover:bg-teal-50 transition-colors"
-                                        data-testid={`inclusion-transfer-view-${tIdx}`}
+                                        className="ml-3 px-2.5 py-0.5 text-[11px] font-semibold text-teal-600 border border-teal-300 rounded bg-white hover:bg-teal-50 transition-colors align-middle"
+                                        data-testid={`inclusion-transfer-view-${cityIdx}-${tIdx}`}
                                       >
                                         VIEW
                                       </button>
                                     </p>
                                     {transfer.duration && (
-                                      <p className="text-xs text-gray-500 mt-0.5">Duration: {transfer.duration}</p>
+                                      <p className="text-sm text-gray-400 mt-1">Duration: {transfer.duration}</p>
                                     )}
-                                    <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-medium bg-teal-50 text-teal-700 rounded">
+                                    <span className="inline-block mt-2 px-2.5 py-0.5 text-[11px] font-medium text-teal-700 border border-teal-200 rounded">
                                       Private Transfers
                                     </span>
                                   </div>
                                   <div className="text-right flex-shrink-0">
-                                    <p className="text-xs text-gray-500">Day {transfer._dayNum}</p>
-                                    <p className="text-xs text-gray-400">{formatDate(transfer._date, 'long')}</p>
+                                    <p className="text-sm text-gray-500">Day {transfer._dayNum}</p>
+                                    <p className="text-sm text-gray-400">{formatDate(transfer._date, 'long')}</p>
                                   </div>
                                 </div>
                               </div>
                             </div>
                           ))}
 
-                          {/* Activities */}
+                          {/* Activities (flat) */}
                           {cityActivities.map((activity, actIdx) => {
-                            // Calculate which day this activity falls on
                             const actDayNum = cumulativeNights + 1 + Math.min(actIdx, city.nights - 1);
                             const actDate = addDays(proposal.leaving_on, actDayNum - 1);
                             return (
-                              <div key={`activity-${actIdx}`} className="flex items-start gap-3 py-2 border-b border-gray-50">
-                                <Camera size={16} className="text-teal-500 mt-0.5 flex-shrink-0" />
+                              <div key={`a-${actIdx}`} className="flex items-start gap-4">
+                                <Camera size={18} className="text-gray-400 mt-0.5 flex-shrink-0" />
                                 <div className="flex-1">
                                   <div className="flex items-start justify-between gap-4">
                                     <div className="flex-1">
-                                      <p className="text-sm text-gray-800">
+                                      <p className="text-[15px] text-gray-800">
                                         {activity.name}
                                         <button
                                           onClick={() => setDetailModal({ open: true, item: activity, type: 'activity' })}
-                                          className="ml-2 px-2 py-0.5 text-[10px] font-semibold text-teal-600 border border-teal-300 rounded bg-white hover:bg-teal-50 transition-colors"
-                                          data-testid={`inclusion-activity-view-${actIdx}`}
+                                          className="ml-3 px-2.5 py-0.5 text-[11px] font-semibold text-teal-600 border border-teal-300 rounded bg-white hover:bg-teal-50 transition-colors align-middle"
+                                          data-testid={`inclusion-activity-view-${cityIdx}-${actIdx}`}
                                         >
                                           VIEW
                                         </button>
                                       </p>
-                                      {activity.start_times?.length > 0 && (
-                                        <p className="text-xs text-gray-500 mt-0.5">
-                                          Starts at {activity.start_times.slice(0, 3).join(', ')}
-                                          {activity.duration ? ` (Duration: ${activity.duration})` : ''}
-                                        </p>
-                                      )}
-                                      <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-medium bg-teal-50 text-teal-700 rounded">
+                                      <span className="inline-block mt-2 px-2.5 py-0.5 text-[11px] font-medium text-teal-700 border border-teal-200 rounded">
                                         {activity.transfer_type || 'Private'} Transfers
                                       </span>
                                     </div>
                                     <div className="text-right flex-shrink-0">
-                                      <p className="text-xs text-gray-500">Day {actDayNum}</p>
-                                      <p className="text-xs text-gray-400">{formatDate(actDate, 'long')}</p>
+                                      <p className="text-sm text-gray-500">Day {actDayNum}</p>
+                                      <p className="text-sm text-gray-400">{formatDate(actDate, 'long')}</p>
                                     </div>
                                   </div>
                                 </div>
                               </div>
                             );
                           })}
-
-                          {/* Meals Row */}
-                          <div className="grid grid-cols-3 gap-4 pt-4 pb-2">
-                            <div className="flex items-center gap-2.5">
-                              <Utensils size={16} className={hotelIncludesBreakfast(hotel) ? "text-gray-600" : "text-gray-300"} />
-                              <div>
-                                <p className="text-sm font-medium text-gray-800">Breakfast</p>
-                                {hotelIncludesBreakfast(hotel) ? (
-                                  <p className="text-xs text-teal-600 font-medium">Included on {city.nights} day{city.nights > 1 ? 's' : ''}</p>
-                                ) : (
-                                  <p className="text-xs text-gray-400">Not Included</p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2.5">
-                              <X size={16} className="text-gray-300" />
-                              <div>
-                                <p className="text-sm font-medium text-gray-800">Lunch</p>
-                                <p className="text-xs text-gray-400">Not Included</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2.5">
-                              <Moon size={16} className="text-gray-300" />
-                              <div>
-                                <p className="text-sm font-medium text-gray-800">Dinner</p>
-                                <p className="text-xs text-gray-400">Not Included</p>
-                              </div>
-                            </div>
-                          </div>
                         </div>
                       </div>
                     );
                   })}
+
+                  {/* Meals Row - single row at the bottom */}
+                  <div className="px-8 py-6 border-t border-gray-100">
+                    <div className="grid grid-cols-3 gap-6">
+                      <div className="flex items-center gap-3">
+                        <Utensils size={18} className="text-gray-500" />
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">Breakfast</p>
+                          {(() => {
+                            let breakfastDays = 0;
+                            proposal.cities?.forEach((c, i) => {
+                              const h = getHotelForCity(c.name, i);
+                              if (hotelIncludesBreakfast(h)) breakfastDays += c.nights;
+                            });
+                            return breakfastDays > 0
+                              ? <p className="text-xs text-teal-600 font-semibold">Included on {breakfastDays} day{breakfastDays > 1 ? 's' : ''}</p>
+                              : <p className="text-xs text-gray-400">Not Included</p>;
+                          })()}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <X size={18} className="text-gray-300" />
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">Lunch</p>
+                          <p className="text-xs text-gray-400">Not Included</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Moon size={18} className="text-gray-300" />
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">Dinner</p>
+                          <p className="text-xs text-gray-400">Not Included</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* ========== EXCLUSIONS SECTION ========== */}
