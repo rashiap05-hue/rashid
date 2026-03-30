@@ -433,7 +433,7 @@ export default function BookingConfirmation({ proposal, onBack, onConfirmBooking
   const nightsCount = proposal.cities?.reduce((acc, c) => acc + (c.nights || 0), 0) || 1;
 
   // Hold booking date
-  const holdDate = addDays(new Date().toISOString().split('T')[0], 7);
+  const holdDate = addDays(proposal.leaving_on, -21);
 
   // Get first hotel for important info
   const firstHotel = useMemo(() => {
