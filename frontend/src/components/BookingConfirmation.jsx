@@ -49,8 +49,13 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
     try {
       const formData = new FormData();
       formData.append('file', file);
+      const token = localStorage.getItem('travo_token');
       const res = await api.post('/scan-passport', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: {
+          'Content-Type': undefined,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        timeout: 30000
       });
       if (res.data.success && res.data.data) {
         const d = res.data.data;
