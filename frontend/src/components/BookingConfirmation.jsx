@@ -32,6 +32,7 @@ function addDays(dateStr, days) {
 function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstInRoom }) {
   const [scanning, setScanning] = useState(false);
   const [scanStatus, setScanStatus] = useState(''); // '', 'success', 'error'
+  const fileInputRef = React.useRef(null);
 
   const handleDocUpload = async (e) => {
     const files = Array.from(e.target.files);
@@ -82,7 +83,9 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
       setScanStatus('error');
     } finally {
       setScanning(false);
-      setTimeout(() => setScanStatus(''), 5000);
+      // Reset input so the same file can be re-uploaded
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setTimeout(() => setScanStatus(''), 8000);
     }
   };
 
@@ -305,8 +308,15 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
 
         <label className={`inline-flex items-center gap-1.5 cursor-pointer font-medium text-sm ${scanning ? 'text-gray-400 pointer-events-none' : 'text-red-600 hover:text-red-700'}`} data-testid={`upload-doc-${roomIndex}-${index}`}>
           {scanning ? <Loader2 size={16} className="animate-spin" /> : <ScanLine size={16} />}
-          <span>Upload Passenger Document</span>
-          <input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" onChange={handleDocUpload} className="hidden" disabled={scanning} />
+          <span>{scanning ? 'Scanning...' : 'Upload Passenger Document'}</span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
+            onChange={handleDocUpload}
+            className="hidden"
+            disabled={scanning}
+          />
         </label>
         <p className="text-[11px] text-gray-400 mt-1 ml-5">Upload passport photo to auto-fill traveler details</p>
       </div>
