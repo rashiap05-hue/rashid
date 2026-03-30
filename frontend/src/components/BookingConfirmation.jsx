@@ -445,7 +445,7 @@ export default function BookingConfirmation({ proposal, onBack, onConfirmBooking
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-[1400px] mx-auto px-6 py-8">
         {/* Intro */}
         <div className="mb-6">
           <p className="text-sm text-gray-600 leading-relaxed max-w-3xl">
@@ -453,7 +453,7 @@ export default function BookingConfirmation({ proposal, onBack, onConfirmBooking
           </p>
         </div>
 
-        <div className="flex gap-8">
+        <div className="flex gap-6">
           {/* Left Column - Main Form */}
           <div className="flex-1 min-w-0 space-y-6">
 
@@ -797,7 +797,7 @@ export default function BookingConfirmation({ proposal, onBack, onConfirmBooking
           </div>
 
           {/* Right Sidebar */}
-          <div className="w-[340px] flex-shrink-0 space-y-6">
+          <div className="w-[300px] flex-shrink-0 space-y-6">
             {/* Price Summary */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden sticky top-20" data-testid="price-summary-sidebar">
               <div className="px-5 py-4">
