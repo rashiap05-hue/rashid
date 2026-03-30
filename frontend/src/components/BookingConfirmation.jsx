@@ -32,6 +32,7 @@ function addDays(dateStr, days) {
 function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstInRoom }) {
   const [scanning, setScanning] = useState(false);
   const [scanStatus, setScanStatus] = useState(''); // '', 'success', 'error'
+  const [scanErrorMsg, setScanErrorMsg] = useState('');
   const fileInputRef = React.useRef(null);
   const [scanKey, setScanKey] = useState(0);
 
@@ -77,11 +78,13 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
       } else {
         // Scan failed, still save the document
         onChange({...traveler, documents: [...existing, newDoc]});
+        setScanErrorMsg(res.data.error || 'Could not extract details. Please try a clearer photo.');
         setScanStatus('error');
       }
     } catch (err) {
       console.error('Passport scan failed:', err);
       onChange({...traveler, documents: [...existing, newDoc]});
+      setScanErrorMsg(err?.response?.data?.error || err.message || 'Scan request failed. Please try again.');
       setScanStatus('error');
     } finally {
       setScanning(false);
@@ -304,7 +307,7 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
         {scanStatus === 'error' && (
           <div className="mb-3 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3" data-testid={`scan-error-${roomIndex}-${index}`}>
             <AlertCircle size={16} className="text-amber-600" />
-            <span className="text-sm text-amber-700">Could not extract all details. Please verify and fill manually.</span>
+            <span className="text-sm text-amber-700">{scanErrorMsg || 'Could not extract all details. Please verify and fill manually.'}</span>
           </div>
         )}
 
