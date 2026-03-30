@@ -33,6 +33,7 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
   const [scanning, setScanning] = useState(false);
   const [scanStatus, setScanStatus] = useState(''); // '', 'success', 'error'
   const fileInputRef = React.useRef(null);
+  const [scanKey, setScanKey] = useState(0);
 
   const handleDocUpload = async (e) => {
     const files = Array.from(e.target.files);
@@ -72,6 +73,7 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
           documents: [...existing, newDoc]
         });
         setScanStatus('success');
+        setScanKey(k => k + 1);
       } else {
         // Scan failed, still save the document
         onChange({...traveler, documents: [...existing, newDoc]});
@@ -94,7 +96,7 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
   };
 
   return (
-    <div className="mb-6 border border-gray-200 rounded-lg p-5" data-testid={`traveler-form-${roomIndex}-${index}`}>
+    <div key={scanKey} className="mb-6 border border-gray-200 rounded-lg p-5" data-testid={`traveler-form-${roomIndex}-${index}`}>
       <div className="flex items-center justify-between mb-4">
         <div>
           <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Room {roomIndex + 1}</p>
@@ -154,7 +156,7 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
               <option value="">Day</option>
               {DAYS.map(d => <option key={d} value={String(d)}>{d}</option>)}
             </select>
-            <select value={traveler.dobMonth} onChange={e => onChange({...traveler, dobMonth: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-dob-month-${roomIndex}-${index}`}>
+            <select value={traveler.dobMonth} onChange={e => { console.log('Month changed to:', e.target.value); onChange({...traveler, dobMonth: e.target.value}); }} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-dob-month-${roomIndex}-${index}`}>
               <option value="">Month</option>
               {MONTHS.map((m, i) => <option key={m} value={String(i + 1)}>{m}</option>)}
             </select>
@@ -306,18 +308,25 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
           </div>
         )}
 
-        <label className={`inline-flex items-center gap-1.5 cursor-pointer font-medium text-sm ${scanning ? 'text-gray-400 pointer-events-none' : 'text-red-600 hover:text-red-700'}`} data-testid={`upload-doc-${roomIndex}-${index}`}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
+          onChange={handleDocUpload}
+          style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden', opacity: 0 }}
+          disabled={scanning}
+          data-testid={`file-input-${roomIndex}-${index}`}
+        />
+        <button
+          type="button"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!scanning && fileInputRef.current) { fileInputRef.current.value = ''; fileInputRef.current.click(); } }}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${scanning ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-wait' : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer'}`}
+          disabled={scanning}
+          data-testid={`upload-doc-${roomIndex}-${index}`}
+        >
           {scanning ? <Loader2 size={16} className="animate-spin" /> : <ScanLine size={16} />}
-          <span>{scanning ? 'Scanning...' : 'Upload Passenger Document'}</span>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
-            onChange={handleDocUpload}
-            className="hidden"
-            disabled={scanning}
-          />
-        </label>
+          <span>{scanning ? 'Scanning passport...' : 'Upload Passport & Auto-Fill'}</span>
+        </button>
         <p className="text-[11px] text-gray-400 mt-1 ml-5">Upload passport photo to auto-fill traveler details</p>
       </div>
     </div>
