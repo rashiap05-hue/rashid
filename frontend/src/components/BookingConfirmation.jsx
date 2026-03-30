@@ -37,8 +37,8 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
     const file = files[0];
+    const newDoc = { name: file.name, size: file.size };
     const existing = traveler.documents || [];
-    onChange({...traveler, documents: [...existing, { name: file.name, size: file.size }]});
 
     // Auto-scan passport
     setScanning(true);
@@ -51,30 +51,34 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
       });
       if (res.data.success && res.data.data) {
         const d = res.data.data;
+        // Convert all values to strings for select compatibility
         onChange({
           ...traveler,
-          title: d.title || traveler.title,
-          firstName: d.firstName || traveler.firstName,
-          lastName: d.lastName || traveler.lastName,
-          dobDay: d.dobDay || traveler.dobDay,
-          dobMonth: d.dobMonth || traveler.dobMonth,
-          dobYear: d.dobYear || traveler.dobYear,
-          passportNumber: d.passportNumber || traveler.passportNumber,
-          issueDay: d.issueDay || traveler.issueDay,
-          issueMonth: d.issueMonth || traveler.issueMonth,
-          issueYear: d.issueYear || traveler.issueYear,
-          expiryDay: d.expiryDay || traveler.expiryDay,
-          expiryMonth: d.expiryMonth || traveler.expiryMonth,
-          expiryYear: d.expiryYear || traveler.expiryYear,
-          nationality: d.nationality || traveler.nationality,
-          documents: [...existing, { name: file.name, size: file.size }]
+          title: String(d.title || '') || traveler.title,
+          firstName: String(d.firstName || '') || traveler.firstName,
+          lastName: String(d.lastName || '') || traveler.lastName,
+          dobDay: String(d.dobDay || '') || traveler.dobDay,
+          dobMonth: String(d.dobMonth || '') || traveler.dobMonth,
+          dobYear: String(d.dobYear || '') || traveler.dobYear,
+          passportNumber: String(d.passportNumber || '') || traveler.passportNumber,
+          issueDay: String(d.issueDay || '') || traveler.issueDay,
+          issueMonth: String(d.issueMonth || '') || traveler.issueMonth,
+          issueYear: String(d.issueYear || '') || traveler.issueYear,
+          expiryDay: String(d.expiryDay || '') || traveler.expiryDay,
+          expiryMonth: String(d.expiryMonth || '') || traveler.expiryMonth,
+          expiryYear: String(d.expiryYear || '') || traveler.expiryYear,
+          nationality: String(d.nationality || '') || traveler.nationality,
+          documents: [...existing, newDoc]
         });
         setScanStatus('success');
       } else {
+        // Scan failed, still save the document
+        onChange({...traveler, documents: [...existing, newDoc]});
         setScanStatus('error');
       }
     } catch (err) {
       console.error('Passport scan failed:', err);
+      onChange({...traveler, documents: [...existing, newDoc]});
       setScanStatus('error');
     } finally {
       setScanning(false);
@@ -145,15 +149,15 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
           <div className="flex gap-2 mt-1">
             <select value={traveler.dobDay} onChange={e => onChange({...traveler, dobDay: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-dob-day-${roomIndex}-${index}`}>
               <option value="">Day</option>
-              {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+              {DAYS.map(d => <option key={d} value={String(d)}>{d}</option>)}
             </select>
             <select value={traveler.dobMonth} onChange={e => onChange({...traveler, dobMonth: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-dob-month-${roomIndex}-${index}`}>
               <option value="">Month</option>
-              {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+              {MONTHS.map((m, i) => <option key={m} value={String(i + 1)}>{m}</option>)}
             </select>
             <select value={traveler.dobYear} onChange={e => onChange({...traveler, dobYear: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-dob-year-${roomIndex}-${index}`}>
               <option value="">Year</option>
-              {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+              {YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}
             </select>
           </div>
         </div>
@@ -203,15 +207,15 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
           <div className="flex gap-2 mt-1">
             <select value={traveler.issueDay || ''} onChange={e => onChange({...traveler, issueDay: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-issue-day-${roomIndex}-${index}`}>
               <option value="">Day</option>
-              {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+              {DAYS.map(d => <option key={d} value={String(d)}>{d}</option>)}
             </select>
             <select value={traveler.issueMonth || ''} onChange={e => onChange({...traveler, issueMonth: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-issue-month-${roomIndex}-${index}`}>
               <option value="">Month</option>
-              {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+              {MONTHS.map((m, i) => <option key={m} value={String(i + 1)}>{m}</option>)}
             </select>
             <select value={traveler.issueYear || ''} onChange={e => onChange({...traveler, issueYear: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-issue-year-${roomIndex}-${index}`}>
               <option value="">Year</option>
-              {ISSUE_EXPIRY_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+              {ISSUE_EXPIRY_YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}
             </select>
           </div>
         </div>
@@ -220,15 +224,15 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
           <div className="flex gap-2 mt-1">
             <select value={traveler.expiryDay || ''} onChange={e => onChange({...traveler, expiryDay: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-expiry-day-${roomIndex}-${index}`}>
               <option value="">Day</option>
-              {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+              {DAYS.map(d => <option key={d} value={String(d)}>{d}</option>)}
             </select>
             <select value={traveler.expiryMonth || ''} onChange={e => onChange({...traveler, expiryMonth: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-expiry-month-${roomIndex}-${index}`}>
               <option value="">Month</option>
-              {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+              {MONTHS.map((m, i) => <option key={m} value={String(i + 1)}>{m}</option>)}
             </select>
             <select value={traveler.expiryYear || ''} onChange={e => onChange({...traveler, expiryYear: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-expiry-year-${roomIndex}-${index}`}>
               <option value="">Year</option>
-              {ISSUE_EXPIRY_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+              {ISSUE_EXPIRY_YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}
             </select>
           </div>
         </div>
