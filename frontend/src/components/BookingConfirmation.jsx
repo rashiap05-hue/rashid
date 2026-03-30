@@ -9,7 +9,9 @@ import {
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS = Array.from({length: 31}, (_, i) => i + 1);
 const YEARS = Array.from({length: 100}, (_, i) => new Date().getFullYear() - i);
+const ISSUE_EXPIRY_YEARS = Array.from({length: 30}, (_, i) => new Date().getFullYear() + 10 - i);
 const TITLES = ['Mr', 'Mrs', 'Ms', 'Dr'];
+const NATIONALITIES = ['Afghanistan','Albania','Algeria','Argentina','Armenia','Australia','Austria','Azerbaijan','Bahrain','Bangladesh','Belarus','Belgium','Bolivia','Bosnia','Brazil','Bulgaria','Cambodia','Cameroon','Canada','Chile','China','Colombia','Costa Rica','Croatia','Cuba','Cyprus','Czech Republic','Denmark','Ecuador','Egypt','Estonia','Ethiopia','Finland','France','Georgia','Germany','Ghana','Greece','Guatemala','Honduras','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kuwait','Kyrgyzstan','Latvia','Lebanon','Libya','Lithuania','Luxembourg','Malaysia','Maldives','Mexico','Moldova','Mongolia','Montenegro','Morocco','Myanmar','Nepal','Netherlands','New Zealand','Nigeria','North Macedonia','Norway','Oman','Pakistan','Palestine','Panama','Paraguay','Peru','Philippines','Poland','Portugal','Qatar','Romania','Russia','Saudi Arabia','Senegal','Serbia','Singapore','Slovakia','Slovenia','Somalia','South Africa','South Korea','Spain','Sri Lanka','Sudan','Sweden','Switzerland','Syria','Taiwan','Tajikistan','Tanzania','Thailand','Tunisia','Turkey','Turkmenistan','UAE','Uganda','UK','Ukraine','Uruguay','USA','Uzbekistan','Venezuela','Vietnam','Yemen','Zimbabwe'];
 
 function formatDate(dateStr, format = 'long') {
   if (!dateStr) return '';
@@ -27,6 +29,15 @@ function addDays(dateStr, days) {
 
 // Traveler form row
 function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstInRoom }) {
+  const handleDocUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const existing = traveler.documents || [];
+    onChange({...traveler, documents: [...existing, ...files.map(f => ({ name: f.name, size: f.size, file: f }))]});
+  };
+  const removeDoc = (docIdx) => {
+    onChange({...traveler, documents: (traveler.documents || []).filter((_, i) => i !== docIdx)});
+  };
+
   return (
     <div className="mb-6 border border-gray-200 rounded-lg p-5" data-testid={`traveler-form-${roomIndex}-${index}`}>
       <div className="flex items-center justify-between mb-4">
@@ -40,6 +51,8 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
           Pick Traveler
         </button>
       </div>
+
+      {/* Row 1: Title, First Name, Last Name */}
       <div className="grid grid-cols-3 gap-4 mb-4">
         <div>
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Title<span className="text-red-500">*</span></label>
@@ -76,34 +89,21 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
           />
         </div>
       </div>
+
+      {/* Row 2: Date of Birth + Bed Preference (only for first traveler in room) */}
       <div className={`grid ${isFirstInRoom && !isChild ? 'grid-cols-2' : 'grid-cols-1'} gap-4 mb-4`}>
         <div>
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Date of Birth<span className="text-red-500">*</span></label>
           <div className="flex gap-2 mt-1">
-            <select
-              value={traveler.dobDay}
-              onChange={e => onChange({...traveler, dobDay: e.target.value})}
-              className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm"
-              data-testid={`traveler-dob-day-${roomIndex}-${index}`}
-            >
+            <select value={traveler.dobDay} onChange={e => onChange({...traveler, dobDay: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-dob-day-${roomIndex}-${index}`}>
               <option value="">Day</option>
               {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
-            <select
-              value={traveler.dobMonth}
-              onChange={e => onChange({...traveler, dobMonth: e.target.value})}
-              className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm"
-              data-testid={`traveler-dob-month-${roomIndex}-${index}`}
-            >
+            <select value={traveler.dobMonth} onChange={e => onChange({...traveler, dobMonth: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-dob-month-${roomIndex}-${index}`}>
               <option value="">Month</option>
               {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
             </select>
-            <select
-              value={traveler.dobYear}
-              onChange={e => onChange({...traveler, dobYear: e.target.value})}
-              className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm"
-              data-testid={`traveler-dob-year-${roomIndex}-${index}`}
-            >
+            <select value={traveler.dobYear} onChange={e => onChange({...traveler, dobYear: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-dob-year-${roomIndex}-${index}`}>
               <option value="">Year</option>
               {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
@@ -129,15 +129,81 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
               <option value="">-- Choose Bed Preference --</option>
               <option value="single">Single Bed</option>
               <option value="double">Double Bed</option>
-              <option value="twin">Twin Beds</option>
+              <option value="twin">Twin Bed</option>
               <option value="king">King Bed</option>
               <option value="queen">Queen Bed</option>
             </select>
           </div>
         )}
       </div>
-      {/* Requirement field */}
-      <div>
+
+      {/* Row 3: Passport Number, Issue Date, Expiry Date */}
+      <div className="grid grid-cols-3 gap-4 mb-4">
+        <div>
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Passport Number</label>
+          <input
+            type="text"
+            value={traveler.passportNumber || ''}
+            onChange={e => onChange({...traveler, passportNumber: e.target.value})}
+            className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+            placeholder="Passport Number"
+            data-testid={`traveler-passport-${roomIndex}-${index}`}
+          />
+        </div>
+        <div>
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Issue Date</label>
+          <div className="flex gap-2 mt-1">
+            <select value={traveler.issueDay || ''} onChange={e => onChange({...traveler, issueDay: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-issue-day-${roomIndex}-${index}`}>
+              <option value="">Day</option>
+              {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <select value={traveler.issueMonth || ''} onChange={e => onChange({...traveler, issueMonth: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-issue-month-${roomIndex}-${index}`}>
+              <option value="">Month</option>
+              {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+            </select>
+            <select value={traveler.issueYear || ''} onChange={e => onChange({...traveler, issueYear: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-issue-year-${roomIndex}-${index}`}>
+              <option value="">Year</option>
+              {ISSUE_EXPIRY_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Expiry Date</label>
+          <div className="flex gap-2 mt-1">
+            <select value={traveler.expiryDay || ''} onChange={e => onChange({...traveler, expiryDay: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-expiry-day-${roomIndex}-${index}`}>
+              <option value="">Day</option>
+              {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <select value={traveler.expiryMonth || ''} onChange={e => onChange({...traveler, expiryMonth: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-expiry-month-${roomIndex}-${index}`}>
+              <option value="">Month</option>
+              {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+            </select>
+            <select value={traveler.expiryYear || ''} onChange={e => onChange({...traveler, expiryYear: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-expiry-year-${roomIndex}-${index}`}>
+              <option value="">Year</option>
+              {ISSUE_EXPIRY_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 4: Nationality */}
+      <div className="grid grid-cols-3 gap-4 mb-4">
+        <div>
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Nationality</label>
+          <select
+            value={traveler.nationality || ''}
+            onChange={e => onChange({...traveler, nationality: e.target.value})}
+            className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+            data-testid={`traveler-nationality-${roomIndex}-${index}`}
+          >
+            <option value="">Select Nationality</option>
+            {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Row 5: Requirement */}
+      <div className="mb-4">
         <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Requirement</label>
         <input
           type="text"
@@ -147,6 +213,29 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
           placeholder="Any special requirements for this traveler (e.g. wheelchair access, dietary needs)"
           data-testid={`traveler-requirement-${roomIndex}-${index}`}
         />
+      </div>
+
+      {/* Upload Passenger Document */}
+      <div>
+        {(traveler.documents || []).length > 0 && (
+          <div className="mb-2 space-y-1">
+            {(traveler.documents || []).map((doc, dIdx) => (
+              <div key={dIdx} className="flex items-center gap-2 text-sm text-gray-600">
+                <FileText size={14} className="text-gray-400" />
+                <span>{doc.name}</span>
+                <span className="text-xs text-gray-400">({(doc.size / 1024).toFixed(1)} KB)</span>
+                <button onClick={() => removeDoc(dIdx)} className="text-gray-400 hover:text-red-500 ml-1">
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <label className="inline-flex items-center gap-1.5 cursor-pointer text-red-600 hover:text-red-700 font-medium text-sm" data-testid={`upload-doc-${roomIndex}-${index}`}>
+          <span className="text-lg leading-none">+</span>
+          <span>Upload Passenger Document</span>
+          <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onChange={handleDocUpload} className="hidden" />
+        </label>
       </div>
     </div>
   );
@@ -167,7 +256,11 @@ export default function BookingConfirmation({ proposal, onBack, onConfirmBooking
           title: '', firstName: '', lastName: '',
           dobDay: '', dobMonth: '', dobYear: '',
           bedPreference: '',
+          passportNumber: '', issueDay: '', issueMonth: '', issueYear: '',
+          expiryDay: '', expiryMonth: '', expiryYear: '',
+          nationality: '',
           requirement: '',
+          documents: [],
           _indexInRoom: i
         });
       }
@@ -178,7 +271,11 @@ export default function BookingConfirmation({ proposal, onBack, onConfirmBooking
           title: '', firstName: '', lastName: '',
           dobDay: '', dobMonth: '', dobYear: '',
           bedPreference: '',
+          passportNumber: '', issueDay: '', issueMonth: '', issueYear: '',
+          expiryDay: '', expiryMonth: '', expiryYear: '',
+          nationality: '',
           requirement: '',
+          documents: [],
           _indexInRoom: room.adults + cIdx
         });
       });
