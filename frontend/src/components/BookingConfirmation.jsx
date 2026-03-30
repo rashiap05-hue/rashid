@@ -192,11 +192,8 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
               data-testid={`traveler-bed-${roomIndex}-${index}`}
             >
               <option value="">-- Choose Bed Preference --</option>
-              <option value="single">Single Bed</option>
-              <option value="double">Double Bed</option>
               <option value="twin">Twin Bed</option>
-              <option value="king">King Bed</option>
-              <option value="queen">Queen Bed</option>
+              <option value="double">Double Bed</option>
             </select>
           </div>
         )}
