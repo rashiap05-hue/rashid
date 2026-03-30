@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, User, Calendar, MapPin, Hotel, Car, Camera, 
   ChevronDown, ChevronUp, Check, AlertCircle, Clock, Shield,
-  Mail, Phone, Building, FileText, Upload, X, Info, CreditCard, Bed
+  Mail, Phone, Building, FileText, Upload, X, Info, CreditCard, Bed, Loader2, ScanLine
 } from 'lucide-react';
+import { api } from '../App';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS = Array.from({length: 31}, (_, i) => i + 1);
@@ -29,11 +30,58 @@ function addDays(dateStr, days) {
 
 // Traveler form row
 function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstInRoom }) {
-  const handleDocUpload = (e) => {
+  const [scanning, setScanning] = useState(false);
+  const [scanStatus, setScanStatus] = useState(''); // '', 'success', 'error'
+
+  const handleDocUpload = async (e) => {
     const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    const file = files[0];
     const existing = traveler.documents || [];
-    onChange({...traveler, documents: [...existing, ...files.map(f => ({ name: f.name, size: f.size, file: f }))]});
+    onChange({...traveler, documents: [...existing, { name: file.name, size: file.size }]});
+
+    // Auto-scan passport
+    setScanning(true);
+    setScanStatus('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/scan-passport', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data.success && res.data.data) {
+        const d = res.data.data;
+        onChange({
+          ...traveler,
+          title: d.title || traveler.title,
+          firstName: d.firstName || traveler.firstName,
+          lastName: d.lastName || traveler.lastName,
+          dobDay: d.dobDay || traveler.dobDay,
+          dobMonth: d.dobMonth || traveler.dobMonth,
+          dobYear: d.dobYear || traveler.dobYear,
+          passportNumber: d.passportNumber || traveler.passportNumber,
+          issueDay: d.issueDay || traveler.issueDay,
+          issueMonth: d.issueMonth || traveler.issueMonth,
+          issueYear: d.issueYear || traveler.issueYear,
+          expiryDay: d.expiryDay || traveler.expiryDay,
+          expiryMonth: d.expiryMonth || traveler.expiryMonth,
+          expiryYear: d.expiryYear || traveler.expiryYear,
+          nationality: d.nationality || traveler.nationality,
+          documents: [...existing, { name: file.name, size: file.size }]
+        });
+        setScanStatus('success');
+      } else {
+        setScanStatus('error');
+      }
+    } catch (err) {
+      console.error('Passport scan failed:', err);
+      setScanStatus('error');
+    } finally {
+      setScanning(false);
+      setTimeout(() => setScanStatus(''), 5000);
+    }
   };
+
   const removeDoc = (docIdx) => {
     onChange({...traveler, documents: (traveler.documents || []).filter((_, i) => i !== docIdx)});
   };
@@ -231,11 +279,32 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
             ))}
           </div>
         )}
-        <label className="inline-flex items-center gap-1.5 cursor-pointer text-red-600 hover:text-red-700 font-medium text-sm" data-testid={`upload-doc-${roomIndex}-${index}`}>
-          <span className="text-lg leading-none">+</span>
+
+        {scanning && (
+          <div className="mb-3 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3" data-testid={`scan-loading-${roomIndex}-${index}`}>
+            <Loader2 size={16} className="text-blue-600 animate-spin" />
+            <span className="text-sm text-blue-700 font-medium">Scanning passport and extracting details...</span>
+          </div>
+        )}
+        {scanStatus === 'success' && (
+          <div className="mb-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-4 py-3" data-testid={`scan-success-${roomIndex}-${index}`}>
+            <Check size={16} className="text-green-600" />
+            <span className="text-sm text-green-700 font-medium">Passport scanned successfully! Details auto-filled.</span>
+          </div>
+        )}
+        {scanStatus === 'error' && (
+          <div className="mb-3 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3" data-testid={`scan-error-${roomIndex}-${index}`}>
+            <AlertCircle size={16} className="text-amber-600" />
+            <span className="text-sm text-amber-700">Could not extract all details. Please verify and fill manually.</span>
+          </div>
+        )}
+
+        <label className={`inline-flex items-center gap-1.5 cursor-pointer font-medium text-sm ${scanning ? 'text-gray-400 pointer-events-none' : 'text-red-600 hover:text-red-700'}`} data-testid={`upload-doc-${roomIndex}-${index}`}>
+          {scanning ? <Loader2 size={16} className="animate-spin" /> : <ScanLine size={16} />}
           <span>Upload Passenger Document</span>
-          <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onChange={handleDocUpload} className="hidden" />
+          <input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" onChange={handleDocUpload} className="hidden" disabled={scanning} />
         </label>
+        <p className="text-[11px] text-gray-400 mt-1 ml-5">Upload passport photo to auto-fill traveler details</p>
       </div>
     </div>
   );
