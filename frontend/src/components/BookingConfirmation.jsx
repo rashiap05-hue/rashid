@@ -26,15 +26,21 @@ function addDays(dateStr, days) {
 }
 
 // Traveler form row
-function TravelerForm({ index, roomIndex, traveler, onChange, isChild }) {
+function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstInRoom }) {
   return (
-    <div className="mb-6" data-testid={`traveler-form-${roomIndex}-${index}`}>
-      <div className="flex items-center justify-between mb-3">
-        <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
-          Room {roomIndex + 1}: Traveler {index + 1}: {isChild ? 'Child' : 'Adult'}
-        </h4>
+    <div className="mb-6 border border-gray-200 rounded-lg p-5" data-testid={`traveler-form-${roomIndex}-${index}`}>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Room {roomIndex + 1}</p>
+          <h4 className="text-base font-bold text-gray-900">
+            Traveler {index + 1}: {isChild ? 'Child' : 'Adult'}
+          </h4>
+        </div>
+        <button className="px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors" data-testid={`pick-traveler-${roomIndex}-${index}`}>
+          Pick Traveler
+        </button>
       </div>
-      <div className="grid grid-cols-3 gap-4 mb-3">
+      <div className="grid grid-cols-3 gap-4 mb-4">
         <div>
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Title<span className="text-red-500">*</span></label>
           <select
@@ -70,7 +76,7 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild }) {
           />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className={`grid ${isFirstInRoom && !isChild ? 'grid-cols-2' : 'grid-cols-1'} gap-4 mb-4`}>
         <div>
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Date of Birth<span className="text-red-500">*</span></label>
           <div className="flex gap-2 mt-1">
@@ -103,7 +109,7 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild }) {
             </select>
           </div>
         </div>
-        {!isChild && (
+        {isFirstInRoom && !isChild && (
           <div>
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
               Bed Preference
@@ -130,6 +136,18 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild }) {
           </div>
         )}
       </div>
+      {/* Requirement field */}
+      <div>
+        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Requirement</label>
+        <input
+          type="text"
+          value={traveler.requirement || ''}
+          onChange={e => onChange({...traveler, requirement: e.target.value})}
+          className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+          placeholder="Any special requirements for this traveler (e.g. wheelchair access, dietary needs)"
+          data-testid={`traveler-requirement-${roomIndex}-${index}`}
+        />
+      </div>
     </div>
   );
 }
@@ -148,7 +166,9 @@ export default function BookingConfirmation({ proposal, onBack, onConfirmBooking
           type: 'adult',
           title: '', firstName: '', lastName: '',
           dobDay: '', dobMonth: '', dobYear: '',
-          bedPreference: ''
+          bedPreference: '',
+          requirement: '',
+          _indexInRoom: i
         });
       }
       (room.children || []).forEach((child, cIdx) => {
@@ -157,7 +177,9 @@ export default function BookingConfirmation({ proposal, onBack, onConfirmBooking
           type: 'child',
           title: '', firstName: '', lastName: '',
           dobDay: '', dobMonth: '', dobYear: '',
-          bedPreference: ''
+          bedPreference: '',
+          requirement: '',
+          _indexInRoom: room.adults + cIdx
         });
       });
     });
@@ -353,6 +375,7 @@ export default function BookingConfirmation({ proposal, onBack, onConfirmBooking
                     traveler={traveler}
                     onChange={(updated) => handleUpdateTraveler(idx, updated)}
                     isChild={traveler.type === 'child'}
+                    isFirstInRoom={traveler._indexInRoom === 0}
                   />
                 ))}
 
