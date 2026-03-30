@@ -805,7 +805,7 @@ export default function BookingConfirmation({ proposal, onBack, onConfirmBooking
                     <span className="text-sm font-medium text-gray-800">Pay AED {partialPayment.toLocaleString()} now and confirm</span>
                     {paymentOption === 'partial' && (
                       <div className="mt-2 ml-6">
-                        <p className="text-xs text-red-600">Balance amount of AED {balanceAmount.toLocaleString()} due on {formatDate(addDays(new Date().toISOString().split('T')[0], 15), 'short')}</p>
+                        <p className="text-xs text-red-600">Balance amount of AED {balanceAmount.toLocaleString()} due on {formatDate(addDays(proposal.leaving_on, -7), 'short')}</p>
                         <p className="text-xs text-gray-500 mt-1">Remaining amount needs to be paid as per our <span className="text-teal-600 underline">payment policy</span></p>
                       </div>
                     )}
