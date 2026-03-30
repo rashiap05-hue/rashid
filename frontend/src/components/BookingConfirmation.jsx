@@ -29,12 +29,26 @@ function addDays(dateStr, days) {
 }
 
 // Traveler form row
-function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstInRoom }) {
+function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstInRoom, travelDate }) {
   const [scanning, setScanning] = useState(false);
   const [scanStatus, setScanStatus] = useState(''); // '', 'success', 'error'
   const [scanErrorMsg, setScanErrorMsg] = useState('');
   const fileInputRef = React.useRef(null);
   const [scanKey, setScanKey] = useState(0);
+
+  // Passport expiry validation: must be valid for at least 6 months from travel date
+  const expiryWarning = useMemo(() => {
+    if (!traveler.expiryDay || !traveler.expiryMonth || !traveler.expiryYear || !travelDate) return null;
+    const expiry = new Date(traveler.expiryYear, traveler.expiryMonth - 1, traveler.expiryDay);
+    const travel = new Date(travelDate);
+    const sixMonthsAfterTravel = new Date(travel);
+    sixMonthsAfterTravel.setMonth(sixMonthsAfterTravel.getMonth() + 6);
+    if (expiry < sixMonthsAfterTravel) {
+      return `Passport expires ${expiry.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} — must be valid until at least ${sixMonthsAfterTravel.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} (6 months from travel date).`;
+    }
+    return null;
+  }, [traveler.expiryDay, traveler.expiryMonth, traveler.expiryYear, travelDate]);
+
 
   const handleDocUpload = async (e) => {
     const files = Array.from(e.target.files);
@@ -248,6 +262,14 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
         </div>
       </div>
 
+      {/* Passport expiry warning */}
+      {expiryWarning && (
+        <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 mb-4" data-testid={`expiry-warning-${roomIndex}-${index}`}>
+          <AlertCircle size={15} className="text-red-500 mt-0.5 flex-shrink-0" />
+          <span className="text-sm text-red-700">{expiryWarning}</span>
+        </div>
+      )}
+
       {/* Row 4: Nationality */}
       <div className="grid grid-cols-3 gap-4 mb-4">
         <div>
@@ -446,6 +468,16 @@ export default function BookingConfirmation({ proposal, onBack, onConfirmBooking
       if (!t.title || !t.firstName.trim() || !t.lastName.trim() || !t.dobDay || !t.dobMonth || !t.dobYear) {
         return `Please complete all required fields for Traveler ${i + 1}.`;
       }
+      // Passport expiry check
+      if (t.expiryDay && t.expiryMonth && t.expiryYear && proposal.leaving_on) {
+        const expiry = new Date(t.expiryYear, t.expiryMonth - 1, t.expiryDay);
+        const travel = new Date(proposal.leaving_on);
+        const sixMonths = new Date(travel);
+        sixMonths.setMonth(sixMonths.getMonth() + 6);
+        if (expiry < sixMonths) {
+          return `Traveler ${i + 1}: Passport must be valid for at least 6 months from the travel date.`;
+        }
+      }
     }
     if (!contactInfo.email.trim() || !contactInfo.phone.trim() || !contactInfo.city.trim()) {
       return 'Please complete all required contact information fields.';
@@ -570,6 +602,7 @@ export default function BookingConfirmation({ proposal, onBack, onConfirmBooking
                     onChange={(updated) => handleUpdateTraveler(idx, updated)}
                     isChild={traveler.type === 'child'}
                     isFirstInRoom={traveler._indexInRoom === 0}
+                    travelDate={proposal.leaving_on}
                   />
                 ))}
 
