@@ -766,7 +766,7 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
           {(proposal.status === 'accepted' || acceptModal?.holdUntil) ? (
             <div className="w-full py-2.5 bg-green-100 text-green-800 font-semibold rounded-lg text-center text-sm" data-testid="accepted-badge">
               Accepted on {(() => {
-                const ts = proposal.accepted_at;
+                const ts = acceptModal?.acceptedAt || proposal.accepted_at;
                 if (!ts) return '—';
                 const d = new Date(ts);
                 return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit', timeZone: 'Asia/Dubai' }) + ', ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Dubai' });
@@ -870,17 +870,17 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
   const [destinationVideo, setDestinationVideo] = useState(null);
 
   // Accept Proposal state
-  const [acceptModal, setAcceptModal] = useState({ open: false, holdUntil: null, loading: false });
+  const [acceptModal, setAcceptModal] = useState({ open: false, holdUntil: null, acceptedAt: null, loading: false });
 
   const handleAcceptProposal = async () => {
     setAcceptModal(prev => ({ ...prev, loading: true }));
     try {
       const res = await api.post(`/proposals/${proposal.id}/accept`);
-      setAcceptModal({ open: true, holdUntil: res.data.hold_until, loading: false });
+      setAcceptModal({ open: true, holdUntil: res.data.hold_until, acceptedAt: res.data.accepted_at, loading: false });
       await refreshProposal();
     } catch (e) {
       console.error('Failed to accept proposal', e);
-      setAcceptModal({ open: false, holdUntil: null, loading: false });
+      setAcceptModal({ open: false, holdUntil: null, acceptedAt: null, loading: false });
     }
   };
 
@@ -3036,7 +3036,7 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-            onClick={() => setAcceptModal({ open: false, holdUntil: null, loading: false })}
+            onClick={() => setAcceptModal(prev => ({ ...prev, open: false }))}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -3076,7 +3076,7 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
               </div>
               <div className="px-6 pb-5 flex gap-3">
                 <button
-                  onClick={() => setAcceptModal({ open: false, holdUntil: null, loading: false })}
+                  onClick={() => setAcceptModal(prev => ({ ...prev, open: false }))}
                   className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm"
                   data-testid="accept-modal-close"
                 >
@@ -3084,7 +3084,7 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                 </button>
                 <button
                   onClick={() => {
-                    setAcceptModal({ open: false, holdUntil: null, loading: false });
+                    setAcceptModal(prev => ({ ...prev, open: false }));
                     onBookNow?.();
                   }}
                   className="flex-1 py-2.5 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-lg transition-colors text-sm"
