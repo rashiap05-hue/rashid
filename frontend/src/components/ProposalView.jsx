@@ -763,15 +763,26 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
             </div>
           )}
 
-          <button 
-            className="w-full py-3 bg-[#8B4513] hover:bg-[#723A0F] text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
-            data-testid="accept-proposal-btn"
-            onClick={onAcceptProposal}
-            disabled={acceptModal?.loading}
-          >
-            {acceptModal?.loading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
-            {acceptModal?.loading ? 'ACCEPTING...' : 'ACCEPT PROPOSAL'}
-          </button>
+          {(proposal.status === 'accepted' || acceptModal?.holdUntil) ? (
+            <div className="w-full py-2.5 bg-green-100 text-green-800 font-semibold rounded-lg text-center text-sm" data-testid="accepted-badge">
+              Accepted on {(() => {
+                const ts = proposal.accepted_at || acceptModal?.holdUntil;
+                if (!ts) return '—';
+                const d = new Date(proposal.accepted_at || new Date());
+                return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) + ', ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+              })()}
+            </div>
+          ) : (
+            <button 
+              className="w-full py-3 bg-[#8B4513] hover:bg-[#723A0F] text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+              data-testid="accept-proposal-btn"
+              onClick={onAcceptProposal}
+              disabled={acceptModal?.loading}
+            >
+              {acceptModal?.loading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
+              {acceptModal?.loading ? 'ACCEPTING...' : 'ACCEPT PROPOSAL'}
+            </button>
+          )}
           
           <button 
             className="w-full py-3 bg-[#D946EF] hover:bg-[#C026D3] text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
@@ -866,6 +877,7 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
     try {
       const res = await api.post(`/proposals/${proposal.id}/accept`);
       setAcceptModal({ open: true, holdUntil: res.data.hold_until, loading: false });
+      await refreshProposal();
     } catch (e) {
       console.error('Failed to accept proposal', e);
       setAcceptModal({ open: false, holdUntil: null, loading: false });
