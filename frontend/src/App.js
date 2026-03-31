@@ -17,6 +17,7 @@ import PaymentSuccess from '@/components/PaymentSuccess';
 import PaymentCancel from '@/components/PaymentCancel';
 import ProposalView from '@/components/ProposalView';
 import BookingConfirmation from '@/components/BookingConfirmation';
+import PaymentPage from '@/components/PaymentPage';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
@@ -66,6 +67,7 @@ function App() {
     const saved = sessionStorage.getItem('travo_savedProposal');
     return saved ? JSON.parse(saved) : null;
   });
+  const [bookingData, setBookingData] = useState(null);
 
   // Persist view state to sessionStorage
   useEffect(() => {
@@ -284,10 +286,18 @@ function App() {
                   <BookingConfirmation
                     proposal={savedProposal}
                     onBack={() => setCurrentView('proposal-view')}
-                    onConfirmBooking={(bookingData) => {
-                      console.log('Booking confirmed:', bookingData);
-                      alert('Booking confirmed! Proceeding to payment...');
+                    onConfirmBooking={(data) => {
+                      setBookingData(data);
+                      setCurrentView('payment');
                     }}
+                  />
+                )}
+
+                {currentView === 'payment' && savedProposal && (
+                  <PaymentPage
+                    proposal={savedProposal}
+                    bookingData={bookingData}
+                    onBack={() => setCurrentView('booking-confirmation')}
                   />
                 )}
 

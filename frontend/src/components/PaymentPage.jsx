@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Info, CreditCard, Wallet, Clock, Shield, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Info, CreditCard, Wallet, Clock, Shield, Copy, Check, Landmark } from 'lucide-react';
 
 function generateOrderId() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -26,6 +26,7 @@ export default function PaymentPage({ proposal, bookingData, onBack }) {
 
   const methods = [
     { id: 'credit_card', label: 'Credit Card', icon: <CreditCard size={20} className="text-gray-500" /> },
+    { id: 'bank_emi', label: 'Bank EMI', icon: <Landmark size={20} className="text-gray-500" /> },
     { id: 'wallet', label: 'My Wallet', icon: <Wallet size={20} className="text-gray-500" /> },
     { id: 'tabby', label: 'Tabby', icon: <Clock size={20} className="text-gray-500" /> },
   ];
@@ -122,6 +123,42 @@ export default function PaymentPage({ proposal, bookingData, onBack }) {
                 <div>
                   <label className="text-sm font-medium text-gray-700">Name on Card</label>
                   <input type="text" placeholder="Full name as on card" className="mt-1 w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm" data-testid="card-name" />
+                </div>
+              </div>
+            )}
+
+            {paymentMethod === 'bank_emi' && (
+              <div data-testid="bank-emi-info">
+                <p className="text-sm text-gray-600 mb-4">Convert your payment into easy monthly installments with your bank.</p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Select Bank</label>
+                    <select className="mt-1 w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-white" data-testid="emi-bank-select">
+                      <option value="">Choose your bank</option>
+                      <option value="emirates_nbd">Emirates NBD</option>
+                      <option value="adcb">ADCB</option>
+                      <option value="mashreq">Mashreq Bank</option>
+                      <option value="fab">First Abu Dhabi Bank</option>
+                      <option value="dib">Dubai Islamic Bank</option>
+                      <option value="rakbank">RAKBANK</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">EMI Tenure</label>
+                    <div className="mt-2 grid grid-cols-4 gap-3">
+                      {[3, 6, 9, 12].map(months => (
+                        <button
+                          key={months}
+                          className="bg-gray-50 hover:bg-[#E8F4FD] hover:border-[#0094D4] rounded-lg p-3 text-center border border-gray-200 transition-colors focus:bg-[#E8F4FD] focus:border-[#0094D4]"
+                          data-testid={`emi-tenure-${months}`}
+                        >
+                          <p className="text-sm font-bold text-gray-900">{months} Months</p>
+                          <p className="text-[11px] text-gray-500 mt-1">AED {Math.round(amountToPay / months).toLocaleString()}/mo</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400">EMI availability and interest rates depend on your bank and card type. Processing fee may apply.</p>
                 </div>
               </div>
             )}
