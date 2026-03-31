@@ -766,10 +766,10 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
           {(proposal.status === 'accepted' || acceptModal?.holdUntil) ? (
             <div className="w-full py-2.5 bg-green-100 text-green-800 font-semibold rounded-lg text-center text-sm" data-testid="accepted-badge">
               Accepted on {(() => {
-                const ts = proposal.accepted_at || acceptModal?.holdUntil;
+                const ts = proposal.accepted_at;
                 if (!ts) return '—';
-                const d = new Date(proposal.accepted_at || new Date());
-                return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) + ', ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+                const d = new Date(ts);
+                return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit', timeZone: 'Asia/Dubai' }) + ', ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Dubai' });
               })()}
             </div>
           ) : (
@@ -3065,7 +3065,8 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                       {acceptModal.holdUntil
                         ? new Date(acceptModal.holdUntil).toLocaleString('en-GB', {
                             day: '2-digit', month: 'short', year: 'numeric',
-                            hour: '2-digit', minute: '2-digit', hour12: true
+                            hour: '2-digit', minute: '2-digit', hour12: true,
+                            timeZone: 'Asia/Dubai'
                           })
                         : '—'}
                     </p>
