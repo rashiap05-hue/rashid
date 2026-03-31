@@ -459,7 +459,7 @@ function LeftSidebarNav({ proposal, activeSection, onSectionChange }) {
 }
 
 // Price Sidebar Component - Yellow/Cream Background Style
-function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal }) {
+function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, onAcceptProposal, acceptModal }) {
   const [showMarkupModal, setShowMarkupModal] = useState(false);
   const [markupLandValue, setMarkupLandValue] = useState(proposal.markup_value || 0);
   const [discountValue, setDiscountValue] = useState(proposal.discount_amount || 0);
@@ -766,9 +766,11 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal })
           <button 
             className="w-full py-3 bg-[#8B4513] hover:bg-[#723A0F] text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
             data-testid="accept-proposal-btn"
+            onClick={onAcceptProposal}
+            disabled={acceptModal?.loading}
           >
-            <CheckCircle size={18} />
-            ACCEPT PROPOSAL
+            {acceptModal?.loading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
+            {acceptModal?.loading ? 'ACCEPTING...' : 'ACCEPT PROPOSAL'}
           </button>
           
           <button 
@@ -855,6 +857,20 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
   
   // Destination videos state
   const [destinationVideo, setDestinationVideo] = useState(null);
+
+  // Accept Proposal state
+  const [acceptModal, setAcceptModal] = useState({ open: false, holdUntil: null, loading: false });
+
+  const handleAcceptProposal = async () => {
+    setAcceptModal(prev => ({ ...prev, loading: true }));
+    try {
+      const res = await api.post(`/proposals/${proposal.id}/accept`);
+      setAcceptModal({ open: true, holdUntil: res.data.hold_until, loading: false });
+    } catch (e) {
+      console.error('Failed to accept proposal', e);
+      setAcceptModal({ open: false, holdUntil: null, loading: false });
+    }
+  };
 
   // Fresh hotel images from DB (in case saved proposal has stale/missing images)
   const [freshHotelImages, setFreshHotelImages] = useState({});
@@ -2963,6 +2979,8 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
               onBookNow={onBookNow}
               onEditProposal={() => onEditProposal?.(proposal)}
               onUpdateProposal={refreshProposal}
+              onAcceptProposal={handleAcceptProposal}
+              acceptModal={acceptModal}
             />
           </div>
         </div>
@@ -2997,6 +3015,73 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
             type={detailModal.type}
             onClose={() => setDetailModal({ open: false, item: null, type: null })}
           />
+        )}
+
+        {/* Accept Proposal Notification Modal */}
+        {acceptModal.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={() => setAcceptModal({ open: false, holdUntil: null, loading: false })}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden"
+              onClick={e => e.stopPropagation()}
+              data-testid="accept-proposal-modal"
+            >
+              <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-5 flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                  <CheckCircle size={22} className="text-white" />
+                </div>
+                <h3 className="text-lg font-bold text-white">Proposal Accepted</h3>
+              </div>
+              <div className="px-6 py-5 space-y-4">
+                <p className="text-sm text-gray-700">
+                  Your proposal has been accepted and is now <span className="font-semibold text-green-700">held for 30 minutes</span>. 
+                  Please proceed to booking before the hold expires.
+                </p>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+                  <Clock size={18} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">Hold expires at</p>
+                    <p className="text-sm text-amber-700 mt-0.5">
+                      {acceptModal.holdUntil
+                        ? new Date(acceptModal.holdUntil).toLocaleString('en-GB', {
+                            day: '2-digit', month: 'short', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit', hour12: true
+                          })
+                        : '—'}
+                    </p>
+                    <p className="text-xs text-amber-600 mt-1">Prices and availability are guaranteed until this time.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="px-6 pb-5 flex gap-3">
+                <button
+                  onClick={() => setAcceptModal({ open: false, holdUntil: null, loading: false })}
+                  className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                  data-testid="accept-modal-close"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    setAcceptModal({ open: false, holdUntil: null, loading: false });
+                    onBookNow?.();
+                  }}
+                  className="flex-1 py-2.5 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-lg transition-colors text-sm"
+                  data-testid="accept-modal-book-now"
+                >
+                  Book Now
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

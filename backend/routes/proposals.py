@@ -112,6 +112,28 @@ async def update_proposal_status(proposal_id: str, status: str):
     return {"success": True}
 
 
+@proposals_router.post("/{proposal_id}/accept")
+async def accept_proposal(proposal_id: str):
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    hold_until = now + timedelta(minutes=30)
+    result = await db.proposals.update_one(
+        {"id": proposal_id},
+        {"$set": {
+            "status": "accepted",
+            "accepted_at": now.isoformat(),
+            "hold_until": hold_until.isoformat(),
+        }}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    return {
+        "success": True,
+        "accepted_at": now.isoformat(),
+        "hold_until": hold_until.isoformat(),
+    }
+
+
 @proposals_router.delete("/{proposal_id}")
 async def delete_proposal(proposal_id: str, user: dict = Depends(get_current_user)):
     result = await db.proposals.delete_one({"id": proposal_id})
