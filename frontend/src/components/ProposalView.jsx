@@ -459,7 +459,7 @@ function LeftSidebarNav({ proposal, activeSection, onSectionChange }) {
 }
 
 // Price Sidebar Component - Yellow/Cream Background Style
-function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, onAcceptProposal, acceptModal }) {
+function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, onAcceptProposal, acceptModal, onNeedHelp }) {
   const [showMarkupModal, setShowMarkupModal] = useState(false);
   const [markupLandValue, setMarkupLandValue] = useState(proposal.markup_value || 0);
   const [discountValue, setDiscountValue] = useState(proposal.discount_amount || 0);
@@ -787,6 +787,7 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
           <button 
             className="w-full py-3 bg-[#D946EF] hover:bg-[#C026D3] text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
             data-testid="need-help-btn"
+            onClick={onNeedHelp}
           >
             <HelpCircle size={18} />
             NEED HELP
@@ -2993,6 +2994,10 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
               onUpdateProposal={refreshProposal}
               onAcceptProposal={handleAcceptProposal}
               acceptModal={acceptModal}
+              onNeedHelp={() => {
+                setActiveTab('changes');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
             />
           </div>
         </div>
