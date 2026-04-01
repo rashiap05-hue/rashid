@@ -987,7 +987,12 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
 
         {/* Action Buttons */}
         <div className="space-y-3 mt-6">
-          {proposal.status !== 'held' && (
+          {proposal.status !== 'held' && (() => {
+            const d = new Date(proposal.leaving_on);
+            d.setDate(d.getDate() - 21);
+            const diffDays = Math.ceil((d - new Date()) / (1000 * 60 * 60 * 24));
+            return diffDays >= 7;
+          })() && (
             <button 
               onClick={async () => {
                 setHoldingBooking(true);
