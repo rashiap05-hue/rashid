@@ -12,100 +12,92 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 ## Architecture
 ```
 /app/backend/
-  server.py          (~90 lines - thin orchestrator)
-  db.py              (DB connection, auth helpers, JWT config)
-  seed.py            (All seed data + migrations including transfer URL fix)
-  airports_data.py   (Static airport data)
-  models/
-    schemas.py       (All Pydantic models incl. ActivityExtra)
+  server.py, db.py, seed.py, airports_data.py
+  models/schemas.py
   routes/
-    auth.py, proposals.py (incl. PDF generation), flights.py, hotels.py,
-    airports.py, cities.py, transfers.py, activities.py, terms.py, ai.py,
-    payments.py, sheets.py, admin.py, supplier.py, uploads.py,
-    settings.py, flight_api.py, bookings.py, passport_scan.py
+    auth.py, proposals.py, flights.py, hotels.py, airports.py, cities.py,
+    transfers.py, activities.py, terms.py, ai.py, payments.py, sheets.py,
+    admin.py, supplier.py, uploads.py, settings.py, flight_api.py,
+    bookings.py, passport_scan.py, experts.py
 
 /app/frontend/src/
-  App.js             (Routes, api instance, resolveImageUrl utility, payment routing)
+  App.js
   components/
-    ProposalView.jsx (~3000 lines - Inclusions tab, pricing sidebar, Detail modals)
-    BookingConfirmation.jsx (Traveler forms, AI passport scan, consent, validation)
-    PaymentPage.jsx  (4 payment methods: Credit Card, Bank EMI, Wallet, Tabby)
-    TransferEditForm.jsx (Rich tabbed form)
-    TripBuilder.jsx  (Edit hydration, inter-city transfers)
-    AdminDashboard.jsx, Dashboard.jsx, etc.
-    TripBuilder/
-      SaveProposalModal.jsx (Shadcn dual-month calendar)
-      VersionHistoryPanel.jsx
+    ProposalView.jsx (~3300 lines - includes DestinationExpertCard, SendEmailModal, PriceSidebar, DetailViewModal)
+    BookingConfirmation.jsx (Traveler forms, AI passport scan)
+    PaymentPage.jsx (4 payment methods: Credit Card, Bank EMI, Wallet, Tabby)
+    AdminDashboard.jsx (includes StaffExpertsTab with CRUD + assignment)
+    TransferEditForm.jsx, TripBuilder.jsx, Dashboard.jsx
+    TripBuilder/SaveProposalModal.jsx, VersionHistoryPanel.jsx
 ```
 
-## Completed Features
+## Completed Features (All Sessions)
 - Full authentication system (JWT)
-- Proposals CRUD with PDF generation (multi-city support)
+- Proposals CRUD with PDF generation
 - Hotels/Flights/Activities/Transfers/Cities/Airports CRUD
 - Trip Builder with dynamic pricing, vehicle-based pricing
-- AI Itinerary Generator (Gemini) with auto-fill to Day Cards
-- Multi-city hotel selection (keyed by cityIndex)
-- Inter-city transfer support
+- AI Itinerary Generator (Gemini)
+- Multi-city hotel selection, inter-city transfers
 - Country-based insurance pricing
-- Recommended hotels/rooms with badges
 - Admin Dashboard, Supplier Dashboard
 - Terms & Policies management
-- Backend refactoring (server.py 3370 -> 90 lines)
 - Activity Extras with vehicle-based pricing
-- Proposal Edit Hydration fix
-- Save Proposal Modal Enhancement
 - Proposal Versioning (save/view/restore snapshots)
-- ProposalView data display fix (cityName_cityIndex mapping)
-- Detail View Modals for transfers/activities
-- Day Card Two-Column Layout
+- ProposalView: 2-column day cards, Detail Modals, Inclusions tab
 - Transfer Edit Form (rich tabbed UI)
-- Breakfast/Meal Logic fix
-- Transfer Image URL Fix
-- PDF Generation Enhancement
-- Day Card Image Priority Fix
-- Database URL Migration (absolute -> relative paths)
-- UI Left Sidebar (icons, expand on hover)
-- Price Breakdown Interactive Features (markup/discount modal, eye toggle)
+- Breakfast/Meal Logic, Transfer Image URL Fix
+- UI Left Sidebar, Price Breakdown (markup/discount modal, eye toggle)
 - Interactive Modals (Hold Booking, Book Now Terms)
 - Dual-Month Calendar Date Picker
-- Inclusions Section: Flat day-wise layout with chronological sorting
-- **Booking Confirmation Page**: Full traveler details form, AI passport scanning (Gemini Vision), attachment upload, special occasion selection, contact information, collapsible important info, payment options (partial/full), consent validation, timestamp recording, right sidebar with price summary/coupon/trip details, guaranteed security section.
-- **Payment Page** (March 2026): Full payment flow wired from BookingConfirmation. 4 payment methods: Credit Card (with form fields), Bank EMI (bank select + 3/6/9/12 month tenure), My Wallet (balance display), Tabby (4 installment breakdown). Order ID generation, amount summary, SSL security footer. Back navigation to BookingConfirmation.
+- Booking Confirmation Page: Multi-traveler form, AI passport scanning (Gemini Vision), validations
+- Payment Page: 4 methods (Credit Card, Bank EMI, Wallet, Tabby), wired from BookingConfirmation
+
+### Latest Session (April 2026)
+- **Payment Page Wired**: Full flow Proposal View → Booking → Payment with back navigation
+- **Bank EMI Option**: 6 UAE banks + 3/6/9/12 month tenure selection
+- **Accept Proposal**: Backend `/api/proposals/{id}/accept` holds proposal for 30 minutes, shows notification modal with hold expiry (Dubai timezone), replaces button with "Accepted on [date, time]" badge
+- **Hold Booking Button Removed**: Per user request
+- **Need Help Button**: Wired to navigate to "Request Changes" tab
+- **Send Email Modal**: "MAIL" button opens full email composition modal with proposal name editing, template selection, body editing, and checkboxes for excluding price/link from email
+- **Destination Expert / Staff Role**: 
+  - New `destination_experts` collection with full CRUD API (`/api/experts`)
+  - Expert assignment to proposals (`/api/experts/assign/{proposal_id}`)
+  - Expert card displayed above Price Breakdown in ProposalView sidebar
+  - Admin "Staff / Experts" tab with expert management + proposal assignment table
+  - 3 seeded experts (Sumila/Bangalore, Ahmed/Dubai, Priya/Delhi)
 
 ## Test Credentials
 - Admin: testadmin@example.com / password123
 - Agent: rashid@travotours.ae / password123
 
 ## Key Technical Concepts
-- **Data Mapping Rule**: Hotels/activities keyed as `{cityName}_{cityIndex}` (e.g., `Tbilisi_0`, `Gudauri_1`). Activity lookup uses `startsWith(cityName_)` for broader matching.
-- **Image URLs**: Stored as relative paths (`/api/static/activities/xxx.jpg`), resolved via `resolveImageUrl()` in frontend
-- **Breakfast Logic**: Arrival Day = Not Included. Middle/Departure Days = Included at hotel
-- **Day Card Image Priority**: Activity > Transfer > Generic fallback (no hotel images in day cards)
-- **Inclusions Rendering**: Two versions (inline + tab). Both merge transfers + activities and sort by day number chronologically.
-- **State-based Routing**: App uses `currentView` state, not URL routing. Views: dashboard, form, customize, proposal-view, booking-confirmation, payment, admin, etc.
-- **AI Vision Parsing**: Passport scanning uses `emergentintegrations` + Gemini to parse image text to JSON.
+- **Data Mapping**: Hotels/activities keyed as `{cityName}_{cityIndex}`
+- **Image URLs**: Relative paths resolved via `resolveImageUrl()` in frontend
+- **Breakfast Logic**: Arrival = Not Included, Middle/Departure = Hotel dependent
+- **State-based Routing**: `currentView` state (dashboard, form, customize, proposal-view, booking-confirmation, payment, admin)
+- **Dubai Timezone**: Accept proposal timestamps displayed in `Asia/Dubai` timezone
+
+## DB Collections
+- `proposals` (with `assigned_expert_id`, `accepted_at`, `hold_until`)
+- `destination_experts` (id, name, email, phone, location, photo)
+- `bookings`, `hotels`, `flights`, `activities`, `transfers`, `cities`, `airports`, `terms_policies`, `insurance_prices`, `users`
 
 ## Upcoming Tasks
-- P1: Implement Stripe payment integration on Pay Now button (test key in pod)
+- P1: Integrate Stripe on Pay Now button (test key in pod)
 - P1: Google Sheets Sync (blocked on user credentials)
 - P2: AI-powered trip recommendations frontend
-- P2: PDF Proposal Generation (convert ProposalView to downloadable PDF)
+- P2: PDF Proposal Generation
 
-## Future/Backlog Tasks
+## Future/Backlog
 - P3: Real Flight API (Airlabs) - needs API key
-- P3: Email notifications
+- P3: Email notifications (wire SendEmailModal to real email service)
 - P3: Multi-currency support
 - P3: Mobile optimization
-
-## Refactoring Needed
-- ProposalView.jsx (~3000 lines) - Extract PriceSidebar, LeftSidebarNav, Inclusions into sub-components under /components/Proposal/
-- MyProposals.jsx - Fix HTML hydration warning (<tr> inside <span>)
+- Refactoring: ProposalView.jsx (~3300 lines → sub-components)
 
 ## MOCKED APIs
-- Google Sheets sync (/api/sheets/*)
-- PayPal checkout (/api/payments/paypal/checkout)
-- Aviationstack flight API (requires user API key)
-- Payment processing in PaymentPage (Pay Now shows alert - needs Stripe integration)
+- Google Sheets sync, PayPal checkout, Aviationstack flight API
+- Payment processing (Pay Now shows alert), Send Email (simulated delay)
 
 ## 3rd Party Integrations
 - Gemini AI (Chatbot, Itineraries, Passport Vision) - Emergent LLM Key
