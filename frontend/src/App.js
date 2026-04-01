@@ -19,6 +19,8 @@ import ProposalView from '@/components/ProposalView';
 import BookingConfirmation from '@/components/BookingConfirmation';
 import PaymentPage from '@/components/PaymentPage';
 import MyBookings from '@/components/MyBookings';
+import WalletPage from '@/components/WalletPage';
+import StaffDashboard from '@/components/StaffDashboard';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
@@ -184,6 +186,7 @@ function App() {
                     }
                   }}
                   showNewBooking={currentView === 'dashboard'}
+                  onNavigate={(view) => setCurrentView(view)}
                 />
 
                 {currentView === 'dashboard' && (
@@ -305,6 +308,14 @@ function App() {
                     bookingData={bookingData}
                     onBack={() => setCurrentView('booking-confirmation')}
                   />
+                )}
+
+                {currentView === 'wallet' && (
+                  <WalletPage />
+                )}
+
+                {currentView === 'staff-dashboard' && (
+                  <StaffDashboard onBack={() => setCurrentView('dashboard')} />
                 )}
 
                 {/* AI Chatbot Button */}

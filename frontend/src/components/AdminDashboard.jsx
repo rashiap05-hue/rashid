@@ -15,6 +15,143 @@ import TermsPoliciesManager from './TermsPoliciesManager';
 
 const ALL_COUNTRIES = ["Afghanistan","Albania","Algeria","Andorra","Angola","Antigua and Barbuda","Argentina","Armenia","Australia","Austria","Azerbaijan","Bahamas","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Belize","Benin","Bhutan","Bolivia","Bosnia and Herzegovina","Botswana","Brazil","Brunei","Bulgaria","Burkina Faso","Burundi","Cabo Verde","Cambodia","Cameroon","Canada","Central African Republic","Chad","Chile","China","Colombia","Comoros","Congo (Brazzaville)","Congo (Kinshasa)","Costa Rica","Croatia","Cuba","Cyprus","Czech Republic","Denmark","Djibouti","Dominica","Dominican Republic","Ecuador","Egypt","El Salvador","Equatorial Guinea","Eritrea","Estonia","Eswatini","Ethiopia","Fiji","Finland","France","Gabon","Gambia","Georgia","Germany","Ghana","Greece","Grenada","Guatemala","Guinea","Guinea-Bissau","Guyana","Haiti","Honduras","Hungary","Iceland","India","Indonesia","Iran","Iraq","Ireland","Israel","Italy","Jamaica","Japan","Jordan","Kazakhstan","Kenya","Kiribati","Kosovo","Kuwait","Kyrgyzstan","Laos","Latvia","Lebanon","Lesotho","Liberia","Libya","Liechtenstein","Lithuania","Luxembourg","Madagascar","Malawi","Malaysia","Maldives","Mali","Malta","Marshall Islands","Mauritania","Mauritius","Mexico","Micronesia","Moldova","Monaco","Mongolia","Montenegro","Morocco","Mozambique","Myanmar","Namibia","Nauru","Nepal","Netherlands","New Zealand","Nicaragua","Niger","Nigeria","North Korea","North Macedonia","Norway","Oman","Pakistan","Palau","Palestine","Panama","Papua New Guinea","Paraguay","Peru","Philippines","Poland","Portugal","Qatar","Romania","Russia","Rwanda","Saint Kitts and Nevis","Saint Lucia","Samoa","San Marino","Saudi Arabia","Senegal","Serbia","Seychelles","Sierra Leone","Singapore","Slovakia","Slovenia","Solomon Islands","Somalia","South Africa","South Korea","South Sudan","Spain","Sri Lanka","Sudan","Suriname","Sweden","Switzerland","Syria","Taiwan","Tajikistan","Tanzania","Thailand","Timor-Leste","Togo","Tonga","Trinidad and Tobago","Tunisia","Turkey","Turkmenistan","Tuvalu","Uganda","Ukraine","United Arab Emirates","United Kingdom","United States","Uruguay","Uzbekistan","Vanuatu","Vatican City","Venezuela","Vietnam","Yemen","Zambia","Zimbabwe"];
 
+function AdminWalletTab() {
+  const [wallets, setWallets] = useState([]);
+  const [proofs, setProofs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [topupModal, setTopupModal] = useState(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [wRes, pRes] = await Promise.all([api.get('/wallets/all'), api.get('/wallets/payment-proofs/all')]);
+      setWallets(wRes.data);
+      setProofs(pRes.data);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleTopup = async (userId, amount, note) => {
+    try {
+      await api.post('/wallets/topup', { user_id: userId, amount: parseFloat(amount), note });
+      setTopupModal(null);
+      fetchData();
+    } catch (e) { console.error(e); }
+  };
+
+  const handleReview = async (proofId, action) => {
+    try {
+      await api.post(`/wallets/payment-proofs/${proofId}/review`, { action });
+      fetchData();
+    } catch (e) { console.error(e); }
+  };
+
+  const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Dubai' }) : '—';
+  const pendingProofs = proofs.filter(p => p.status === 'pending');
+  const totalBalance = wallets.reduce((s, w) => s + (w.balance || 0), 0);
+
+  if (loading) return <p className="text-center py-8 text-gray-500">Loading...</p>;
+
+  return (
+    <div>
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-[#002B5B] rounded-xl p-5 text-white">
+          <p className="text-xs opacity-70">Total Balance</p>
+          <p className="text-xl font-bold mt-1">AED {totalBalance.toLocaleString()}</p>
+        </div>
+        <div className="bg-white border rounded-xl p-5">
+          <p className="text-xs text-gray-500">Active Wallets</p>
+          <p className="text-xl font-bold mt-1">{wallets.length}</p>
+        </div>
+        <div className="bg-white border rounded-xl p-5">
+          <p className="text-xs text-gray-500">Pending Approvals</p>
+          <p className="text-xl font-bold text-amber-600 mt-1">{pendingProofs.length}</p>
+        </div>
+      </div>
+
+      {/* Wallets Table */}
+      <h4 className="font-bold text-gray-800 mb-3">Agent Wallets</h4>
+      <div className="bg-white border rounded-xl overflow-hidden mb-8">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Agent</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Email</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-600">Balance (AED)</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-600">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {wallets.map(w => (
+              <tr key={w.id} className="border-b border-gray-50 hover:bg-gray-50">
+                <td className="px-4 py-3 font-medium">{w.user?.name || w.user?.company_name || '—'}</td>
+                <td className="px-4 py-3 text-gray-500">{w.user?.email || '—'}</td>
+                <td className="px-4 py-3 text-right font-bold">AED {Number(w.balance || 0).toLocaleString()}</td>
+                <td className="px-4 py-3 text-right">
+                  <button onClick={() => setTopupModal(w)} className="px-3 py-1 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700">Top Up</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pending Payment Proofs */}
+      {pendingProofs.length > 0 && (
+        <>
+          <h4 className="font-bold text-gray-800 mb-3">Pending Payment Proofs</h4>
+          <div className="space-y-2">
+            {pendingProofs.map(proof => (
+              <div key={proof.id} className="bg-white border rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <p className="font-bold text-sm">{proof.user_name} — AED {Number(proof.amount).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">{proof.reference || proof.note} | {formatDate(proof.created_at)}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => handleReview(proof.id, 'approve')} className="px-3 py-1 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700">Approve</button>
+                  <button onClick={() => handleReview(proof.id, 'reject')} className="px-3 py-1 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600">Reject</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Topup Modal */}
+      <AnimatePresence>
+        {topupModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setTopupModal(null)}>
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+              <AdminTopupForm wallet={topupModal} onClose={() => setTopupModal(null)} onTopup={handleTopup} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function AdminTopupForm({ wallet, onClose, onTopup }) {
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  return (
+    <>
+      <div className="px-5 py-4 border-b"><h3 className="font-bold">Top Up: {wallet?.user?.name || 'Agent'}</h3><p className="text-xs text-gray-500">Current: AED {Number(wallet?.balance || 0).toLocaleString()}</p></div>
+      <div className="px-5 py-4 space-y-3">
+        <div><label className="text-xs font-bold text-gray-600">Amount (AED)</label><input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
+        <div><label className="text-xs font-bold text-gray-600">Note</label><input type="text" value={note} onChange={e => setNote(e.target.value)} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm" /></div>
+      </div>
+      <div className="px-5 py-4 border-t flex gap-3 justify-end">
+        <button onClick={onClose} className="px-4 py-2 text-sm border rounded-lg">Cancel</button>
+        <button onClick={() => onTopup(wallet.user_id, amount, note)} disabled={!amount} className="px-5 py-2 text-sm bg-green-600 text-white rounded-lg disabled:opacity-50">Credit Wallet</button>
+      </div>
+    </>
+  );
+}
+
 function StaffExpertsTab({ searchTerm }) {
   const [experts, setExperts] = useState([]);
   const [proposals, setProposals] = useState([]);
@@ -1385,7 +1522,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-gray-100 overflow-x-auto">
-            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'terms', 'insurance', 'staff'].map((tab) => (
+            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'terms', 'insurance', 'staff', 'wallets'].map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -1395,7 +1532,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   activeTab === tab ? "text-[#002B5B]" : "text-gray-400 hover:text-gray-600"
                 )}
               >
-                {tab === 'terms' ? 'Terms & Policies' : tab === 'insurance' ? 'Insurance' : tab === 'staff' ? 'Staff / Experts' : `${tab} Management`}
+                {tab === 'terms' ? 'Terms & Policies' : tab === 'insurance' ? 'Insurance' : tab === 'staff' ? 'Staff / Experts' : tab === 'wallets' ? 'Wallets' : `${tab} Management`}
                 {activeTab === tab && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-[#002B5B]" />}
               </button>
             ))}
@@ -2233,6 +2370,10 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
 
             {activeTab === 'staff' && (
               <StaffExpertsTab searchTerm={searchTerm} />
+            )}
+
+            {activeTab === 'wallets' && (
+              <AdminWalletTab />
             )}
           </div>
         </div>

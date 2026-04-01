@@ -71,7 +71,8 @@ export default function Header({
   currentView,
   onGoHome,
   onBack,
-  showNewBooking = true
+  showNewBooking = true,
+  onNavigate
 }) {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [profileDropdown, setProfileDropdown] = useState(false);
@@ -117,8 +118,10 @@ export default function Header({
                       key={item.name}
                       className="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 flex items-center gap-3"
                       onClick={() => {
-                        // Handle navigation based on item
                         setProfileDropdown(false);
+                        if (item.name === 'Wallet Statement') onNavigate?.('wallet');
+                        else if (item.name === 'Upload Deposit') onNavigate?.('wallet');
+                        else if (item.name === 'Manage Staff') onNavigate?.('staff-dashboard');
                       }}
                     >
                       <item.icon size={16} className="text-gray-400" />
@@ -173,7 +176,13 @@ export default function Header({
                 onMouseLeave={() => setOpenDropdown(null)}
               >
                 <button
-                  onClick={() => setActiveTab(item.name)}
+                  onClick={() => {
+                    if (item.name === 'Account Statement') {
+                      onNavigate?.('wallet');
+                    } else {
+                      setActiveTab(item.name);
+                    }
+                  }}
                   data-testid={`nav-${item.name.toLowerCase().replace(' ', '-')}`}
                   className={cn(
                     "text-sm font-medium transition-colors hover:text-[#002B5B] flex items-center gap-1.5 relative py-1",
