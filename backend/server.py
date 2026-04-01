@@ -24,8 +24,9 @@ from routes.settings import settings_router
 from routes.flight_api import flight_api_router
 from routes.bookings import router as bookings_router
 from routes.passport_scan import router as passport_scan_router
+from routes.experts import experts_router
 
-from seed import seed_initial_data, seed_terms_policies, migrate_image_urls, migrate_activities_fields, migrate_transfer_image_urls
+from seed import seed_initial_data, seed_terms_policies, migrate_image_urls, migrate_activities_fields, migrate_transfer_image_urls, seed_destination_experts
 
 app = FastAPI(title="Travo DMC B2B Travel Platform", redirect_slashes=False)
 
@@ -62,6 +63,7 @@ api_router.include_router(settings_router)
 api_router.include_router(flight_api_router)
 api_router.include_router(bookings_router)
 api_router.include_router(passport_scan_router)
+api_router.include_router(experts_router)
 
 app.include_router(api_router)
 
@@ -85,6 +87,7 @@ async def startup_event():
     await migrate_transfer_image_urls()
     await migrate_activities_fields()
     await seed_terms_policies()
+    await seed_destination_experts()
 
 
 @app.on_event("shutdown")

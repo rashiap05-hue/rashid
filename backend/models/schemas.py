@@ -118,6 +118,7 @@ class ProposalResponse(BaseModel):
     travel_insurance_price: Optional[float] = None
     accepted_at: Optional[str] = None
     hold_until: Optional[str] = None
+    assigned_expert_id: Optional[str] = None
 
 class FlightCreate(BaseModel):
     airline: str

@@ -376,3 +376,44 @@ async def migrate_activities_fields():
                 {"$set": updates}
             )
             logger.info(f"Migrated activity fields for: {activity.get('name', 'unknown')}")
+
+
+
+async def seed_destination_experts():
+    """Seed sample destination experts"""
+    count = await db.destination_experts.count_documents({})
+    if count > 0:
+        logger.info("Destination experts already seeded")
+        return
+    logger.info("Seeding destination experts...")
+    experts = [
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Sumila R/B2B/BKK/BLR/Reeba",
+            "email": "sumila.r@nexusdmc.travel",
+            "phone": "6364933662",
+            "location": "Bangalore",
+            "photo": "",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Ahmed K/B2B/DXB/Sales",
+            "email": "ahmed.k@travotours.ae",
+            "phone": "+971501234567",
+            "location": "Dubai",
+            "photo": "",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "name": "Priya S/B2B/DEL/Operations",
+            "email": "priya.s@travotours.ae",
+            "phone": "+919876543210",
+            "location": "Delhi",
+            "photo": "",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        },
+    ]
+    await db.destination_experts.insert_many(experts)
+    logger.info(f"Seeded {len(experts)} destination experts")

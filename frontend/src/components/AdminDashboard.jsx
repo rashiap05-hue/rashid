@@ -4,7 +4,7 @@ import {
   Database, Users, FileText, Settings, Search, RefreshCw,
   Edit2, Trash2, CheckCircle, XCircle, MapPin, Plane, Building2, X,
   ChevronLeft, ChevronRight, Plus, Save, Car, Clock, DollarSign, Briefcase, Star, Bed,
-  Compass, Camera, Utensils, Mountain, Globe, Shield
+  Compass, Camera, Utensils, Mountain, Globe, Shield, User, Phone, Mail, Upload
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
@@ -14,6 +14,283 @@ import TransferEditForm from './TransferEditForm';
 import TermsPoliciesManager from './TermsPoliciesManager';
 
 const ALL_COUNTRIES = ["Afghanistan","Albania","Algeria","Andorra","Angola","Antigua and Barbuda","Argentina","Armenia","Australia","Austria","Azerbaijan","Bahamas","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Belize","Benin","Bhutan","Bolivia","Bosnia and Herzegovina","Botswana","Brazil","Brunei","Bulgaria","Burkina Faso","Burundi","Cabo Verde","Cambodia","Cameroon","Canada","Central African Republic","Chad","Chile","China","Colombia","Comoros","Congo (Brazzaville)","Congo (Kinshasa)","Costa Rica","Croatia","Cuba","Cyprus","Czech Republic","Denmark","Djibouti","Dominica","Dominican Republic","Ecuador","Egypt","El Salvador","Equatorial Guinea","Eritrea","Estonia","Eswatini","Ethiopia","Fiji","Finland","France","Gabon","Gambia","Georgia","Germany","Ghana","Greece","Grenada","Guatemala","Guinea","Guinea-Bissau","Guyana","Haiti","Honduras","Hungary","Iceland","India","Indonesia","Iran","Iraq","Ireland","Israel","Italy","Jamaica","Japan","Jordan","Kazakhstan","Kenya","Kiribati","Kosovo","Kuwait","Kyrgyzstan","Laos","Latvia","Lebanon","Lesotho","Liberia","Libya","Liechtenstein","Lithuania","Luxembourg","Madagascar","Malawi","Malaysia","Maldives","Mali","Malta","Marshall Islands","Mauritania","Mauritius","Mexico","Micronesia","Moldova","Monaco","Mongolia","Montenegro","Morocco","Mozambique","Myanmar","Namibia","Nauru","Nepal","Netherlands","New Zealand","Nicaragua","Niger","Nigeria","North Korea","North Macedonia","Norway","Oman","Pakistan","Palau","Palestine","Panama","Papua New Guinea","Paraguay","Peru","Philippines","Poland","Portugal","Qatar","Romania","Russia","Rwanda","Saint Kitts and Nevis","Saint Lucia","Samoa","San Marino","Saudi Arabia","Senegal","Serbia","Seychelles","Sierra Leone","Singapore","Slovakia","Slovenia","Solomon Islands","Somalia","South Africa","South Korea","South Sudan","Spain","Sri Lanka","Sudan","Suriname","Sweden","Switzerland","Syria","Taiwan","Tajikistan","Tanzania","Thailand","Timor-Leste","Togo","Tonga","Trinidad and Tobago","Tunisia","Turkey","Turkmenistan","Tuvalu","Uganda","Ukraine","United Arab Emirates","United Kingdom","United States","Uruguay","Uzbekistan","Vanuatu","Vatican City","Venezuela","Vietnam","Yemen","Zambia","Zimbabwe"];
+
+function StaffExpertsTab({ searchTerm }) {
+  const [experts, setExperts] = useState([]);
+  const [proposals, setProposals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingExpert, setEditingExpert] = useState(null);
+  const [form, setForm] = useState({ name: '', email: '', phone: '', location: '', photo: null });
+  const [saving, setSaving] = useState(false);
+  const [assignModal, setAssignModal] = useState({ open: false, proposal: null });
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [expRes, propRes] = await Promise.all([api.get('/experts'), api.get('/proposals')]);
+      setExperts(expRes.data);
+      setProposals(propRes.data || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const filtered = experts.filter(e =>
+    !searchTerm || e.name.toLowerCase().includes(searchTerm.toLowerCase()) || e.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append('name', form.name);
+      fd.append('email', form.email);
+      fd.append('phone', form.phone);
+      fd.append('location', form.location);
+      if (form.photo) fd.append('photo', form.photo);
+      if (editingExpert) {
+        await api.put(`/experts/${editingExpert.id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      } else {
+        await api.post('/experts', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      }
+      setShowForm(false);
+      setEditingExpert(null);
+      setForm({ name: '', email: '', phone: '', location: '', photo: null });
+      fetchData();
+    } catch (e) { console.error(e); }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this expert?')) return;
+    await api.delete(`/experts/${id}`);
+    fetchData();
+  };
+
+  const handleAssign = async (proposalId, expertId) => {
+    try {
+      await api.post(`/experts/assign/${proposalId}`, { expert_id: expertId });
+      setAssignModal({ open: false, proposal: null });
+      fetchData();
+    } catch (e) { console.error(e); }
+  };
+
+  const resolvePhoto = (photo) => {
+    if (!photo) return null;
+    const base = api.defaults.baseURL.replace('/api', '');
+    return `${base}${photo}`;
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-lg font-bold text-gray-800">Destination Experts / Staff</h3>
+        <button
+          onClick={() => { setShowForm(true); setEditingExpert(null); setForm({ name: '', email: '', phone: '', location: '', photo: null }); }}
+          className="px-4 py-2 bg-[#002B5B] text-white rounded-lg hover:bg-[#001d3d] flex items-center gap-2 text-sm font-medium"
+          data-testid="add-expert-btn"
+        >
+          <Plus size={16} /> Add Expert
+        </button>
+      </div>
+
+      {/* Expert List */}
+      {loading ? (
+        <p className="text-gray-500 text-center py-8">Loading...</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map(expert => (
+            <div key={expert.id} className="border border-gray-200 rounded-xl p-4 bg-white hover:shadow-md transition-shadow" data-testid={`expert-card-${expert.id}`}>
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {expert.photo ? (
+                    <img src={resolvePhoto(expert.photo)} alt={expert.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <User size={24} className="text-gray-400" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-sm text-gray-900 truncate">{expert.name}</p>
+                  <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                    <MapPin size={12} /> {expert.location || '—'}
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                    <Mail size={12} /> {expert.email}
+                  </div>
+                  {expert.phone && (
+                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                      <Phone size={12} /> {expert.phone}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                <button
+                  onClick={() => { setEditingExpert(expert); setForm({ name: expert.name, email: expert.email, phone: expert.phone || '', location: expert.location || '', photo: null }); setShowForm(true); }}
+                  className="flex-1 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-1"
+                  data-testid={`edit-expert-${expert.id}`}
+                >
+                  <Edit2 size={12} /> Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(expert.id)}
+                  className="flex-1 py-1.5 text-xs font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-50 flex items-center justify-center gap-1"
+                  data-testid={`delete-expert-${expert.id}`}
+                >
+                  <Trash2 size={12} /> Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Proposal Assignment Section */}
+      <div className="mt-8">
+        <h3 className="text-lg font-bold text-gray-800 mb-4">Assign Expert to Proposal</h3>
+        <div className="border border-gray-200 rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Proposal</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Customer</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Assigned Expert</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {proposals.map(p => {
+                const assignedExpert = experts.find(e => e.id === p.assigned_expert_id);
+                return (
+                  <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-800">{p.proposal_name || 'Untitled'}</td>
+                    <td className="px-4 py-3 text-gray-600">{p.customer_name || '—'}</td>
+                    <td className="px-4 py-3">
+                      {assignedExpert ? (
+                        <span className="text-green-700 bg-green-50 px-2 py-1 rounded-full text-xs font-semibold">{assignedExpert.name}</span>
+                      ) : (
+                        <span className="text-gray-400 text-xs">Not assigned</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => setAssignModal({ open: true, proposal: p })}
+                        className="px-3 py-1 text-xs font-medium bg-[#002B5B] text-white rounded-lg hover:bg-[#001d3d]"
+                        data-testid={`assign-btn-${p.id}`}
+                      >
+                        {assignedExpert ? 'Change' : 'Assign'}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Add/Edit Expert Modal */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowForm(false)}>
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4" onClick={e => e.stopPropagation()} data-testid="expert-form-modal">
+              <div className="flex items-center justify-between px-5 py-4 border-b">
+                <h3 className="font-bold text-gray-800">{editingExpert ? 'Edit Expert' : 'Add New Expert'}</h3>
+                <button onClick={() => setShowForm(false)}><X size={18} className="text-gray-400" /></button>
+              </div>
+              <div className="px-5 py-4 space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-gray-600">Name *</label>
+                  <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="expert-name-input" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600">Email *</label>
+                  <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="expert-email-input" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600">Phone</label>
+                    <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="expert-phone-input" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600">Location</label>
+                    <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="expert-location-input" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600">Profile Photo</label>
+                  <label className="mt-1 flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 text-sm text-gray-500">
+                    <Upload size={16} />
+                    {form.photo ? form.photo.name : 'Upload photo...'}
+                    <input type="file" accept="image/*" className="hidden" onChange={e => setForm({ ...form, photo: e.target.files[0] })} data-testid="expert-photo-input" />
+                  </label>
+                </div>
+              </div>
+              <div className="px-5 py-4 border-t flex justify-end gap-3">
+                <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !form.name.trim() || !form.email.trim()}
+                  className="px-4 py-2 text-sm bg-[#002B5B] text-white rounded-lg hover:bg-[#001d3d] disabled:opacity-50 flex items-center gap-2"
+                  data-testid="save-expert-btn"
+                >
+                  <Save size={14} /> {saving ? 'Saving...' : editingExpert ? 'Update' : 'Add Expert'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Assign Expert Modal */}
+      <AnimatePresence>
+        {assignModal.open && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setAssignModal({ open: false, proposal: null })}>
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4" onClick={e => e.stopPropagation()} data-testid="assign-expert-modal">
+              <div className="px-5 py-4 border-b">
+                <h3 className="font-bold text-gray-800">Assign Expert</h3>
+                <p className="text-xs text-gray-500 mt-1">Select a destination expert for: <strong>{assignModal.proposal?.proposal_name || 'Proposal'}</strong></p>
+              </div>
+              <div className="px-5 py-3 max-h-60 overflow-y-auto space-y-2">
+                {experts.map(expert => (
+                  <button
+                    key={expert.id}
+                    onClick={() => handleAssign(assignModal.proposal.id, expert.id)}
+                    className={cn(
+                      "w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors",
+                      assignModal.proposal?.assigned_expert_id === expert.id ? "bg-green-50 border border-green-200" : "hover:bg-gray-50 border border-gray-100"
+                    )}
+                    data-testid={`assign-expert-option-${expert.id}`}
+                  >
+                    <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {expert.photo ? (
+                        <img src={resolvePhoto(expert.photo)} alt={expert.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <User size={18} className="text-gray-400" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{expert.name}</p>
+                      <p className="text-xs text-gray-500">{expert.location} — {expert.email}</p>
+                    </div>
+                    {assignModal.proposal?.assigned_expert_id === expert.id && (
+                      <CheckCircle size={16} className="ml-auto text-green-600" />
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div className="px-5 py-3 border-t">
+                <button onClick={() => setAssignModal({ open: false, proposal: null })} className="w-full py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Close</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   const [airports, setAirports] = useState([]);
@@ -1108,7 +1385,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-gray-100 overflow-x-auto">
-            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'terms', 'insurance'].map((tab) => (
+            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'terms', 'insurance', 'staff'].map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -1118,7 +1395,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   activeTab === tab ? "text-[#002B5B]" : "text-gray-400 hover:text-gray-600"
                 )}
               >
-                {tab === 'terms' ? 'Terms & Policies' : tab === 'insurance' ? 'Insurance' : `${tab} Management`}
+                {tab === 'terms' ? 'Terms & Policies' : tab === 'insurance' ? 'Insurance' : tab === 'staff' ? 'Staff / Experts' : `${tab} Management`}
                 {activeTab === tab && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-[#002B5B]" />}
               </button>
             ))}
@@ -1953,11 +2230,13 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                 </AnimatePresence>
               </div>
             )}
+
+            {activeTab === 'staff' && (
+              <StaffExpertsTab searchTerm={searchTerm} />
+            )}
           </div>
         </div>
       </div>
-      
-      {/* Hotel Edit Form Modal */}
       <AnimatePresence>
         {hotelEditModal.open && (
           <HotelEditForm
