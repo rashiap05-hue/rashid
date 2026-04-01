@@ -213,8 +213,8 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
         )}
       </div>
 
-      {/* Row 3: Passport Number, Issue Date, Expiry Date */}
-      <div className="grid grid-cols-3 gap-4 mb-4">
+      {/* Row 3: Passport Number, Expiry Date */}
+      <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Passport Number</label>
           <input
@@ -225,23 +225,6 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
             placeholder="Passport Number"
             data-testid={`traveler-passport-${roomIndex}-${index}`}
           />
-        </div>
-        <div>
-          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Issue Date</label>
-          <div className="flex gap-2 mt-1">
-            <select value={traveler.issueDay || ''} onChange={e => onChange({...traveler, issueDay: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-issue-day-${roomIndex}-${index}`}>
-              <option value="">Day</option>
-              {DAYS.map(d => <option key={d} value={String(d)}>{d}</option>)}
-            </select>
-            <select value={traveler.issueMonth || ''} onChange={e => onChange({...traveler, issueMonth: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-issue-month-${roomIndex}-${index}`}>
-              <option value="">Month</option>
-              {MONTHS.map((m, i) => <option key={m} value={String(i + 1)}>{m}</option>)}
-            </select>
-            <select value={traveler.issueYear || ''} onChange={e => onChange({...traveler, issueYear: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-issue-year-${roomIndex}-${index}`}>
-              <option value="">Year</option>
-              {ISSUE_EXPIRY_YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}
-            </select>
-          </div>
         </div>
         <div>
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Expiry Date</label>
