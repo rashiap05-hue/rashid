@@ -1136,14 +1136,6 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
             <span className="text-sm text-gray-600">AED {totalPrice.toLocaleString()} due on {formatDate(addDays(proposal.leaving_on, -7), 'day')}</span>
           </div>
         </div>
-
-        {/* Chat with client */}
-        <div className="mt-5 pt-4 border-t border-[#E8D9A0]">
-          <div className="flex items-center gap-2 text-gray-700">
-            <MessageSquare size={18} />
-            <span className="font-medium">Chat with client</span>
-          </div>
-        </div>
       </div>
 
       {/* Send Proposal Email Modal */}
