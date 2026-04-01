@@ -870,12 +870,17 @@ export default function BookingConfirmation({ proposal, onBack, onConfirmBooking
 
                 {/* Action Buttons */}
                 <div className="flex gap-4 mt-6">
-                  <button
-                    className="flex-1 py-3 bg-amber-700 hover:bg-amber-800 text-white font-semibold rounded-lg transition-colors text-sm"
-                    data-testid="hold-booking-btn"
-                  >
-                    Hold Booking Until {formatDate(holdDate, 'short')}
-                  </button>
+                  {(() => {
+                    const diffDays = Math.ceil((new Date(holdDate) - new Date()) / (1000 * 60 * 60 * 24));
+                    return diffDays >= 7;
+                  })() && (
+                    <button
+                      className="flex-1 py-3 bg-amber-700 hover:bg-amber-800 text-white font-semibold rounded-lg transition-colors text-sm"
+                      data-testid="hold-booking-btn"
+                    >
+                      Hold Booking Until {formatDate(holdDate, 'short')}
+                    </button>
+                  )}
                   {!bookingConfirmed ? (
                     <button
                       onClick={handleConfirmBooking}
