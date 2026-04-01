@@ -11,6 +11,7 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 const DAYS = Array.from({length: 31}, (_, i) => i + 1);
 const YEARS = Array.from({length: 100}, (_, i) => new Date().getFullYear() - i);
 const ISSUE_EXPIRY_YEARS = Array.from({length: 30}, (_, i) => new Date().getFullYear() + 10 - i);
+const EXPIRY_YEARS = Array.from({length: 11}, (_, i) => new Date().getFullYear() + i);
 const TITLES = ['Mr', 'Mrs', 'Ms', 'Miss'];
 const NATIONALITIES = ['Afghanistan','Albania','Algeria','Argentina','Armenia','Australia','Austria','Azerbaijan','Bahrain','Bangladesh','Belarus','Belgium','Bolivia','Bosnia','Brazil','Bulgaria','Cambodia','Cameroon','Canada','Chile','China','Colombia','Costa Rica','Croatia','Cuba','Cyprus','Czech Republic','Denmark','Ecuador','Egypt','Estonia','Ethiopia','Finland','France','Georgia','Germany','Ghana','Greece','Guatemala','Honduras','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy','Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kuwait','Kyrgyzstan','Latvia','Lebanon','Libya','Lithuania','Luxembourg','Malaysia','Maldives','Mexico','Moldova','Mongolia','Montenegro','Morocco','Myanmar','Nepal','Netherlands','New Zealand','Nigeria','North Macedonia','Norway','Oman','Pakistan','Palestine','Panama','Paraguay','Peru','Philippines','Poland','Portugal','Qatar','Romania','Russia','Saudi Arabia','Senegal','Serbia','Singapore','Slovakia','Slovenia','Somalia','South Africa','South Korea','Spain','Sri Lanka','Sudan','Sweden','Switzerland','Syria','Taiwan','Tajikistan','Tanzania','Thailand','Tunisia','Turkey','Turkmenistan','UAE','Uganda','UK','Ukraine','Uruguay','USA','Uzbekistan','Venezuela','Vietnam','Yemen','Zimbabwe'];
 
@@ -239,7 +240,7 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
             </select>
             <select value={traveler.expiryYear || ''} onChange={e => onChange({...traveler, expiryYear: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-expiry-year-${roomIndex}-${index}`}>
               <option value="">Year</option>
-              {ISSUE_EXPIRY_YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}
+              {EXPIRY_YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}
             </select>
           </div>
         </div>
