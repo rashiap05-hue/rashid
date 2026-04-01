@@ -18,6 +18,7 @@ import PaymentCancel from '@/components/PaymentCancel';
 import ProposalView from '@/components/ProposalView';
 import BookingConfirmation from '@/components/BookingConfirmation';
 import PaymentPage from '@/components/PaymentPage';
+import MyBookings from '@/components/MyBookings';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
@@ -278,6 +279,11 @@ function App() {
                         editProposalId: proposal.id
                       });
                       setCurrentView('customize');
+                    }}
+                    onHoldBooking={() => {
+                      setSavedProposal(null);
+                      setCurrentView('dashboard');
+                      setActiveTab('My Bookings');
                     }}
                   />
                 )}

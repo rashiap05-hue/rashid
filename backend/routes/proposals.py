@@ -134,6 +134,55 @@ async def accept_proposal(proposal_id: str):
     }
 
 
+@proposals_router.post("/{proposal_id}/hold")
+async def hold_proposal(proposal_id: str, body: dict, current_user: dict = Depends(get_current_user)):
+    from datetime import datetime, timezone
+    hold_until_date = body.get("hold_until_date")
+    if not hold_until_date:
+        raise HTTPException(status_code=400, detail="hold_until_date is required")
+
+    proposal = await db.proposals.find_one({"id": proposal_id}, {"_id": 0})
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+
+    now = datetime.now(timezone.utc)
+    user_id = current_user.get("id") or current_user.get("user_id", "")
+
+    # Update proposal status to held
+    await db.proposals.update_one(
+        {"id": proposal_id},
+        {"$set": {
+            "status": "held",
+            "held_at": now.isoformat(),
+            "hold_until_date": hold_until_date,
+        }}
+    )
+
+    # Create a booking record
+    booking_id = str(uuid.uuid4())
+    booking = {
+        "id": booking_id,
+        "proposal_id": proposal_id,
+        "proposal_name": proposal.get("proposal_name", ""),
+        "customer_name": proposal.get("customer_name", ""),
+        "customer_email": proposal.get("customer_email", ""),
+        "cities": proposal.get("cities", []),
+        "leaving_on": proposal.get("leaving_on", ""),
+        "nights": proposal.get("nights", 0),
+        "rooms": proposal.get("rooms", 1),
+        "adults": proposal.get("adults", 1),
+        "total_price": proposal.get("total_price", 0),
+        "status": "held",
+        "hold_until_date": hold_until_date,
+        "held_at": now.isoformat(),
+        "created_by": user_id,
+    }
+    await db.held_bookings.insert_one(booking)
+    booking.pop("_id", None)
+
+    return {"success": True, "booking": booking}
+
+
 @proposals_router.delete("/{proposal_id}")
 async def delete_proposal(proposal_id: str, user: dict = Depends(get_current_user)):
     result = await db.proposals.delete_one({"id": proposal_id})

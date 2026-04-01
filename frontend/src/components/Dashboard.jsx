@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import FlightDashboard from './FlightDashboard';
 import ActivitiesDashboard from './ActivitiesDashboard';
 import MyProposals from './MyProposals';
+import MyBookings from './MyBookings';
 import { api } from '@/App';
 
 export default function Dashboard({ 
@@ -57,6 +58,13 @@ export default function Dashboard({
               onViewProposal={onViewProposal}
               onEditProposal={onEditProposal}
             />
+          ) : activeTab === 'My Bookings' ? (
+            <MyBookings onViewProposal={(proposalId) => {
+              // Fetch proposal and navigate to view
+              api.get(`/proposals/${proposalId}`).then(res => {
+                onViewProposal?.(res.data);
+              }).catch(console.error);
+            }} />
           ) : (
             <main className="max-w-7xl mx-auto px-6 py-8">
               {activeTab === 'Home' ? (

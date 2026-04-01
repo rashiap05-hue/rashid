@@ -772,7 +772,7 @@ function WhatsAppShareModal({ proposal, onClose }) {
 }
 
 // Price Sidebar Component - Yellow/Cream Background Style
-function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, onAcceptProposal, acceptModal, onNeedHelp }) {
+function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, onAcceptProposal, acceptModal, onNeedHelp, onHoldBooking }) {
   const [showMarkupModal, setShowMarkupModal] = useState(false);
   const [markupLandValue, setMarkupLandValue] = useState(proposal.markup_value || 0);
   const [discountValue, setDiscountValue] = useState(proposal.discount_amount || 0);
@@ -781,6 +781,7 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
   const [showBookingTerms, setShowBookingTerms] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showWhatsappModal, setShowWhatsappModal] = useState(false);
+  const [holdingBooking, setHoldingBooking] = useState(false);
 
   const adultsCount = proposal.room_data?.reduce((acc, r) => acc + (r.adults || 0), 0) || 2;
   const childrenCount = proposal.room_data?.reduce((acc, r) => acc + (r.children?.length || 0), 0) || 0;
@@ -986,6 +987,31 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
 
         {/* Action Buttons */}
         <div className="space-y-3 mt-6">
+          {proposal.status !== 'held' && (
+            <button 
+              onClick={async () => {
+                setHoldingBooking(true);
+                try {
+                  const d = new Date(proposal.leaving_on);
+                  d.setDate(d.getDate() - 21);
+                  const holdDate = d.toISOString().split('T')[0];
+                  await onHoldBooking?.(holdDate);
+                } catch (e) { console.error(e); }
+                setHoldingBooking(false);
+              }}
+              disabled={holdingBooking}
+              className="w-full py-3 bg-[#B5651D] hover:bg-[#9A5316] text-white font-semibold rounded-lg transition-colors"
+              data-testid="hold-booking-btn"
+            >
+              {holdingBooking ? 'HOLDING...' : `HOLD BOOKING UNTIL ${(() => {
+                try {
+                  const d = new Date(proposal.leaving_on);
+                  d.setDate(d.getDate() - 21);
+                  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'Asia/Dubai' }).toUpperCase();
+                } catch { return 'N/A'; }
+              })()}`}
+            </button>
+          )}
           <button 
             onClick={() => setShowBookingTerms(true)}
             className="w-full py-3 bg-[#8B4513] hover:bg-[#723A0F] text-white font-semibold rounded-lg transition-colors"
@@ -1158,7 +1184,7 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
 }
 
 // Main Proposal View Component
-export default function ProposalView({ proposal: initialProposal, onBack, onBookNow, onEditProposal }) {
+export default function ProposalView({ proposal: initialProposal, onBack, onBookNow, onEditProposal, onHoldBooking }) {
   const [proposal, setProposal] = useState(initialProposal);
   
   const refreshProposal = async () => {
@@ -1213,6 +1239,15 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
     } catch (e) {
       console.error('Failed to accept proposal', e);
       setAcceptModal({ open: false, holdUntil: null, acceptedAt: null, loading: false });
+    }
+  };
+
+  const handleHoldBooking = async (holdDate) => {
+    try {
+      await api.post(`/proposals/${proposal.id}/hold`, { hold_until_date: holdDate });
+      onHoldBooking?.();
+    } catch (e) {
+      console.error('Failed to hold booking', e);
     }
   };
 
@@ -3332,6 +3367,7 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                 setActiveTab('changes');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
+              onHoldBooking={handleHoldBooking}
             />
           </div>
         </div>

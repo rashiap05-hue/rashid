@@ -99,6 +99,8 @@ export default function MyProposals({ onViewProposal, onEditProposal }) {
 
   // Filter proposals
   const filteredProposals = proposals.filter(p => {
+    // Hide held proposals
+    if (p.status === 'held') return false;
     // Date filter
     if (dateFrom) {
       const proposalDate = new Date(p.created_at || p.leaving_on);

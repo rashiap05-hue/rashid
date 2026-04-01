@@ -100,3 +100,13 @@ async def get_booking(booking_id: str, current_user: dict = Depends(get_current_
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
     return booking
+
+
+@router.get("/held-bookings")
+async def get_held_bookings(current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("user_id")
+    bookings = await db.held_bookings.find(
+        {"created_by": user_id},
+        {"_id": 0}
+    ).sort("held_at", -1).to_list(100)
+    return bookings
