@@ -110,3 +110,37 @@ async def get_held_bookings(current_user: dict = Depends(get_current_user)):
         {"_id": 0}
     ).sort("held_at", -1).to_list(100)
     return bookings
+
+
+@router.get("/held-bookings/{booking_id}")
+async def get_held_booking_detail(booking_id: str, current_user: dict = Depends(get_current_user)):
+    booking = await db.held_bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    # Enrich with full proposal data
+    proposal = None
+    if booking.get("proposal_id"):
+        proposal = await db.proposals.find_one({"id": booking["proposal_id"]}, {"_id": 0})
+
+    # Get terms
+    terms = await db.terms_policies.find({}, {"_id": 0}).to_list(20)
+
+    # Get assigned expert
+    expert = None
+    if proposal and proposal.get("assigned_expert_id"):
+        expert = await db.destination_experts.find_one({"id": proposal["assigned_expert_id"]}, {"_id": 0})
+
+    # Get user info
+    user = await db.users.find_one(
+        {"id": booking.get("created_by")},
+        {"_id": 0, "password": 0}
+    )
+
+    return {
+        "booking": booking,
+        "proposal": proposal,
+        "terms": terms,
+        "expert": expert,
+        "user": user,
+    }
