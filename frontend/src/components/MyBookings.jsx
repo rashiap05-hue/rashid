@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '@/App';
 import { ArrowUpDown, Search, Calendar } from 'lucide-react';
 
-export default function MyBookings({ onViewProposal }) {
+export default function MyBookings({ onViewProposal, onViewBooking }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -229,10 +229,10 @@ export default function MyBookings({ onViewProposal }) {
                 <tr><td colSpan={11} className="text-center py-12 text-gray-400">No bookings found</td></tr>
               ) : (
                 filtered.map((b, idx) => (
-                  <tr key={b.id} className="border-b border-gray-50 hover:bg-gray-50/50" data-testid={`booking-row-${b.id}`}>
+                  <tr key={b.id} className="border-b border-gray-50 hover:bg-gray-50/50 cursor-pointer" onClick={() => onViewBooking?.(b.id)} data-testid={`booking-row-${b.id}`}>
                     <td className="px-4 py-4 text-gray-500">{idx + 1}</td>
                     <td className="px-4 py-4">
-                      <button onClick={() => onViewProposal?.(b.proposal_id)} className="text-[#0066CC] hover:underline font-medium text-sm" data-testid={`booking-ref-${b.id}`}>
+                      <button onClick={(e) => { e.stopPropagation(); onViewBooking?.(b.id); }} className="text-[#0066CC] hover:underline font-medium text-sm" data-testid={`booking-ref-${b.id}`}>
                         {getShortRef(b.id)}
                       </button>
                     </td>

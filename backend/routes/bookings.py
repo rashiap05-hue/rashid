@@ -144,3 +144,17 @@ async def get_held_booking_detail(booking_id: str, current_user: dict = Depends(
         "expert": expert,
         "user": user,
     }
+
+
+@router.put("/bookings/{booking_id}/travelers")
+async def update_booking_travelers(booking_id: str, body: dict, current_user: dict = Depends(get_current_user)):
+    booking = await db.held_bookings.find_one({"id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    travelers = body.get("travelers", [])
+    await db.held_bookings.update_one(
+        {"id": booking_id},
+        {"$set": {"travelers": travelers, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    return {"message": "Travelers updated successfully"}

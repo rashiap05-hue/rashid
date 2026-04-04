@@ -19,6 +19,7 @@ import ProposalView from '@/components/ProposalView';
 import BookingConfirmation from '@/components/BookingConfirmation';
 import PaymentPage from '@/components/PaymentPage';
 import MyBookings from '@/components/MyBookings';
+import BookingDetail from '@/components/BookingDetail';
 import WalletPage from '@/components/WalletPage';
 import StaffDashboard from '@/components/StaffDashboard';
 
@@ -71,6 +72,7 @@ function App() {
     return saved ? JSON.parse(saved) : null;
   });
   const [bookingData, setBookingData] = useState(null);
+  const [selectedBookingId, setSelectedBookingId] = useState(null);
 
   // Persist view state to sessionStorage
   useEffect(() => {
@@ -221,6 +223,10 @@ function App() {
                       }
                     }}
                     onAdminView={() => setCurrentView('admin')}
+                    onViewBooking={(bookingId) => {
+                      setSelectedBookingId(bookingId);
+                      setCurrentView('booking-detail');
+                    }}
                   />
                 )}
 
@@ -307,6 +313,17 @@ function App() {
                     proposal={savedProposal}
                     bookingData={bookingData}
                     onBack={() => setCurrentView('booking-confirmation')}
+                  />
+                )}
+
+                {currentView === 'booking-detail' && selectedBookingId && (
+                  <BookingDetail
+                    bookingId={selectedBookingId}
+                    onBack={() => {
+                      setSelectedBookingId(null);
+                      setCurrentView('dashboard');
+                      setActiveTab('My Bookings');
+                    }}
                   />
                 )}
 

@@ -99,28 +99,39 @@ export default function BookingDetail({ bookingId, onBack }) {
         <ArrowLeft size={16} /> Back to My Bookings
       </button>
 
+      {/* Page Title */}
+      <div className="flex items-center gap-3 mb-6">
+        <h1 className="text-xl font-black text-[#002B5B]">Please complete payment</h1>
+        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
+          booking.status === 'held' ? 'bg-amber-100 text-amber-800' :
+          booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+          'bg-gray-100 text-gray-800'
+        }`} data-testid="booking-page-status">{booking.status === 'held' ? 'Blocked' : booking.status}</span>
+      </div>
+
       {/* Trip Reference Header */}
       <div className="bg-[#002B5B] rounded-xl p-6 mb-6 text-white" data-testid="trip-reference-header">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs text-white/60 uppercase tracking-wider">Trip Reference</p>
-            <h1 className="text-2xl font-black mt-1">{shortRef}</h1>
+            <h2 className="text-2xl font-black mt-1">{shortRef}</h2>
             <p className="text-sm text-white/70 mt-2">{booking.proposal_name || 'Trip Package'}</p>
           </div>
-          <div className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase ${
-            booking.status === 'held' ? 'bg-amber-400 text-amber-900' :
-            booking.status === 'confirmed' ? 'bg-green-400 text-green-900' :
-            'bg-gray-300 text-gray-800'
-          }`} data-testid="booking-status-badge">
-            {booking.status}
-          </div>
+          <button
+            onClick={() => onBack()}
+            className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
+            data-testid="view-quote-btn"
+          >
+            View Quote
+          </button>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6 pt-5 border-t border-white/20">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-6 pt-5 border-t border-white/20">
           <div><p className="text-xs text-white/50">Guest Name</p><p className="font-semibold text-sm mt-0.5">{booking.customer_name || '—'}</p></div>
           <div><p className="text-xs text-white/50">Email</p><p className="font-semibold text-sm mt-0.5">{booking.customer_email || '—'}</p></div>
+          <div><p className="text-xs text-white/50">Phone</p><p className="font-semibold text-sm mt-0.5">{booking.customer_phone || user?.mobile || '—'}</p></div>
           <div><p className="text-xs text-white/50">Travel Date</p><p className="font-semibold text-sm mt-0.5">{formatDate(booking.leaving_on)}</p></div>
-          <div><p className="text-xs text-white/50">Guests</p><p className="font-semibold text-sm mt-0.5">{booking.adults || 0} Adult{(booking.adults||0)!==1?'s':''}</p></div>
-          <div><p className="text-xs text-white/50">Rooms</p><p className="font-semibold text-sm mt-0.5">{booking.rooms || 1} Room{(booking.rooms||1)!==1?'s':''}</p></div>
+          <div><p className="text-xs text-white/50">Guests</p><p className="font-semibold text-sm mt-0.5">{booking.rooms || 1} room, {booking.adults || 0} adult{(booking.adults||0)!==1?'s':''}</p></div>
+          <div><p className="text-xs text-white/50">Submitted</p><p className="font-semibold text-sm mt-0.5">{formatDateTime(booking.held_at)}</p></div>
         </div>
       </div>
 
@@ -213,10 +224,11 @@ export default function BookingDetail({ bookingId, onBack }) {
                     <p className="text-xs text-gray-500">{flight.to || flight.arrival_city}</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-4 gap-4 mt-5 pt-4 border-t border-gray-100 text-sm">
+                <div className="grid grid-cols-5 gap-4 mt-5 pt-4 border-t border-gray-100 text-sm">
                   <div><p className="text-xs text-gray-500">Airline</p><p className="font-medium">{flight.airline || '—'}</p></div>
                   <div><p className="text-xs text-gray-500">Baggage</p><p className="font-medium">{flight.baggage || '30 Kg'}</p></div>
-                  <div><p className="text-xs text-gray-500">Fare Type</p><p className="font-medium">{flight.fare_type || 'Economy'}</p></div>
+                  <div><p className="text-xs text-gray-500">Fare Class</p><p className="font-medium">{flight.fare_class || 'Economy'}</p></div>
+                  <div><p className="text-xs text-gray-500">Fare Type</p><p className="font-medium">{flight.fare_type || 'Basic'}</p></div>
                   <div><p className="text-xs text-gray-500">PNR</p><p className="font-medium text-[#0066CC]">{flight.pnr || 'Pending'}</p></div>
                 </div>
                 <div className="mt-3">
@@ -250,13 +262,18 @@ export default function BookingDetail({ bookingId, onBack }) {
                       <h3 className="font-bold text-gray-900">{hotel.name || hotel.hotel_name || '—'}</h3>
                       <div className="flex gap-0.5">{Array.from({length: hotel.stars || hotel.star_rating || 4}).map((_, i) => <Star key={i} size={12} className="text-yellow-400 fill-yellow-400" />)}</div>
                     </div>
+                    {hotel.address && <p className="text-xs text-gray-500 mt-1">{hotel.address}</p>}
                     <div className="grid grid-cols-3 gap-4 mt-3 text-sm">
                       <div><p className="text-xs text-gray-500">Check-in</p><p className="font-medium">{formatDate(hotel.check_in || booking.leaving_on)}</p></div>
                       <div><p className="text-xs text-gray-500">Check-out</p><p className="font-medium">{formatDate(hotel.check_out)}</p></div>
                       <div><p className="text-xs text-gray-500">Room Type</p><p className="font-medium">{hotel.room_type || hotel.selected_room?.name || '—'}</p></div>
                     </div>
+                    <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
+                      <div><p className="text-xs text-gray-500">Meals</p><p className="font-medium">{hotel.meal_plan || hotel.selected_room?.meal_plan || 'Room Only'}</p></div>
+                      <div><p className="text-xs text-gray-500">Nights</p><p className="font-medium">{hotel.nights || '—'}</p></div>
+                      <div><p className="text-xs text-gray-500">Confirmation</p><p className="font-medium text-[#0066CC]">{hotel.confirmation_code || 'Pending'}</p></div>
+                    </div>
                     <div className="flex items-center gap-4 mt-3">
-                      <span className="text-xs text-gray-500">Confirmation: <span className="font-medium text-gray-800">{hotel.confirmation_code || 'Pending'}</span></span>
                       <button className="px-3 py-1 border border-gray-300 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 flex items-center gap-1" data-testid={`download-voucher-${key}`}>
                         <Download size={12} /> Download Voucher
                       </button>

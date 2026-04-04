@@ -18,6 +18,7 @@ export default function Dashboard({
   onViewProposal,
   onEditProposal,
   onAdminView,
+  onViewBooking,
   activeTab,
   setActiveTab
 }) {
@@ -59,7 +60,7 @@ export default function Dashboard({
               onEditProposal={onEditProposal}
             />
           ) : activeTab === 'My Bookings' ? (
-            <MyBookings onViewProposal={(proposalId) => {
+            <MyBookings onViewBooking={onViewBooking} onViewProposal={(proposalId) => {
               // Fetch proposal and navigate to view
               api.get(`/proposals/${proposalId}`).then(res => {
                 onViewProposal?.(res.data);
