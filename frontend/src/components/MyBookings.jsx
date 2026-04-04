@@ -1,117 +1,272 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '@/App';
-import { Calendar, MapPin, Users, Clock, Eye, ChevronRight } from 'lucide-react';
+import { ArrowUpDown, Search, Calendar } from 'lucide-react';
 
 export default function MyBookings({ onViewProposal }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchBookings = async () => {
-      try {
-        const res = await api.get('/held-bookings');
-        setBookings(res.data || []);
-      } catch (e) {
-        console.error('Failed to fetch bookings:', e);
-      }
-      setLoading(false);
-    };
-    fetchBookings();
+  // Filters
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [dateType, setDateType] = useState('booking');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [destination, setDestination] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Column filters
+  const [colRef, setColRef] = useState('');
+  const [colType, setColType] = useState('all');
+  const [colStatus, setColStatus] = useState('all');
+  const [colBookedBy, setColBookedBy] = useState('');
+  const [colName, setColName] = useState('');
+  const [colDest, setColDest] = useState('');
+
+  // Sort
+  const [sortField, setSortField] = useState('held_at');
+  const [sortDir, setSortDir] = useState('desc');
+
+  const fetchBookings = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/held-bookings');
+      setBookings(res.data || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
   }, []);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'held': return 'bg-amber-100 text-amber-800';
-      case 'confirmed': return 'bg-green-100 text-green-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  useEffect(() => { fetchBookings(); }, [fetchBookings]);
+
+  const formatDate = (d) => {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Dubai' });
+  };
+
+  const formatDateTime = (d) => {
+    if (!d) return '—';
+    const dt = new Date(d);
+    const date = dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Dubai' });
+    const time = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Dubai' });
+    return `${date} at ${time}`;
+  };
+
+  // Apply all filters
+  let filtered = bookings.filter(b => {
+    // Top-level filters
+    if (statusFilter !== 'all' && b.status !== statusFilter) return false;
+    if (destination && !(b.cities || []).some(c => (c.name || c || '').toLowerCase().includes(destination.toLowerCase()))) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!(b.customer_email || '').toLowerCase().includes(q) && !(b.customer_name || '').toLowerCase().includes(q)) return false;
     }
+    if (dateFrom) {
+      const df = new Date(dateFrom);
+      const bd = new Date(dateType === 'booking' ? b.held_at : b.leaving_on);
+      if (bd < df) return false;
+    }
+    if (dateTo) {
+      const dt = new Date(dateTo);
+      const bd = new Date(dateType === 'booking' ? b.held_at : b.leaving_on);
+      if (bd > dt) return false;
+    }
+    // Column filters
+    if (colRef && !(b.id || '').toLowerCase().includes(colRef.toLowerCase())) return false;
+    if (colType !== 'all') {
+      const type = b.type || 'Package';
+      if (colType !== type) return false;
+    }
+    if (colStatus !== 'all' && b.status !== colStatus) return false;
+    if (colBookedBy && !(b.booked_by_name || '').toLowerCase().includes(colBookedBy.toLowerCase())) return false;
+    if (colName && !(b.customer_name || '').toLowerCase().includes(colName.toLowerCase())) return false;
+    if (colDest && !(b.cities || []).some(c => (c.name || c || '').toLowerCase().includes(colDest.toLowerCase()))) return false;
+    return true;
+  });
+
+  // Sort
+  filtered.sort((a, b) => {
+    let va = a[sortField] || '';
+    let vb = b[sortField] || '';
+    if (sortField === 'total_price') { va = Number(va) || 0; vb = Number(vb) || 0; }
+    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+    if (va > vb) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const toggleSort = (field) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '—';
-    try {
-      return new Date(dateStr).toLocaleDateString('en-GB', {
-        day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Dubai'
-      });
-    } catch { return dateStr; }
+  const confirmedCount = filtered.filter(b => b.status === 'confirmed').length;
+  const totalAmount = filtered.reduce((s, b) => s + (Number(b.total_price) || 0), 0);
+  const confirmedAmount = filtered.filter(b => b.status === 'confirmed').reduce((s, b) => s + (Number(b.total_price) || 0), 0);
+
+  const getStatusBadge = (status) => {
+    const styles = {
+      held: 'bg-amber-100 text-amber-800',
+      confirmed: 'bg-green-100 text-green-800',
+      cancelled: 'bg-red-100 text-red-700',
+      pending: 'bg-blue-100 text-blue-700',
+    };
+    return styles[status] || 'bg-gray-100 text-gray-700';
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-3 border-[#002B5B] border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const getTypeBadge = (type) => {
+    return type === 'Flight' ? 'bg-gray-100 text-gray-600' : 'bg-gray-100 text-gray-600';
+  };
+
+  const getShortRef = (id) => {
+    if (!id) return '—';
+    return 'ORN' + id.replace(/-/g, '').slice(0, 8).toUpperCase();
+  };
+
+  const SortHeader = ({ label, field }) => (
+    <th
+      className="text-left px-4 py-3 font-bold text-gray-700 text-xs cursor-pointer select-none whitespace-nowrap hover:bg-gray-100"
+      onClick={() => toggleSort(field)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        <ArrowUpDown size={12} className="text-gray-400" />
+      </span>
+    </th>
+  );
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8" data-testid="my-bookings-page">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">My Bookings</h1>
+    <div className="max-w-full mx-auto px-6 py-8" data-testid="my-bookings-page">
+      <h1 className="text-2xl font-black text-[#002B5B] mb-6">My Bookings</h1>
 
-      {bookings.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
-          <Calendar size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500 font-medium">No bookings yet</p>
-          <p className="text-sm text-gray-400 mt-1">Held proposals will appear here</p>
+      {/* Filter Bar */}
+      <div className="flex flex-wrap items-center gap-3 mb-6 bg-white border border-gray-200 rounded-lg p-4" data-testid="bookings-filter-bar">
+        <div className="flex items-center gap-1">
+          <div className="relative">
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-36" data-testid="filter-date-from" />
+          </div>
+          <span className="text-gray-400">-</span>
+          <div className="relative">
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-36" data-testid="filter-date-to" />
+          </div>
         </div>
+        <select value={dateType} onChange={e => setDateType(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="filter-date-type">
+          <option value="booking">By Booking Date</option>
+          <option value="travel">By Travel Date</option>
+        </select>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="filter-status">
+          <option value="all">Any Status</option>
+          <option value="held">Held</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="pending">Pending</option>
+        </select>
+        <input type="text" value={destination} onChange={e => setDestination(e.target.value)} placeholder="Destination" className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-32" data-testid="filter-destination" />
+        <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by email or mobile" className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-48" data-testid="filter-search" />
+        <button onClick={fetchBookings} className="px-5 py-2 bg-[#002B5B] text-white font-semibold rounded-lg hover:bg-[#003d82] text-sm" data-testid="filter-search-btn">
+          Search
+        </button>
+      </div>
+
+      {/* Summary */}
+      <div className="text-center mb-6" data-testid="bookings-summary">
+        <p className="text-sm text-gray-700">
+          Trips Shown - {filtered.length} (<span className="text-green-600 font-semibold">Confirmed: {confirmedCount}</span>)
+        </p>
+        <p className="text-sm text-gray-700">
+          Amount - AED {totalAmount.toLocaleString()} (<span className="text-green-600 font-semibold">Confirmed: AED {confirmedAmount.toLocaleString()}</span>)
+        </p>
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <div className="flex items-center justify-center py-16"><div className="w-8 h-8 border-3 border-[#002B5B] border-t-transparent rounded-full animate-spin" /></div>
       ) : (
-        <div className="space-y-4">
-          {bookings.map(booking => (
-            <div
-              key={booking.id}
-              className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow"
-              data-testid={`booking-card-${booking.id}`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-base font-bold text-gray-900">{booking.proposal_name || 'Untitled Trip'}</h3>
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${getStatusColor(booking.status)}`}>
-                      {booking.status}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                    {booking.customer_name && (
-                      <span className="flex items-center gap-1">
-                        <Users size={14} /> {booking.customer_name}
+        <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto" data-testid="bookings-table">
+          <table className="w-full text-sm min-w-[1100px]">
+            <thead>
+              {/* Header Row */}
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="text-left px-4 py-3 font-bold text-gray-700 text-xs w-10">#</th>
+                <SortHeader label="Reference" field="id" />
+                <SortHeader label="Type" field="type" />
+                <SortHeader label="Status" field="status" />
+                <SortHeader label="Book Time" field="held_at" />
+                <SortHeader label="Travel Date" field="leaving_on" />
+                <SortHeader label="Booked By" field="booked_by_name" />
+                <SortHeader label="Name" field="customer_name" />
+                <SortHeader label="Destinations" field="cities" />
+                <SortHeader label="Total Amount" field="total_price" />
+                <th className="text-left px-4 py-3 font-bold text-gray-700 text-xs whitespace-nowrap">Pending Amount</th>
+              </tr>
+              {/* Filter Row */}
+              <tr className="border-b border-gray-100 bg-white">
+                <td className="px-4 py-2" />
+                <td className="px-4 py-2"><input type="text" value={colRef} onChange={e => setColRef(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1 text-xs" data-testid="col-filter-ref" /></td>
+                <td className="px-4 py-2">
+                  <select value={colType} onChange={e => setColType(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1 text-xs" data-testid="col-filter-type">
+                    <option value="all">All</option>
+                    <option value="Package">Package</option>
+                    <option value="Flight">Flight</option>
+                  </select>
+                </td>
+                <td className="px-4 py-2">
+                  <select value={colStatus} onChange={e => setColStatus(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1 text-xs" data-testid="col-filter-status">
+                    <option value="all">All</option>
+                    <option value="held">Held</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </td>
+                <td className="px-4 py-2" />
+                <td className="px-4 py-2" />
+                <td className="px-4 py-2"><input type="text" value={colBookedBy} onChange={e => setColBookedBy(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1 text-xs" data-testid="col-filter-booked-by" /></td>
+                <td className="px-4 py-2"><input type="text" value={colName} onChange={e => setColName(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1 text-xs" data-testid="col-filter-name" /></td>
+                <td className="px-4 py-2"><input type="text" value={colDest} onChange={e => setColDest(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1 text-xs" data-testid="col-filter-dest" /></td>
+                <td className="px-4 py-2" />
+                <td className="px-4 py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr><td colSpan={11} className="text-center py-12 text-gray-400">No bookings found</td></tr>
+              ) : (
+                filtered.map((b, idx) => (
+                  <tr key={b.id} className="border-b border-gray-50 hover:bg-gray-50/50" data-testid={`booking-row-${b.id}`}>
+                    <td className="px-4 py-4 text-gray-500">{idx + 1}</td>
+                    <td className="px-4 py-4">
+                      <button onClick={() => onViewProposal?.(b.proposal_id)} className="text-[#0066CC] hover:underline font-medium text-sm" data-testid={`booking-ref-${b.id}`}>
+                        {getShortRef(b.id)}
+                      </button>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`px-2.5 py-1 rounded text-xs font-medium ${getTypeBadge(b.type || 'Package')}`}>
+                        {b.type || 'Package'}
                       </span>
-                    )}
-                    {booking.cities?.length > 0 && (
-                      <span className="flex items-center gap-1">
-                        <MapPin size={14} /> {booking.cities.map(c => c.name || c).join(', ')}
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`px-2.5 py-1 rounded text-xs font-bold capitalize ${getStatusBadge(b.status)}`}>
+                        {b.status}
                       </span>
-                    )}
-                    {booking.leaving_on && (
-                      <span className="flex items-center gap-1">
-                        <Calendar size={14} /> {formatDate(booking.leaving_on)}
-                      </span>
-                    )}
-                    {booking.rooms && (
-                      <span>{booking.rooms} room, {booking.adults} adults</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4 mt-3 text-sm">
-                    {booking.hold_until_date && (
-                      <span className="flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-1 rounded-lg">
-                        <Clock size={14} /> Hold until {formatDate(booking.hold_until_date)}
-                      </span>
-                    )}
-                    {booking.total_price > 0 && (
-                      <span className="font-bold text-gray-900">AED {Number(booking.total_price).toLocaleString()}</span>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => onViewProposal?.(booking.proposal_id)}
-                  className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-[#002B5B] border border-[#002B5B] rounded-lg hover:bg-[#002B5B] hover:text-white transition-colors"
-                  data-testid={`view-booking-${booking.id}`}
-                >
-                  <Eye size={14} /> View <ChevronRight size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
+                    </td>
+                    <td className="px-4 py-4 text-gray-600 text-xs whitespace-nowrap">{formatDateTime(b.held_at)}</td>
+                    <td className="px-4 py-4 text-gray-600 text-xs whitespace-nowrap">{formatDate(b.leaving_on)}</td>
+                    <td className="px-4 py-4 text-gray-700">{b.booked_by_name || '—'}</td>
+                    <td className="px-4 py-4">
+                      <div className="text-gray-800">{b.customer_name || '—'}</div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {b.adults || 0} adult{(b.adults || 0) !== 1 ? 's' : ''}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-gray-700">
+                      {(b.cities || []).map(c => c.name || c).join(', ') || '—'}
+                    </td>
+                    <td className="px-4 py-4 text-gray-800 font-medium">AED {Number(b.total_price || 0).toLocaleString()}</td>
+                    <td className="px-4 py-4 text-gray-500">
+                      {b.status === 'confirmed' ? 'AED 0' : `AED ${Number(b.total_price || 0).toLocaleString()}`}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

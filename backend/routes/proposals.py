@@ -176,6 +176,8 @@ async def hold_proposal(proposal_id: str, body: dict, current_user: dict = Depen
         "hold_until_date": hold_until_date,
         "held_at": now.isoformat(),
         "created_by": user_id,
+        "booked_by_name": current_user.get("name", ""),
+        "type": "Package",
     }
     await db.held_bookings.insert_one(booking)
     booking.pop("_id", None)
