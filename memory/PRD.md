@@ -23,7 +23,7 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 /app/frontend/src/
   App.js
   components/
-    ProposalView.jsx, BookingConfirmation.jsx, PaymentPage.jsx
+    BookingDetail.jsx, ProposalView.jsx, BookingConfirmation.jsx, PaymentPage.jsx
     WalletPage.jsx, StaffDashboard.jsx, MyBookings.jsx
     AdminDashboard.jsx (StaffExpertsTab, AdminWalletTab)
     TransferEditForm.jsx, TripBuilder.jsx, Dashboard.jsx, Header.jsx
@@ -39,30 +39,35 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - Proposal Versioning, ProposalView: 2-col day cards, Detail Modals, Inclusions tab
 - Booking Confirmation: Multi-traveler form, AI passport scan (Gemini Vision)
 
-### Latest Session (April 2026)
+### Previous Session (April 2026)
 - **Payment Page**: 4 methods (Credit Card, Bank EMI, Wallet, Tabby), wired from BookingConfirmation
 - **Accept Proposal**: 30-min hold, notification modal, "Accepted on" badge (Dubai TZ)
 - **Hold Booking**: Creates booking record, moves to "My Bookings", removes from "My Proposals", hidden if < 1 week
 - **Send Email Modal**: Full email composition with templates
 - **WhatsApp Share Modal**: Pre-filled message with proposal link
 - **Destination Expert/Staff**: CRUD + assignment to proposals, card on ProposalView sidebar
-- **Wallet & Account System** (NEW):
-  - Agent: Balance cards, transactions table, download CSV statement, upload payment proof
-  - Admin: Wallets tab (all agents, top-up, pending approvals)
-  - Staff: Agent wallets, top-up/refund, approve/reject proofs, bank statement upload
-  - Transaction types: Credit, Debit, Refund
-  - Auto-credit on payment proof approval
-  - All amounts in AED
+- **Wallet & Account System**: Agent balance, transactions, CSV download, payment proof upload; Admin/Staff wallet management
+- **My Bookings Dashboard**: Complex filterable data table with date range, status, column filters, sorting
+
+### Current Session (April 2026)
+- **Booking Detail Page** (DONE): Full page opened from My Bookings row click. Includes:
+  - Trip reference header with "Please complete payment" title + status badge
+  - View Quote button, Guest details (name, email, phone, travel date, guests, submission time)
+  - Payment Details with hold warning, total price, payment table, outstanding amount, Click-to-pay
+  - Attached Trips summary, Flight cards (airline, baggage, fare class/type, PNR, status)
+  - Hotel cards (image, stars, address, check-in/out, room type, meals, nights, confirmation, voucher download)
+  - Traveler Details form (title, name, DOB, passport, expiry, nationality, document upload)
+  - 7 collapsible sections (Important Notes, Terms, Scope, Payment/Airline/Cancellation Policy, Amendments)
+  - Right sidebar: Seller Details, Destination Expert, Booking Summary
+  - Backend: GET /api/held-bookings/{id} (enriched), PUT /api/bookings/{id}/travelers
+  - Full routing wired: App.js → Dashboard → MyBookings → BookingDetail
 
 ## Test Credentials
 - Admin: testadmin@example.com / password123
 - Agent: rashid@travotours.ae / password123
 
 ## DB Collections
-- `wallets` (user_id, balance, currency)
-- `wallet_transactions` (wallet_user_id, type, amount, note, performed_by)
-- `payment_proofs` (user_id, amount, reference, file_url, status)
-- `statements` (file_url, note, uploaded_by)
+- `wallets`, `wallet_transactions`, `payment_proofs`, `statements`
 - `held_bookings`, `destination_experts`, `proposals`, `bookings`, `hotels`, `flights`, `activities`, `transfers`, `cities`, `airports`, `terms_policies`, `insurance_prices`, `users`
 
 ## Upcoming Tasks
@@ -72,7 +77,7 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 
 ## Future/Backlog
 - P3: Real Flight API (Airlabs), Email notifications, Multi-currency, Mobile optimization
-- Refactoring: ProposalView.jsx (~3400 lines)
+- Refactoring: ProposalView.jsx (~3,500 lines)
 
 ## MOCKED
 - Google Sheets sync, PayPal checkout, Aviationstack, Payment processing (Pay Now alert), Send Email (simulated)
