@@ -128,7 +128,9 @@ def build_pdf_html(proposal, terms, expert, user):
     flights_html = ""
     arrival = proposal.get("arrival_flight_info", {}) or {}
     departure = proposal.get("departure_flight_info", {}) or {}
-    if arrival or departure:
+    has_arrival = isinstance(arrival, dict) and arrival.get("airline")
+    has_departure = isinstance(departure, dict) and departure.get("airline")
+    if has_arrival or has_departure:
         flights_html = '<h2 style="color:#002B5B;font-size:16px;margin:20px 0 10px;border-bottom:2px solid #002B5B;padding-bottom:6px;">Flight Details</h2>'
         for label, f in [("Departure Flight", arrival), ("Return Flight", departure)]:
             if f and isinstance(f, dict) and f.get("airline"):
