@@ -71,8 +71,8 @@ export default function Dashboard({
               {activeTab === 'Home' ? (
                 <>
                   {/* Hero Search Section */}
-                  <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 mb-8" data-testid="search-section">
-                    <h2 className="text-2xl font-bold text-[#002B5B] mb-6">Book your Holiday</h2>
+                  <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-8 mb-6 md:mb-8" data-testid="search-section">
+                    <h2 className="text-lg md:text-2xl font-bold text-[#002B5B] mb-4 md:mb-6">Book your Holiday</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-gray-500 uppercase">Leaving from</label>
@@ -120,7 +120,7 @@ export default function Dashboard({
                   </section>
 
                   {/* Quick Links Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                  <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-8 md:mb-12">
                     {[
                       { title: 'Book FIT Package', icon: Users, color: 'bg-blue-50 text-blue-600', onClick: onNewProposal },
                       { title: 'Book Group Tours', icon: Globe, color: 'bg-green-50 text-green-600' },
@@ -132,13 +132,13 @@ export default function Dashboard({
                         whileHover={{ y: -5 }}
                         onClick={item.onClick}
                         data-testid={`quick-link-${i}`}
-                        className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between cursor-pointer group"
+                        className="bg-white p-4 md:p-6 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between cursor-pointer group"
                       >
-                        <div className="flex items-center gap-4">
-                          <div className={cn("w-12 h-12 rounded-lg flex items-center justify-center", item.color)}>
-                            <item.icon size={24} />
+                        <div className="flex items-center gap-2 md:gap-4">
+                          <div className={cn("w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center", item.color)}>
+                            <item.icon size={20} />
                           </div>
-                          <span className="font-bold text-gray-700">{item.title}</span>
+                          <span className="font-bold text-gray-700 text-xs md:text-sm">{item.title}</span>
                         </div>
                         <ChevronRight className="text-gray-300 group-hover:text-[#002B5B] transition-colors" size={20} />
                       </motion.div>
@@ -146,17 +146,17 @@ export default function Dashboard({
                   </div>
 
                   {/* Banner Section */}
-                  <div className="relative rounded-2xl overflow-hidden mb-12 h-[400px]">
+                  <div className="relative rounded-xl md:rounded-2xl overflow-hidden mb-8 md:mb-12 h-[200px] md:h-[400px]">
                     <img 
                       src="https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1200&h=400&fit=crop" 
                       alt="Promotion" 
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex items-center px-12">
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex items-center px-4 md:px-12">
                       <div className="max-w-md text-white">
-                        <h3 className="text-4xl font-bold mb-4">Booking Day Trips</h3>
-                        <p className="text-lg mb-6 opacity-90">Explore the world with our curated day trip packages. Best price guaranteed.</p>
-                        <button className="bg-yellow-400 text-[#002B5B] px-8 py-3 rounded-full font-bold hover:bg-yellow-300 transition-colors">
+                        <h3 className="text-xl md:text-4xl font-bold mb-2 md:mb-4">Booking Day Trips</h3>
+                        <p className="text-xs md:text-lg mb-3 md:mb-6 opacity-90 hidden sm:block">Explore the world with our curated day trip packages. Best price guaranteed.</p>
+                        <button className="bg-yellow-400 text-[#002B5B] px-4 md:px-8 py-2 md:py-3 rounded-full font-bold hover:bg-yellow-300 transition-colors text-xs md:text-base">
                           BOOK NOW
                         </button>
                       </div>
@@ -164,13 +164,13 @@ export default function Dashboard({
                   </div>
 
                   {/* Stats Section */}
-                  <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                  <section className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 mb-8 md:mb-12">
                     {[
                       { label: 'Groups per year', value: '4,200+', icon: Users },
                       { label: 'Passengers Annually', value: '1,13,000+', icon: Globe },
                       { label: 'Team based in Europe', value: '100+', icon: ShieldCheck },
                     ].map((stat, i) => (
-                      <div key={i} className="bg-white p-8 rounded-xl border border-gray-100 shadow-sm text-center">
+                      <div key={i} className="bg-white p-4 md:p-8 rounded-xl border border-gray-100 shadow-sm text-center">
                         <div className="w-16 h-16 bg-[#002B5B]/5 rounded-full flex items-center justify-center mx-auto mb-4">
                           <stat.icon className="text-[#002B5B]" size={32} />
                         </div>
@@ -191,8 +191,8 @@ export default function Dashboard({
       </AnimatePresence>
 
       {/* Footer */}
-      <footer className="bg-[#002B5B] text-white py-12 px-6">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
+      <footer className="bg-[#002B5B] text-white py-8 md:py-12 px-4 md:px-6">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-12">
           <div>
             <div className="flex items-center gap-2 mb-6">
               <div className="w-8 h-8 bg-white rounded flex items-center justify-center text-[#002B5B] font-bold text-lg">T</div>

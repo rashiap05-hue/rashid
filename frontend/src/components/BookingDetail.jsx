@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { api, resolveImageUrl } from '@/App';
 import { BookingStatusTrackerFull } from './BookingStatusTracker';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useCurrency } from '@/CurrencyContext';
 import {
   ArrowLeft, Calendar, Users, MapPin, Phone, Mail, Clock, Star,
   Download, Upload, ChevronDown, ChevronUp, Plane, Building2, Car,
@@ -63,6 +64,8 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
     setSavingTravelers(false);
   };
 
+  const { format: formatPrice } = useCurrency();
+
   if (loading) {
     return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-3 border-[#002B5B] border-t-transparent rounded-full animate-spin" /></div>;
   }
@@ -96,14 +99,14 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
   const STAGE_LABELS = { held: 'Blocked', payment_pending: 'Payment Pending', payment_received: 'Payment Received', confirmed: 'Confirmed', ticketed: 'Ticketed' };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8" data-testid="booking-detail-page">
+    <div className="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-8" data-testid="booking-detail-page">
       {/* Back */}
-      <button onClick={onBack} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6" data-testid="back-to-bookings">
+      <button onClick={onBack} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4 md:mb-6" data-testid="back-to-bookings">
         <ArrowLeft size={16} /> Back to My Bookings
       </button>
 
       {/* Page Title */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 md:mb-6">
         <h1 className="text-xl font-black text-[#002B5B]">
           {booking.status === 'ticketed' ? 'Booking Complete' :
            booking.status === 'confirmed' ? 'Booking Confirmed' :
@@ -120,11 +123,11 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
       </div>
 
       {/* Trip Reference Header */}
-      <div className="bg-[#002B5B] rounded-xl p-6 mb-6 text-white" data-testid="trip-reference-header">
-        <div className="flex items-start justify-between">
+      <div className="bg-[#002B5B] rounded-xl p-4 md:p-6 mb-4 md:mb-6 text-white" data-testid="trip-reference-header">
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
           <div>
             <p className="text-xs text-white/60 uppercase tracking-wider">Trip Reference</p>
-            <h2 className="text-2xl font-black mt-1">{shortRef}</h2>
+            <h2 className="text-xl md:text-2xl font-black mt-1">{shortRef}</h2>
             <p className="text-sm text-white/70 mt-2">{booking.proposal_name || 'Trip Package'}</p>
           </div>
           <button
@@ -135,7 +138,7 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
             View Quote
           </button>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-6 pt-5 border-t border-white/20">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4 mt-5 md:mt-6 pt-4 md:pt-5 border-t border-white/20">
           <div><p className="text-xs text-white/50">Guest Name</p><p className="font-semibold text-sm mt-0.5">{booking.customer_name || '—'}</p></div>
           <div><p className="text-xs text-white/50">Email</p><p className="font-semibold text-sm mt-0.5">{booking.customer_email || '—'}</p></div>
           <div><p className="text-xs text-white/50">Phone</p><p className="font-semibold text-sm mt-0.5">{booking.customer_phone || user?.mobile || '—'}</p></div>
@@ -152,7 +155,7 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
         heldAt={booking.held_at}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
 
@@ -173,8 +176,7 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
               )}
               <div className="flex justify-between items-center py-3 border-b border-gray-100">
                 <span className="text-sm text-gray-600">Total Net Price</span>
-                <span className="font-bold text-gray-900">AED {totalPrice.toLocaleString()}</span>
-              </div>
+                <span className="font-bold text-gray-900">{formatPrice(totalPrice)}</span>              </div>
               <div className="mt-4">
                 <table className="w-full text-sm">
                   <thead>
@@ -189,7 +191,7 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
                     <tr className="border-b border-gray-50">
                       <td className="py-3 text-gray-600">{formatDate(booking.held_at)}</td>
                       <td className="py-3 text-gray-700">Booking Hold</td>
-                      <td className="py-3 text-right text-gray-800">AED {totalPrice.toLocaleString()}</td>
+                      <td className="py-3 text-right text-gray-800">{formatPrice(totalPrice)}</td>
                       <td className="py-3 text-right">
                         <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-bold">Pending</span>
                       </td>
@@ -200,7 +202,7 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
               <div className="flex justify-between items-center mt-5 pt-4 border-t border-gray-200">
                 <div>
                   <p className="text-sm text-gray-600">Outstanding Amount</p>
-                  <p className="text-xl font-black text-red-600">AED {outstanding.toLocaleString()}</p>
+                  <p className="text-xl font-black text-red-600">{formatPrice(outstanding)}</p>
                 </div>
                 <button className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg text-sm transition-colors" data-testid="click-to-pay-btn">
                   Click to pay
@@ -512,7 +514,7 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
               <div className="flex justify-between"><span className="text-gray-500">Travel Date</span><span className="font-medium">{formatDate(booking.leaving_on)}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Duration</span><span className="font-medium">{booking.nights || 0} Nights</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Hold Until</span><span className="font-medium text-amber-600">{formatDate(booking.hold_until_date)}</span></div>
-              <div className="flex justify-between pt-3 border-t border-gray-100"><span className="text-gray-800 font-bold">Total</span><span className="font-black text-gray-900">AED {totalPrice.toLocaleString()}</span></div>
+              <div className="flex justify-between pt-3 border-t border-gray-100"><span className="text-gray-800 font-bold">Total</span><span className="font-black text-gray-900">{formatPrice(totalPrice)}</span></div>
             </div>
           </div>
         </div>

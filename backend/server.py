@@ -29,6 +29,7 @@ from routes.wallets import wallets_router
 from routes.notifications import router as notifications_router
 from routes.pdf_generator import router as pdf_router
 from routes.email_service import router as email_router
+from routes.currency import router as currency_router
 
 from seed import seed_initial_data, seed_terms_policies, migrate_image_urls, migrate_activities_fields, migrate_transfer_image_urls, seed_destination_experts
 
@@ -72,6 +73,7 @@ api_router.include_router(wallets_router)
 api_router.include_router(notifications_router)
 api_router.include_router(pdf_router)
 api_router.include_router(email_router)
+api_router.include_router(currency_router)
 
 app.include_router(api_router)
 

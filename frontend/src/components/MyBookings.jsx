@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '@/App';
 import { ArrowUpDown, Search, Calendar } from 'lucide-react';
 import { BookingStatusTrackerMini } from './BookingStatusTracker';
+import { useCurrency } from '@/CurrencyContext';
 
 export default function MyBookings({ onViewProposal, onViewBooking }) {
+  const { format } = useCurrency();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -139,34 +141,30 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
   );
 
   return (
-    <div className="max-w-full mx-auto px-6 py-8" data-testid="my-bookings-page">
-      <h1 className="text-2xl font-black text-[#002B5B] mb-6">My Bookings</h1>
+    <div className="max-w-full mx-auto px-3 md:px-6 py-4 md:py-8" data-testid="my-bookings-page">
+      <h1 className="text-xl md:text-2xl font-black text-[#002B5B] mb-4 md:mb-6">My Bookings</h1>
 
       {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-3 mb-6 bg-white border border-gray-200 rounded-lg p-4" data-testid="bookings-filter-bar">
+      <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 md:mb-6 bg-white border border-gray-200 rounded-lg p-3 md:p-4" data-testid="bookings-filter-bar">
         <div className="flex items-center gap-1">
-          <div className="relative">
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-36" data-testid="filter-date-from" />
-          </div>
+          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="border border-gray-300 rounded-lg px-2 md:px-3 py-2 text-xs md:text-sm w-28 md:w-36" data-testid="filter-date-from" />
           <span className="text-gray-400">-</span>
-          <div className="relative">
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-36" data-testid="filter-date-to" />
-          </div>
+          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="border border-gray-300 rounded-lg px-2 md:px-3 py-2 text-xs md:text-sm w-28 md:w-36" data-testid="filter-date-to" />
         </div>
-        <select value={dateType} onChange={e => setDateType(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="filter-date-type">
+        <select value={dateType} onChange={e => setDateType(e.target.value)} className="border border-gray-300 rounded-lg px-2 md:px-3 py-2 text-xs md:text-sm" data-testid="filter-date-type">
           <option value="booking">By Booking Date</option>
           <option value="travel">By Travel Date</option>
         </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="filter-status">
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-gray-300 rounded-lg px-2 md:px-3 py-2 text-xs md:text-sm" data-testid="filter-status">
           <option value="all">Any Status</option>
           <option value="held">Held</option>
           <option value="confirmed">Confirmed</option>
           <option value="cancelled">Cancelled</option>
           <option value="pending">Pending</option>
         </select>
-        <input type="text" value={destination} onChange={e => setDestination(e.target.value)} placeholder="Destination" className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-32" data-testid="filter-destination" />
-        <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by email or mobile" className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-48" data-testid="filter-search" />
-        <button onClick={fetchBookings} className="px-5 py-2 bg-[#002B5B] text-white font-semibold rounded-lg hover:bg-[#003d82] text-sm" data-testid="filter-search-btn">
+        <input type="text" value={destination} onChange={e => setDestination(e.target.value)} placeholder="Destination" className="border border-gray-300 rounded-lg px-2 md:px-3 py-2 text-xs md:text-sm w-24 md:w-32" data-testid="filter-destination" />
+        <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search..." className="border border-gray-300 rounded-lg px-2 md:px-3 py-2 text-xs md:text-sm w-32 md:w-48 flex-1 min-w-[100px]" data-testid="filter-search" />
+        <button onClick={fetchBookings} className="px-3 md:px-5 py-2 bg-[#002B5B] text-white font-semibold rounded-lg hover:bg-[#003d82] text-xs md:text-sm whitespace-nowrap" data-testid="filter-search-btn">
           Search
         </button>
       </div>
@@ -177,7 +175,7 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
           Trips Shown - {filtered.length} (<span className="text-green-600 font-semibold">Confirmed: {confirmedCount}</span>)
         </p>
         <p className="text-sm text-gray-700">
-          Amount - AED {totalAmount.toLocaleString()} (<span className="text-green-600 font-semibold">Confirmed: AED {confirmedAmount.toLocaleString()}</span>)
+          Amount - {format(totalAmount)} (<span className="text-green-600 font-semibold">Confirmed: {format(confirmedAmount)}</span>)
         </p>
       </div>
 
@@ -266,9 +264,9 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
                     <td className="px-4 py-4 text-gray-700">
                       {(b.cities || []).map(c => c.name || c).join(', ') || '—'}
                     </td>
-                    <td className="px-4 py-4 text-gray-800 font-medium">AED {Number(b.total_price || 0).toLocaleString()}</td>
+                    <td className="px-4 py-4 text-gray-800 font-medium">{format(b.total_price || 0)}</td>
                     <td className="px-4 py-4 text-gray-500">
-                      {b.status === 'confirmed' ? 'AED 0' : `AED ${Number(b.total_price || 0).toLocaleString()}`}
+                      {b.status === 'confirmed' ? format(0) : format(b.total_price || 0)}
                     </td>
                     <td className="px-4 py-4">
                       <BookingStatusTrackerMini status={b.status} />

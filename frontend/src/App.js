@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import '@/App.css';
+import { CurrencyProvider } from '@/CurrencyContext';
 
 // Components
 import AuthPage from '@/components/AuthPage';
@@ -133,6 +134,7 @@ function App() {
   }
 
   return (
+    <CurrencyProvider>
     <BrowserRouter>
       <Routes>
         <Route
@@ -366,6 +368,7 @@ function App() {
         />
       </Routes>
     </BrowserRouter>
+    </CurrencyProvider>
   );
 }
 
