@@ -18,49 +18,42 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
     auth.py, proposals.py, flights.py, hotels.py, airports.py, cities.py,
     transfers.py, activities.py, terms.py, ai.py, payments.py, sheets.py,
     admin.py, supplier.py, uploads.py, settings.py, flight_api.py,
-    bookings.py, passport_scan.py, experts.py, wallets.py
+    bookings.py, passport_scan.py, experts.py, wallets.py, notifications.py
 
 /app/frontend/src/
   App.js
   components/
-    BookingDetail.jsx, ProposalView.jsx, BookingConfirmation.jsx, PaymentPage.jsx
-    WalletPage.jsx, StaffDashboard.jsx, MyBookings.jsx
-    AdminDashboard.jsx (StaffExpertsTab, AdminWalletTab)
+    BookingDetail.jsx, BookingStatusTracker.jsx, ProposalView.jsx,
+    BookingConfirmation.jsx, PaymentPage.jsx, WalletPage.jsx,
+    StaffDashboard.jsx, MyBookings.jsx, AdminDashboard.jsx,
     TransferEditForm.jsx, TripBuilder.jsx, Dashboard.jsx, Header.jsx
     TripBuilder/SaveProposalModal.jsx, VersionHistoryPanel.jsx
 ```
 
 ## Completed Features
 ### Core
-- Full auth (JWT), Proposals CRUD + PDF, Hotels/Flights/Activities/Transfers/Cities/Airports CRUD
+- Full auth (JWT), Proposals CRUD, Hotels/Flights/Activities/Transfers/Cities/Airports CRUD
 - Trip Builder with dynamic/vehicle-based pricing, AI Itinerary Generator (Gemini)
 - Multi-city hotels, inter-city transfers, country-based insurance
 - Admin Dashboard, Supplier Dashboard, Terms & Policies
 - Proposal Versioning, ProposalView: 2-col day cards, Detail Modals, Inclusions tab
 - Booking Confirmation: Multi-traveler form, AI passport scan (Gemini Vision)
 
-### Previous Session (April 2026)
-- **Payment Page**: 4 methods (Credit Card, Bank EMI, Wallet, Tabby), wired from BookingConfirmation
-- **Accept Proposal**: 30-min hold, notification modal, "Accepted on" badge (Dubai TZ)
-- **Hold Booking**: Creates booking record, moves to "My Bookings", removes from "My Proposals", hidden if < 1 week
-- **Send Email Modal**: Full email composition with templates
-- **WhatsApp Share Modal**: Pre-filled message with proposal link
-- **Destination Expert/Staff**: CRUD + assignment to proposals, card on ProposalView sidebar
-- **Wallet & Account System**: Agent balance, transactions, CSV download, payment proof upload; Admin/Staff wallet management
-- **My Bookings Dashboard**: Complex filterable data table with date range, status, column filters, sorting
+### Session 2 (April 2026)
+- Payment Page, Accept Proposal logic (30-min hold, Dubai TZ), Hold Booking workflow
+- Destination Expert/Staff CRUD + assignment, Send Email & WhatsApp Share Modals
+- Wallet & Account Statement system (Agent, Admin, Staff)
+- My Bookings Dashboard: filterable data table with date range, status, sorting
 
-### Current Session (April 2026)
-- **Booking Detail Page** (DONE): Full page opened from My Bookings row click. Includes:
-  - Trip reference header with "Please complete payment" title + status badge
-  - View Quote button, Guest details (name, email, phone, travel date, guests, submission time)
-  - Payment Details with hold warning, total price, payment table, outstanding amount, Click-to-pay
-  - Attached Trips summary, Flight cards (airline, baggage, fare class/type, PNR, status)
-  - Hotel cards (image, stars, address, check-in/out, room type, meals, nights, confirmation, voucher download)
-  - Traveler Details form (title, name, DOB, passport, expiry, nationality, document upload)
-  - 7 collapsible sections (Important Notes, Terms, Scope, Payment/Airline/Cancellation Policy, Amendments)
-  - Right sidebar: Seller Details, Destination Expert, Booking Summary
-  - Backend: GET /api/held-bookings/{id} (enriched), PUT /api/bookings/{id}/travelers
-  - Full routing wired: App.js → Dashboard → MyBookings → BookingDetail
+### Session 3 (April 2026)
+- **Booking Detail Page**: Full page from My Bookings row click. Trip reference header, payment details, flight/hotel cards, traveler forms, 7 collapsible policy sections, right sidebar
+- **Real-time Booking Status Tracker**: 5-stage visual timeline (Hold → Payment Pending → Payment Received → Confirmed → Ticketed)
+  - Full tracker on Booking Detail page with timestamps and Activity Log audit trail
+  - Mini tracker dots on My Bookings table rows
+  - Admin Dashboard "Bookings" tab with status management and advance modal
+  - Role-gated: Only Admin/Staff can advance status; agents see read-only tracker
+- **In-app Notification System**: Bell icon with unread count badge, dropdown with notification list, mark all read. Notifications auto-created on status changes.
+- Backend: `routes/notifications.py` (CRUD), `routes/bookings.py` (status advance, admin list)
 
 ## Test Credentials
 - Admin: testadmin@example.com / password123
@@ -68,16 +61,19 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 
 ## DB Collections
 - `wallets`, `wallet_transactions`, `payment_proofs`, `statements`
-- `held_bookings`, `destination_experts`, `proposals`, `bookings`, `hotels`, `flights`, `activities`, `transfers`, `cities`, `airports`, `terms_policies`, `insurance_prices`, `users`
+- `held_bookings` (with `status_history` array for audit trail), `notifications`
+- `destination_experts`, `proposals`, `bookings`, `hotels`, `flights`, `activities`, `transfers`, `cities`, `airports`, `terms_policies`, `insurance_prices`, `users`
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
-- P1: Wire SendEmailModal to real email service
-- P2: PDF Proposal Generation, AI trip recommendations
+- P1: Wire email notifications to real email service (currently in-app only)
+- P2: PDF Proposal Generation
+- P2: AI-powered trip recommendations
 
 ## Future/Backlog
-- P3: Real Flight API (Airlabs), Email notifications, Multi-currency, Mobile optimization
+- P3: Real Flight API (Airlabs), Multi-currency, Mobile optimization
+- P3: Google Sheets Sync (needs OAuth credentials)
 - Refactoring: ProposalView.jsx (~3,500 lines)
 
 ## MOCKED
-- Google Sheets sync, PayPal checkout, Aviationstack, Payment processing (Pay Now alert), Send Email (simulated)
+- Google Sheets sync, PayPal checkout, Aviationstack, Payment processing (Pay Now alert), Send Email (simulated), Email notifications (in-app only)
