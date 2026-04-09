@@ -1707,6 +1707,8 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                 </div>
 
                 {/* Flights Section */}
+                {/* Flights Section - Only show when flights are added */}
+                {(proposal.arrival_flight_info?.airline || proposal.departure_flight_info?.airline) && (
                 <div className="bg-white border border-gray-200 rounded-xl mb-8 shadow-sm" data-testid="flights-section">
                   {/* Flights Header */}
                   <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -1916,6 +1918,7 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                   </div>
                   )}
                 </div>
+                )}
 
                 {/* Hotel Section - Per City */}
                 {proposal.cities?.map((city, cityIdx) => {
