@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plane, Hotel, MapPin, LayoutDashboard, Settings, FileText, 
   PieChart, MessageSquare, Bell, LogOut, ArrowLeft, ChevronDown, ChevronUp, Globe,
-  Users, Briefcase, Calendar, Download, UserPlus, ClipboardList, Wallet, Upload, UserCog, User
+  Users, Briefcase, Calendar, Download, UserPlus, ClipboardList, Wallet, Upload, UserCog, User, Check
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { api } from '@/App';
 
 export const NAV_ITEMS = [
   { name: 'Home', icon: LayoutDashboard },
@@ -76,6 +77,47 @@ export default function Header({
 }) {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [profileDropdown, setProfileDropdown] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnread = useCallback(async () => {
+    try {
+      const res = await api.get('/notifications/unread-count');
+      setUnreadCount(res.data.count || 0);
+    } catch {}
+  }, []);
+
+  useEffect(() => { fetchUnread(); const iv = setInterval(fetchUnread, 15000); return () => clearInterval(iv); }, [fetchUnread]);
+
+  const openNotifications = async () => {
+    setNotifOpen(prev => !prev);
+    if (!notifOpen) {
+      try {
+        const res = await api.get('/notifications');
+        setNotifications(res.data || []);
+      } catch {}
+    }
+  };
+
+  const markAllRead = async () => {
+    try {
+      await api.put('/notifications/read-all');
+      setUnreadCount(0);
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch {}
+  };
+
+  const formatNotifTime = (isoStr) => {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    const now = new Date();
+    const diff = Math.floor((now - d) / 60000);
+    if (diff < 1) return 'Just now';
+    if (diff < 60) return `${diff}m ago`;
+    if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'Asia/Dubai' });
+  };
 
   return (
     <div className="sticky top-0 z-50 w-full" data-testid="header">
@@ -86,9 +128,48 @@ export default function Header({
           <span className="cursor-pointer hover:text-blue-200">Package (AED/IND)</span>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1 cursor-pointer hover:text-blue-200">
-            <Bell size={14} />
-            <span>Notifications</span>
+          <div className="relative" onMouseLeave={() => setNotifOpen(false)}>
+            <button
+              onClick={openNotifications}
+              className="flex items-center gap-1 cursor-pointer hover:text-blue-200 relative"
+              data-testid="notification-bell"
+            >
+              <Bell size={14} />
+              <span>Notifications</span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-2 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center" data-testid="unread-badge">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+            {notifOpen && (
+              <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-[100] overflow-hidden" data-testid="notification-dropdown">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
+                  <p className="text-sm font-bold text-gray-800">Notifications</p>
+                  {unreadCount > 0 && (
+                    <button onClick={markAllRead} className="text-xs text-[#0066CC] font-medium hover:underline" data-testid="mark-all-read">Mark all read</button>
+                  )}
+                </div>
+                <div className="max-h-72 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <p className="text-center text-sm text-gray-400 py-8">No notifications</p>
+                  ) : (
+                    notifications.map(n => (
+                      <div key={n.id} className={`px-4 py-3 border-b border-gray-50 ${!n.read ? 'bg-blue-50/50' : ''}`} data-testid={`notif-${n.id}`}>
+                        <div className="flex items-start gap-2">
+                          {!n.read && <div className="w-2 h-2 rounded-full bg-[#0066CC] mt-1.5 flex-shrink-0" />}
+                          <div className={!n.read ? '' : 'ml-4'}>
+                            <p className="text-xs font-bold text-gray-800">{n.title}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{n.message}</p>
+                            <p className="text-[10px] text-gray-400 mt-1">{formatNotifTime(n.created_at)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Profile Dropdown */}

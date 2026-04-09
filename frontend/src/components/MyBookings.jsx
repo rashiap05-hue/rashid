@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '@/App';
 import { ArrowUpDown, Search, Calendar } from 'lucide-react';
+import { BookingStatusTrackerMini } from './BookingStatusTracker';
 
 export default function MyBookings({ onViewProposal, onViewBooking }) {
   const [bookings, setBookings] = useState([]);
@@ -101,10 +102,15 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
   const totalAmount = filtered.reduce((s, b) => s + (Number(b.total_price) || 0), 0);
   const confirmedAmount = filtered.filter(b => b.status === 'confirmed').reduce((s, b) => s + (Number(b.total_price) || 0), 0);
 
+  const STAGE_LABELS = { held: 'Hold', payment_pending: 'Payment Pending', payment_received: 'Payment Received', confirmed: 'Confirmed', ticketed: 'Ticketed' };
+
   const getStatusBadge = (status) => {
     const styles = {
       held: 'bg-amber-100 text-amber-800',
+      payment_pending: 'bg-orange-100 text-orange-800',
+      payment_received: 'bg-teal-100 text-teal-800',
       confirmed: 'bg-green-100 text-green-800',
+      ticketed: 'bg-blue-100 text-blue-800',
       cancelled: 'bg-red-100 text-red-700',
       pending: 'bg-blue-100 text-blue-700',
     };
@@ -195,6 +201,7 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
                 <SortHeader label="Destinations" field="cities" />
                 <SortHeader label="Total Amount" field="total_price" />
                 <th className="text-left px-4 py-3 font-bold text-gray-700 text-xs whitespace-nowrap">Pending Amount</th>
+                <th className="text-left px-4 py-3 font-bold text-gray-700 text-xs whitespace-nowrap">Progress</th>
               </tr>
               {/* Filter Row */}
               <tr className="border-b border-gray-100 bg-white">
@@ -222,11 +229,12 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
                 <td className="px-4 py-2"><input type="text" value={colDest} onChange={e => setColDest(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1 text-xs" data-testid="col-filter-dest" /></td>
                 <td className="px-4 py-2" />
                 <td className="px-4 py-2" />
+                <td className="px-4 py-2" />
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={11} className="text-center py-12 text-gray-400">No bookings found</td></tr>
+                <tr><td colSpan={12} className="text-center py-12 text-gray-400">No bookings found</td></tr>
               ) : (
                 filtered.map((b, idx) => (
                   <tr key={b.id} className="border-b border-gray-50 hover:bg-gray-50/50 cursor-pointer" onClick={() => onViewBooking?.(b.id)} data-testid={`booking-row-${b.id}`}>
@@ -243,7 +251,7 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
                     </td>
                     <td className="px-4 py-4">
                       <span className={`px-2.5 py-1 rounded text-xs font-bold capitalize ${getStatusBadge(b.status)}`}>
-                        {b.status}
+                        {STAGE_LABELS[b.status] || b.status}
                       </span>
                     </td>
                     <td className="px-4 py-4 text-gray-600 text-xs whitespace-nowrap">{formatDateTime(b.held_at)}</td>
@@ -261,6 +269,9 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
                     <td className="px-4 py-4 text-gray-800 font-medium">AED {Number(b.total_price || 0).toLocaleString()}</td>
                     <td className="px-4 py-4 text-gray-500">
                       {b.status === 'confirmed' ? 'AED 0' : `AED ${Number(b.total_price || 0).toLocaleString()}`}
+                    </td>
+                    <td className="px-4 py-4">
+                      <BookingStatusTrackerMini status={b.status} />
                     </td>
                   </tr>
                 ))

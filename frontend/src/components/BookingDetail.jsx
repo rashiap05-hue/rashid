@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api, resolveImageUrl } from '@/App';
+import { BookingStatusTrackerFull } from './BookingStatusTracker';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Calendar, Users, MapPin, Phone, Mail, Clock, Star,
@@ -92,6 +93,8 @@ export default function BookingDetail({ bookingId, onBack }) {
     </div>
   );
 
+  const STAGE_LABELS = { held: 'Blocked', payment_pending: 'Payment Pending', payment_received: 'Payment Received', confirmed: 'Confirmed', ticketed: 'Ticketed' };
+
   return (
     <div className="max-w-7xl mx-auto px-6 py-8" data-testid="booking-detail-page">
       {/* Back */}
@@ -101,12 +104,19 @@ export default function BookingDetail({ bookingId, onBack }) {
 
       {/* Page Title */}
       <div className="flex items-center gap-3 mb-6">
-        <h1 className="text-xl font-black text-[#002B5B]">Please complete payment</h1>
+        <h1 className="text-xl font-black text-[#002B5B]">
+          {booking.status === 'ticketed' ? 'Booking Complete' :
+           booking.status === 'confirmed' ? 'Booking Confirmed' :
+           'Please complete payment'}
+        </h1>
         <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
           booking.status === 'held' ? 'bg-amber-100 text-amber-800' :
+          booking.status === 'payment_pending' ? 'bg-orange-100 text-orange-800' :
+          booking.status === 'payment_received' ? 'bg-teal-100 text-teal-800' :
           booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+          booking.status === 'ticketed' ? 'bg-blue-100 text-blue-800' :
           'bg-gray-100 text-gray-800'
-        }`} data-testid="booking-page-status">{booking.status === 'held' ? 'Blocked' : booking.status}</span>
+        }`} data-testid="booking-page-status">{STAGE_LABELS[booking.status] || booking.status}</span>
       </div>
 
       {/* Trip Reference Header */}
@@ -134,6 +144,13 @@ export default function BookingDetail({ bookingId, onBack }) {
           <div><p className="text-xs text-white/50">Submitted</p><p className="font-semibold text-sm mt-0.5">{formatDateTime(booking.held_at)}</p></div>
         </div>
       </div>
+
+      {/* Status Tracker */}
+      <BookingStatusTrackerFull
+        status={booking.status}
+        statusHistory={booking.status_history}
+        heldAt={booking.held_at}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}

@@ -8,6 +8,15 @@ from db import db, get_current_user
 
 router = APIRouter()
 
+BOOKING_STAGES = ["held", "payment_pending", "payment_received", "confirmed", "ticketed"]
+STAGE_LABELS = {
+    "held": "Hold",
+    "payment_pending": "Payment Pending",
+    "payment_received": "Payment Received",
+    "confirmed": "Confirmed",
+    "ticketed": "Ticketed",
+}
+
 
 class TravelerInfo(BaseModel):
     title: str = ""
@@ -158,3 +167,76 @@ async def update_booking_travelers(booking_id: str, body: dict, current_user: di
         {"$set": {"travelers": travelers, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
     return {"message": "Travelers updated successfully"}
+
+
+
+class StatusUpdateRequest(BaseModel):
+    note: str = ""
+
+
+@router.put("/bookings/{booking_id}/status/advance")
+async def advance_booking_status(booking_id: str, body: StatusUpdateRequest, current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") not in ("admin", "staff"):
+        raise HTTPException(status_code=403, detail="Only admin/staff can update booking status")
+
+    booking = await db.held_bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    current_status = booking.get("status", "held")
+    if current_status not in BOOKING_STAGES:
+        current_status = "held"
+
+    current_idx = BOOKING_STAGES.index(current_status)
+    if current_idx >= len(BOOKING_STAGES) - 1:
+        raise HTTPException(status_code=400, detail="Booking is already at final stage (Ticketed)")
+
+    next_status = BOOKING_STAGES[current_idx + 1]
+    now = datetime.now(timezone.utc).isoformat()
+
+    history_entry = {
+        "from_status": current_status,
+        "to_status": next_status,
+        "changed_by": current_user.get("email", "system"),
+        "changed_by_name": current_user.get("full_name", "System"),
+        "note": body.note,
+        "timestamp": now,
+    }
+
+    await db.held_bookings.update_one(
+        {"id": booking_id},
+        {
+            "$set": {"status": next_status, "updated_at": now},
+            "$push": {"status_history": history_entry},
+        }
+    )
+
+    # Create notification for the booking owner
+    from routes.notifications import create_notification
+    owner_id = booking.get("created_by")
+    if owner_id:
+        await create_notification(
+            user_id=owner_id,
+            title=f"Booking {STAGE_LABELS.get(next_status, next_status)}",
+            message=f"Your booking has been updated to '{STAGE_LABELS.get(next_status, next_status)}'. {body.note}".strip(),
+            booking_id=booking_id,
+            notif_type="status_change",
+        )
+
+    return {
+        "message": f"Status advanced to {next_status}",
+        "new_status": next_status,
+        "status_history": (booking.get("status_history") or []) + [history_entry],
+    }
+
+
+@router.get("/bookings/admin/all")
+async def admin_list_all_bookings(current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") not in ("admin", "staff"):
+        raise HTTPException(status_code=403, detail="Admin/Staff only")
+
+    bookings = await db.held_bookings.find(
+        {},
+        {"_id": 0}
+    ).sort("held_at", -1).to_list(200)
+    return bookings

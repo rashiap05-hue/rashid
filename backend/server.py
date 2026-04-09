@@ -26,6 +26,7 @@ from routes.bookings import router as bookings_router
 from routes.passport_scan import router as passport_scan_router
 from routes.experts import experts_router
 from routes.wallets import wallets_router
+from routes.notifications import router as notifications_router
 
 from seed import seed_initial_data, seed_terms_policies, migrate_image_urls, migrate_activities_fields, migrate_transfer_image_urls, seed_destination_experts
 
@@ -66,6 +67,7 @@ api_router.include_router(bookings_router)
 api_router.include_router(passport_scan_router)
 api_router.include_router(experts_router)
 api_router.include_router(wallets_router)
+api_router.include_router(notifications_router)
 
 app.include_router(api_router)
 

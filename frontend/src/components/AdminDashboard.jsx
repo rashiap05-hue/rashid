@@ -12,8 +12,163 @@ import HotelEditForm from './HotelEditForm';
 import ActivityEditForm from './ActivityEditForm';
 import TransferEditForm from './TransferEditForm';
 import TermsPoliciesManager from './TermsPoliciesManager';
+import { BookingStatusTrackerMini } from './BookingStatusTracker';
 
 const ALL_COUNTRIES = ["Afghanistan","Albania","Algeria","Andorra","Angola","Antigua and Barbuda","Argentina","Armenia","Australia","Austria","Azerbaijan","Bahamas","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Belize","Benin","Bhutan","Bolivia","Bosnia and Herzegovina","Botswana","Brazil","Brunei","Bulgaria","Burkina Faso","Burundi","Cabo Verde","Cambodia","Cameroon","Canada","Central African Republic","Chad","Chile","China","Colombia","Comoros","Congo (Brazzaville)","Congo (Kinshasa)","Costa Rica","Croatia","Cuba","Cyprus","Czech Republic","Denmark","Djibouti","Dominica","Dominican Republic","Ecuador","Egypt","El Salvador","Equatorial Guinea","Eritrea","Estonia","Eswatini","Ethiopia","Fiji","Finland","France","Gabon","Gambia","Georgia","Germany","Ghana","Greece","Grenada","Guatemala","Guinea","Guinea-Bissau","Guyana","Haiti","Honduras","Hungary","Iceland","India","Indonesia","Iran","Iraq","Ireland","Israel","Italy","Jamaica","Japan","Jordan","Kazakhstan","Kenya","Kiribati","Kosovo","Kuwait","Kyrgyzstan","Laos","Latvia","Lebanon","Lesotho","Liberia","Libya","Liechtenstein","Lithuania","Luxembourg","Madagascar","Malawi","Malaysia","Maldives","Mali","Malta","Marshall Islands","Mauritania","Mauritius","Mexico","Micronesia","Moldova","Monaco","Mongolia","Montenegro","Morocco","Mozambique","Myanmar","Namibia","Nauru","Nepal","Netherlands","New Zealand","Nicaragua","Niger","Nigeria","North Korea","North Macedonia","Norway","Oman","Pakistan","Palau","Palestine","Panama","Papua New Guinea","Paraguay","Peru","Philippines","Poland","Portugal","Qatar","Romania","Russia","Rwanda","Saint Kitts and Nevis","Saint Lucia","Samoa","San Marino","Saudi Arabia","Senegal","Serbia","Seychelles","Sierra Leone","Singapore","Slovakia","Slovenia","Solomon Islands","Somalia","South Africa","South Korea","South Sudan","Spain","Sri Lanka","Sudan","Suriname","Sweden","Switzerland","Syria","Taiwan","Tajikistan","Tanzania","Thailand","Timor-Leste","Togo","Tonga","Trinidad and Tobago","Tunisia","Turkey","Turkmenistan","Tuvalu","Uganda","Ukraine","United Arab Emirates","United Kingdom","United States","Uruguay","Uzbekistan","Vanuatu","Vatican City","Venezuela","Vietnam","Yemen","Zambia","Zimbabwe"];
+
+const BOOKING_STAGES = ['held', 'payment_pending', 'payment_received', 'confirmed', 'ticketed'];
+const STAGE_LABELS = { held: 'Hold', payment_pending: 'Payment Pending', payment_received: 'Payment Received', confirmed: 'Confirmed', ticketed: 'Ticketed' };
+
+function AdminBookingsTab() {
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [advancing, setAdvancing] = useState(null);
+  const [noteModal, setNoteModal] = useState({ open: false, bookingId: null, currentStatus: '' });
+  const [note, setNote] = useState('');
+
+  const fetchBookings = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/bookings/admin/all');
+      setBookings(res.data || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchBookings(); }, [fetchBookings]);
+
+  const advanceStatus = async (bookingId) => {
+    setAdvancing(bookingId);
+    try {
+      await api.put(`/bookings/${bookingId}/status/advance`, { note });
+      setNoteModal({ open: false, bookingId: null, currentStatus: '' });
+      setNote('');
+      fetchBookings();
+    } catch (e) { console.error(e); alert(e.response?.data?.detail || 'Error advancing status'); }
+    setAdvancing(null);
+  };
+
+  const formatDate = (d) => {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Dubai' });
+  };
+
+  const getNextStage = (status) => {
+    const idx = BOOKING_STAGES.indexOf(status);
+    if (idx < 0 || idx >= BOOKING_STAGES.length - 1) return null;
+    return BOOKING_STAGES[idx + 1];
+  };
+
+  if (loading) return <div className="flex justify-center py-12"><div className="w-8 h-8 border-3 border-[#002B5B] border-t-transparent rounded-full animate-spin" /></div>;
+
+  return (
+    <div data-testid="admin-bookings-tab">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-bold text-gray-800">All Bookings ({bookings.length})</h3>
+        <button onClick={fetchBookings} className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-600" data-testid="refresh-bookings">
+          <RefreshCw size={14} /> Refresh
+        </button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm" data-testid="admin-bookings-table">
+          <thead>
+            <tr className="border-b border-gray-200 bg-gray-50">
+              <th className="text-left px-4 py-3 font-bold text-gray-700 text-xs">#</th>
+              <th className="text-left px-4 py-3 font-bold text-gray-700 text-xs">Reference</th>
+              <th className="text-left px-4 py-3 font-bold text-gray-700 text-xs">Customer</th>
+              <th className="text-left px-4 py-3 font-bold text-gray-700 text-xs">Destinations</th>
+              <th className="text-left px-4 py-3 font-bold text-gray-700 text-xs">Travel Date</th>
+              <th className="text-left px-4 py-3 font-bold text-gray-700 text-xs">Amount</th>
+              <th className="text-left px-4 py-3 font-bold text-gray-700 text-xs">Status</th>
+              <th className="text-left px-4 py-3 font-bold text-gray-700 text-xs">Progress</th>
+              <th className="text-left px-4 py-3 font-bold text-gray-700 text-xs">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bookings.length === 0 ? (
+              <tr><td colSpan={9} className="text-center py-12 text-gray-400">No bookings</td></tr>
+            ) : (
+              bookings.map((b, idx) => {
+                const nextStage = getNextStage(b.status);
+                return (
+                  <tr key={b.id} className="border-b border-gray-50 hover:bg-gray-50/50" data-testid={`admin-booking-row-${b.id}`}>
+                    <td className="px-4 py-4 text-gray-500">{idx + 1}</td>
+                    <td className="px-4 py-4 font-medium text-[#0066CC]">{'ORN' + (b.id || '').replace(/-/g, '').slice(0, 8).toUpperCase()}</td>
+                    <td className="px-4 py-4">
+                      <div className="text-gray-800 text-sm">{b.customer_name || '—'}</div>
+                      <div className="text-xs text-gray-400">{b.customer_email || ''}</div>
+                    </td>
+                    <td className="px-4 py-4 text-gray-700">{(b.cities || []).map(c => c.name || c).join(', ') || '—'}</td>
+                    <td className="px-4 py-4 text-gray-600 text-xs">{formatDate(b.leaving_on)}</td>
+                    <td className="px-4 py-4 font-medium">AED {Number(b.total_price || 0).toLocaleString()}</td>
+                    <td className="px-4 py-4">
+                      <span className={`px-2 py-1 rounded text-xs font-bold capitalize ${
+                        b.status === 'ticketed' ? 'bg-green-100 text-green-800' :
+                        b.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
+                        b.status === 'payment_received' ? 'bg-teal-100 text-teal-800' :
+                        b.status === 'payment_pending' ? 'bg-orange-100 text-orange-800' :
+                        'bg-amber-100 text-amber-800'
+                      }`}>{STAGE_LABELS[b.status] || b.status}</span>
+                    </td>
+                    <td className="px-4 py-4"><BookingStatusTrackerMini status={b.status} /></td>
+                    <td className="px-4 py-4">
+                      {nextStage ? (
+                        <button
+                          onClick={() => { setNoteModal({ open: true, bookingId: b.id, currentStatus: b.status }); setNote(''); }}
+                          disabled={advancing === b.id}
+                          className="px-3 py-1.5 bg-[#002B5B] hover:bg-[#003d82] text-white rounded-lg text-xs font-bold disabled:opacity-50 whitespace-nowrap"
+                          data-testid={`advance-status-${b.id}`}
+                        >
+                          {advancing === b.id ? '...' : `Advance to ${STAGE_LABELS[nextStage]}`}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-green-600 font-bold flex items-center gap-1"><CheckCircle size={14} /> Complete</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Note Modal */}
+      <AnimatePresence>
+        {noteModal.open && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center" onClick={() => setNoteModal({ open: false, bookingId: null, currentStatus: '' })}>
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()} data-testid="advance-status-modal">
+              <h3 className="text-lg font-bold text-gray-800 mb-1">Advance Booking Status</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Moving from <span className="font-bold">{STAGE_LABELS[noteModal.currentStatus]}</span> to{' '}
+                <span className="font-bold text-[#002B5B]">{STAGE_LABELS[getNextStage(noteModal.currentStatus)]}</span>
+              </p>
+              <label className="text-xs font-bold text-gray-500 uppercase">Note (optional)</label>
+              <textarea
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm h-20 resize-none"
+                placeholder="e.g., Payment confirmed via bank transfer"
+                data-testid="advance-note-input"
+              />
+              <div className="flex gap-3 mt-4">
+                <button onClick={() => setNoteModal({ open: false, bookingId: null, currentStatus: '' })} className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
+                <button
+                  onClick={() => advanceStatus(noteModal.bookingId)}
+                  disabled={advancing}
+                  className="flex-1 px-4 py-2.5 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-lg text-sm disabled:opacity-50"
+                  data-testid="confirm-advance-btn"
+                >
+                  {advancing ? 'Advancing...' : 'Confirm'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 function AdminWalletTab() {
   const [wallets, setWallets] = useState([]);
@@ -1522,7 +1677,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-gray-100 overflow-x-auto">
-            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'terms', 'insurance', 'staff', 'wallets'].map((tab) => (
+            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'terms', 'insurance', 'staff', 'wallets', 'bookings'].map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -1532,7 +1687,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   activeTab === tab ? "text-[#002B5B]" : "text-gray-400 hover:text-gray-600"
                 )}
               >
-                {tab === 'terms' ? 'Terms & Policies' : tab === 'insurance' ? 'Insurance' : tab === 'staff' ? 'Staff / Experts' : tab === 'wallets' ? 'Wallets' : `${tab} Management`}
+                {tab === 'terms' ? 'Terms & Policies' : tab === 'insurance' ? 'Insurance' : tab === 'staff' ? 'Staff / Experts' : tab === 'wallets' ? 'Wallets' : tab === 'bookings' ? 'Bookings' : `${tab} Management`}
                 {activeTab === tab && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-[#002B5B]" />}
               </button>
             ))}
@@ -2374,6 +2529,10 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
 
             {activeTab === 'wallets' && (
               <AdminWalletTab />
+            )}
+
+            {activeTab === 'bookings' && (
+              <AdminBookingsTab />
             )}
           </div>
         </div>
