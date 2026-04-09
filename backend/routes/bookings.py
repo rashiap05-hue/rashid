@@ -223,6 +223,14 @@ async def advance_booking_status(booking_id: str, body: StatusUpdateRequest, cur
             notif_type="status_change",
         )
 
+    # Send email notification
+    try:
+        from routes.email_service import send_booking_status_email
+        await send_booking_status_email(booking_id, next_status, body.note)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Email send failed: {e}")
+
     return {
         "message": f"Status advanced to {next_status}",
         "new_status": next_status,

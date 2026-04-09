@@ -537,10 +537,18 @@ function SendEmailModal({ proposal, onClose }) {
   const handleSend = async () => {
     setSending(true);
     try {
-      await new Promise(r => setTimeout(r, 1200));
+      await api.post('/email/send-proposal', {
+        recipient_email: email,
+        recipient_name: name,
+        subject: subject,
+        message: body,
+        proposal_id: proposal.id,
+      });
       setSent(true);
       setTimeout(() => onClose(), 2000);
-    } catch {
+    } catch (err) {
+      console.error('Email send error:', err);
+      alert(err.response?.data?.detail || 'Failed to send email. Please try again.');
       setSending(false);
     }
   };
