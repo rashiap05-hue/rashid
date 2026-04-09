@@ -8,7 +8,7 @@ import {
   Shield, FileText, AlertTriangle, CreditCard, CheckCircle, User, Bed
 } from 'lucide-react';
 
-export default function BookingDetail({ bookingId, onBack }) {
+export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState({});
@@ -128,7 +128,7 @@ export default function BookingDetail({ bookingId, onBack }) {
             <p className="text-sm text-white/70 mt-2">{booking.proposal_name || 'Trip Package'}</p>
           </div>
           <button
-            onClick={() => onBack()}
+            onClick={() => onViewProposal?.(booking.proposal_id)}
             className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
             data-testid="view-quote-btn"
           >

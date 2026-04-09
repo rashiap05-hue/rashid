@@ -324,6 +324,15 @@ function App() {
                       setCurrentView('dashboard');
                       setActiveTab('My Bookings');
                     }}
+                    onViewProposal={async (proposalId) => {
+                      try {
+                        const res = await api.get(`/proposals/${proposalId}`);
+                        setSavedProposal(res.data);
+                        setCurrentView('proposal-view');
+                      } catch (err) {
+                        console.error('Failed to load proposal:', err);
+                      }
+                    }}
                   />
                 )}
 
