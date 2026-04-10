@@ -1973,6 +1973,8 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
             isOpen={showActivitiesModal}
             onClose={() => setShowActivitiesModal(false)}
             city={activeActivityCity}
+            dayNumber={activeActivityDay}
+            startDate={data?.leaving_on}
             selectedActivities={getActivitiesForDay(activeActivityCity, activeActivityDay)}
             onSelectActivity={handleSelectActivity}
           />
