@@ -88,6 +88,9 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferModalType, setTransferModalType] = useState('arrival'); // 'arrival' or 'departure'
   const [transferCity, setTransferCity] = useState(null);
+  const [transferSearch, setTransferSearch] = useState('');
+  const [transferCategoryFilter, setTransferCategoryFilter] = useState('All Options');
+  const [transferTimeFilter, setTransferTimeFilter] = useState('All');
 
   // Inter-city transfer state
   const [interCityTransfers, setInterCityTransfers] = useState({}); // keyed by "fromIdx_toIdx"
@@ -236,6 +239,9 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const openTransferModal = (type, city) => {
     setTransferModalType(type);
     setTransferCity(city);
+    setTransferSearch('');
+    setTransferCategoryFilter('All Options');
+    setTransferTimeFilter('All');
     setShowTransferModal(true);
   };
 
@@ -1112,173 +1118,133 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative bg-white w-full max-w-4xl max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+              className="relative bg-white w-full max-w-5xl max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
             >
               {/* Header */}
-              <div className={cn(
-                "px-6 py-4 flex items-center justify-between",
-                transferModalType === 'arrival' 
-                  ? "bg-gradient-to-r from-[#002B5B] to-[#004080]" 
-                  : "bg-gradient-to-r from-orange-500 to-orange-600"
-              )}>
+              <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between bg-white">
+                <h3 className="text-base font-bold text-gray-900">
+                  Add {transferModalType === 'arrival' ? 'Arrival' : transferModalType === 'departure' ? 'Departure' : 'Transfer'} in {transferCity}
+                  {leavingOn && (
+                    <span className="text-gray-500 font-normal text-sm ml-2">
+                      (Day 1: {new Date(leavingOn).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })})
+                    </span>
+                  )}
+                </h3>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                    <Car className="text-white" size={20} />
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input type="text" placeholder="Search transfers..." value={transferSearch}
+                      onChange={e => setTransferSearch(e.target.value)}
+                      className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm w-48 focus:outline-none focus:border-[#002B5B]"
+                      data-testid="transfer-modal-search" />
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white">
-                      {transferModalType === 'arrival' ? 'Select Arrival Transfer' : 'Select Departure Transfer'}
-                    </h3>
-                    <p className="text-white/80 text-sm">
-                      {transferModalType === 'arrival' 
-                        ? `Airport to hotel transfer in ${transferCity}`
-                        : `Hotel to airport transfer from ${transferCity}`
-                      }
-                    </p>
-                  </div>
+                  <button onClick={() => setShowTransferModal(false)} className="w-8 h-8 hover:bg-gray-100 text-gray-500 rounded-full flex items-center justify-center"><X size={18} /></button>
                 </div>
-                <button 
-                  onClick={() => setShowTransferModal(false)}
-                  className="w-10 h-10 bg-white/20 hover:bg-white/30 text-white rounded-full flex items-center justify-center transition-colors"
-                >
-                  <X size={20} />
-                </button>
               </div>
 
-              {/* Transfer List */}
-              <div className="flex-1 overflow-y-auto p-6">
-                {(() => {
-                  // Filter transfers based on direction
-                  const filteredTransfers = availableTransfers.filter(transfer => {
-                    // If transfer has no direction set, show in both
-                    if (!transfer.transfer_direction) return true;
-                    // Match transfer direction with modal type
-                    return transfer.transfer_direction === transferModalType;
-                  });
-                  
-                  return filteredTransfers.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Car size={48} className="mx-auto text-gray-300 mb-4" />
-                      <p className="text-gray-500 font-medium">No {transferModalType} transfers available for this destination</p>
-                      <p className="text-gray-400 text-sm mt-2">Please contact support to arrange transfer</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {filteredTransfers.map((transfer) => (
-                      <motion.div
-                        key={transfer.id}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => handleSelectTransfer(transfer)}
-                        className={cn(
-                          "p-5 rounded-xl border-2 cursor-pointer transition-all",
-                          (transferModalType === 'arrival' && selectedArrivalTransfer?.id === transfer.id) ||
-                          (transferModalType === 'departure' && selectedDepartureTransfer?.id === transfer.id)
-                            ? "border-green-500 bg-green-50"
-                            : "border-gray-200 hover:border-[#002B5B] hover:shadow-md bg-white"
-                        )}
-                        data-testid={`transfer-option-${transfer.id}`}
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <span className={cn(
-                              "text-[10px] font-bold uppercase px-2 py-0.5 rounded",
-                              transfer.transfer_type === 'Luxury' ? 'bg-amber-100 text-amber-700' :
-                              transfer.transfer_type === 'Shared' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'
-                            )}>
-                              {transfer.transfer_type}
-                            </span>
-                            {transfer.vehicle_type && (
-                              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-gray-100 text-gray-600">
-                                {transfer.vehicle_type}
-                              </span>
-                            )}
-                          </div>
-                          {((transferModalType === 'arrival' && selectedArrivalTransfer?.id === transfer.id) ||
-                            (transferModalType === 'departure' && selectedDepartureTransfer?.id === transfer.id)) && (
-                            <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                              <Check className="text-white" size={14} />
-                            </div>
-                          )}
-                        </div>
-                        
-                        <h4 className="font-bold text-gray-800 text-sm mb-2 line-clamp-2">{transfer.title}</h4>
-                        
-                        <div className="space-y-1.5 text-xs text-gray-500 mb-3">
-                          <div className="flex items-center gap-2">
-                            <MapPin size={12} className="text-green-500 flex-shrink-0" />
-                            <span className="truncate">{transfer.from_location}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MapPin size={12} className="text-red-500 flex-shrink-0" />
-                            <span className="truncate">{transfer.to_location}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                          <div className="flex items-center gap-3 text-xs text-gray-400">
-                            <div className="flex items-center gap-1">
-                              <Clock size={12} />
-                              <span>{transfer.duration}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Users size={12} />
-                              <span>{transfer.max_bags || 2} bags</span>
-                            </div>
-                          </div>
-                          <div className="text-lg font-bold text-[#002B5B]">
-                            {transfer.price} <span className="text-xs font-normal text-gray-500">AED</span>
-                          </div>
-                        </div>
-                        
-                        {transfer.pickup_times && transfer.pickup_times.length > 0 && (
-                          <div className="mt-3 pt-3 border-t border-gray-100">
-                            <p className="text-xs text-gray-400 mb-1">Pick-up times:</p>
-                            <div className="flex flex-wrap gap-1">
-                              {transfer.pickup_times.slice(0, 4).map((time, idx) => (
-                                <span key={idx} className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">
-                                  {time}
-                                </span>
-                              ))}
-                              {transfer.pickup_times.length > 4 && (
-                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
-                                  +{transfer.pickup_times.length - 4} more
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </motion.div>
+              <div className="flex flex-1 overflow-hidden">
+                {/* Left Sidebar - Categories */}
+                <div className="w-44 border-r border-gray-200 bg-gray-50 overflow-y-auto flex-shrink-0 hidden md:block">
+                  <div className="py-2">
+                    {['All Options', ...new Set(availableTransfers.filter(t => !t.transfer_direction || t.transfer_direction === transferModalType).map(t => t.transfer_type || 'Private'))].map(cat => (
+                      <button key={cat} onClick={() => setTransferCategoryFilter(cat)}
+                        className={cn("w-full text-left px-4 py-3 text-sm transition-colors",
+                          transferCategoryFilter === cat ? "bg-white text-[#002B5B] font-bold border-r-2 border-[#002B5B]" : "text-gray-600 hover:bg-white"
+                        )} data-testid={`transfer-cat-${cat.toLowerCase().replace(/\s+/g, '-')}`}>
+                        {cat}
+                      </button>
                     ))}
                   </div>
-                  );
-                })()}
+                </div>
+
+                {/* Main Content */}
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {/* Time Filters */}
+                  <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 bg-white">
+                    {['All', 'Morning', 'Afternoon', 'Evening'].map(tf => (
+                      <button key={tf} onClick={() => setTransferTimeFilter(tf)}
+                        className={cn("px-4 py-1.5 rounded-full text-xs font-medium transition-colors",
+                          transferTimeFilter === tf ? "bg-[#002B5B] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        )} data-testid={`transfer-time-${tf.toLowerCase()}`}>{tf}</button>
+                    ))}
+                  </div>
+
+                  {/* Card List */}
+                  <div className="flex-1 overflow-y-auto p-5">
+                    {(() => {
+                      let filtered = availableTransfers.filter(t => {
+                        if (t.transfer_direction && t.transfer_direction !== transferModalType) return false;
+                        if (transferCategoryFilter !== 'All Options' && (t.transfer_type || 'Private') !== transferCategoryFilter) return false;
+                        if (transferSearch) {
+                          const q = transferSearch.toLowerCase();
+                          if (!(t.title || '').toLowerCase().includes(q) && !(t.description || '').toLowerCase().includes(q)) return false;
+                        }
+                        return true;
+                      });
+
+                      if (filtered.length === 0) return (
+                        <div className="text-center py-12">
+                          <Car size={40} className="mx-auto text-gray-300 mb-3" />
+                          <p className="text-gray-500 font-medium">No transfers found</p>
+                          <p className="text-gray-400 text-sm mt-1">Try adjusting your filters</p>
+                        </div>
+                      );
+
+                      return (
+                        <div className="space-y-4">
+                          {filtered.map(transfer => {
+                            const isSelected = (transferModalType === 'arrival' && selectedArrivalTransfer?.id === transfer.id) ||
+                              (transferModalType === 'departure' && selectedDepartureTransfer?.id === transfer.id);
+                            return (
+                              <div key={transfer.id} className={cn("border rounded-xl p-5 transition-all",
+                                isSelected ? "border-green-500 bg-green-50/50" : "border-gray-200 hover:border-gray-300 hover:shadow-sm bg-white"
+                              )} data-testid={`transfer-option-${transfer.id}`}>
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-gray-900 text-sm mb-1.5">{transfer.title}</h4>
+                                    {(transfer.pickup_times?.length > 0 || transfer.duration) && (
+                                      <p className="text-xs text-gray-500 mb-2">
+                                        {transfer.pickup_times?.length > 0 && <><span className="font-medium text-gray-600">Starts:</span> {transfer.pickup_times.join(', ')}</>}
+                                        {transfer.duration && <>{transfer.pickup_times?.length > 0 && <span className="mx-2">|</span>}<span className="font-medium text-gray-600">Duration:</span> {transfer.duration}</>}
+                                      </p>
+                                    )}
+                                    {transfer.description && <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 mb-2">{transfer.description}</p>}
+                                    <div className="flex items-center flex-wrap gap-2">
+                                      <span className="text-xs text-gray-600 flex items-center gap-1">
+                                        <Check size={12} className="text-green-500" /> {transfer.from_location || transfer.title?.split(' - ')[0]} — {transfer.transfer_type || 'Private'}
+                                      </span>
+                                      <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded",
+                                        transfer.transfer_type === 'Luxury' ? 'bg-amber-100 text-amber-700' :
+                                        transfer.transfer_type === 'Shared' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'
+                                      )}>{transfer.transfer_type || 'Private'} Transfers</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                                    <p className="text-base font-bold text-[#002B5B]">+ AED {Number(transfer.price || 0).toLocaleString()}</p>
+                                    <button onClick={() => handleSelectTransfer(transfer)}
+                                      className={cn("px-5 py-2 rounded-lg text-xs font-bold transition-colors",
+                                        isSelected ? "bg-green-500 text-white" : "bg-[#002B5B] hover:bg-[#003d82] text-white"
+                                      )} data-testid={`select-transfer-${transfer.id}`}>
+                                      {isSelected ? 'Selected' : 'Select'}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+              <div className="px-5 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
                 <div className="text-sm text-gray-500">
-                  {availableTransfers.filter(t => !t.transfer_direction || t.transfer_direction === transferModalType).length} transfer option{availableTransfers.filter(t => !t.transfer_direction || t.transfer_direction === transferModalType).length !== 1 ? 's' : ''} available
+                  {availableTransfers.filter(t => !t.transfer_direction || t.transfer_direction === transferModalType).length} transfers available
                 </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setShowTransferModal(false)}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => setShowTransferModal(false)}
-                    className={cn(
-                      "px-6 py-2 rounded-xl font-bold text-white transition-colors",
-                      transferModalType === 'arrival'
-                        ? "bg-[#002B5B] hover:bg-[#003d82]"
-                        : "bg-orange-500 hover:bg-orange-600"
-                    )}
-                  >
-                    Confirm Selection
-                  </button>
-                </div>
+                <button onClick={() => setShowTransferModal(false)} className="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors">Close</button>
               </div>
             </motion.div>
           </div>
