@@ -93,6 +93,11 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Visa card on Customize Your Trip page with ADD/REMOVE toggle
   - `/api/settings/visa` endpoint reads from visas collection with country defaults fallback
   - Seeded: Georgia, Turkey, Thailand visa entries
+- **SIM Card Management**: Full CRUD backend + Admin Dashboard tab + Trip Builder integration
+  - `/api/sim-cards` CRUD endpoints (GET, POST, PUT, PATCH, DELETE)
+  - Admin Dashboard "SIM Cards" tab with table view and Add/Edit/Delete modal
+  - SIM card section on Customize Your Trip page with ADD/REMOVE toggle, pulls country-specific data
+  - Seeded: Georgia (Magti 10GB), Turkey (Turkcell 20GB), Thailand (AIS 15GB)
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)

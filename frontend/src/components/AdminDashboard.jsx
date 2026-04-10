@@ -627,6 +627,11 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   const [visaModal, setVisaModal] = useState({ open: false, data: null, isNew: false });
   const [visaSaving, setVisaSaving] = useState(false);
 
+  // SIM Card state
+  const [simCardList, setSimCardList] = useState([]);
+  const [simCardModal, setSimCardModal] = useState({ open: false, data: null, isNew: false });
+  const [simCardSaving, setSimCardSaving] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -641,13 +646,14 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [citiesRes, hotelsRes, transfersRes, activitiesRes, insuranceRes, visasRes] = await Promise.all([
+      const [citiesRes, hotelsRes, transfersRes, activitiesRes, insuranceRes, visasRes, simCardsRes] = await Promise.all([
         api.get('/cities'),
         api.get('/hotels'),
         api.get('/transfers'),
         api.get('/activities'),
         api.get('/settings/insurance'),
-        api.get('/visas')
+        api.get('/visas'),
+        api.get('/sim-cards')
       ]);
       setCities(citiesRes.data?.cities || []);
       setHotels(hotelsRes.data?.hotels || []);
@@ -655,6 +661,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
       setActivities(activitiesRes.data?.activities || []);
       if (insuranceRes.data?.insurance_prices) setInsurancePrices(insuranceRes.data.insurance_prices);
       setVisaList(visasRes.data?.visas || []);
+      setSimCardList(simCardsRes.data?.sim_cards || []);
       
       // Fetch airports separately with pagination
       await fetchAirports();
@@ -1686,7 +1693,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-gray-100 overflow-x-auto">
-            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'visas', 'terms', 'insurance', 'staff', 'wallets', 'bookings'].map((tab) => (
+            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'visas', 'sim-cards', 'terms', 'insurance', 'staff', 'wallets', 'bookings'].map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -1696,7 +1703,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   activeTab === tab ? "text-[#002B5B]" : "text-gray-400 hover:text-gray-600"
                 )}
               >
-                {tab === 'terms' ? 'Terms & Policies' : tab === 'insurance' ? 'Insurance' : tab === 'staff' ? 'Staff / Experts' : tab === 'wallets' ? 'Wallets' : tab === 'bookings' ? 'Bookings' : tab === 'visas' ? 'Visas' : `${tab} Management`}
+                {tab === 'terms' ? 'Terms & Policies' : tab === 'insurance' ? 'Insurance' : tab === 'staff' ? 'Staff / Experts' : tab === 'wallets' ? 'Wallets' : tab === 'bookings' ? 'Bookings' : tab === 'visas' ? 'Visas' : tab === 'sim-cards' ? 'SIM Cards' : `${tab} Management`}
                 {activeTab === tab && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-[#002B5B]" />}
               </button>
             ))}
@@ -2499,6 +2506,147 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                           data-testid="save-visa-btn"
                         >
                           {visaSaving ? 'Saving...' : visaModal.isNew ? 'Add Visa' : 'Update Visa'}
+                        </button>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'sim-cards' && (
+              <div className="bg-white rounded-xl border border-gray-200 p-6" data-testid="sim-card-management">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <Phone size={24} className="text-[#002B5B]" />
+                    <h2 className="text-xl font-bold text-[#002B5B]">SIM Card Management</h2>
+                  </div>
+                  <button
+                    onClick={() => setSimCardModal({ open: true, data: { country: '', provider: '', plan_name: '', data_allowance: '', validity: '', calls_included: false, sms_included: false, price: 0, currency: 'AED', notes: '', available: true }, isNew: true })}
+                    className="px-4 py-2 bg-[#002B5B] text-white rounded-lg hover:bg-[#001d3d] transition-colors font-medium flex items-center gap-2 text-sm"
+                    data-testid="add-sim-card-btn"
+                  >
+                    <Plus size={16} /> Add SIM Card Plan
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left border-b border-gray-200 text-gray-500">
+                        <th className="py-3 px-3 font-medium">Country</th>
+                        <th className="py-3 px-3 font-medium">Provider</th>
+                        <th className="py-3 px-3 font-medium">Plan</th>
+                        <th className="py-3 px-3 font-medium">Data</th>
+                        <th className="py-3 px-3 font-medium">Validity</th>
+                        <th className="py-3 px-3 font-medium">Calls/SMS</th>
+                        <th className="py-3 px-3 font-medium">Price</th>
+                        <th className="py-3 px-3 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {simCardList.map((sim) => (
+                        <tr key={sim.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-3 font-medium text-gray-900">{sim.country}</td>
+                          <td className="py-3 px-3 text-gray-600">{sim.provider}</td>
+                          <td className="py-3 px-3 text-gray-600">{sim.plan_name}</td>
+                          <td className="py-3 px-3 text-gray-600">{sim.data_allowance || '-'}</td>
+                          <td className="py-3 px-3 text-gray-600">{sim.validity || '-'}</td>
+                          <td className="py-3 px-3">
+                            <div className="flex gap-1">
+                              {sim.calls_included && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">Calls</span>}
+                              {sim.sms_included && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">SMS</span>}
+                              {!sim.calls_included && !sim.sms_included && <span className="text-gray-400">-</span>}
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 font-medium">{sim.currency} {sim.price}</td>
+                          <td className="py-3 px-3">
+                            <div className="flex gap-2">
+                              <button onClick={() => setSimCardModal({ open: true, data: { ...sim }, isNew: false })} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={14} /></button>
+                              <button onClick={async () => { if (!window.confirm(`Delete SIM plan for ${sim.country}?`)) return; await api.delete(`/sim-cards/${sim.id}`); setSimCardList(prev => prev.filter(s => s.id !== sim.id)); }} className="p-1.5 text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {simCardList.length === 0 && (
+                        <tr><td colSpan="8" className="text-center py-8 text-gray-400">No SIM card plans yet. Add your first country plan.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {simCardModal.open && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setSimCardModal({ open: false, data: null, isNew: false })}>
+                    <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                      <h3 className="text-lg font-bold text-[#002B5B] mb-4">{simCardModal.isNew ? 'Add' : 'Edit'} SIM Card Plan</h3>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Country *</label>
+                          <input className="w-full border rounded-lg px-3 py-2 text-sm mt-1" value={simCardModal.data?.country || ''} onChange={e => setSimCardModal(p => ({ ...p, data: { ...p.data, country: e.target.value } }))} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Provider</label>
+                            <input className="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="e.g. Magti, Geocell" value={simCardModal.data?.provider || ''} onChange={e => setSimCardModal(p => ({ ...p, data: { ...p.data, provider: e.target.value } }))} />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Plan Name</label>
+                            <input className="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="e.g. Tourist Data Plan" value={simCardModal.data?.plan_name || ''} onChange={e => setSimCardModal(p => ({ ...p, data: { ...p.data, plan_name: e.target.value } }))} />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Data Allowance</label>
+                            <input className="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="e.g. 5GB, Unlimited" value={simCardModal.data?.data_allowance || ''} onChange={e => setSimCardModal(p => ({ ...p, data: { ...p.data, data_allowance: e.target.value } }))} />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Validity</label>
+                            <input className="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="e.g. 7 days, 30 days" value={simCardModal.data?.validity || ''} onChange={e => setSimCardModal(p => ({ ...p, data: { ...p.data, validity: e.target.value } }))} />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Price (AED)</label>
+                          <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm mt-1" value={simCardModal.data?.price || 0} onChange={e => setSimCardModal(p => ({ ...p, data: { ...p.data, price: Number(e.target.value) } }))} />
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <label className="flex items-center gap-2 text-sm">
+                            <input type="checkbox" checked={simCardModal.data?.calls_included || false} onChange={e => setSimCardModal(p => ({ ...p, data: { ...p.data, calls_included: e.target.checked } }))} />
+                            Calls Included
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <input type="checkbox" checked={simCardModal.data?.sms_included || false} onChange={e => setSimCardModal(p => ({ ...p, data: { ...p.data, sms_included: e.target.checked } }))} />
+                            SMS Included
+                          </label>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Notes</label>
+                          <textarea className="w-full border rounded-lg px-3 py-2 text-sm mt-1" rows={2} value={simCardModal.data?.notes || ''} onChange={e => setSimCardModal(p => ({ ...p, data: { ...p.data, notes: e.target.value } }))} />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-3 mt-5">
+                        <button onClick={() => setSimCardModal({ open: false, data: null, isNew: false })} className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm">Cancel</button>
+                        <button
+                          disabled={simCardSaving}
+                          onClick={async () => {
+                            setSimCardSaving(true);
+                            try {
+                              const payload = { ...simCardModal.data };
+                              delete payload.id; delete payload.created_at; delete payload.updated_at;
+                              if (simCardModal.isNew) {
+                                const res = await api.post('/sim-cards', payload);
+                                setSimCardList(prev => [...prev, { ...payload, id: res.data.id }]);
+                              } else {
+                                await api.put(`/sim-cards/${simCardModal.data.id}`, payload);
+                                setSimCardList(prev => prev.map(s => s.id === simCardModal.data.id ? { ...s, ...payload } : s));
+                              }
+                              setSimCardModal({ open: false, data: null, isNew: false });
+                            } catch (err) { console.error(err); }
+                            setSimCardSaving(false);
+                          }}
+                          className="px-4 py-2 bg-[#002B5B] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                          data-testid="save-sim-card-btn"
+                        >
+                          {simCardSaving ? 'Saving...' : simCardModal.isNew ? 'Add Plan' : 'Update Plan'}
                         </button>
                       </div>
                     </motion.div>

@@ -61,6 +61,10 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [visaIncluded, setVisaIncluded] = useState(false);
   const [visaSettings, setVisaSettings] = useState(null);
 
+  // SIM Card state
+  const [simCardIncluded, setSimCardIncluded] = useState(false);
+  const [simCardSettings, setSimCardSettings] = useState(null);
+
   // AI Itinerary Generator state
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiItinerary, setAiItinerary] = useState(null);
@@ -77,12 +81,15 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           country = cityRes.data?.cities?.[0]?.country || '';
         }
         const params = country ? `?country=${encodeURIComponent(country)}` : '';
-        const [insuranceRes, visaRes] = await Promise.all([
+        const [insuranceRes, visaRes, simRes] = await Promise.all([
           api.get(`/settings/insurance${params}`),
-          api.get(`/settings/visa${params}`)
+          api.get(`/settings/visa${params}`),
+          api.get(`/sim-cards${params}`)
         ]);
         setInsuranceSettings(insuranceRes.data);
         setVisaSettings({ ...visaRes.data, country: country || visaRes.data?.country || 'Destination' });
+        const simCards = simRes.data?.sim_cards || [];
+        setSimCardSettings(simCards.length > 0 ? { ...simCards[0], country: country || simCards[0]?.country || 'Destination' } : { country: country || 'Destination', provider: 'Local SIM', plan_name: 'Tourist Data Plan', data_allowance: '5GB', validity: '7 days', price: 25 });
       } catch (e) { /* use defaults */ }
     };
     fetchSettings();
@@ -193,6 +200,8 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     if (data.travel_insurance) setTravelInsurance(data.travel_insurance);
     // Restore visa
     if (data.visa_included) setVisaIncluded(data.visa_included);
+    // Restore SIM card
+    if (data.sim_card_included) setSimCardIncluded(data.sim_card_included);
   }, [data?.isEditing]);
 
   // Fetch transfers for the destination country
@@ -1010,6 +1019,10 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         // Visa
         visa_included: visaIncluded,
         visa_details: visaIncluded ? visaSettings : null,
+
+        // SIM Card
+        sim_card_included: simCardIncluded,
+        sim_card_details: simCardIncluded ? simCardSettings : null,
 
         // Customer info from modal
         customer_name: formData.customer_name,
@@ -1887,6 +1900,46 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                   onClick={() => setVisaIncluded(true)}
                   className="px-4 py-2 border border-[#002B5B] text-[#002B5B] text-sm font-medium rounded hover:bg-[#002B5B]/5 transition-colors flex-shrink-0"
                   data-testid="add-visa-btn"
+                >
+                  + ADD
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* SIM Card Section */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-6" data-testid="trip-builder-sim-card">
+          <div className="px-6 py-4 flex items-center gap-3 border-b border-gray-100">
+            <Phone size={20} className="text-[#002B5B]" />
+            <h2 className="text-lg font-bold text-[#002B5B]">SIM Card</h2>
+          </div>
+          <div className="px-6 py-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-gray-700">
+                  {simCardSettings?.country || 'Destination'} - {simCardSettings?.provider || 'Local SIM'} - {simCardSettings?.plan_name || 'Tourist Data Plan'}
+                  {simCardSettings?.data_allowance && ` (${simCardSettings.data_allowance})`}
+                </p>
+                {simCardIncluded ? (
+                  <p className="text-sm text-teal-600 font-medium mt-1">Added to proposal</p>
+                ) : (
+                  <p className="text-sm text-red-500 mt-1">Not Included</p>
+                )}
+              </div>
+              {simCardIncluded ? (
+                <button 
+                  onClick={() => setSimCardIncluded(false)}
+                  className="px-4 py-2 bg-red-50 border border-red-300 text-red-600 text-sm font-medium rounded hover:bg-red-100 transition-colors flex-shrink-0 flex items-center gap-1"
+                  data-testid="remove-sim-card-btn"
+                >
+                  <X size={14} /> REMOVE
+                </button>
+              ) : (
+                <button 
+                  onClick={() => setSimCardIncluded(true)}
+                  className="px-4 py-2 border border-[#002B5B] text-[#002B5B] text-sm font-medium rounded hover:bg-[#002B5B]/5 transition-colors flex-shrink-0"
+                  data-testid="add-sim-card-btn"
                 >
                   + ADD
                 </button>
