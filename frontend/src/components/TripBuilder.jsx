@@ -375,9 +375,10 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       [activity.id]: vehicleKey
     }));
     
-    // Close vehicle modal
+    // Close all modals (vehicle + activity)
     setShowVehicleModal(false);
     setPendingActivity(null);
+    setShowActivitiesModal(false);
   };
 
   const handleRemoveActivity = (cityName, dayNumber, activityId) => {
