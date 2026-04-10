@@ -71,6 +71,14 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - `PUT /api/bookings/{id}/status/advance` - Advance status (admin only)
 - `GET /api/notifications` / `GET /api/notifications/unread-count`
 
+### Session 6
+- **Transfer Selection Modal Redesign**: Overhauled the transfer modal in TripBuilder.jsx
+  - Categories sidebar (All Options, Private, etc.) for filtering by transfer_type
+  - Time filters (All, Morning, Afternoon, Evening) filtering by pickup_times
+  - Search bar filtering by title and description
+  - Rich descriptive transfer cards with price, duration, pickup times
+  - Fixed `leavingOn is not defined` runtime error (→ `data?.leaving_on`)
+
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
 - P2: AI-powered trip recommendations frontend
@@ -79,6 +87,7 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 ## Future/Backlog
 - P3: Real Flight API (Airlabs), Google Sheets Sync (needs OAuth)
 - Refactoring: ProposalView.jsx (~3,500 lines) component extraction
+- Refactoring: TripBuilder.jsx (~2,300 lines) component extraction
 
 ## MOCKED
 - Google Sheets sync, PayPal checkout, Aviationstack, Payment processing (Pay Now alert)
