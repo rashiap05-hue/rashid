@@ -1785,6 +1785,31 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                   </div>
                 )}
 
+                {/* Price Summary */}
+                <div className="border-t pt-4">
+                  <h4 className="font-bold text-[#006B5B] mb-4 bg-[#006B5B]/10 px-3 py-1.5 rounded inline-block text-sm">Price Summary</h4>
+                  <p className="text-xs text-gray-500 underline mb-4">Trip Summary</p>
+                  
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-sm text-gray-700">Price per adult</span>
+                    <span className="text-sm font-bold text-gray-900">AED {pricing.pricePerAdult.toLocaleString()}</span>
+                  </div>
+                  
+                  <div className="border-t border-gray-200 pt-4 mb-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-700">Total Discount</span>
+                      <span className="text-sm font-bold text-gray-700">AED -0</span>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Total Price</span>
+                      <span className="text-xl font-bold text-[#002B5B]">AED {pricing.total.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Action Buttons */}
                 <div className="space-y-3">
                   <button 
