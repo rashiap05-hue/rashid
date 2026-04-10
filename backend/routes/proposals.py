@@ -411,27 +411,35 @@ async def generate_proposal_pdf(proposal_id: str):
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(6)
 
-    # FLIGHTS SECTION
-    pdf.section_title("FLIGHTS")
+    # FLIGHTS SECTION - only show if flights are actually added
     arr_info = proposal.get("arrival_flight_info", {}) or {}
     dep_info = proposal.get("departure_flight_info", {}) or {}
+    has_arrival = isinstance(arr_info, dict) and arr_info.get("airline")
+    has_departure = isinstance(dep_info, dict) and dep_info.get("airline")
 
-    pdf.sub_section(f"Outbound: {proposal.get('leaving_from', 'Origin').split('(')[0].strip()} to {main_city}")
-    pdf.info_row("Airline", arr_info.get("airline", "AirIndiaExpress") + " " + arr_info.get("flightNumber", "IX-343"))
-    pdf.info_row("Departure", f"{arr_info.get('flightTime', '02:10 PM')} on {fmt_date(proposal.get('leaving_on'), 'full')}")
-    pdf.info_row("Arrival", f"{arr_info.get('arrivalTime', '05:05 PM')} at {main_city} Intl Airport")
-    pdf.info_row("Duration", arr_info.get("duration", "4h 25m"))
-    pdf.info_row("Class", "Economy  |  Baggage: 30Kg")
-    pdf.ln(3)
+    if has_arrival or has_departure:
+        pdf.section_title("FLIGHTS")
 
-    return_date = add_days_to(proposal.get("leaving_on", ""), nights_count)
-    pdf.sub_section(f"Return: {main_city} to {proposal.get('leaving_from', 'Origin').split('(')[0].strip()}")
-    pdf.info_row("Airline", dep_info.get("airline", "AirIndiaExpress") + " " + dep_info.get("flightNumber", "IX-344"))
-    pdf.info_row("Departure", f"{dep_info.get('flightTime', '06:40 PM')} on {return_date.strftime('%a, %d %b %Y')}")
-    pdf.info_row("Arrival", f"{dep_info.get('arrivalTime', '12:05 AM')} at {proposal.get('leaving_from_code', 'Origin')}")
-    pdf.info_row("Duration", dep_info.get("duration", "3h 55m"))
-    pdf.info_row("Class", "Economy  |  Baggage: 30Kg")
-    pdf.ln(6)
+        if has_arrival:
+            pdf.sub_section(f"Outbound: {proposal.get('leaving_from', 'Origin').split('(')[0].strip()} to {main_city}")
+            pdf.info_row("Airline", arr_info.get("airline", "") + " " + arr_info.get("flightNumber", ""))
+            pdf.info_row("Departure", f"{arr_info.get('flightTime', '')} on {fmt_date(proposal.get('leaving_on'), 'full')}")
+            pdf.info_row("Arrival", f"{arr_info.get('arrivalTime', '')} at {main_city} Intl Airport")
+            pdf.info_row("Duration", arr_info.get("duration", ""))
+            pdf.info_row("Class", f"{arr_info.get('fare_class', 'Economy')}  |  Baggage: {arr_info.get('baggage', '30Kg')}")
+            pdf.ln(3)
+
+        return_date = add_days_to(proposal.get("leaving_on", ""), nights_count)
+        if has_departure:
+            pdf.sub_section(f"Return: {main_city} to {proposal.get('leaving_from', 'Origin').split('(')[0].strip()}")
+            pdf.info_row("Airline", dep_info.get("airline", "") + " " + dep_info.get("flightNumber", ""))
+            pdf.info_row("Departure", f"{dep_info.get('flightTime', '')} on {return_date.strftime('%a, %d %b %Y')}")
+            pdf.info_row("Arrival", f"{dep_info.get('arrivalTime', '')} at {proposal.get('leaving_from_code', 'Origin')}")
+            pdf.info_row("Duration", dep_info.get("duration", ""))
+            pdf.info_row("Class", f"{dep_info.get('fare_class', 'Economy')}  |  Baggage: {dep_info.get('baggage', '30Kg')}")
+        pdf.ln(6)
+    else:
+        return_date = add_days_to(proposal.get("leaving_on", ""), nights_count)
 
     # HOTELS SECTION
     pdf.section_title("HOTELS")
@@ -525,8 +533,9 @@ async def generate_proposal_pdf(proposal_id: str):
 
         if is_arrival:
             pdf.para("You will be met by our representative at the Airport Arrival Terminal with a signage card bearing your name.")
-            flight_num = arr_info.get("flightNumber", "IX-343")
-            pdf.info_row("Flight", f"{flight_num} arriving at {arr_info.get('arrivalTime', '05:05 PM')} - {day_city} Intl Airport")
+            if has_arrival:
+                flight_num = arr_info.get("flightNumber", "")
+                pdf.info_row("Flight", f"{flight_num} arriving at {arr_info.get('arrivalTime', '')} - {day_city} Intl Airport")
             if arrival_transfer:
                 pdf.info_row("Transfer", arrival_transfer.get("title", f"Private transfer from Airport to {day_city} Hotel"))
             else:
@@ -541,8 +550,9 @@ async def generate_proposal_pdf(proposal_id: str):
                 pdf.info_row("Transfer", departure_transfer.get("title", f"Private transfer from {day_city} Hotel to Airport"))
             else:
                 pdf.info_row("Transfer", f"Private transfer from {day_city} Hotel to Airport")
-            flight_num = dep_info.get("flightNumber", "IX-344")
-            pdf.info_row("Flight", f"{flight_num} departing at {dep_info.get('flightTime', '06:40 PM')} - {day_city} Intl Airport")
+            if has_departure:
+                flight_num = dep_info.get("flightNumber", "")
+                pdf.info_row("Flight", f"{flight_num} departing at {dep_info.get('flightTime', '')} - {day_city} Intl Airport")
             pdf.info_row("Meals", "Breakfast: Included at hotel  |  Lunch: Not Included")
         else:
             # Inter-city transfer
