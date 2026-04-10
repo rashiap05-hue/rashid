@@ -1297,10 +1297,6 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
               </div>
             </div>
             <div className="text-right">
-              <p className="text-sm text-gray-500">Total Price</p>
-              <p className="text-2xl font-bold text-[#002B5B]" data-testid="total-price">
-                AED {pricing.total.toLocaleString()}
-              </p>
             </div>
           </div>
           <div className="mt-2 flex items-center gap-4 text-sm text-gray-600">
@@ -1667,7 +1663,6 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                       Flight
                     </h4>
                     <p className="text-sm text-gray-600">{selectedFlight.airline}</p>
-                    <p className="text-sm font-medium">AED {selectedFlight.price}</p>
                   </div>
                 )}
 
@@ -1694,9 +1689,6 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                             )}
                           </div>
                         )}
-                        <p className="text-sm font-bold text-[#002B5B] mt-1">
-                          AED {(hotel.selectedRoom?.price || 0).toLocaleString()} x {hotel.nights || 1} night{(hotel.nights || 1) > 1 ? 's' : ''}
-                        </p>
                       </div>
                       );
                     })}
@@ -1713,12 +1705,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                     <div className="space-y-2">
                       {selectedArrivalTransfer && (
                         <div className="p-3 bg-blue-50 rounded-lg">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-600">Arrival Transfer</span>
-                            <span className="text-sm font-bold text-blue-600">
-                              AED {getTransferPriceForVehicle(selectedArrivalTransfer)}
-                            </span>
-                          </div>
+                          <span className="text-sm text-gray-600">Arrival Transfer</span>
                           <p className="text-xs text-gray-500 mt-0.5">{selectedArrivalTransfer.title}</p>
                           {getTransferVehicleLabel(selectedArrivalTransfer) && (
                             <div className="text-xs text-blue-600 mt-0.5">
@@ -1729,12 +1716,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                       )}
                       {selectedDepartureTransfer && (
                         <div className="p-3 bg-orange-50 rounded-lg">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-600">Departure Transfer</span>
-                            <span className="text-sm font-bold text-orange-600">
-                              AED {getTransferPriceForVehicle(selectedDepartureTransfer)}
-                            </span>
-                          </div>
+                          <span className="text-sm text-gray-600">Departure Transfer</span>
                           <p className="text-xs text-gray-500 mt-0.5">{selectedDepartureTransfer.title}</p>
                           {getTransferVehicleLabel(selectedDepartureTransfer) && (
                             <div className="text-xs text-orange-600 mt-0.5">
@@ -1761,12 +1743,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                         const toCity = cities[parseInt(toIdx)]?.name || '';
                         return (
                           <div key={key} className="p-3 bg-indigo-50 rounded-lg">
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-600">{fromCity} → {toCity}</span>
-                              <span className="text-sm font-bold text-indigo-600">
-                                AED {(transfer.selectedPrice || transfer.price || 0).toLocaleString()}
-                              </span>
-                            </div>
+                            <span className="text-sm text-gray-600">{fromCity} → {toCity}</span>
                             <p className="text-xs text-gray-500 mt-0.5">{transfer.title}</p>
                           </div>
                         );
@@ -1793,10 +1770,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                             const activityPrice = getActivityPriceForVehicle(activity);
                             return (
                               <div key={activity.id} className="py-1">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-sm text-gray-600 line-clamp-1 flex-1">{activity.name}</span>
-                                  <span className="text-sm font-bold text-pink-600 ml-2">AED {activityPrice}</span>
-                                </div>
+                                <span className="text-sm text-gray-600 line-clamp-1">{activity.name}</span>
                                 {vehicleLabel && (
                                   <div className="text-xs text-blue-600 mt-0.5">
                                     {vehicleLabel}
@@ -1810,77 +1784,6 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                     })}
                   </div>
                 )}
-
-                {/* Pricing Breakdown */}
-                <div className="border-t pt-4">
-                  <h4 className="font-bold text-gray-800 mb-3">Price Breakdown</h4>
-                  <div className="space-y-2 text-sm">
-                    {pricing.hotelTotal > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Hotels</span>
-                        <span className="font-medium">AED {pricing.hotelTotal.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {pricing.flightPrice > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Flights</span>
-                        <span className="font-medium">AED {pricing.flightPrice.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {pricing.transferTotal > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Transfers</span>
-                        <span className="font-medium">AED {pricing.transferTotal.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {pricing.activitiesTotal > 0 && (
-                      <div className="flex justify-between text-pink-600">
-                        <span>Activities</span>
-                        <span className="font-medium">AED {pricing.activitiesTotal.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {pricing.insuranceTotal > 0 && (
-                      <div className="flex justify-between text-indigo-600">
-                        <span>Insurance ({pricing.adultsCount} pax)</span>
-                        <span className="font-medium">AED {pricing.insuranceTotal.toLocaleString()}</span>
-                      </div>
-                    )}
-                    
-                    {/* Vehicle Type Based on Passengers */}
-                    <div className="pt-2 border-t border-dashed mt-2">
-                      <div className="flex items-center justify-between bg-blue-50 rounded-lg p-2 mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">{pricing.vehicleType?.icon}</span>
-                          <span className="text-sm font-medium text-blue-800">{pricing.vehicleType?.label}</span>
-                        </div>
-                        <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
-                          {pricing.totalPax} pax
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="pt-2 border-t border-dashed">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Price per adult ({pricing.adultsCount})</span>
-                        <span className="font-medium">AED {pricing.pricePerAdult.toLocaleString()}</span>
-                      </div>
-                      {pricing.childrenCount > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Price per child ({pricing.childrenCount})</span>
-                          <span className="font-medium">AED {pricing.pricePerChild.toLocaleString()}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex justify-between text-green-600">
-                      <span>Discount</span>
-                      <span>- AED 0</span>
-                    </div>
-                    <div className="flex justify-between pt-2 border-t text-lg font-bold">
-                      <span>Total</span>
-                      <span className="text-[#002B5B]">AED {pricing.total.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
 
                 {/* Action Buttons */}
                 <div className="space-y-3">
