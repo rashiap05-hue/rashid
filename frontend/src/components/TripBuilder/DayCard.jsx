@@ -128,10 +128,10 @@ function DayCard({
                                 {selectedArrivalTransfer.selectedVehicle === 'bus_29' && '🚌 29 Seater Bus'}
                                 {selectedArrivalTransfer.selectedVehicle === 'bus_45' && '🚌 45 Seater Bus'}
                                 {selectedArrivalTransfer.selectedVehicle === 'bus_55' && '🚌 55 Seater Bus'}
-                                {' • '}{selectedArrivalTransfer.duration} • {selectedArrivalTransfer.vehiclePrice || selectedArrivalTransfer.price} AED
+                                {' • '}{selectedArrivalTransfer.duration}
                               </>
                             ) : (
-                              <>{selectedArrivalTransfer.vehicle_type} • {selectedArrivalTransfer.duration} • {selectedArrivalTransfer.price} AED</>
+                              <>{selectedArrivalTransfer.vehicle_type} • {selectedArrivalTransfer.duration}</>
                             )}
                           </p>
                         </div>
@@ -217,10 +217,10 @@ function DayCard({
                                 {selectedDepartureTransfer.selectedVehicle === 'bus_29' && '🚌 29 Seater Bus'}
                                 {selectedDepartureTransfer.selectedVehicle === 'bus_45' && '🚌 45 Seater Bus'}
                                 {selectedDepartureTransfer.selectedVehicle === 'bus_55' && '🚌 55 Seater Bus'}
-                                {' • '}{selectedDepartureTransfer.duration} • {selectedDepartureTransfer.vehiclePrice || selectedDepartureTransfer.price} AED
+                                {' • '}{selectedDepartureTransfer.duration}
                               </>
                             ) : (
-                              <>{selectedDepartureTransfer.vehicle_type} • {selectedDepartureTransfer.duration} • {selectedDepartureTransfer.price} AED</>
+                              <>{selectedDepartureTransfer.vehicle_type} • {selectedDepartureTransfer.duration}</>
                             )}
                           </p>
                         </div>
@@ -347,12 +347,6 @@ function DayCard({
                             </p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <span className="font-bold text-green-600">AED {activity.vehiclePrice || activity.price}</span>
-                            {activitySelectedExtras.length > 0 && (
-                              <p className="text-[10px] text-green-500 mt-0.5">
-                                +{activitySelectedExtras.length} extra{activitySelectedExtras.length > 1 ? 's' : ''}
-                              </p>
-                            )}
                             {onRemoveActivity && (
                               <button
                                 onClick={(e) => {
@@ -476,7 +470,6 @@ function DayCard({
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="font-bold text-green-600">AED {(incomingTransfer.selectedPrice || incomingTransfer.price || 0).toLocaleString()}</span>
                           <button
                             onClick={() => onRemoveInterCityTransfer('incoming')}
                             className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
