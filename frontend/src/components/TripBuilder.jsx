@@ -1377,12 +1377,21 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-[#002B5B] text-lg">AED {selectedFlight.price}</p>
-                      <button 
-                        onClick={() => setShowFlightSearch(true)}
-                        className="text-sm text-[#002B5B] font-medium hover:underline"
-                      >
-                        Change Flight
-                      </button>
+                      <div className="flex items-center gap-3 justify-end mt-1">
+                        <button 
+                          onClick={() => setShowFlightSearch(true)}
+                          className="text-sm text-[#002B5B] font-medium hover:underline"
+                        >
+                          Change Flight
+                        </button>
+                        <button 
+                          onClick={() => { setSelectedFlight(null); setArrivalFlightInfo(null); setDepartureFlightInfo(null); }}
+                          className="text-sm text-red-500 font-medium hover:underline"
+                          data-testid="remove-flight-button"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ) : (
