@@ -1124,9 +1124,9 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
               <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between bg-white">
                 <h3 className="text-base font-bold text-gray-900">
                   Add {transferModalType === 'arrival' ? 'Arrival' : transferModalType === 'departure' ? 'Departure' : 'Transfer'} in {transferCity}
-                  {leavingOn && (
+                  {data?.leaving_on && (
                     <span className="text-gray-500 font-normal text-sm ml-2">
-                      (Day 1: {new Date(leavingOn).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })})
+                      (Day 1: {new Date(data.leaving_on).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })})
                     </span>
                   )}
                 </h3>
@@ -1178,6 +1178,16 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                         if (transferSearch) {
                           const q = transferSearch.toLowerCase();
                           if (!(t.title || '').toLowerCase().includes(q) && !(t.description || '').toLowerCase().includes(q)) return false;
+                        }
+                        if (transferTimeFilter !== 'All' && t.pickup_times?.length > 0) {
+                          const hasMatchingTime = t.pickup_times.some(time => {
+                            const hour = parseInt(time.split(':')[0], 10);
+                            if (transferTimeFilter === 'Morning') return hour >= 5 && hour < 12;
+                            if (transferTimeFilter === 'Afternoon') return hour >= 12 && hour < 17;
+                            if (transferTimeFilter === 'Evening') return hour >= 17 || hour < 5;
+                            return true;
+                          });
+                          if (!hasMatchingTime) return false;
                         }
                         return true;
                       });
