@@ -57,16 +57,19 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [travelInsurance, setTravelInsurance] = useState(false);
   const [insuranceSettings, setInsuranceSettings] = useState(null);
 
+  // Visa state
+  const [visaIncluded, setVisaIncluded] = useState(false);
+  const [visaSettings, setVisaSettings] = useState(null);
+
   // AI Itinerary Generator state
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiItinerary, setAiItinerary] = useState(null);
   const [showAiItinerary, setShowAiItinerary] = useState(false);
 
-  // Fetch insurance settings based on destination country
+  // Fetch insurance and visa settings based on destination country
   useEffect(() => {
-    const fetchInsurance = async () => {
+    const fetchSettings = async () => {
       try {
-        // Get destination city and look up its country
         const destinationCity = data?.cities?.[0]?.name;
         let country = '';
         if (destinationCity) {
@@ -74,11 +77,15 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           country = cityRes.data?.cities?.[0]?.country || '';
         }
         const params = country ? `?country=${encodeURIComponent(country)}` : '';
-        const res = await api.get(`/settings/insurance${params}`);
-        setInsuranceSettings(res.data);
+        const [insuranceRes, visaRes] = await Promise.all([
+          api.get(`/settings/insurance${params}`),
+          api.get(`/settings/visa${params}`)
+        ]);
+        setInsuranceSettings(insuranceRes.data);
+        setVisaSettings({ ...visaRes.data, country: country || visaRes.data?.country || 'Destination' });
       } catch (e) { /* use defaults */ }
     };
-    fetchInsurance();
+    fetchSettings();
   }, [data?.cities]);
   
   // Transfer state
@@ -184,6 +191,8 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
 
     // Restore travel insurance
     if (data.travel_insurance) setTravelInsurance(data.travel_insurance);
+    // Restore visa
+    if (data.visa_included) setVisaIncluded(data.visa_included);
   }, [data?.isEditing]);
 
   // Fetch transfers for the destination country
@@ -998,6 +1007,10 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         travel_insurance: travelInsurance,
         travel_insurance_price: travelInsurance ? (insuranceSettings?.price_per_person || 50) : 0,
         
+        // Visa
+        visa_included: visaIncluded,
+        visa_details: visaIncluded ? visaSettings : null,
+
         // Customer info from modal
         customer_name: formData.customer_name,
         customer_email: formData.customer_email,
@@ -1839,6 +1852,45 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                   />
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Visa Section */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-6" data-testid="trip-builder-visa">
+          <div className="px-6 py-4 flex items-center gap-3 border-b border-gray-100">
+            <Globe size={20} className="text-[#002B5B]" />
+            <h2 className="text-lg font-bold text-[#002B5B]">Visa</h2>
+          </div>
+          <div className="px-6 py-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-gray-700">
+                  {visaSettings?.country || 'Destination'} - {visaSettings?.visa_type || 'Tourist Visa'} - {visaSettings?.entry_type || 'Tourist / Single Entry / Sticker Visa'}
+                </p>
+                {visaIncluded ? (
+                  <p className="text-sm text-teal-600 font-medium mt-1">Added to proposal</p>
+                ) : (
+                  <p className="text-sm text-red-500 mt-1">Not Included</p>
+                )}
+              </div>
+              {visaIncluded ? (
+                <button 
+                  onClick={() => setVisaIncluded(false)}
+                  className="px-4 py-2 bg-red-50 border border-red-300 text-red-600 text-sm font-medium rounded hover:bg-red-100 transition-colors flex-shrink-0 flex items-center gap-1"
+                  data-testid="remove-visa-btn"
+                >
+                  <X size={14} /> REMOVE
+                </button>
+              ) : (
+                <button 
+                  onClick={() => setVisaIncluded(true)}
+                  className="px-4 py-2 border border-[#002B5B] text-[#002B5B] text-sm font-medium rounded hover:bg-[#002B5B]/5 transition-colors flex-shrink-0"
+                  data-testid="add-visa-btn"
+                >
+                  + ADD
+                </button>
+              )}
             </div>
           </div>
         </div>

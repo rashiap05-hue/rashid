@@ -92,3 +92,30 @@ async def delete_insurance_price(entry_id: str, user: dict = Depends(get_current
         raise HTTPException(status_code=400, detail="Cannot delete the Default pricing entry")
     await db.insurance_prices.delete_one({"id": entry_id})
     return {"message": "Insurance price entry deleted"}
+
+
+# ── Visa Settings ──────────────────────────────────────
+
+VISA_DEFAULTS = {
+    "Georgia": {"visa_type": "Tourist Visa", "entry_type": "Tourist / Single Entry / Sticker Visa", "required": False, "notes": "Visa on arrival for most nationalities"},
+    "Turkey": {"visa_type": "Tourist Visa", "entry_type": "e-Visa / Single Entry", "required": True, "notes": "e-Visa required for most nationalities"},
+    "Thailand": {"visa_type": "Tourist Visa", "entry_type": "Tourist / Single Entry", "required": False, "notes": "Visa exemption for many nationalities (30 days)"},
+    "Default": {"visa_type": "Tourist Visa", "entry_type": "Tourist / Single Entry", "required": True, "notes": "Check visa requirements for your nationality"},
+}
+
+@settings_router.get("/visa")
+async def get_visa_settings(country: Optional[str] = None):
+    if country:
+        entry = await db.visa_settings.find_one({"country": country}, {"_id": 0})
+        if entry:
+            return entry
+        # Return default for that country if we have one
+        if country in VISA_DEFAULTS:
+            return {"country": country, **VISA_DEFAULTS[country]}
+        default = await db.visa_settings.find_one({"country": "Default"}, {"_id": 0})
+        return default or {"country": country, **VISA_DEFAULTS["Default"]}
+
+    entries = []
+    async for doc in db.visa_settings.find({}, {"_id": 0}).sort("country", 1):
+        entries.append(doc)
+    return {"visa_settings": entries}
