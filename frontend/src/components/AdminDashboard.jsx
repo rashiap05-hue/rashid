@@ -622,6 +622,11 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   const [insuranceModal, setInsuranceModal] = useState({ open: false, data: null, isNew: false });
   const [insuranceSaving, setInsuranceSaving] = useState(false);
 
+  // Visa state
+  const [visaList, setVisaList] = useState([]);
+  const [visaModal, setVisaModal] = useState({ open: false, data: null, isNew: false });
+  const [visaSaving, setVisaSaving] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -636,18 +641,20 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [citiesRes, hotelsRes, transfersRes, activitiesRes, insuranceRes] = await Promise.all([
+      const [citiesRes, hotelsRes, transfersRes, activitiesRes, insuranceRes, visasRes] = await Promise.all([
         api.get('/cities'),
         api.get('/hotels'),
         api.get('/transfers'),
         api.get('/activities'),
-        api.get('/settings/insurance')
+        api.get('/settings/insurance'),
+        api.get('/visas')
       ]);
       setCities(citiesRes.data?.cities || []);
       setHotels(hotelsRes.data?.hotels || []);
       setTransfers(transfersRes.data?.transfers || []);
       setActivities(activitiesRes.data?.activities || []);
       if (insuranceRes.data?.insurance_prices) setInsurancePrices(insuranceRes.data.insurance_prices);
+      setVisaList(visasRes.data?.visas || []);
       
       // Fetch airports separately with pagination
       await fetchAirports();
@@ -1679,7 +1686,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-gray-100 overflow-x-auto">
-            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'terms', 'insurance', 'staff', 'wallets', 'bookings'].map((tab) => (
+            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'visas', 'terms', 'insurance', 'staff', 'wallets', 'bookings'].map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -1689,7 +1696,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   activeTab === tab ? "text-[#002B5B]" : "text-gray-400 hover:text-gray-600"
                 )}
               >
-                {tab === 'terms' ? 'Terms & Policies' : tab === 'insurance' ? 'Insurance' : tab === 'staff' ? 'Staff / Experts' : tab === 'wallets' ? 'Wallets' : tab === 'bookings' ? 'Bookings' : `${tab} Management`}
+                {tab === 'terms' ? 'Terms & Policies' : tab === 'insurance' ? 'Insurance' : tab === 'staff' ? 'Staff / Experts' : tab === 'wallets' ? 'Wallets' : tab === 'bookings' ? 'Bookings' : tab === 'visas' ? 'Visas' : `${tab} Management`}
                 {activeTab === tab && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-[#002B5B]" />}
               </button>
             ))}
@@ -2342,6 +2349,164 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
             )}
 
             {/* Terms & Policies Tab */}
+            {activeTab === 'visas' && (
+              <div className="bg-white rounded-xl border border-gray-200 p-6" data-testid="visa-management">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <Globe size={24} className="text-[#002B5B]" />
+                    <h2 className="text-xl font-bold text-[#002B5B]">Visa Management</h2>
+                  </div>
+                  <button
+                    onClick={() => setVisaModal({ open: true, data: { country: '', visa_type: 'Tourist Visa', entry_type: 'Tourist / Single Entry / Sticker Visa', required: true, processing_time: '', validity: '', max_stay: '', price: 0, currency: 'AED', documents_required: [], notes: '', available: true }, isNew: true })}
+                    className="px-4 py-2 bg-[#002B5B] text-white rounded-lg hover:bg-[#001d3d] transition-colors font-medium flex items-center gap-2 text-sm"
+                    data-testid="add-visa-btn"
+                  >
+                    <Plus size={16} /> Add Country Visa
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left border-b border-gray-200 text-gray-500">
+                        <th className="py-3 px-3 font-medium">Country</th>
+                        <th className="py-3 px-3 font-medium">Visa Type</th>
+                        <th className="py-3 px-3 font-medium">Entry Type</th>
+                        <th className="py-3 px-3 font-medium">Required</th>
+                        <th className="py-3 px-3 font-medium">Processing</th>
+                        <th className="py-3 px-3 font-medium">Price</th>
+                        <th className="py-3 px-3 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visaList.map((visa) => (
+                        <tr key={visa.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-3 font-medium text-gray-900">{visa.country}</td>
+                          <td className="py-3 px-3 text-gray-600">{visa.visa_type}</td>
+                          <td className="py-3 px-3 text-gray-600 text-xs">{visa.entry_type}</td>
+                          <td className="py-3 px-3">
+                            <span className={cn("px-2 py-0.5 rounded text-xs font-bold", visa.required ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700")}>
+                              {visa.required ? 'Required' : 'Not Required'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-gray-600 text-xs">{visa.processing_time || '-'}</td>
+                          <td className="py-3 px-3 font-medium">{visa.currency} {visa.price}</td>
+                          <td className="py-3 px-3">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setVisaModal({ open: true, data: { ...visa }, isNew: false })}
+                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                                data-testid={`edit-visa-${visa.id}`}
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (!window.confirm(`Delete visa for ${visa.country}?`)) return;
+                                  await api.delete(`/visas/${visa.id}`);
+                                  setVisaList(prev => prev.filter(v => v.id !== visa.id));
+                                }}
+                                className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                                data-testid={`delete-visa-${visa.id}`}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {visaList.length === 0 && (
+                        <tr><td colSpan="7" className="text-center py-8 text-gray-400">No visa entries yet. Add your first country visa.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Visa Modal */}
+                {visaModal.open && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setVisaModal({ open: false, data: null, isNew: false })}>
+                    <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                      <h3 className="text-lg font-bold text-[#002B5B] mb-4">{visaModal.isNew ? 'Add' : 'Edit'} Visa Entry</h3>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Country *</label>
+                          <input className="w-full border rounded-lg px-3 py-2 text-sm mt-1" value={visaModal.data?.country || ''} onChange={e => setVisaModal(p => ({ ...p, data: { ...p.data, country: e.target.value } }))} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Visa Type</label>
+                            <input className="w-full border rounded-lg px-3 py-2 text-sm mt-1" value={visaModal.data?.visa_type || ''} onChange={e => setVisaModal(p => ({ ...p, data: { ...p.data, visa_type: e.target.value } }))} />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Entry Type</label>
+                            <input className="w-full border rounded-lg px-3 py-2 text-sm mt-1" value={visaModal.data?.entry_type || ''} onChange={e => setVisaModal(p => ({ ...p, data: { ...p.data, entry_type: e.target.value } }))} />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Processing Time</label>
+                            <input className="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="e.g. 3-5 business days" value={visaModal.data?.processing_time || ''} onChange={e => setVisaModal(p => ({ ...p, data: { ...p.data, processing_time: e.target.value } }))} />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Validity</label>
+                            <input className="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="e.g. 180 days" value={visaModal.data?.validity || ''} onChange={e => setVisaModal(p => ({ ...p, data: { ...p.data, validity: e.target.value } }))} />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Max Stay</label>
+                            <input className="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="e.g. 30 days" value={visaModal.data?.max_stay || ''} onChange={e => setVisaModal(p => ({ ...p, data: { ...p.data, max_stay: e.target.value } }))} />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Price (AED)</label>
+                            <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm mt-1" value={visaModal.data?.price || 0} onChange={e => setVisaModal(p => ({ ...p, data: { ...p.data, price: Number(e.target.value) } }))} />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input type="checkbox" id="visa-required" checked={visaModal.data?.required || false} onChange={e => setVisaModal(p => ({ ...p, data: { ...p.data, required: e.target.checked } }))} />
+                          <label htmlFor="visa-required" className="text-sm font-medium text-gray-700">Visa Required</label>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Documents Required (comma separated)</label>
+                          <input className="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="Valid passport, Return ticket, Hotel booking" value={(visaModal.data?.documents_required || []).join(', ')} onChange={e => setVisaModal(p => ({ ...p, data: { ...p.data, documents_required: e.target.value.split(',').map(d => d.trim()).filter(Boolean) } }))} />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Notes</label>
+                          <textarea className="w-full border rounded-lg px-3 py-2 text-sm mt-1" rows={2} value={visaModal.data?.notes || ''} onChange={e => setVisaModal(p => ({ ...p, data: { ...p.data, notes: e.target.value } }))} />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-3 mt-5">
+                        <button onClick={() => setVisaModal({ open: false, data: null, isNew: false })} className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm">Cancel</button>
+                        <button
+                          disabled={visaSaving}
+                          onClick={async () => {
+                            setVisaSaving(true);
+                            try {
+                              const payload = { ...visaModal.data };
+                              delete payload.id; delete payload.created_at; delete payload.updated_at;
+                              if (visaModal.isNew) {
+                                const res = await api.post('/visas', payload);
+                                setVisaList(prev => [...prev, { ...payload, id: res.data.id }]);
+                              } else {
+                                await api.put(`/visas/${visaModal.data.id}`, payload);
+                                setVisaList(prev => prev.map(v => v.id === visaModal.data.id ? { ...v, ...payload } : v));
+                              }
+                              setVisaModal({ open: false, data: null, isNew: false });
+                            } catch (err) { console.error(err); }
+                            setVisaSaving(false);
+                          }}
+                          className="px-4 py-2 bg-[#002B5B] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                          data-testid="save-visa-btn"
+                        >
+                          {visaSaving ? 'Saving...' : visaModal.isNew ? 'Add Visa' : 'Update Visa'}
+                        </button>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </div>
+            )}
+
             {activeTab === 'terms' && (
               <TermsPoliciesManager />
             )}

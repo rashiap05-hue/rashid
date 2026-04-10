@@ -106,16 +106,15 @@ VISA_DEFAULTS = {
 @settings_router.get("/visa")
 async def get_visa_settings(country: Optional[str] = None):
     if country:
-        entry = await db.visa_settings.find_one({"country": country}, {"_id": 0})
+        entry = await db.visas.find_one({"country": {"$regex": f"^{country}$", "$options": "i"}}, {"_id": 0})
         if entry:
             return entry
-        # Return default for that country if we have one
+        # Fall back to defaults
         if country in VISA_DEFAULTS:
             return {"country": country, **VISA_DEFAULTS[country]}
-        default = await db.visa_settings.find_one({"country": "Default"}, {"_id": 0})
-        return default or {"country": country, **VISA_DEFAULTS["Default"]}
+        return {"country": country, **VISA_DEFAULTS["Default"]}
 
     entries = []
-    async for doc in db.visa_settings.find({}, {"_id": 0}).sort("country", 1):
+    async for doc in db.visas.find({}, {"_id": 0}).sort("country", 1):
         entries.append(doc)
     return {"visa_settings": entries}

@@ -87,6 +87,12 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Time filters: All, Morning, Afternoon, Full Day
   - Rich vertical card layout with title, starts/duration, description with ...more, transfer info, Private Transfers badge, price, Select button
   - Search bar filtering by name and description
+- **Visa Management**: Full CRUD backend + Admin Dashboard tab + Trip Builder integration
+  - `/api/visas` CRUD endpoints (GET, POST, PUT, PATCH, DELETE)
+  - Admin Dashboard "Visas" tab with table view and Add/Edit/Delete modal
+  - Visa card on Customize Your Trip page with ADD/REMOVE toggle
+  - `/api/settings/visa` endpoint reads from visas collection with country defaults fallback
+  - Seeded: Georgia, Turkey, Thailand visa entries
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
