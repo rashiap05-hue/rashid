@@ -81,6 +81,12 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - **Transfer Card Remove Button**: Added remove/trash button to arrival and departure transfer cards in DayCard.jsx
   - Appears alongside Change button when a transfer is selected
   - Clears the selected transfer and resets price in Trip Summary
+- **Activity Modal Redesign**: Completely rebuilt ActivitiesModal.jsx to match Transfer Modal pattern
+  - Clean white header with "Add Activity in {city} (Day X: {date})" format
+  - Categories sidebar (All Options + dynamic categories from DB)
+  - Time filters: All, Morning, Afternoon, Full Day
+  - Rich vertical card layout with title, starts/duration, description with ...more, transfer info, Private Transfers badge, price, Select button
+  - Search bar filtering by name and description
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
