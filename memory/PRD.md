@@ -78,6 +78,9 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Search bar filtering by title and description
   - Rich descriptive transfer cards with price, duration, pickup times
   - Fixed `leavingOn is not defined` runtime error (→ `data?.leaving_on`)
+- **Transfer Card Remove Button**: Added remove/trash button to arrival and departure transfer cards in DayCard.jsx
+  - Appears alongside Change button when a transfer is selected
+  - Clears the selected transfer and resets price in Trip Summary
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)

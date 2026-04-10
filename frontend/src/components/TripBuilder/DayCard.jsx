@@ -20,6 +20,8 @@ function DayCard({
   hotel, 
   onSelectArrivalTransfer, 
   onSelectDepartureTransfer, 
+  onRemoveArrivalTransfer,
+  onRemoveDepartureTransfer,
   selectedArrivalTransfer, 
   selectedDepartureTransfer, 
   onUpdateFlightInfo, 
@@ -145,6 +147,16 @@ function DayCard({
                       <Car size={16} />
                       {selectedArrivalTransfer ? 'Change' : 'Select Transfer'}
                     </button>
+                    {selectedArrivalTransfer && (
+                      <button 
+                        onClick={() => onRemoveArrivalTransfer && onRemoveArrivalTransfer()}
+                        className="w-9 h-9 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg flex items-center justify-center transition-all border border-red-200"
+                        data-testid="remove-arrival-transfer"
+                        title="Remove transfer"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -224,6 +236,16 @@ function DayCard({
                       <Car size={16} />
                       {selectedDepartureTransfer ? 'Change' : 'Select Transfer'}
                     </button>
+                    {selectedDepartureTransfer && (
+                      <button 
+                        onClick={() => onRemoveDepartureTransfer && onRemoveDepartureTransfer()}
+                        className="w-9 h-9 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg flex items-center justify-center transition-all border border-red-200"
+                        data-testid="remove-departure-transfer"
+                        title="Remove transfer"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

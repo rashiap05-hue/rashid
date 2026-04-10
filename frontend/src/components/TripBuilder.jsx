@@ -1607,6 +1607,8 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                 }}
                 onSelectArrivalTransfer={(city) => openTransferModal('arrival', city)}
                 onSelectDepartureTransfer={(city) => openTransferModal('departure', city)}
+                onRemoveArrivalTransfer={() => setSelectedArrivalTransfer(null)}
+                onRemoveDepartureTransfer={() => setSelectedDepartureTransfer(null)}
                 selectedArrivalTransfer={selectedArrivalTransfer}
                 selectedDepartureTransfer={selectedDepartureTransfer}
                 onUpdateFlightInfo={handleOpenFlightInfoModal}
