@@ -2027,13 +2027,14 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                   {quantityPopup.count}
                 </span>
                 <button
-                  onClick={() => setQuantityPopup(p => ({ ...p, count: Math.min(20, p.count + 1) }))}
+                  onClick={() => setQuantityPopup(p => ({ ...p, count: Math.min(totalPax, p.count + 1) }))}
                   className="w-10 h-10 rounded-full border-2 border-gray-300 flex items-center justify-center text-lg font-bold text-gray-600 hover:border-[#002B5B] hover:text-[#002B5B] transition-colors"
                   data-testid="qty-plus"
                 >
                   +
                 </button>
               </div>
+              <p className="text-xs text-gray-400 text-center mb-4">Max {totalPax} person{totalPax > 1 ? 's' : ''} (based on trip)</p>
 
               <div className="flex gap-3">
                 <button
