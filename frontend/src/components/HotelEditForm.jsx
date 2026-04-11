@@ -788,7 +788,7 @@ function RatingBreakdownEditor({ ratings = {}, onChange }) {
 }
 
 // Main Hotel Edit Form Component
-export default function HotelEditForm({ hotel, onSave, onClose, isNew = false }) {
+export default function HotelEditForm({ hotel, onSave, onClose, isNew = false, cities = [] }) {
   const [formData, setFormData] = useState({
     name: '',
     city: '',
@@ -925,24 +925,33 @@ export default function HotelEditForm({ hotel, onSave, onClose, isNew = false })
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-gray-600 mb-1">City *</label>
-                  <input
-                    type="text"
-                    value={formData.city || ''}
-                    onChange={(e) => handleFieldChange('city', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-                  />
-                </div>
-                <div>
                   <label className="block text-sm font-bold text-gray-600 mb-1">Country</label>
                   <select
                     value={formData.country || ''}
-                    onChange={(e) => handleFieldChange('country', e.target.value)}
+                    onChange={(e) => {
+                      handleFieldChange('country', e.target.value);
+                      handleFieldChange('city', '');
+                    }}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent bg-white"
                     data-testid="edit-hotel-country"
                   >
                     <option value="">Select Country...</option>
                     {ALL_COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-1">City *</label>
+                  <select
+                    value={formData.city || ''}
+                    onChange={(e) => handleFieldChange('city', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent bg-white"
+                    data-testid="edit-hotel-city"
+                  >
+                    <option value="">Select City...</option>
+                    {cities
+                      .filter(c => !formData.country || c.country?.toLowerCase() === formData.country?.toLowerCase())
+                      .map(c => <option key={c.id || c.name} value={c.name}>{c.name}</option>)
+                    }
                   </select>
                 </div>
               </div>
