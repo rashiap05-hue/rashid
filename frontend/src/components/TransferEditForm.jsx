@@ -239,7 +239,7 @@ function PickupTimesEditor({ times = [], onChange }) {
 }
 
 // Main Transfer Edit Form
-export default function TransferEditForm({ transfer, onSave, onClose, isNew = false }) {
+export default function TransferEditForm({ transfer, onSave, onClose, isNew = false, cities = [] }) {
   const [activeTab, setActiveTab] = useState('basic');
   const [saving, setSaving] = useState(false);
 
@@ -248,6 +248,7 @@ export default function TransferEditForm({ transfer, onSave, onClose, isNew = fa
     description: transfer?.description || '',
     from_location: transfer?.from_location || '',
     to_location: transfer?.to_location || '',
+    country: transfer?.country || '',
     city: transfer?.city || '',
     transfer_type: transfer?.transfer_type || 'Private',
     transfer_direction: transfer?.transfer_direction || 'arrival',
@@ -373,11 +374,23 @@ export default function TransferEditForm({ transfer, onSave, onClose, isNew = fa
                     <input type="text" value={formData.to_location} onChange={(e) => handleFieldChange('to_location', e.target.value)} placeholder="Hotel or destination" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent" data-testid="edit-transfer-to" />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Country</label>
+                    <select value={formData.country} onChange={(e) => { handleFieldChange('country', e.target.value); handleFieldChange('city', ''); }} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent bg-white" data-testid="edit-transfer-country">
+                      <option value="">Select Country...</option>
+                      {[...new Set(cities.map(c => c.country).filter(Boolean))].sort().map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-600 mb-1">City *</label>
-                    <input type="text" value={formData.city} onChange={(e) => handleFieldChange('city', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent" data-testid="edit-transfer-city" />
+                    <select value={formData.city} onChange={(e) => handleFieldChange('city', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent bg-white" data-testid="edit-transfer-city">
+                      <option value="">Select City...</option>
+                      {cities.filter(c => !formData.country || c.country?.toLowerCase() === formData.country?.toLowerCase()).map(c => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}
+                    </select>
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-bold text-gray-600 mb-1">Transfer Type</label>
                     <select value={formData.transfer_type} onChange={(e) => handleFieldChange('transfer_type', e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent bg-white" data-testid="edit-transfer-type">

@@ -2918,6 +2918,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
           <TransferEditForm
             transfer={transferEditModal.transfer}
             isNew={transferEditModal.isNew}
+            cities={cities}
             onClose={() => setTransferEditModal({ open: false, transfer: null, isNew: false })}
             onSave={async (transferData) => {
               try {
