@@ -812,10 +812,16 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     
     const subtotal = hotelTotal + flightPrice + transferTotal + activitiesTotal;
     
-    // Calculate insurance cost (per person × adults)
-    const insuranceTotal = travelInsurance ? (insuranceSettings?.price_per_person || 0) * adultsCount : 0;
+    // Calculate insurance cost (per person × persons selected)
+    const insuranceTotal = travelInsurance ? (insuranceSettings?.price_per_person || 0) * insurancePersons : 0;
     
-    const grandTotal = subtotal + insuranceTotal;
+    // Calculate visa cost (per person × persons selected)
+    const visaTotal = visaIncluded ? (visaSettings?.price || 0) * visaPersons : 0;
+    
+    // Calculate SIM card cost (per person × persons selected)
+    const simCardTotal = simCardIncluded ? (simCardSettings?.price || 0) * simCardPersons : 0;
+    
+    const grandTotal = subtotal + insuranceTotal + visaTotal + simCardTotal;
     const pricePerAdult = Math.round(grandTotal / adultsCount);
     const pricePerChild = Math.round(pricePerAdult * 0.7); // 30% discount for children
 
@@ -825,6 +831,8 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       transferTotal,
       activitiesTotal,
       insuranceTotal,
+      visaTotal,
+      simCardTotal,
       arrivalTransferPrice,
       departureTransferPrice,
       pricePerAdult,
@@ -1815,6 +1823,27 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                     <span className="text-sm text-gray-700">Price per adult</span>
                     <span className="text-sm font-bold text-gray-900">AED {pricing.pricePerAdult.toLocaleString()}</span>
                   </div>
+
+                  {pricing.visaTotal > 0 && (
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-gray-700">Visa ({visaPersons} pax)</span>
+                      <span className="text-sm font-bold text-gray-900">AED {pricing.visaTotal.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {pricing.simCardTotal > 0 && (
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-gray-700">SIM Card ({simCardPersons} pax)</span>
+                      <span className="text-sm font-bold text-gray-900">AED {pricing.simCardTotal.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {pricing.insuranceTotal > 0 && (
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-gray-700">Insurance ({insurancePersons} pax)</span>
+                      <span className="text-sm font-bold text-gray-900">AED {pricing.insuranceTotal.toLocaleString()}</span>
+                    </div>
+                  )}
                   
                   <div className="border-t border-gray-200 pt-4 mb-4">
                     <div className="flex justify-between items-center">
