@@ -2445,7 +2445,10 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                       <div className="space-y-3">
                         <div>
                           <label className="text-sm font-medium text-gray-700">Country *</label>
-                          <input className="w-full border rounded-lg px-3 py-2 text-sm mt-1" value={visaModal.data?.country || ''} onChange={e => setVisaModal(p => ({ ...p, data: { ...p.data, country: e.target.value } }))} />
+                          <select className="w-full border rounded-lg px-3 py-2 text-sm mt-1 bg-white" value={visaModal.data?.country || ''} onChange={e => setVisaModal(p => ({ ...p, data: { ...p.data, country: e.target.value } }))}>
+                            <option value="">Select Country...</option>
+                            {[...new Set(cities.map(c => c.country).filter(Boolean))].sort().map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
@@ -2590,7 +2593,10 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                       <div className="space-y-3">
                         <div>
                           <label className="text-sm font-medium text-gray-700">Country *</label>
-                          <input className="w-full border rounded-lg px-3 py-2 text-sm mt-1" value={simCardModal.data?.country || ''} onChange={e => setSimCardModal(p => ({ ...p, data: { ...p.data, country: e.target.value } }))} />
+                          <select className="w-full border rounded-lg px-3 py-2 text-sm mt-1 bg-white" value={simCardModal.data?.country || ''} onChange={e => setSimCardModal(p => ({ ...p, data: { ...p.data, country: e.target.value } }))}>
+                            <option value="">Select Country...</option>
+                            {[...new Set(cities.map(c => c.country).filter(Boolean))].sort().map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
