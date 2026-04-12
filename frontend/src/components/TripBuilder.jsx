@@ -217,43 +217,8 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   useEffect(() => {
     const fetchTransfers = async () => {
       try {
-        // Get the first city to determine the country
-        const destinationCity = data?.cities?.[0]?.name;
-        if (!destinationCity) return;
-        
-        // Fetch city details to get the country
-        const cityRes = await api.get(`/cities?search=${encodeURIComponent(destinationCity)}`);
-        const cityData = cityRes.data?.cities?.[0];
-        const country = cityData?.country;
-        
-        if (country) {
-          // Fetch transfers for this city
-          const transferRes = await api.get(`/transfers?city=${encodeURIComponent(destinationCity)}`);
-          let transfers = transferRes.data?.transfers || [];
-          
-          // If no transfers for specific city, try fetching by country match
-          if (transfers.length === 0) {
-            const allTransfersRes = await api.get('/transfers');
-            const allTransfers = allTransfersRes.data?.transfers || [];
-            // Filter transfers that are in cities of the same country
-            // For now, we'll use city-based matching since transfers have city field
-            transfers = allTransfers.filter(t => {
-              const transferCity = t.city?.toLowerCase() || '';
-              const destCity = destinationCity.toLowerCase();
-              // Match by city name or country-related keywords
-              return transferCity.includes(destCity) || 
-                     destCity.includes(transferCity) ||
-                     transferCity.includes(country.toLowerCase().split(' ')[0]);
-            });
-            
-            // If still no matches, show all transfers from the same general region
-            if (transfers.length === 0) {
-              transfers = allTransfers;
-            }
-          }
-          
-          setAvailableTransfers(transfers);
-        }
+        const allTransfersRes = await api.get('/transfers');
+        setAvailableTransfers(allTransfersRes.data?.transfers || []);
       } catch (error) {
         console.error('Error fetching transfers:', error);
       }
@@ -1185,7 +1150,13 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                 {/* Left Sidebar - Categories */}
                 <div className="w-44 border-r border-gray-200 bg-gray-50 overflow-y-auto flex-shrink-0 hidden md:block">
                   <div className="py-2">
-                    {['All Options', ...new Set(availableTransfers.filter(t => !t.transfer_direction || t.transfer_direction === transferModalType).map(t => t.transfer_type || 'Private'))].map(cat => (
+                    {['All Options', ...new Set(availableTransfers.filter(t => {
+                      if (transferCity) {
+                        const tCity = (t.city || '').toLowerCase();
+                        if (tCity && tCity !== transferCity.toLowerCase()) return false;
+                      }
+                      return !t.transfer_direction || t.transfer_direction === transferModalType;
+                    }).map(t => t.transfer_type || 'Private'))].map(cat => (
                       <button key={cat} onClick={() => setTransferCategoryFilter(cat)}
                         className={cn("w-full text-left px-4 py-3 text-sm transition-colors",
                           transferCategoryFilter === cat ? "bg-white text-[#002B5B] font-bold border-r-2 border-[#002B5B]" : "text-gray-600 hover:bg-white"
@@ -1212,6 +1183,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                   <div className="flex-1 overflow-y-auto p-5">
                     {(() => {
                       let filtered = availableTransfers.filter(t => {
+                        // Filter by city
+                        if (transferCity) {
+                          const tCity = (t.city || '').toLowerCase();
+                          const selectedCity = transferCity.toLowerCase();
+                          if (tCity && tCity !== selectedCity) return false;
+                        }
                         if (t.transfer_direction && t.transfer_direction !== transferModalType) return false;
                         if (transferCategoryFilter !== 'All Options' && (t.transfer_type || 'Private') !== transferCategoryFilter) return false;
                         if (transferSearch) {
@@ -1291,7 +1268,13 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
               {/* Footer */}
               <div className="px-5 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
                 <div className="text-sm text-gray-500">
-                  {availableTransfers.filter(t => !t.transfer_direction || t.transfer_direction === transferModalType).length} transfers available
+                  {availableTransfers.filter(t => {
+                    if (transferCity) {
+                      const tCity = (t.city || '').toLowerCase();
+                      if (tCity && tCity !== transferCity.toLowerCase()) return false;
+                    }
+                    return !t.transfer_direction || t.transfer_direction === transferModalType;
+                  }).length} transfers available
                 </div>
                 <button onClick={() => setShowTransferModal(false)} className="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors">Close</button>
               </div>
