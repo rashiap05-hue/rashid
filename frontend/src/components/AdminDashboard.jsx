@@ -2892,6 +2892,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
           <ActivityEditForm
             activity={activityEditModal.activity}
             isNew={activityEditModal.isNew}
+            cities={cities}
             onClose={() => setActivityEditModal({ open: false, activity: null, isNew: false })}
             onSave={async (activityData) => {
               try {

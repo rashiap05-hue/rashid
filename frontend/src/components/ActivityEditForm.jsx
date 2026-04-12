@@ -537,7 +537,7 @@ function LanguagesEditor({ languages = [], onChange }) {
 }
 
 // Main Activity Edit Form Component
-export default function ActivityEditForm({ activity, onSave, onClose, isNew = false }) {
+export default function ActivityEditForm({ activity, onSave, onClose, isNew = false, cities = [] }) {
   const [activeTab, setActiveTab] = useState('basic');
   const [saving, setSaving] = useState(false);
   
@@ -726,26 +726,28 @@ export default function ActivityEditForm({ activity, onSave, onClose, isNew = fa
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">City *</label>
-                    <input
-                      type="text"
-                      value={formData.city}
-                      onChange={(e) => handleFieldChange('city', e.target.value)}
-                      placeholder="e.g., Tbilisi"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      data-testid="activity-city-input"
-                    />
+                    <label className="block text-sm font-bold text-gray-600 mb-1">Country</label>
+                    <select
+                      value={formData.country}
+                      onChange={(e) => { handleFieldChange('country', e.target.value); handleFieldChange('city', ''); }}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                      data-testid="activity-country-input"
+                    >
+                      <option value="">Select Country...</option>
+                      {[...new Set(cities.map(c => c.country).filter(Boolean))].sort().map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">Country</label>
-                    <input
-                      type="text"
-                      value={formData.country}
-                      onChange={(e) => handleFieldChange('country', e.target.value)}
-                      placeholder="e.g., Georgia"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      data-testid="activity-country-input"
-                    />
+                    <label className="block text-sm font-bold text-gray-600 mb-1">City *</label>
+                    <select
+                      value={formData.city}
+                      onChange={(e) => handleFieldChange('city', e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                      data-testid="activity-city-input"
+                    >
+                      <option value="">Select City...</option>
+                      {cities.filter(c => !formData.country || c.country?.toLowerCase() === formData.country?.toLowerCase()).map(c => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}
+                    </select>
                   </div>
                 </div>
 
