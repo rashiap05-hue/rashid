@@ -99,6 +99,13 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - SIM card section on Customize Your Trip page with ADD/REMOVE toggle, pulls country-specific data
   - Seeded: Georgia (Magti 10GB), Turkey (Turkcell 20GB), Thailand (AIS 15GB)
 
+### Session 7
+- **Live Hotel Search in Modal**: Added in-modal API search dropdown to HotelOptionsModal.jsx
+  - Typing in "Looking for a particular hotel" input now searches `/api/hotels?search=&city=` in real-time
+  - 300ms debounce, shows matching hotels with star rating and city label
+  - Clicking a result directly selects the hotel and closes the modal
+  - Wired `onSelectHotel` prop from TripBuilder.jsx parent
+
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
 - P2: AI-powered trip recommendations frontend

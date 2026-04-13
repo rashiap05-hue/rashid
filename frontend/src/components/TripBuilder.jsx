@@ -1112,6 +1112,11 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         onViewAll={handleViewAllHotels}
         onNoStay={handleNoStay}
         onSearch={handleSearchHotel}
+        onSelectHotel={(hotel) => {
+          setSelectedHotels(prev => ({ ...prev, [activeHotelCity]: hotel }));
+          setNoStayCities(prev => { const n = {...prev}; delete n[activeHotelCity]; return n; });
+          setShowHotelOptions(false);
+        }}
       />
 
       {/* Transfer Selection Modal */}
