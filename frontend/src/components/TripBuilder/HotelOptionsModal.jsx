@@ -42,48 +42,48 @@ function HotelOptionsModal({ isOpen, onClose, city, onViewAll, onNoStay, onSearc
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={onViewAll}
-              className="bg-white rounded-2xl p-8 text-center hover:shadow-lg transition-all border border-gray-100 min-h-[320px] flex flex-col items-center justify-center"
+              className="bg-white rounded-xl p-8 text-center hover:shadow-lg transition-all border border-gray-100 min-h-[280px] flex flex-col items-center justify-center"
               data-testid="view-all-hotels"
             >
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-                <List className="text-[#002B5B]" size={32} />
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-5">
+                <List className="text-gray-500" size={28} />
               </div>
-              <h3 className="text-xl font-bold text-gray-800 italic">
+              <p className="text-base text-gray-700 leading-relaxed">
                 View all stay options in {city}
-              </h3>
+              </p>
             </motion.button>
 
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={onNoStay}
-              className="bg-white rounded-2xl p-8 text-center hover:shadow-lg transition-all border border-gray-100 min-h-[320px] flex flex-col items-center justify-center"
+              className="bg-white rounded-xl p-8 text-center hover:shadow-lg transition-all border border-gray-100 min-h-[280px] flex flex-col items-center justify-center"
               data-testid="no-stay-required"
             >
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-                <Ban className="text-[#002B5B]" size={32} />
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-5">
+                <Ban className="text-gray-500" size={28} />
               </div>
-              <h3 className="text-xl font-bold text-gray-800 italic">
+              <p className="text-base text-gray-700 leading-relaxed">
                 No stay required in {city}
-              </h3>
+              </p>
             </motion.button>
 
-            <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 min-h-[320px] flex flex-col items-center justify-center">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-                <Hotel className="text-[#002B5B]" size={32} />
+            <div className="bg-white rounded-xl p-8 text-center border border-gray-100 min-h-[280px] flex flex-col items-center justify-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-5">
+                <Hotel className="text-gray-500" size={28} />
               </div>
-              <h3 className="text-xl font-bold text-gray-800 italic mb-6">
+              <p className="text-base text-gray-700 leading-relaxed mb-5">
                 Looking for a particular hotel
-              </h3>
+              </p>
               <div className="relative w-full">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                 <input
                   type="text"
                   placeholder="Search by property name"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent outline-none text-sm"
+                  className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#002B5B] focus:border-transparent outline-none text-sm text-gray-600"
                   data-testid="hotel-search-input"
                 />
               </div>
