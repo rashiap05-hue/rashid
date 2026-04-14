@@ -2131,27 +2131,6 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                     <span className="text-sm text-gray-700">Price per adult</span>
                     <span className="text-sm font-bold text-gray-900">AED {pricing.pricePerAdult.toLocaleString()}</span>
                   </div>
-
-                  {pricing.visaTotal > 0 && (
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-gray-700">Visa ({visaPersons} pax)</span>
-                      <span className="text-sm font-bold text-gray-900">AED {pricing.visaTotal.toLocaleString()}</span>
-                    </div>
-                  )}
-
-                  {pricing.simCardTotal > 0 && (
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-gray-700">SIM Card ({simCardPersons} pax)</span>
-                      <span className="text-sm font-bold text-gray-900">AED {pricing.simCardTotal.toLocaleString()}</span>
-                    </div>
-                  )}
-
-                  {pricing.insuranceTotal > 0 && (
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-gray-700">Insurance ({insurancePersons} pax)</span>
-                      <span className="text-sm font-bold text-gray-900">AED {pricing.insuranceTotal.toLocaleString()}</span>
-                    </div>
-                  )}
                   
                   <div className="border-t border-gray-200 pt-4 mb-4">
                     <div className="flex justify-between items-center">
