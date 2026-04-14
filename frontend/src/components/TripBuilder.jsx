@@ -1844,8 +1844,17 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
 
                             {/* Stay info box */}
                             {noStayCities[cityIndex] && (
-                              <div className="bg-gray-100 rounded-lg px-5 py-4 mb-5 max-w-sm">
+                              <div className="bg-gray-100 rounded-lg px-5 py-4 mb-5 max-w-md">
                                 <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Stay information booked separately</p>
+                                {/* Show saved hotel details if available */}
+                                {typeof noStayCities[cityIndex] === 'object' && (noStayCities[cityIndex].hotel || noStayCities[cityIndex].manualName) && (
+                                  <p className="text-sm font-bold text-[#002B5B] mb-1">
+                                    {noStayCities[cityIndex].hotel 
+                                      ? `${noStayCities[cityIndex].hotel.name}${noStayCities[cityIndex].hotel.star_rating ? ` (${noStayCities[cityIndex].hotel.star_rating} star)` : ''}`
+                                      : noStayCities[cityIndex].manualName
+                                    }
+                                  </p>
+                                )}
                                 <button
                                   onClick={() => openStayDetailsModal(cityIndex)}
                                   className="text-sm text-[#1a6b8a] hover:underline font-medium"
@@ -1870,8 +1879,8 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                         </div>
                       </div>
 
-                      {/* Warning banner */}
-                      {noStayCities[cityIndex] && (
+                      {/* Warning banner - only when no details provided */}
+                      {noStayCities[cityIndex] && (noStayCities[cityIndex] === true || (typeof noStayCities[cityIndex] === 'object' && !noStayCities[cityIndex].hotel && !noStayCities[cityIndex].manualName)) && (
                         <div className="bg-amber-50 px-6 py-4 border-t border-amber-100 rounded-b-xl">
                           <div className="flex items-start gap-3">
                             <Info className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
@@ -1937,6 +1946,36 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
               </div>
               
               <div className="p-6 space-y-6 overflow-y-auto flex-1">
+                {/* Stay Information Alerts */}
+                {cities.some((_, i) => {
+                  const stayData = noStayCities[i];
+                  return stayData && (stayData === true || (typeof stayData === 'object' && !stayData.hotel && !stayData.manualName));
+                }) && (
+                  <div className="space-y-2">
+                    {cities.map((city, i) => {
+                      const stayData = noStayCities[i];
+                      const needsInfo = stayData && (stayData === true || (typeof stayData === 'object' && !stayData.hotel && !stayData.manualName));
+                      if (!needsInfo) return null;
+                      return (
+                        <div 
+                          key={`alert-${i}`} 
+                          className="bg-red-50 border-t-4 border-red-600 rounded-b-lg px-4 py-3 cursor-pointer hover:bg-red-100 transition-colors"
+                          onClick={() => openStayDetailsModal(i)}
+                          data-testid={`stay-alert-${i}`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="w-4 h-4 text-red-700 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-bold text-red-800">Stay in {city.name}</p>
+                              <p className="text-xs text-red-700">Please provide stay information</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {/* Destinations */}
                 <div>
                   <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">

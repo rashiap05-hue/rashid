@@ -116,6 +116,9 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
     - Hotel search field with live API search
     - "Not able to find the hotel?" checkbox with manual name input
     - SAVE button persists stay details to state
+  - After saving: gray info box shows hotel name with star rating (e.g., "Courtyard by Marriott Baku (4 star)")
+  - Trip Summary sidebar shows red "Stay in {city} - Please provide stay information" alert when no stay details provided
+  - Alert and warning banner disappear once stay details are saved with a hotel
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
