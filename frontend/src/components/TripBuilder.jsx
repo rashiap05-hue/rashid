@@ -76,6 +76,17 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [aiItinerary, setAiItinerary] = useState(null);
   const [showAiItinerary, setShowAiItinerary] = useState(false);
 
+  // Stay Details Modal state
+  const [showStayDetailsModal, setShowStayDetailsModal] = useState(false);
+  const [stayDetailsCityIndex, setStayDetailsCityIndex] = useState(null);
+  const [stayType, setStayType] = useState('Hotel - Own Arrangement');
+  const [stayHotelQuery, setStayHotelQuery] = useState('');
+  const [stayHotelResults, setStayHotelResults] = useState([]);
+  const [stayHotelSearching, setStayHotelSearching] = useState(false);
+  const [staySelectedHotel, setStaySelectedHotel] = useState(null);
+  const [stayNotFound, setStayNotFound] = useState(false);
+  const [stayManualName, setStayManualName] = useState('');
+
   // Fetch insurance and visa settings based on destination country
   useEffect(() => {
     const fetchSettings = async () => {
@@ -303,6 +314,61 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     setShowHotelOptions(false);
     setShowHotelModal(true);
   };
+
+  // Stay Details Modal handlers
+  const openStayDetailsModal = (cityIndex) => {
+    setStayDetailsCityIndex(cityIndex);
+    const existing = noStayCities[cityIndex];
+    if (existing && typeof existing === 'object') {
+      setStayType(existing.stayType || 'Hotel - Own Arrangement');
+      setStayManualName(existing.manualName || '');
+      setStayNotFound(existing.notFound || false);
+      setStaySelectedHotel(existing.hotel || null);
+      setStayHotelQuery(existing.hotel?.name || '');
+    } else {
+      setStayType('Hotel - Own Arrangement');
+      setStayManualName('');
+      setStayNotFound(false);
+      setStaySelectedHotel(null);
+      setStayHotelQuery('');
+    }
+    setStayHotelResults([]);
+    setShowStayDetailsModal(true);
+  };
+
+  const handleStayDetailsSave = () => {
+    const details = {
+      stayType,
+      hotel: staySelectedHotel,
+      notFound: stayNotFound,
+      manualName: stayNotFound ? stayManualName : '',
+    };
+    setNoStayCities(prev => ({ ...prev, [stayDetailsCityIndex]: details }));
+    setShowStayDetailsModal(false);
+  };
+
+  // Debounced hotel search for stay details modal
+  const staySearchRef = React.useRef(null);
+  useEffect(() => {
+    if (!showStayDetailsModal || stayNotFound) return;
+    if (!stayHotelQuery.trim() || stayHotelQuery.length < 2) {
+      setStayHotelResults([]);
+      return;
+    }
+    if (staySearchRef.current) clearTimeout(staySearchRef.current);
+    staySearchRef.current = setTimeout(async () => {
+      setStayHotelSearching(true);
+      try {
+        const cityName = cities[stayDetailsCityIndex]?.name || '';
+        const res = await api.get(`/hotels?search=${encodeURIComponent(stayHotelQuery)}&city=${encodeURIComponent(cityName)}`);
+        setStayHotelResults(res.data?.hotels || []);
+      } catch (e) {
+        console.error('Stay hotel search error:', e);
+      }
+      setStayHotelSearching(false);
+    }, 300);
+    return () => { if (staySearchRef.current) clearTimeout(staySearchRef.current); };
+  }, [stayHotelQuery, showStayDetailsModal, stayNotFound, stayDetailsCityIndex]);
 
   // Handle opening Update Flight Info Modal
   const handleOpenFlightInfoModal = (type, city) => {
@@ -1119,6 +1185,153 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         }}
       />
 
+      {/* Stay Details Booked Separately Modal */}
+      <AnimatePresence>
+        {showStayDetailsModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowStayDetailsModal(false)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden"
+              data-testid="stay-details-modal"
+            >
+              {/* Close button */}
+              <button 
+                onClick={() => setShowStayDetailsModal(false)} 
+                className="absolute top-3 right-3 z-10 w-9 h-9 bg-gray-900 text-white rounded-full flex items-center justify-center hover:bg-gray-700 transition-colors"
+                data-testid="stay-details-close"
+              >
+                <X size={18} />
+              </button>
+
+              {/* Header */}
+              <div className="px-6 pt-6 pb-4 border-b border-gray-200">
+                <h3 className="text-xl font-bold text-[#002B5B]">Stay details booked separately</h3>
+              </div>
+
+              {/* Form */}
+              <div className="px-6 py-6">
+                <div className="grid grid-cols-2 gap-6">
+                  {/* Stay Type */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Stay Type</label>
+                    <select
+                      value={stayType}
+                      onChange={(e) => setStayType(e.target.value)}
+                      className="w-full px-3 py-2.5 border-2 border-gray-800 rounded-md text-sm bg-white focus:outline-none focus:border-[#002B5B]"
+                      data-testid="stay-type-select"
+                    >
+                      <option>Hotel - Own Arrangement</option>
+                      <option>Airbnb / Apartment</option>
+                      <option>Staying with Friends / Family</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+
+                  {/* Hotel search */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Hotel</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Choose Hotel"
+                        value={stayNotFound ? '' : stayHotelQuery}
+                        onChange={(e) => {
+                          setStayHotelQuery(e.target.value);
+                          setStaySelectedHotel(null);
+                        }}
+                        disabled={stayNotFound}
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-[#002B5B] disabled:bg-gray-100 disabled:text-gray-400"
+                        data-testid="stay-hotel-search"
+                      />
+                      {stayHotelSearching && (
+                        <Loader2 className="absolute right-3 top-3 animate-spin text-gray-400" size={16} />
+                      )}
+                      {/* Dropdown results */}
+                      {stayHotelResults.length > 0 && !staySelectedHotel && !stayNotFound && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto z-20">
+                          {stayHotelResults.map(hotel => (
+                            <button
+                              key={hotel.id}
+                              onClick={() => {
+                                setStaySelectedHotel(hotel);
+                                setStayHotelQuery(hotel.name);
+                                setStayHotelResults([]);
+                              }}
+                              className="w-full px-3 py-2 text-left hover:bg-blue-50 text-sm border-b border-gray-50 last:border-0"
+                              data-testid={`stay-hotel-result-${hotel.id}`}
+                            >
+                              <span className="font-medium text-gray-800">{hotel.name}</span>
+                              {hotel.star_rating && (
+                                <span className="ml-2 text-xs text-amber-500">{hotel.star_rating} star</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* Not able to find checkbox */}
+                    <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={stayNotFound}
+                        onChange={(e) => {
+                          setStayNotFound(e.target.checked);
+                          if (e.target.checked) {
+                            setStayHotelQuery('');
+                            setStaySelectedHotel(null);
+                            setStayHotelResults([]);
+                          } else {
+                            setStayManualName('');
+                          }
+                        }}
+                        className="w-4 h-4 border-gray-300 rounded"
+                        data-testid="stay-not-found-checkbox"
+                      />
+                      <span className="text-sm text-gray-600">Not able to find the hotel?</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Manual hotel name input when checkbox is checked */}
+                {stayNotFound && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Hotel Name</label>
+                    <input
+                      type="text"
+                      placeholder="Enter hotel name manually"
+                      value={stayManualName}
+                      onChange={(e) => setStayManualName(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-[#002B5B]"
+                      data-testid="stay-manual-name"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+                <button
+                  onClick={handleStayDetailsSave}
+                  className="bg-[#002B5B] text-white px-8 py-2.5 rounded font-bold text-sm hover:bg-[#003d82] transition-colors"
+                  data-testid="stay-details-save"
+                >
+                  SAVE
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Transfer Selection Modal */}
       <AnimatePresence>
         {showTransferModal && (
@@ -1634,8 +1847,9 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                               <div className="bg-gray-100 rounded-lg px-5 py-4 mb-5 max-w-sm">
                                 <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Stay information booked separately</p>
                                 <button
-                                  onClick={() => handleChangeHotel(cityIndex)}
+                                  onClick={() => openStayDetailsModal(cityIndex)}
                                   className="text-sm text-[#1a6b8a] hover:underline font-medium"
+                                  data-testid={`update-stay-details-${cityIndex}`}
                                 >
                                   update stay details
                                 </button>

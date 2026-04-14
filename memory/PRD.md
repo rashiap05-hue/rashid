@@ -111,6 +111,11 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Gray info box: "STAY INFORMATION BOOKED SEPARATELY" + "update stay details" link
   - Dark maroon "Change Hotel" button
   - Amber warning banner about SIC transfers and pickup location costs
+  - "Update stay details" link opens "Stay details booked separately" modal with:
+    - Stay Type dropdown (Hotel - Own Arrangement, Airbnb, Friends/Family, Other)
+    - Hotel search field with live API search
+    - "Not able to find the hotel?" checkbox with manual name input
+    - SAVE button persists stay details to state
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
