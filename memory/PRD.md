@@ -119,6 +119,12 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - After saving: gray info box shows hotel name with star rating (e.g., "Courtyard by Marriott Baku (4 star)")
   - Trip Summary sidebar shows red "Stay in {city} - Please provide stay information" alert when no stay details provided
   - Alert and warning banner disappear once stay details are saved with a hotel
+- **Auto-Recommendation Engine**: On Create Proposal, automatically pre-selects:
+  - Hotels: Top recommended hotel for each city (based on `recommended` flag, then rating)
+  - Transfers: Cheapest arrival transfer for first city, cheapest departure for last city
+  - Activities: 1-2 activities per day (max 10 hours), auto-assigns vehicle based on pax count
+  - All auto-selections are fully changeable/removable by the user
+  - Skipped when editing existing proposals (`data.isEditing`)
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)

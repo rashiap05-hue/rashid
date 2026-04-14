@@ -238,6 +238,151 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     fetchTransfers();
   }, [data?.cities]);
 
+  // Auto-recommend hotels, transfers, and activities on initial load (not editing)
+  const [autoRecommendDone, setAutoRecommendDone] = useState(false);
+  useEffect(() => {
+    const tripCities = data?.cities || [];
+    if (data?.isEditing || autoRecommendDone || !tripCities.length) return;
+    
+    const autoRecommend = async () => {
+      try {
+        const adultsCount = data?.room_data?.reduce((acc, r) => acc + r.adults, 0) || 2;
+        const childrenCount = data?.room_data?.reduce((acc, r) => acc + r.children?.length, 0) || 0;
+        const paxCount = adultsCount + childrenCount;
+        let vehicleKey = 'sedan_4';
+        if (paxCount > 4 && paxCount <= 7) vehicleKey = 'car_7';
+        else if (paxCount > 7 && paxCount <= 8) vehicleKey = 'van_8';
+        else if (paxCount > 8 && paxCount <= 17) vehicleKey = 'van_17';
+        else if (paxCount > 17) vehicleKey = 'bus_29';
+        
+        // Parse duration string to hours
+        const parseDuration = (dur) => {
+          if (!dur) return 4;
+          const str = String(dur).toLowerCase();
+          if (str.includes('full day')) return 8;
+          const match = str.match(/(\d+)/);
+          return match ? parseInt(match[1]) : 4;
+        };
+
+        // Get cheapest vehicle price for a transfer
+        const getCheapestPrice = (transfer) => {
+          const vp = transfer.vehicle_pricing || {};
+          if (vp[vehicleKey]?.selling_price) return vp[vehicleKey].selling_price;
+          const prices = Object.values(vp).map(v => v.selling_price).filter(Boolean);
+          return prices.length > 0 ? Math.min(...prices) : Infinity;
+        };
+
+        // 1. Auto-select hotels for each city
+        const hotelPromises = tripCities.map(city => 
+          api.get(`/hotels?city=${encodeURIComponent(city.name)}`).catch(() => ({ data: { hotels: [] } }))
+        );
+        const hotelResults = await Promise.all(hotelPromises);
+        const autoHotels = {};
+        hotelResults.forEach((res, idx) => {
+          const cityHotels = res.data?.hotels || [];
+          if (cityHotels.length > 0) {
+            const recommended = cityHotels.find(h => h.recommended) || cityHotels[0];
+            autoHotels[idx] = recommended;
+          }
+        });
+        if (Object.keys(autoHotels).length > 0) {
+          setSelectedHotels(autoHotels);
+        }
+
+        // 2. Auto-select transfers (cheapest for first city arrival, last city departure)
+        const allTransfersRes = await api.get('/transfers');
+        const allTransfers = allTransfersRes.data?.transfers || [];
+        
+        const firstCity = tripCities[0]?.name;
+        const lastCity = tripCities[tripCities.length - 1]?.name;
+        
+        if (data?.add_transfers !== false) {
+          const arrivalTransfers = allTransfers
+            .filter(t => t.transfer_direction === 'arrival' && t.city?.toLowerCase() === firstCity?.toLowerCase())
+            .sort((a, b) => getCheapestPrice(a) - getCheapestPrice(b));
+          
+          if (arrivalTransfers.length > 0) {
+            const cheapest = arrivalTransfers[0];
+            const price = getCheapestPrice(cheapest);
+            setSelectedArrivalTransfer({ ...cheapest, selectedVehicle: vehicleKey, vehiclePrice: price !== Infinity ? price : 0 });
+            setTransferVehicles(prev => ({ ...prev, [cheapest.id]: vehicleKey }));
+          }
+          
+          const departureTransfers = allTransfers
+            .filter(t => t.transfer_direction === 'departure' && t.city?.toLowerCase() === lastCity?.toLowerCase())
+            .sort((a, b) => getCheapestPrice(a) - getCheapestPrice(b));
+          
+          if (departureTransfers.length > 0) {
+            const cheapest = departureTransfers[0];
+            const price = getCheapestPrice(cheapest);
+            setSelectedDepartureTransfer({ ...cheapest, selectedVehicle: vehicleKey, vehiclePrice: price !== Infinity ? price : 0 });
+            setTransferVehicles(prev => ({ ...prev, [cheapest.id]: vehicleKey }));
+          }
+        }
+
+        // 3. Auto-select activities (1-2 per day, max 10 hours total)
+        const uniqueCityNames = [...new Set(tripCities.map(c => c.name))];
+        const activityPromises = uniqueCityNames.map(cityName =>
+          api.get(`/activities?city=${encodeURIComponent(cityName)}`).catch(() => ({ data: { activities: [] } }))
+        );
+        const activityResults = await Promise.all(activityPromises);
+        const activitiesByCity = {};
+        uniqueCityNames.forEach((cityName, idx) => {
+          activitiesByCity[cityName.toLowerCase()] = activityResults[idx]?.data?.activities || [];
+        });
+
+        const newActivities = {};
+        const newVehicles = {};
+        let dayNum = 1;
+        tripCities.forEach((city) => {
+          const cityActivities = activitiesByCity[city.name.toLowerCase()] || [];
+          const usedIds = new Set();
+          
+          for (let night = 0; night < (city.nights || 1); night++) {
+            const key = `${city.name}_${dayNum}`;
+            let totalHours = 0;
+            const dayActs = [];
+            
+            for (const act of cityActivities) {
+              if (usedIds.has(act.id)) continue;
+              const dur = parseDuration(act.duration);
+              if (totalHours + dur > 10) continue;
+              if (dayActs.length >= 2) break;
+              
+              const vp = act.vehicle_pricing || {};
+              let price = act.price || 0;
+              if (vp[vehicleKey]?.selling_price) {
+                price = vp[vehicleKey].selling_price;
+              }
+              
+              dayActs.push({ ...act, selectedVehicle: vehicleKey, vehiclePrice: price });
+              newVehicles[act.id] = vehicleKey;
+              usedIds.add(act.id);
+              totalHours += dur;
+            }
+            
+            if (dayActs.length > 0) {
+              newActivities[key] = dayActs;
+            }
+            dayNum++;
+          }
+        });
+        
+        if (Object.keys(newActivities).length > 0) {
+          setSelectedActivities(newActivities);
+          setActivityVehicles(prev => ({ ...prev, ...newVehicles }));
+        }
+
+        setAutoRecommendDone(true);
+      } catch (err) {
+        console.error('Auto-recommend error:', err);
+        setAutoRecommendDone(true);
+      }
+    };
+
+    autoRecommend();
+  }, [data?.isEditing, data?.cities]);
+
   // Open transfer selection modal
   const openTransferModal = (type, city) => {
     setTransferModalType(type);
