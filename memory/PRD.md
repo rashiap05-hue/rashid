@@ -105,6 +105,12 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - 300ms debounce, shows matching hotels with star rating and city label
   - Clicking a result directly selects the hotel and closes the modal
   - Wired `onSelectHotel` prop from TripBuilder.jsx parent
+- **No Stay Card Redesign**: Redesigned the "No Stay" hotel card in Trip Builder to match reference design
+  - "No Stay Included" bold heading with building icon + X badge
+  - Check-in / Check-out dates with labels and vertical divider
+  - Gray info box: "STAY INFORMATION BOOKED SEPARATELY" + "update stay details" link
+  - Dark maroon "Change Hotel" button
+  - Amber warning banner about SIC transfers and pickup location costs
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)

@@ -5,7 +5,7 @@ import {
   Plus, X, Check, Star, Clock, Coffee, Wifi, Car, Edit2, Loader2,
   CreditCard, Save, ArrowRight, Sun, Moon, Utensils, Camera, Info, AlertCircle,
   List, Ban, Search, DollarSign, Globe, Compass, Trash2, Phone, Mail, User, Filter,
-  Shield
+  Shield, Building2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
@@ -1597,26 +1597,76 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-white rounded-b-xl border border-gray-200 border-t-0 p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <Hotel className="text-gray-400" size={24} />
+                    <div className="bg-white rounded-b-xl border border-gray-200 border-t-0">
+                      <div className="p-6">
+                        <div className="flex items-start gap-6">
+                          {/* Hotel illustration with X */}
+                          <div className="relative flex-shrink-0">
+                            <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
+                              <Building2 className="text-gray-400" size={40} strokeWidth={1.5} />
+                            </div>
+                            <div className="absolute -top-1 -right-1 w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center">
+                              <X className="text-white" size={14} strokeWidth={2.5} />
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-500">{noStayCities[cityIndex] ? 'No stay required' : 'No Hotel Selected'}</p>
-                            <p className="text-sm text-gray-400">Check-in: {formatDate(cityStartDate)} • Check-out: {formatDate(cityEndDate)}</p>
+
+                          {/* Right content */}
+                          <div className="flex-1">
+                            <h4 className="text-lg font-bold text-[#002B5B] mb-4">
+                              {noStayCities[cityIndex] ? 'No Stay Included' : 'No Hotel Selected'}
+                            </h4>
+
+                            {/* Check-in / Check-out */}
+                            <div className="flex items-start gap-8 text-sm mb-5">
+                              <div>
+                                <p className="text-gray-500 mb-0.5">Check-in</p>
+                                <p className="font-bold text-[#002B5B]">{formatDate(cityStartDate)}</p>
+                              </div>
+                              <div className="h-10 w-px bg-gray-300" />
+                              <div>
+                                <p className="text-gray-500 mb-0.5">Check-out</p>
+                                <p className="font-bold text-[#002B5B]">{formatDate(cityEndDate)}</p>
+                              </div>
+                            </div>
+
+                            {/* Stay info box */}
+                            {noStayCities[cityIndex] && (
+                              <div className="bg-gray-100 rounded-lg px-5 py-4 mb-5 max-w-sm">
+                                <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Stay information booked separately</p>
+                                <button
+                                  onClick={() => handleChangeHotel(cityIndex)}
+                                  className="text-sm text-[#1a6b8a] hover:underline font-medium"
+                                >
+                                  update stay details
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <button 
-                          onClick={() => handleChangeHotel(cityIndex)}
-                          className="bg-[#002B5B] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#003d82] transition-all flex items-center gap-2"
-                          data-testid={`add-hotel-${cityIndex}`}
-                        >
-                          <Hotel size={18} />
-                          {noStayCities[cityIndex] ? 'Change' : 'Add Hotel'}
-                        </button>
+
+                        {/* Change Hotel button */}
+                        <div className="mt-4">
+                          <button 
+                            onClick={() => handleChangeHotel(cityIndex)}
+                            className="bg-[#7B2D26] text-white px-8 py-3 rounded-lg font-bold hover:bg-[#5e221d] transition-all text-sm"
+                            data-testid={`add-hotel-${cityIndex}`}
+                          >
+                            {noStayCities[cityIndex] ? 'Change Hotel' : 'Add Hotel'}
+                          </button>
+                        </div>
                       </div>
+
+                      {/* Warning banner */}
+                      {noStayCities[cityIndex] && (
+                        <div className="bg-amber-50 px-6 py-4 border-t border-amber-100 rounded-b-xl">
+                          <div className="flex items-start gap-3">
+                            <Info className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
+                            <p className="text-sm text-amber-900">
+                              As stay information is missing, please note that SIC transfers are only available from hotels in few areas and there may be extra cost for private transfer if the pickup location is far from city center
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
