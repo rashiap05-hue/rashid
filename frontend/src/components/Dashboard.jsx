@@ -215,10 +215,12 @@ export default function Dashboard({
           <div>
             <h4 className="font-bold mb-6">Our Destinations</h4>
             <ul className="space-y-3 text-sm text-white/60">
-              <li><a href="#" className="hover:text-white transition-colors">Europe</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Indonesia</a></li>
+              <li><a href="#" className="hover:text-white transition-colors">Georgia</a></li>
+              <li><a href="#" className="hover:text-white transition-colors">Armenia</a></li>
+              <li><a href="#" className="hover:text-white transition-colors">Uzbekistan</a></li>
+              <li><a href="#" className="hover:text-white transition-colors">Azerbaijan</a></li>
+              <li><a href="#" className="hover:text-white transition-colors">Kazakhstan</a></li>
               <li><a href="#" className="hover:text-white transition-colors">United Arab Emirates</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Singapore</a></li>
             </ul>
           </div>
           <div>
