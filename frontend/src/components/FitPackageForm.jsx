@@ -391,7 +391,7 @@ function CityAutocomplete({ value, onChange, placeholder = "Search city...", ind
 export default function FitPackageForm({ onClose, onCreateSuccess, initialData }) {
   const [cities, setCities] = useState(initialData?.rawCities || [{ id: '1', name: '', nights: 1 }]);
   const [leavingFrom, setLeavingFrom] = useState(initialData?.leaving_from || '');
-  const [selectedAirport, setSelectedAirport] = useState(null);
+  const [selectedAirport, setSelectedAirport] = useState(initialData?.leaving_from_airport || null);
   const [nationality, setNationality] = useState(initialData?.nationality || 'United Arab Emirates');
   const [leavingOn, setLeavingOn] = useState(initialData?.leaving_on ? new Date(initialData.leaving_on) : new Date());
   const [roomData, setRoomData] = useState(initialData?.room_data || [{ adults: 2, children: [] }]);
