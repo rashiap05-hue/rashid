@@ -1818,7 +1818,10 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                         <div className="mb-6 pl-4 border-l-2 border-gray-200">
                           <div className="flex items-start gap-4">
                             <Hotel size={18} className="text-gray-400 mt-1" />
-                            <p className="text-gray-800">Stay for {city.nights} night{city.nights > 1 ? 's' : ''} at <span className="font-bold">{hotel.name}</span></p>
+                            <div>
+                              <p className="font-medium text-gray-800">Stay for {city.nights} night{city.nights > 1 ? 's' : ''} at {hotel.name}</p>
+                              <p className="text-sm text-gray-500">{hotel.selectedRoom?.name || '1 x Double Room'}</p>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -1877,9 +1880,17 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                                               VIEW
                                             </button>
                                           </p>
-                                          <span className="inline-block mt-2 px-2.5 py-0.5 text-[11px] font-medium text-teal-700 border border-teal-200 rounded">
-                                            Private Transfers
-                                          </span>
+                                          <p className="text-sm text-gray-500">{item.duration || 'Full Day'} • {item.transfer_type || 'Private'}</p>
+                                          {item.inclusions?.length > 0 && (
+                                            <div className="mt-2 space-y-1">
+                                              {item.inclusions.map((inc, incIdx) => (
+                                                <div key={incIdx} className="flex items-start gap-2">
+                                                  <Check size={12} className="text-green-500 mt-1 flex-shrink-0" />
+                                                  <span className="text-sm text-gray-600">{inc}</span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
                                         </div>
                                         <div className="text-right flex-shrink-0">
                                           <p className="text-sm text-gray-500">Day {item._sortDay}</p>
