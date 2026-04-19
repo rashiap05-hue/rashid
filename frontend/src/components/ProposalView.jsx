@@ -1519,14 +1519,13 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                                 <p className="text-[15px] text-gray-800">
                                   Stay for {city.nights} night{city.nights > 1 ? 's' : ''} at <span className="font-bold">{hotel.name}</span>
                                 </p>
-                                {hotel.selectedRoom && (
-                                  <p className="text-sm text-gray-400 mt-1">
-                                    1 x {hotel.selectedRoom.name || 'Standard Room'}
-                                    {hotel.selectedRoom.bed_type ? `, ${hotel.selectedRoom.bed_type}` : ''}
-                                  </p>
-                                )}
-                                {hotelIncludesBreakfast(hotel) && (
-                                  <p className="text-sm text-gray-400">Breakfast</p>
+                                <p className="text-sm text-gray-400 mt-1">
+                                  1 x {hotel.selectedRoom?.name || hotel.rooms?.[0]?.name || 'Double Room'}
+                                </p>
+                                {hotelIncludesBreakfast(hotel) ? (
+                                  <p className="text-sm text-teal-600 mt-0.5">Breakfast Included</p>
+                                ) : (
+                                  <p className="text-sm text-gray-400 mt-0.5">Breakfast: Not Included</p>
                                 )}
                               </div>
                             </div>
