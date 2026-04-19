@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronDown, Plane, Car, Hotel, Sun, Moon, Utensils, 
-  Check, Trash2, Plus, ArrowRight 
+  Check, Trash2, Plus, ArrowRight, AlertTriangle 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -36,7 +36,8 @@ function DayCard({
   onChangeInterCityTransfer,
   onRemoveInterCityTransfer,
   selectedExtras,
-  onToggleExtra
+  onToggleExtra,
+  overflowActivityIds
 }) {
   const [expanded, setExpanded] = useState(true);
 
@@ -412,6 +413,14 @@ function DayCard({
                                 );
                               })}
                             </div>
+                          </div>
+                        )}
+
+                        {/* Time limit warning */}
+                        {overflowActivityIds?.includes(activity.id) && (
+                          <div className="px-4 py-2.5 bg-red-50 border-t border-red-100 flex items-center gap-2">
+                            <AlertTriangle size={14} className="text-red-500 flex-shrink-0" />
+                            <p className="text-xs text-red-600 italic">Not possible to do because of other inclusions on this day</p>
                           </div>
                         )}
                       </div>

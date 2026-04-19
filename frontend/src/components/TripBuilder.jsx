@@ -543,6 +543,9 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     setShowActivitiesModal(true);
   };
 
+  // Time limit exceeded toast state
+  const [timeLimitToast, setTimeLimitToast] = useState(null);
+
   const handleSelectActivity = (activity) => {
     const key = `${activeActivityCity}_${activeActivityDay}`;
     const currentActivities = selectedActivities[key] || [];
@@ -562,6 +565,14 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         return newVehicles;
       });
     } else {
+      // Check 12-hour limit before adding
+      const currentHours = currentActivities.reduce((sum, a) => sum + parseDurationHours(a.duration), 0);
+      const newDuration = parseDurationHours(activity.duration);
+      if (currentHours + newDuration > MAX_HOURS_PER_DAY) {
+        setTimeLimitToast(`Cannot add "${activity.name}" (${activity.duration}). Day ${activeActivityDay} already has ${currentHours} hours. Maximum is ${MAX_HOURS_PER_DAY} hours per day.`);
+        setTimeout(() => setTimeLimitToast(null), 5000);
+        return;
+      }
       // Show vehicle selection modal for new activity
       setPendingActivity(activity);
       setShowVehicleModal(true);
@@ -728,23 +739,27 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const MAX_HOURS_PER_DAY = 12;
   const [showTimeWarnings, setShowTimeWarnings] = useState(false);
 
-  const timeViolations = React.useMemo(() => {
+  const { timeViolations, overflowByDay } = React.useMemo(() => {
     const violations = [];
+    const byDay = {}; // { "city_day": [activityId, ...] }
     Object.entries(selectedActivities).forEach(([key, activities]) => {
       if (!activities || activities.length === 0) return;
       const [city, day] = key.split('_');
       let totalHours = 0;
-      const overflowActivities = [];
+      const overflowIds = [];
       activities.forEach(act => {
         const dur = parseDurationHours(act.duration);
         totalHours += dur;
         if (totalHours > MAX_HOURS_PER_DAY) {
-          overflowActivities.push({ name: act.name, day, city });
+          overflowIds.push(act.id);
+          violations.push({ name: act.name, day, city });
         }
       });
-      violations.push(...overflowActivities);
+      if (overflowIds.length > 0) {
+        byDay[key] = overflowIds;
+      }
     });
-    return violations;
+    return { timeViolations: violations, overflowByDay: byDay };
   }, [selectedActivities]);
 
   // Calculate trip details
@@ -1854,6 +1869,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                 }}
                 selectedExtras={selectedExtras}
                 onToggleExtra={handleToggleExtra}
+                overflowActivityIds={overflowByDay[`${day.city}_${day.day}`] || []}
               />
             ))}
           </div>
@@ -1990,6 +2006,28 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
             totalPax={totalPax}
             currentVehicle={null}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Time Limit Toast */}
+      <AnimatePresence>
+        {timeLimitToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-red-600 text-white px-6 py-4 rounded-xl shadow-2xl max-w-lg flex items-start gap-3"
+            data-testid="time-limit-toast"
+          >
+            <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-sm">Time Limit Exceeded</p>
+              <p className="text-xs mt-1 text-red-100">{timeLimitToast}</p>
+            </div>
+            <button onClick={() => setTimeLimitToast(null)} className="ml-2 text-red-200 hover:text-white flex-shrink-0">
+              <X size={16} />
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
