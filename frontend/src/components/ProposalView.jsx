@@ -17,6 +17,7 @@ import {
   LeftSidebarNav, DestinationExpertCard, SendEmailModal, WhatsAppShareModal,
   PriceSidebar, formatDate, addDays, TERMS_ICONS
 } from './ProposalView/index';
+import RequestChangesTab from './ProposalView/RequestChangesTab';
 
 // Main Proposal View Component
 export default function ProposalView({ proposal: initialProposal, onBack, onBookNow, onEditProposal, onHoldBooking }) {
@@ -2172,88 +2173,7 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
 
             {/* REQUEST CHANGES Tab */}
             {activeTab === 'changes' && (
-              <div className="bg-white rounded-xl p-6 shadow-sm" data-testid="changes-content">
-                <h2 className="text-xl font-bold text-gray-800 mb-6">Request Changes</h2>
-                <div className="space-y-4">
-                  {/* More Actions */}
-                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
-                    <h3 className="font-medium text-gray-800 mb-4">More Actions</h3>
-                    <div className="space-y-3">
-                      <button className="w-full flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200 hover:border-[#002B5B] hover:bg-blue-50 transition-all text-left">
-                        <Phone size={18} className="text-[#002B5B]" />
-                        <div>
-                          <p className="font-medium text-gray-800">Request Callback</p>
-                          <p className="text-sm text-gray-500">Call me to explain proposal</p>
-                        </div>
-                      </button>
-                      
-                      <button className="w-full flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200 hover:border-[#002B5B] hover:bg-blue-50 transition-all text-left">
-                        <Edit2 size={18} className="text-[#002B5B]" />
-                        <div>
-                          <p className="font-medium text-gray-800">I want changes in flight / hotel / itinerary</p>
-                        </div>
-                      </button>
-                      
-                      <button className="w-full flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200 hover:border-red-300 hover:bg-red-50 transition-all text-left">
-                        <X size={18} className="text-red-500" />
-                        <div>
-                          <p className="font-medium text-gray-800">I have cancelled / postponed my plans</p>
-                        </div>
-                      </button>
-                      
-                      <button className="w-full flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200 hover:border-green-300 hover:bg-green-50 transition-all text-left">
-                        <DollarSign size={18} className="text-green-600" />
-                        <div>
-                          <p className="font-medium text-gray-800">I want lower prices</p>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Lower Price Form */}
-                  <div className="bg-amber-50 rounded-xl p-6 border border-amber-200">
-                    <h3 className="font-medium text-amber-800 mb-3">LOWER PRICE ELSEWHERE</h3>
-                    <p className="text-sm text-amber-700 mb-4">Found a better price? Let us know and we'll try to match it.</p>
-                    <div className="space-y-3">
-                      <input
-                        type="text"
-                        placeholder="Competitor website/agency name"
-                        className="w-full px-4 py-2.5 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Indicative Price*"
-                        className="w-full px-4 py-2.5 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
-                      />
-                      <p className="text-xs text-amber-600">*Please make sure indicative price is reasonable to allow us to come back with suitable offers</p>
-                      <button className="w-full py-2.5 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700">
-                        Submit
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Share on WhatsApp */}
-                  <div className="bg-green-50 rounded-xl p-6 border border-green-200">
-                    <h3 className="font-medium text-green-800 mb-4">Share on WhatsApp</h3>
-                    <div className="space-y-3">
-                      <input
-                        type="tel"
-                        placeholder="Mobile Number"
-                        className="w-full px-4 py-2.5 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
-                      />
-                      <textarea
-                        placeholder="Message to Share"
-                        className="w-full px-4 py-2.5 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white h-20 resize-none"
-                        defaultValue={`Check out this trip proposal: ${proposal.proposal_name || `Trip to ${mainCity}`}`}
-                      />
-                      <button className="w-full py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center justify-center gap-2">
-                        <MessageCircle size={18} />
-                        Share on WhatsApp
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <RequestChangesTab proposal={proposal} mainCity={mainCity} refreshProposal={refreshProposal} />
             )}
           </div>
 
