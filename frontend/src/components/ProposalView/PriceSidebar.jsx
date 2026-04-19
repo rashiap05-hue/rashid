@@ -44,14 +44,14 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
     : getVehicleTypeForPax(totalPax);
   
   // Calculate pricing
-  const basePrice = proposal.total_price || 1500;
-  const pricePerAdult = Math.round(basePrice / adultsCount);
-  const totalPrice = basePrice;
+  const basePrice = proposal.total_price || 0;
   const markupLand = proposal.markup_land || 0;
   const discountAmount = proposal.discount_amount || 0;
   const couponCode = proposal.coupon_code || '';
-  const priceAfterDiscount = totalPrice + markupLand - discountAmount;
-  const netPrice = priceAfterDiscount;
+  const totalPrice = basePrice;
+  const priceAfterDiscount = totalPrice + markupLand - Math.min(discountAmount, markupLand);
+  const pricePerAdult = Math.round(priceAfterDiscount / adultsCount);
+  const netPrice = totalPrice;
   
   // Estimated booking date (7 days from now or from proposal)
   const estimatedBookingDate = proposal.estimated_booking_date 
@@ -142,18 +142,15 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
                     onClick={async () => {
                       setUpdating(true);
                       try {
-                        const basePrice = (proposal.pricing_breakdown?.hotels || 0) + (proposal.pricing_breakdown?.activities || 0) + (proposal.pricing_breakdown?.transfers || 0) + (proposal.pricing_breakdown?.extras || 0);
-                        const newTotal = basePrice + markupLandValue - discountValue;
+                        const cappedDiscount = Math.min(discountValue, markupLandValue);
                         await api.patch(`/proposals/${proposal.id}`, {
                           markup_value: markupLandValue,
                           markup_land: markupLandValue,
-                          discount_amount: discountValue,
-                          total_price: newTotal,
+                          discount_amount: cappedDiscount,
                           pricing_breakdown: {
                             ...proposal.pricing_breakdown,
-                            markup: markupLandValue || null,
-                            discount: discountValue,
-                            total: newTotal
+                            markup: markupLandValue,
+                            discount: cappedDiscount
                           }
                         });
                         onUpdateProposal?.();

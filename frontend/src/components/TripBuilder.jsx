@@ -1226,12 +1226,15 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           transfers: pricing.transferTotal,
           subtotal: pricing.subtotal,
           markup: formData.markup_type === 'percentage' 
-            ? (pricing.subtotal * formData.markup_value / 100)
+            ? Math.round(pricing.total * formData.markup_value / 100)
             : formData.markup_value,
           discount: formData.discount_amount,
           total: pricing.total
         },
         total_price: pricing.total,
+        markup_land: formData.markup_type === 'percentage' 
+          ? Math.round(pricing.total * formData.markup_value / 100)
+          : formData.markup_value,
         
         // Vehicle info
         vehicle_type: selectedVehicle.key,

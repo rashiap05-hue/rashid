@@ -67,6 +67,7 @@ class ProposalCreate(BaseModel):
     flights_booked: Optional[bool] = None
     markup_value: Optional[float] = None
     markup_type: Optional[str] = None
+    markup_land: Optional[float] = None
     discount_amount: Optional[float] = None
     travel_insurance: Optional[bool] = None
     travel_insurance_price: Optional[float] = None
@@ -113,6 +114,7 @@ class ProposalResponse(BaseModel):
     flights_booked: Optional[bool] = None
     markup_value: Optional[float] = None
     markup_type: Optional[str] = None
+    markup_land: Optional[float] = None
     discount_amount: Optional[float] = None
     travel_insurance: Optional[bool] = None
     travel_insurance_price: Optional[float] = None
