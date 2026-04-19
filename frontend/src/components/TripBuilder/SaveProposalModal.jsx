@@ -350,7 +350,17 @@ function SaveProposalModal({ isOpen, onClose, onSave, tripData, pricing, selecte
                               setShowCalendar(false);
                             }
                           }}
-                          disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
+                          disabled={(date) => {
+                            const today = new Date(new Date().setHours(0,0,0,0));
+                            if (date < today) return true;
+                            if (tripData?.leaving_on) {
+                              const travelDate = new Date(tripData.leaving_on + 'T00:00:00');
+                              const maxDate = new Date(travelDate);
+                              maxDate.setDate(maxDate.getDate() - 7);
+                              if (date > maxDate) return true;
+                            }
+                            return false;
+                          }}
                         />
                       </div>
                     </div>
