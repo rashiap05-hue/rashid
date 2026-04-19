@@ -133,7 +133,7 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 
 ## Future/Backlog
 - P3: Real Flight API (Airlabs), Google Sheets Sync (needs OAuth)
-- Refactoring: ProposalView.jsx (~3,500 lines) component extraction
+- Refactoring: ~~ProposalView.jsx (~3,500 lines) component extraction~~ DONE (2,320 lines, 10 sub-components)
 - Refactoring: ~~TripBuilder.jsx (~2,300 lines) component extraction~~ DONE (1,934 lines, 14 sub-components)
 
 ## MOCKED
