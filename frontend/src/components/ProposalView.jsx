@@ -39,6 +39,19 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
   const [videoModal, setVideoModal] = useState({ open: false, url: null, title: '' });
   const [detailModal, setDetailModal] = useState({ open: false, item: null, type: null });
   
+  // Messages state
+  const [messageText, setMessageText] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  
+  useEffect(() => {
+    if (proposal?.id) {
+      api.get(`/messages/${proposal.id}`).then(res => {
+        setChatMessages(res.data?.messages || []);
+      }).catch(() => {});
+    }
+  }, [proposal?.id]);
+  
   // Helper to open transfer detail modal with full data from API
   const openTransferDetail = async (transfer) => {
     if (!transfer?.id) {
@@ -2096,13 +2109,37 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                   <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
                     <textarea
                       placeholder="Type your message here..."
+                      value={messageText}
+                      onChange={(e) => setMessageText(e.target.value)}
                       className="w-full h-32 p-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#002B5B] focus:border-transparent resize-none"
                       data-testid="message-textarea"
                     />
                     <div className="mt-4 flex justify-end">
-                      <button className="px-6 py-2.5 bg-[#002B5B] text-white rounded-lg font-medium hover:bg-[#003d82] flex items-center gap-2">
+                      <button 
+                        onClick={async () => {
+                          if (!messageText.trim()) return;
+                          setSendingMessage(true);
+                          try {
+                            await api.post(`/messages/${proposal.id}`, {
+                              sender: 'agent',
+                              sender_name: proposal.customer_name || 'Agent',
+                              text: messageText.trim()
+                            });
+                            setMessageText('');
+                            // Refresh messages
+                            const res = await api.get(`/messages/${proposal.id}`);
+                            setChatMessages(res.data?.messages || []);
+                          } catch (e) {
+                            console.error('Send message error:', e);
+                          }
+                          setSendingMessage(false);
+                        }}
+                        disabled={sendingMessage || !messageText.trim()}
+                        className="px-6 py-2.5 bg-[#002B5B] text-white rounded-lg font-medium hover:bg-[#003d82] flex items-center gap-2 disabled:opacity-50"
+                        data-testid="send-message-btn"
+                      >
                         <MessageSquare size={16} />
-                        Send
+                        {sendingMessage ? 'Sending...' : 'Send'}
                       </button>
                     </div>
                   </div>
@@ -2110,10 +2147,24 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                   {/* Chat History */}
                   <div className="border-t border-gray-100 pt-4">
                     <h3 className="text-sm font-medium text-gray-500 mb-4">Message History</h3>
-                    <div className="text-center text-gray-400 py-8">
-                      <MessageSquare size={32} className="mx-auto mb-2 opacity-50" />
-                      <p>No messages yet. Start the conversation!</p>
-                    </div>
+                    {chatMessages.length > 0 ? (
+                      <div className="space-y-3">
+                        {chatMessages.map((msg) => (
+                          <div key={msg.id} className={`p-4 rounded-lg ${msg.sender === 'agent' ? 'bg-blue-50 border border-blue-100 ml-8' : 'bg-gray-50 border border-gray-100 mr-8'}`}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-medium text-gray-700">{msg.sender_name || msg.sender}</span>
+                              <span className="text-xs text-gray-400">{new Date(msg.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                            <p className="text-sm text-gray-600">{msg.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center text-gray-400 py-8">
+                        <MessageSquare size={32} className="mx-auto mb-2 opacity-50" />
+                        <p>No messages yet. Start the conversation!</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
