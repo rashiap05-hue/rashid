@@ -389,7 +389,13 @@ function CityAutocomplete({ value, onChange, placeholder = "Search city...", ind
 }
 
 export default function FitPackageForm({ onClose, onCreateSuccess, initialData }) {
-  const [cities, setCities] = useState(initialData?.rawCities || [{ id: '1', name: '', nights: 1 }]);
+  const [cities, setCities] = useState(() => {
+    if (initialData?.rawCities?.length > 0 && initialData.rawCities[0].name) return initialData.rawCities;
+    if (initialData?.cities?.length > 0 && initialData.cities[0].name) {
+      return initialData.cities.map((c, i) => ({ id: String(i + 1), name: c.name, nights: c.nights || 1 }));
+    }
+    return [{ id: '1', name: '', nights: 1 }];
+  });
   const [leavingFrom, setLeavingFrom] = useState(initialData?.leaving_from || '');
   const [selectedAirport, setSelectedAirport] = useState(initialData?.leaving_from_airport || null);
   const [nationality, setNationality] = useState(initialData?.nationality || 'United Arab Emirates');

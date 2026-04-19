@@ -1388,7 +1388,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-8">
-              <div className="flex items-center gap-3 opacity-50">
+              <div className="flex items-center gap-3 opacity-50 cursor-pointer hover:opacity-70 transition-opacity" onClick={onBack}>
                 <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
                   <Check size={16} />
                 </div>
