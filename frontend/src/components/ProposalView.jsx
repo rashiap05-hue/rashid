@@ -2501,6 +2501,11 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                                     {/* Right - Content */}
                                     <div className="flex-1 space-y-5">
                                       {/* Alert Banner */}
+                                      {!proposal.departure_flight_info && (
+                                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                                          <p className="text-sm text-red-500 font-semibold">Departure information is missing</p>
+                                        </div>
+                                      )}
                                       {proposal.departure_transfer && (
                                         <div className="bg-pink-50 border border-pink-200 rounded-lg p-4 flex items-start gap-3">
                                           <AlertTriangle size={18} className="text-pink-500 flex-shrink-0 mt-0.5" />
