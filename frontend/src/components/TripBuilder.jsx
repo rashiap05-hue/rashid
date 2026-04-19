@@ -715,6 +715,38 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     return selectedActivities[key] || [];
   };
 
+  // Parse duration string to hours
+  const parseDurationHours = (dur) => {
+    if (!dur) return 4;
+    const str = String(dur).toLowerCase();
+    if (str.includes('full day')) return 8;
+    const match = str.match(/(\d+)/);
+    return match ? parseInt(match[1]) : 4;
+  };
+
+  // Compute time limit violations (12 hours max per day)
+  const MAX_HOURS_PER_DAY = 12;
+  const [showTimeWarnings, setShowTimeWarnings] = useState(false);
+
+  const timeViolations = React.useMemo(() => {
+    const violations = [];
+    Object.entries(selectedActivities).forEach(([key, activities]) => {
+      if (!activities || activities.length === 0) return;
+      const [city, day] = key.split('_');
+      let totalHours = 0;
+      const overflowActivities = [];
+      activities.forEach(act => {
+        const dur = parseDurationHours(act.duration);
+        totalHours += dur;
+        if (totalHours > MAX_HOURS_PER_DAY) {
+          overflowActivities.push({ name: act.name, day, city });
+        }
+      });
+      violations.push(...overflowActivities);
+    });
+    return violations;
+  }, [selectedActivities]);
+
   // Calculate trip details
   const cities = data?.cities || [];
   const totalNights = cities.reduce((acc, c) => acc + (c.nights || 1), 0);
@@ -1400,7 +1432,38 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                 <span className="font-bold text-[#002B5B]">Customize Your Trip</span>
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-right relative">
+              {timeViolations.length > 0 && (
+                <div className="inline-block relative">
+                  <button
+                    onClick={() => setShowTimeWarnings(!showTimeWarnings)}
+                    className="relative w-10 h-10 bg-[#002B5B] text-white rounded-full flex items-center justify-center hover:bg-[#003d82] transition-colors"
+                    data-testid="time-warning-btn"
+                  >
+                    <AlertCircle size={20} />
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {timeViolations.length}
+                    </span>
+                  </button>
+                  {showTimeWarnings && (
+                    <>
+                      <div className="fixed inset-0 z-30" onClick={() => setShowTimeWarnings(false)} />
+                      <div className="absolute right-0 top-full mt-2 z-40">
+                        <div className="w-4 h-4 bg-red-600 rotate-45 absolute -top-2 right-4" />
+                        <div className="bg-[#FFF5F0] border-t-4 border-red-600 rounded-b-xl shadow-xl w-80 p-5 space-y-0" data-testid="time-warnings-popup">
+                          {timeViolations.map((v, i) => (
+                            <div key={i}>
+                              {i > 0 && <div className="border-b-2 border-dashed border-red-300 my-4" />}
+                              <p className="font-bold text-red-900 text-sm">Day {v.day}: {v.name}</p>
+                              <p className="text-red-800 text-xs mt-1 italic">Not possible to do because of other inclusions on this day</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <div className="mt-2 flex items-center gap-4 text-sm text-gray-600">
