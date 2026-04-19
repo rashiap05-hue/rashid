@@ -1766,20 +1766,29 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                     cityTransfersTab.push({ ...proposal.departure_transfer, _dayNum: totalNightsTab + 1, _date: addDays(proposal.leaving_on, totalNightsTab) });
                   }
 
-                  // Collect activities for this city
+                  // Collect activities for this city with day numbers
                   const cityActivitiesTab = [];
                   const selectedActsTab = proposal.selected_activities || {};
                   Object.keys(selectedActsTab).forEach(key => {
-                    if (key === `${city.name}_${idx}` || key.startsWith(city.name + '_')) {
+                    if (key.startsWith(city.name + '_')) {
+                      const dayNum = parseInt(key.split('_').pop()) || 1;
                       const acts = selectedActsTab[key];
                       if (Array.isArray(acts)) {
                         acts.forEach(a => {
-                          if (!cityActivitiesTab.some(existing => existing.name === a.name)) {
-                            cityActivitiesTab.push(a);
+                          if (!cityActivitiesTab.some(existing => existing.id === a.id)) {
+                            cityActivitiesTab.push({
+                              ...a,
+                              _dayNum: dayNum,
+                              _date: addDays(proposal.leaving_on, dayNum - 1)
+                            });
                           }
                         });
-                      } else if (acts && !cityActivitiesTab.some(existing => existing.name === acts.name)) {
-                        cityActivitiesTab.push(acts);
+                      } else if (acts && !cityActivitiesTab.some(existing => existing.id === acts.id)) {
+                        cityActivitiesTab.push({
+                          ...acts,
+                          _dayNum: dayNum,
+                          _date: addDays(proposal.leaving_on, dayNum - 1)
+                        });
                       }
                     }
                   });
@@ -1790,8 +1799,7 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                     ...cityActivitiesTab.map((a, aIdx) => ({
                       ...a,
                       _type: 'activity',
-                      _sortDay: cumulativeNightsTab + 1 + Math.min(aIdx, city.nights - 1),
-                      _date: addDays(proposal.leaving_on, cumulativeNightsTab + Math.min(aIdx, city.nights - 1)),
+                      _sortDay: a._dayNum,
                       _idx: aIdx
                     }))
                   ].sort((a, b) => a._sortDay - b._sortDay);
