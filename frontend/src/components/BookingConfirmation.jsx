@@ -215,7 +215,7 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
       </div>
 
       {/* Row 3: Passport Number, Expiry Date */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-3 gap-4 mb-4">
         <div>
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Passport Number</label>
           <input
@@ -227,7 +227,7 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
             data-testid={`traveler-passport-${roomIndex}-${index}`}
           />
         </div>
-        <div>
+        <div className="col-span-2">
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Expiry Date</label>
           <div className="flex gap-2 mt-1">
             <select value={traveler.expiryDay || ''} onChange={e => onChange({...traveler, expiryDay: e.target.value})} className="w-20 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-expiry-day-${roomIndex}-${index}`}>
