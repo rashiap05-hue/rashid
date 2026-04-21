@@ -133,7 +133,7 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
       </div>
 
       {/* Row 1: Title, First Name, Last Name */}
-      <div className="grid grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-[100px_1fr_1fr] gap-4 mb-4">
         <div>
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Title<span className="text-red-500">*</span></label>
           <select
@@ -171,19 +171,19 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
       </div>
 
       {/* Row 2: Date of Birth + Bed Preference (only for first traveler in room) */}
-      <div className={`grid ${isFirstInRoom && !isChild ? 'grid-cols-2' : 'grid-cols-1'} gap-4 mb-4`}>
+      <div className={`grid ${isFirstInRoom && !isChild ? 'grid-cols-2' : 'grid-cols-[1fr_1fr]'} gap-4 mb-4`}>
         <div>
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Date of Birth<span className="text-red-500">*</span></label>
           <div className="flex gap-2 mt-1">
-            <select value={traveler.dobDay} onChange={e => onChange({...traveler, dobDay: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-dob-day-${roomIndex}-${index}`}>
+            <select value={traveler.dobDay} onChange={e => onChange({...traveler, dobDay: e.target.value})} className="w-20 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-dob-day-${roomIndex}-${index}`}>
               <option value="">Day</option>
               {DAYS.map(d => <option key={d} value={String(d)}>{d}</option>)}
             </select>
-            <select value={traveler.dobMonth} onChange={e => { console.log('Month changed to:', e.target.value); onChange({...traveler, dobMonth: e.target.value}); }} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-dob-month-${roomIndex}-${index}`}>
+            <select value={traveler.dobMonth} onChange={e => { console.log('Month changed to:', e.target.value); onChange({...traveler, dobMonth: e.target.value}); }} className="w-28 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-dob-month-${roomIndex}-${index}`}>
               <option value="">Month</option>
               {MONTHS.map((m, i) => <option key={m} value={String(i + 1)}>{m}</option>)}
             </select>
-            <select value={traveler.dobYear} onChange={e => onChange({...traveler, dobYear: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-dob-year-${roomIndex}-${index}`}>
+            <select value={traveler.dobYear} onChange={e => onChange({...traveler, dobYear: e.target.value})} className="w-24 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-dob-year-${roomIndex}-${index}`}>
               <option value="">Year</option>
               {YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}
             </select>
@@ -230,15 +230,15 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
         <div>
           <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Expiry Date</label>
           <div className="flex gap-2 mt-1">
-            <select value={traveler.expiryDay || ''} onChange={e => onChange({...traveler, expiryDay: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-expiry-day-${roomIndex}-${index}`}>
+            <select value={traveler.expiryDay || ''} onChange={e => onChange({...traveler, expiryDay: e.target.value})} className="w-20 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-expiry-day-${roomIndex}-${index}`}>
               <option value="">Day</option>
               {DAYS.map(d => <option key={d} value={String(d)}>{d}</option>)}
             </select>
-            <select value={traveler.expiryMonth || ''} onChange={e => onChange({...traveler, expiryMonth: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-expiry-month-${roomIndex}-${index}`}>
+            <select value={traveler.expiryMonth || ''} onChange={e => onChange({...traveler, expiryMonth: e.target.value})} className="w-28 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-expiry-month-${roomIndex}-${index}`}>
               <option value="">Month</option>
               {MONTHS.map((m, i) => <option key={m} value={String(i + 1)}>{m}</option>)}
             </select>
-            <select value={traveler.expiryYear || ''} onChange={e => onChange({...traveler, expiryYear: e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-expiry-year-${roomIndex}-${index}`}>
+            <select value={traveler.expiryYear || ''} onChange={e => onChange({...traveler, expiryYear: e.target.value})} className="w-24 border border-gray-300 rounded-lg px-2 py-2 text-sm" data-testid={`traveler-expiry-year-${roomIndex}-${index}`}>
               <option value="">Year</option>
               {EXPIRY_YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}
             </select>
