@@ -242,9 +242,15 @@ function UploadProofModal({ onClose, onSuccess }) {
       fd.append('reference', reference);
       fd.append('note', note);
       fd.append('file', file);
-      await api.post('/wallets/payment-proof', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await api.post('/wallets/payment-proof', fd, { 
+        transformRequest: [(data) => data],
+        headers: { 'Content-Type': undefined }
+      });
       onSuccess();
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      console.error('Upload error:', e);
+      alert(e.response?.data?.detail || 'Upload failed. Please try again.');
+    }
     setUploading(false);
   };
 
