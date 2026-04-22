@@ -40,11 +40,26 @@ export default function PaymentPage({ proposal, bookingData, onBack }) {
     if (walletBalance < amountToPay) return;
     setPaying(true);
     try {
+      // 1. Debit wallet
       await api.post('/wallets/debit', {
         amount: amountToPay,
         note: `Payment for ${proposal?.proposal_name || 'Trip'} - Order ${orderId}`,
         type: 'booking_payment'
       });
+
+      // 2. Create booking record
+      await api.post('/bookings', {
+        proposal_id: proposal.id,
+        travelers: bookingData?.travelers || [],
+        contactInfo: bookingData?.contactInfo || {},
+        specialOccasion: bookingData?.specialOccasion || 'none',
+        paymentOption: bookingData?.paymentOption || 'full',
+        confirmationTime: new Date().toISOString(),
+        payment_method: 'wallet',
+        payment_amount: amountToPay,
+        order_id: orderId,
+      });
+
       setPaymentSuccess(true);
       setWalletBalance(prev => prev - amountToPay);
     } catch (e) {

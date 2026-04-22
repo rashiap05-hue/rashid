@@ -52,6 +52,9 @@ class BookingCreate(BaseModel):
     payment_option: str = Field(default="full", alias="paymentOption")
     confirmation_time: Optional[str] = Field(default=None, alias="confirmationTime")
     attachments: List[str] = []
+    payment_method: Optional[str] = None
+    payment_amount: Optional[float] = None
+    order_id: Optional[str] = None
 
     class Config:
         populate_by_name = True
@@ -73,6 +76,9 @@ async def create_booking(booking: BookingCreate, current_user: dict = Depends(ge
         "special_occasion": booking.special_occasion,
         "payment_option": booking.payment_option,
         "confirmation_time": booking.confirmation_time,
+        "payment_method": booking.payment_method,
+        "payment_amount": booking.payment_amount,
+        "order_id": booking.order_id,
         "status": "confirmed",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
