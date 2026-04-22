@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Info, CreditCard, Wallet, Clock, Shield, Copy, Check, Landmark } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Info, CreditCard, Wallet, Clock, Shield, Copy, Check, Landmark, Loader2 } from 'lucide-react';
+import { api } from '@/App';
 
 function generateOrderId() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -11,12 +12,46 @@ function generateOrderId() {
 export default function PaymentPage({ proposal, bookingData, onBack }) {
   const [paymentMethod, setPaymentMethod] = useState('tabby');
   const [copied, setCopied] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
   const orderId = useState(() => generateOrderId())[0];
 
   const totalPrice = proposal?.pricing_breakdown?.total || proposal?.total_price || 0;
+  const markupLand = proposal?.markup_land || 0;
+  const discountAmount = proposal?.discount_amount || 0;
+  const priceAfterMarkup = totalPrice + markupLand - Math.min(discountAmount, markupLand);
   const amountToPay = bookingData?.paymentOption === 'partial'
-    ? Math.round(totalPrice * 0.25)
-    : totalPrice;
+    ? Math.round(priceAfterMarkup * 0.25)
+    : priceAfterMarkup;
+
+  // Fetch wallet balance when wallet method is selected
+  useEffect(() => {
+    if (paymentMethod === 'wallet' && walletBalance === null) {
+      setWalletLoading(true);
+      api.get('/wallets/my').then(res => {
+        setWalletBalance(res.data?.balance || 0);
+      }).catch(() => setWalletBalance(0)).finally(() => setWalletLoading(false));
+    }
+  }, [paymentMethod, walletBalance]);
+
+  const handlePayFromWallet = async () => {
+    if (walletBalance < amountToPay) return;
+    setPaying(true);
+    try {
+      await api.post('/wallets/debit', {
+        amount: amountToPay,
+        note: `Payment for ${proposal?.proposal_name || 'Trip'} - Order ${orderId}`,
+        type: 'booking_payment'
+      });
+      setPaymentSuccess(true);
+      setWalletBalance(prev => prev - amountToPay);
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Payment failed. Please try again.');
+    }
+    setPaying(false);
+  };
 
   const handleCopyOrder = () => {
     navigator.clipboard.writeText(orderId);
@@ -164,10 +199,46 @@ export default function PaymentPage({ proposal, bookingData, onBack }) {
             )}
 
             {paymentMethod === 'wallet' && (
-              <div className="text-center py-4" data-testid="wallet-info">
-                <Wallet size={32} className="mx-auto text-gray-400 mb-3" />
-                <p className="text-sm text-gray-600">Your wallet balance: <span className="font-bold text-gray-900">AED 0.00</span></p>
-                <p className="text-xs text-gray-500 mt-1">Insufficient balance. Please top up or choose another method.</p>
+              <div data-testid="wallet-info">
+                {walletLoading ? (
+                  <div className="text-center py-4">
+                    <Loader2 size={24} className="mx-auto animate-spin text-gray-400 mb-2" />
+                    <p className="text-sm text-gray-500">Loading wallet...</p>
+                  </div>
+                ) : paymentSuccess ? (
+                  <div className="text-center py-6">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Check size={32} className="text-green-600" />
+                    </div>
+                    <p className="text-lg font-bold text-green-700">Payment Successful!</p>
+                    <p className="text-sm text-gray-500 mt-1">AED {amountToPay.toLocaleString()} debited from your wallet</p>
+                    <p className="text-xs text-gray-400 mt-2">Remaining balance: AED {Number(walletBalance).toLocaleString()}</p>
+                  </div>
+                ) : walletBalance >= amountToPay ? (
+                  <div className="py-4">
+                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                      <div>
+                        <p className="text-sm text-gray-700">Wallet Balance</p>
+                        <p className="text-xl font-bold text-green-700">AED {Number(walletBalance).toLocaleString()}</p>
+                      </div>
+                      <Check size={20} className="text-green-600" />
+                    </div>
+                    <p className="text-sm text-gray-500">AED {amountToPay.toLocaleString()} will be debited from your wallet.</p>
+                    <p className="text-xs text-gray-400 mt-1">Remaining after payment: AED {(walletBalance - amountToPay).toLocaleString()}</p>
+                  </div>
+                ) : (
+                  <div className="py-4">
+                    <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                      <div>
+                        <p className="text-sm text-gray-700">Wallet Balance</p>
+                        <p className="text-xl font-bold text-red-600">AED {Number(walletBalance || 0).toLocaleString()}</p>
+                      </div>
+                      <Info size={20} className="text-red-400" />
+                    </div>
+                    <p className="text-sm text-red-600">Insufficient balance. You need AED {(amountToPay - (walletBalance || 0)).toLocaleString()} more.</p>
+                    <p className="text-xs text-gray-500 mt-1">Please top up your wallet or choose another payment method.</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -195,11 +266,25 @@ export default function PaymentPage({ proposal, bookingData, onBack }) {
             <p className="text-2xl font-bold text-gray-900">AED {amountToPay.toLocaleString()}.00</p>
           </div>
           <button
-            className="px-8 py-3 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-lg transition-colors text-sm"
+            className={`px-8 py-3 font-bold rounded-lg transition-colors text-sm flex items-center gap-2 ${
+              paymentSuccess 
+                ? 'bg-green-600 text-white cursor-default' 
+                : (paymentMethod === 'wallet' && (walletBalance === null || walletBalance < amountToPay))
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-[#002B5B] hover:bg-[#003d82] text-white'
+            }`}
             data-testid="pay-now-btn"
-            onClick={() => alert(`Payment of AED ${amountToPay.toLocaleString()} via ${paymentMethod} — integration coming soon!`)}
+            disabled={paying || paymentSuccess || (paymentMethod === 'wallet' && (walletBalance === null || walletBalance < amountToPay))}
+            onClick={() => {
+              if (paymentMethod === 'wallet') {
+                handlePayFromWallet();
+              } else {
+                alert(`Payment of AED ${amountToPay.toLocaleString()} via ${paymentMethod} — integration coming soon!`);
+              }
+            }}
           >
-            Pay Now
+            {paying && <Loader2 size={16} className="animate-spin" />}
+            {paymentSuccess ? 'Paid' : paying ? 'Processing...' : 'Pay Now'}
           </button>
         </div>
 

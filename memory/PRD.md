@@ -137,5 +137,4 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - Refactoring: ~~TripBuilder.jsx (~2,300 lines) component extraction~~ DONE (1,934 lines, 14 sub-components)
 
 ## MOCKED
-- Google Sheets sync, PayPal checkout, Aviationstack, Payment processing (Pay Now alert)
-essing (Pay Now alert)
+- Google Sheets sync, PayPal checkout, Aviationstack, Credit Card/EMI/Tabby payments (wallet payment is LIVE)
