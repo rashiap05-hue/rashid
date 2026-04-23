@@ -1701,7 +1701,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-gray-100 overflow-x-auto">
-            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'visas', 'sim-cards', 'terms', 'insurance', 'staff', 'wallets', 'bookings'].map((tab) => (
+            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'visas', 'sim-cards', 'terms', 'insurance', 'staff', 'wallets'].map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
