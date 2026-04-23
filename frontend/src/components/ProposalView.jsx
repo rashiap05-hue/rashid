@@ -94,9 +94,11 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
   const handleHoldBooking = async (holdDate) => {
     try {
       await api.post(`/proposals/${proposal.id}/hold`, { hold_until_date: holdDate });
+      await refreshProposal();
       onHoldBooking?.();
     } catch (e) {
       console.error('Failed to hold booking', e);
+      alert(e.response?.data?.detail || 'Failed to hold booking. Please try again.');
     }
   };
 
