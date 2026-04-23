@@ -39,7 +39,7 @@ async def login(credentials: UserLogin):
     token = create_token(user["id"])
     return TokenResponse(
         access_token=token,
-        user=UserResponse(id=user["id"], email=user["email"], full_name=user["full_name"], company_name=user["company_name"], mobile=user.get("mobile"))
+        user=UserResponse(id=user["id"], email=user["email"], full_name=user["full_name"], company_name=user["company_name"], mobile=user.get("mobile"), role=user.get("role", "agent"))
     )
 
 @auth_router.get("/me", response_model=UserResponse)

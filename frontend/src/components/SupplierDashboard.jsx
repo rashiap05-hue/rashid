@@ -1,737 +1,436 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Car, DollarSign, Calendar, Clock, Users, CheckCircle, XCircle, 
-  AlertCircle, TrendingUp, Package, MapPin, Phone, Mail, User,
-  ChevronRight, RefreshCw, Filter, Search, Eye, Edit2, X, Save,
-  ArrowLeft, Briefcase, Building2
+  Car, Hotel, Camera, DollarSign, Calendar, Clock, Users, CheckCircle, XCircle, 
+  AlertCircle, Package, MapPin, Phone, Mail, User, RefreshCw, Search, Eye, X,
+  ArrowLeft, Building2, Loader2, ChevronDown, Plane, FileText, MessageSquare
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { api } from '@/App';
 
 export default function SupplierDashboard({ user, onBack }) {
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('bookings');
   const [stats, setStats] = useState({});
-  const [transfers, setTransfers] = useState([]);
   const [bookings, setBookings] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [editModal, setEditModal] = useState({ open: false, transfer: null });
-  const [editForm, setEditForm] = useState({});
-  const [saving, setSaving] = useState(false);
-  const [bookingDetailModal, setBookingDetailModal] = useState({ open: false, booking: null });
-  
-  // Demo mode: allow selecting supplier for testing
-  const [selectedSupplier, setSelectedSupplier] = useState(null);
-  const [availableSuppliers, setAvailableSuppliers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [actionModal, setActionModal] = useState({ open: false, booking: null, type: null });
+  const [actionNote, setActionNote] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [detailBooking, setDetailBooking] = useState(null);
 
-  // Get supplier name - use selected supplier or user's company
-  const supplierName = selectedSupplier || user?.company_name || user?.full_name || 'Emirates Transfers LLC';
-
-  // Fetch available suppliers for demo mode
-  useEffect(() => {
-    const fetchSuppliers = async () => {
-      try {
-        const response = await api.get('/transfers');
-        if (response.data.success) {
-          const suppliers = [...new Set(response.data.transfers.map(t => t.supplier_name).filter(Boolean))];
-          setAvailableSuppliers(suppliers);
-          // Auto-select first supplier if user's company doesn't match any
-          if (suppliers.length > 0 && !suppliers.includes(user?.company_name)) {
-            setSelectedSupplier(suppliers[0]);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching suppliers:', error);
-      }
-    };
-    fetchSuppliers();
-  }, [user?.company_name]);
-
-  const fetchDashboardData = useCallback(async () => {
-    if (!supplierName) return;
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await api.get(`/supplier/dashboard?supplier_name=${encodeURIComponent(supplierName)}`);
-      if (response.data.success) {
-        setStats(response.data.stats);
-        setTransfers(response.data.transfers);
-        setBookings(response.data.recent_bookings);
-      }
-    } catch (error) {
-      console.error('Error fetching supplier data:', error);
-    } finally {
-      setLoading(false);
+      const [dashRes, bookRes] = await Promise.all([
+        api.get('/supplier/dashboard'),
+        api.get('/supplier/bookings'),
+      ]);
+      setStats(dashRes.data?.stats || {});
+      setBookings(bookRes.data?.bookings || []);
+    } catch (e) {
+      console.error('Supplier dashboard error:', e);
     }
-  }, [supplierName]);
+    setLoading(false);
+  };
 
-  useEffect(() => {
-    if (supplierName) {
-      fetchDashboardData();
-    }
-  }, [fetchDashboardData, supplierName]);
+  useEffect(() => { fetchData(); }, []);
 
-  const fetchBookings = async (status = null) => {
+  const handleConfirm = async () => {
+    if (!actionModal.booking) return;
+    setActionLoading(true);
     try {
-      const url = status && status !== 'all' 
-        ? `/supplier/bookings?supplier_name=${encodeURIComponent(supplierName)}&status=${status}`
-        : `/supplier/bookings?supplier_name=${encodeURIComponent(supplierName)}`;
-      const response = await api.get(url);
-      if (response.data.success) {
-        setBookings(response.data.bookings);
-      }
-    } catch (error) {
-      console.error('Error fetching bookings:', error);
+      await api.post(`/supplier/bookings/${actionModal.booking.id}/confirm`, { note: actionNote });
+      setActionModal({ open: false, booking: null, type: null });
+      setActionNote('');
+      fetchData();
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Failed to confirm');
     }
+    setActionLoading(false);
   };
 
-  const updateBookingStatus = async (bookingId, newStatus) => {
+  const handleReject = async () => {
+    if (!actionModal.booking || !actionNote.trim()) return;
+    setActionLoading(true);
     try {
-      await api.post(`/supplier/bookings/${bookingId}/status?supplier_name=${encodeURIComponent(supplierName)}&status=${newStatus}`);
-      fetchBookings(statusFilter);
-      fetchDashboardData();
-    } catch (error) {
-      console.error('Error updating booking:', error);
+      await api.post(`/supplier/bookings/${actionModal.booking.id}/reject`, { reason: actionNote });
+      setActionModal({ open: false, booking: null, type: null });
+      setActionNote('');
+      fetchData();
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Failed to reject');
     }
+    setActionLoading(false);
   };
 
-  const openEditModal = (transfer) => {
-    setEditForm({
-      is_available: transfer.is_available,
-      pickup_times: transfer.pickup_times || [],
-      description: transfer.description || '',
-      duration: transfer.duration || '',
-      confirmation_time: transfer.confirmation_time || ''
-    });
-    setEditModal({ open: true, transfer });
-  };
-
-  const handleFieldChange = useCallback((field, value) => {
-    setEditForm(prev => ({ ...prev, [field]: value }));
-  }, []);
-
-  const saveTransferEdit = async () => {
-    setSaving(true);
-    try {
-      await api.put(
-        `/supplier/transfers/${editModal.transfer.id}?supplier_name=${encodeURIComponent(supplierName)}`,
-        editForm
-      );
-      setEditModal({ open: false, transfer: null });
-      fetchDashboardData();
-    } catch (error) {
-      console.error('Error updating transfer:', error);
-    } finally {
-      setSaving(false);
+  const filtered = bookings.filter(b => {
+    if (statusFilter !== 'all' && b.supplier_status !== statusFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const name = b.proposal?.customer_name?.toLowerCase() || '';
+      const pname = b.proposal?.proposal_name?.toLowerCase() || '';
+      const oid = (b.order_id || '').toLowerCase();
+      if (!name.includes(q) && !pname.includes(q) && !oid.includes(q)) return false;
     }
-  };
-
-  const createSampleBookings = async () => {
-    try {
-      await api.post(`/supplier/bookings/create-sample?supplier_name=${encodeURIComponent(supplierName)}`);
-      fetchDashboardData();
-      fetchBookings();
-    } catch (error) {
-      console.error('Error creating sample bookings:', error);
-    }
-  };
-
-  const filteredBookings = bookings.filter(booking => {
-    const matchesSearch = 
-      booking.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      booking.customer_email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      booking.transfer?.title?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    return true;
   });
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'pending': return 'bg-amber-100 text-amber-700';
-      case 'confirmed': return 'bg-blue-100 text-blue-700';
-      case 'completed': return 'bg-green-100 text-green-700';
-      case 'cancelled': return 'bg-red-100 text-red-700';
-      case 'rejected': return 'bg-gray-100 text-gray-700';
-      default: return 'bg-gray-100 text-gray-700';
-    }
+  const statusColors = {
+    pending: 'bg-amber-100 text-amber-800',
+    confirmed: 'bg-green-100 text-green-800',
+    rejected: 'bg-red-100 text-red-800',
   };
-
-  const StatCard = ({ icon: Icon, label, value, subValue, color, bgColor }) => (
-    <div className={`${bgColor} rounded-2xl p-6 relative overflow-hidden`}>
-      <div className="relative z-10">
-        <div className={`w-12 h-12 ${color} bg-white/20 rounded-xl flex items-center justify-center mb-4`}>
-          <Icon size={24} className="text-white" />
-        </div>
-        <div className="text-3xl font-bold text-white mb-1">{value}</div>
-        <div className="text-white/80 text-sm">{label}</div>
-        {subValue && <div className="text-white/60 text-xs mt-1">{subValue}</div>}
-      </div>
-      <div className="absolute -right-4 -bottom-4 opacity-10">
-        <Icon size={120} />
-      </div>
-    </div>
-  );
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <div className="text-white text-lg">Loading Supplier Dashboard...</div>
-        </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-[#002B5B]" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900" data-testid="supplier-dashboard">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-black/20 backdrop-blur-xl border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={onBack}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                data-testid="back-button"
-              >
-                <ArrowLeft className="text-white" size={24} />
-              </button>
-              <div>
-                <h1 className="text-2xl font-bold text-white">Supplier Dashboard</h1>
-                <div className="flex items-center gap-3">
-                  <p className="text-purple-300 text-sm flex items-center gap-2">
-                    <Building2 size={14} />
-                    {supplierName}
-                  </p>
-                  {availableSuppliers.length > 1 && (
-                    <select
-                      value={selectedSupplier || ''}
-                      onChange={(e) => setSelectedSupplier(e.target.value)}
-                      className="text-xs bg-white/10 border border-white/20 rounded px-2 py-1 text-white/80 focus:outline-none focus:border-purple-400"
-                      data-testid="supplier-selector"
-                    >
-                      {availableSuppliers.map((s) => (
-                        <option key={s} value={s} className="bg-slate-800">{s}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={fetchDashboardData}
-                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors"
-                data-testid="refresh-data"
-              >
-                <RefreshCw size={18} />
-                Refresh
-              </button>
-              {bookings.length === 0 && (
-                <button
-                  onClick={createSampleBookings}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-xl transition-colors"
-                  data-testid="create-sample-bookings"
-                >
-                  <Package size={18} />
-                  Generate Sample Bookings
-                </button>
-              )}
+      <div className="bg-[#002B5B] text-white px-8 py-6">
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
+          <div className="flex items-center gap-4">
+            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+              <ArrowLeft size={20} />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold">Supplier Dashboard</h1>
+              <p className="text-sm text-white/70">{user?.company_name || user?.full_name}</p>
             </div>
           </div>
+          <button onClick={fetchData} className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-colors">
+            <RefreshCw size={14} /> Refresh
+          </button>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard
-            icon={Car}
-            label="Total Transfers"
-            value={stats.total_transfers || 0}
-            bgColor="bg-gradient-to-br from-blue-500 to-blue-600"
-          />
-          <StatCard
-            icon={Package}
-            label="Total Bookings"
-            value={stats.total_bookings || 0}
-            subValue={`${stats.pending_bookings || 0} pending`}
-            bgColor="bg-gradient-to-br from-purple-500 to-purple-600"
-          />
-          <StatCard
-            icon={DollarSign}
-            label="Total Earnings"
-            value={`${(stats.total_earnings || 0).toLocaleString()} AED`}
-            subValue={`${(stats.pending_earnings || 0).toLocaleString()} AED pending`}
-            bgColor="bg-gradient-to-br from-green-500 to-green-600"
-          />
-          <StatCard
-            icon={CheckCircle}
-            label="Completed"
-            value={stats.completed_bookings || 0}
-            subValue={`${stats.confirmed_bookings || 0} confirmed`}
-            bgColor="bg-gradient-to-br from-teal-500 to-teal-600"
-          />
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          {['overview', 'transfers', 'bookings', 'earnings'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => {
-                setActiveTab(tab);
-                if (tab === 'bookings') fetchBookings();
-              }}
-              className={`px-6 py-3 rounded-xl font-bold text-sm transition-all ${
-                activeTab === tab
-                  ? 'bg-white text-purple-900 shadow-lg'
-                  : 'bg-white/10 text-white hover:bg-white/20'
-              }`}
-              data-testid={`tab-${tab}`}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
+      <div className="max-w-7xl mx-auto px-8 py-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-4 gap-4 mb-8">
+          {[
+            { label: 'Total Bookings', value: stats.total_bookings || 0, icon: Package, color: 'text-blue-600 bg-blue-50' },
+            { label: 'Pending', value: stats.pending_bookings || 0, icon: AlertCircle, color: 'text-amber-600 bg-amber-50' },
+            { label: 'Confirmed', value: stats.confirmed_bookings || 0, icon: CheckCircle, color: 'text-green-600 bg-green-50' },
+            { label: 'Rejected', value: stats.rejected_bookings || 0, icon: XCircle, color: 'text-red-600 bg-red-50' },
+          ].map(({ label, value, icon: Icon, color }) => (
+            <div key={label} className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", color)}>
+                  <Icon size={20} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{value}</p>
+                  <p className="text-xs text-gray-500">{label}</p>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
 
-        {/* Tab Content */}
-        <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
-          {/* Overview Tab */}
-          {activeTab === 'overview' && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-bold text-white mb-4">Recent Activity</h2>
-              
-              {/* Recent Bookings */}
-              <div className="space-y-3">
-                {bookings.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Package size={48} className="mx-auto text-white/30 mb-4" />
-                    <p className="text-white/50">No bookings yet</p>
-                    <button
-                      onClick={createSampleBookings}
-                      className="mt-4 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-xl transition-colors"
-                    >
-                      Generate Sample Bookings
-                    </button>
-                  </div>
-                ) : (
-                  bookings.slice(0, 5).map((booking) => (
-                    <div
-                      key={booking.id}
-                      className="bg-white/5 rounded-xl p-4 flex items-center justify-between hover:bg-white/10 transition-colors"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                          <User size={20} className="text-purple-400" />
-                        </div>
-                        <div>
-                          <div className="text-white font-medium">{booking.customer_name}</div>
-                          <div className="text-white/50 text-sm">{booking.transfer?.title || 'Transfer'}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <div className="text-white font-bold">{booking.supplier_earnings || 0} AED</div>
-                          <div className="text-white/50 text-xs">{booking.pickup_date}</div>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(booking.status)}`}>
-                          {booking.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
+        {/* Tabs */}
+        <div className="flex gap-1 mb-6 bg-white rounded-lg p-1 border border-gray-200 w-fit">
+          {['bookings', 'services'].map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className={cn("px-5 py-2 rounded-md text-sm font-medium transition-colors capitalize",
+                activeTab === tab ? 'bg-[#002B5B] text-white' : 'text-gray-600 hover:bg-gray-100'
+              )}>{tab}</button>
+          ))}
+        </div>
 
-          {/* Transfers Tab */}
-          {activeTab === 'transfers' && (
-            <div>
-              <h2 className="text-xl font-bold text-white mb-4">My Transfers ({transfers.length})</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {transfers.map((transfer) => (
-                  <div
-                    key={transfer.id}
-                    className="bg-white/5 rounded-xl p-5 border border-white/10 hover:border-purple-500/50 transition-all group"
-                    data-testid={`transfer-card-${transfer.id}`}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          transfer.transfer_type === 'Luxury' ? 'bg-amber-500/20' :
-                          transfer.transfer_type === 'Shared' ? 'bg-blue-500/20' : 'bg-teal-500/20'
-                        }`}>
-                          <Car className={`${
-                            transfer.transfer_type === 'Luxury' ? 'text-amber-400' :
-                            transfer.transfer_type === 'Shared' ? 'text-blue-400' : 'text-teal-400'
-                          }`} size={20} />
-                        </div>
-                        <div>
-                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                            transfer.transfer_type === 'Luxury' ? 'bg-amber-500/20 text-amber-400' :
-                            transfer.transfer_type === 'Shared' ? 'bg-blue-500/20 text-blue-400' : 'bg-teal-500/20 text-teal-400'
-                          }`}>
-                            {transfer.transfer_type}
-                          </span>
-                          {transfer.vehicle_type && (
-                            <span className="ml-2 text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-white/10 text-white/60">
-                              {transfer.vehicle_type}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => openEditModal(transfer)}
-                        className="p-2 hover:bg-white/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                        data-testid={`edit-transfer-${transfer.id}`}
-                      >
-                        <Edit2 size={16} className="text-white/60" />
-                      </button>
-                    </div>
-                    
-                    <h3 className="text-white font-bold text-sm mb-2 line-clamp-1">{transfer.title}</h3>
-                    
-                    <div className="space-y-1.5 text-xs text-white/60 mb-3">
-                      <div className="flex items-center gap-2">
-                        <MapPin size={12} className="text-green-400" />
-                        <span className="truncate">{transfer.from_location}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin size={12} className="text-red-400" />
-                        <span className="truncate">{transfer.to_location}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between pt-3 border-t border-white/10">
-                      <div className="flex items-center gap-3 text-xs text-white/50">
-                        <div className="flex items-center gap-1">
-                          <Clock size={12} />
-                          <span>{transfer.duration}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Briefcase size={12} />
-                          <span>{transfer.max_bags || 2} bags</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-white/50 text-xs">Cost:</span>
-                        <span className="text-green-400 font-bold">{transfer.supplier_cost} AED</span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
-                      <span className={`text-xs font-bold px-2 py-1 rounded ${
-                        transfer.is_available ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                      }`}>
-                        {transfer.is_available ? 'Available' : 'Unavailable'}
-                      </span>
-                      <span className="text-white/30 text-xs">
-                        Sale Price: {transfer.price} AED
-                      </span>
-                    </div>
-                  </div>
+        {/* Bookings Tab */}
+        {activeTab === 'bookings' && (
+          <div>
+            {/* Filters */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="relative flex-1 max-w-sm">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input type="text" placeholder="Search by name, proposal, order ID..." value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm" />
+              </div>
+              <div className="flex gap-2">
+                {['all', 'pending', 'confirmed', 'rejected'].map(s => (
+                  <button key={s} onClick={() => setStatusFilter(s)}
+                    className={cn("px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors",
+                      statusFilter === s ? 'bg-[#002B5B] text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                    )}>{s}</button>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* Bookings Tab */}
-          {activeTab === 'bookings' && (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-white">Bookings</h2>
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-                    <input
-                      type="text"
-                      placeholder="Search bookings..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 pr-4 py-2 bg-white/10 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-purple-500"
-                      data-testid="search-bookings"
-                    />
-                  </div>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => {
-                      setStatusFilter(e.target.value);
-                      fetchBookings(e.target.value);
-                    }}
-                    className="px-4 py-2 bg-white/10 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500"
-                    data-testid="filter-status"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="confirmed">Confirmed</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                </div>
+            {/* Bookings List */}
+            {filtered.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
+                <Package size={40} className="mx-auto text-gray-300 mb-3" />
+                <p className="text-gray-500 font-medium">No bookings found</p>
               </div>
-              
-              <div className="space-y-3">
-                {filteredBookings.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Package size={48} className="mx-auto text-white/30 mb-4" />
-                    <p className="text-white/50">No bookings found</p>
-                  </div>
-                ) : (
-                  filteredBookings.map((booking) => (
-                    <div
-                      key={booking.id}
-                      className="bg-white/5 rounded-xl p-5 border border-white/10 hover:border-purple-500/30 transition-all"
-                      data-testid={`booking-card-${booking.id}`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-4">
-                          <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
-                            <User size={24} className="text-purple-400" />
-                          </div>
-                          <div>
-                            <div className="text-white font-bold">{booking.customer_name}</div>
-                            <div className="flex items-center gap-4 text-sm text-white/50 mt-1">
-                              <span className="flex items-center gap-1">
-                                <Mail size={14} />
-                                {booking.customer_email}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Phone size={14} />
-                                {booking.customer_phone}
-                              </span>
-                            </div>
-                            <div className="text-white/70 text-sm mt-2">
-                              {booking.transfer?.title || 'Transfer'}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(booking.status)}`}>
-                            {booking.status}
-                          </span>
-                          <div className="text-white font-bold text-lg mt-2">{booking.supplier_earnings || 0} AED</div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-6 mt-4 pt-4 border-t border-white/10">
-                        <div className="flex items-center gap-2 text-white/60 text-sm">
-                          <Calendar size={16} />
-                          <span>{booking.pickup_date}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-white/60 text-sm">
-                          <Clock size={16} />
-                          <span>{booking.pickup_time}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-white/60 text-sm">
-                          <Users size={16} />
-                          <span>{booking.passengers} passenger(s)</span>
-                        </div>
-                        
-                        <div className="flex-1" />
-                        
-                        {booking.status === 'pending' && (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => updateBookingStatus(booking.id, 'confirmed')}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg text-sm font-medium transition-colors"
-                              data-testid={`confirm-booking-${booking.id}`}
-                            >
-                              <CheckCircle size={14} />
-                              Accept
-                            </button>
-                            <button
-                              onClick={() => updateBookingStatus(booking.id, 'rejected')}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition-colors"
-                              data-testid={`reject-booking-${booking.id}`}
-                            >
-                              <XCircle size={14} />
-                              Reject
-                            </button>
-                          </div>
-                        )}
-                        
-                        {booking.status === 'confirmed' && (
-                          <button
-                            onClick={() => updateBookingStatus(booking.id, 'completed')}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm font-medium transition-colors"
-                            data-testid={`complete-booking-${booking.id}`}
-                          >
-                            <CheckCircle size={14} />
-                            Mark Complete
-                          </button>
-                        )}
-                      </div>
-                      
-                      {booking.notes && (
-                        <div className="mt-3 p-3 bg-white/5 rounded-lg text-white/60 text-sm">
-                          <strong>Notes:</strong> {booking.notes}
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Earnings Tab */}
-          {activeTab === 'earnings' && (
-            <div>
-              <h2 className="text-xl font-bold text-white mb-4">Earnings Overview</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-xl p-5 border border-green-500/20">
-                  <div className="text-green-400 text-sm mb-1">Total Earnings</div>
-                  <div className="text-3xl font-bold text-white">{(stats.total_earnings || 0).toLocaleString()} AED</div>
-                </div>
-                <div className="bg-gradient-to-br from-amber-500/20 to-amber-600/20 rounded-xl p-5 border border-amber-500/20">
-                  <div className="text-amber-400 text-sm mb-1">Pending Earnings</div>
-                  <div className="text-3xl font-bold text-white">{(stats.pending_earnings || 0).toLocaleString()} AED</div>
-                </div>
-                <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 rounded-xl p-5 border border-purple-500/20">
-                  <div className="text-purple-400 text-sm mb-1">Completed Bookings</div>
-                  <div className="text-3xl font-bold text-white">{stats.completed_bookings || 0}</div>
-                </div>
-              </div>
-              
-              <h3 className="text-lg font-bold text-white mb-3">Earnings by Transfer</h3>
-              <div className="space-y-3">
-                {transfers.map((transfer) => {
-                  const transferBookings = bookings.filter(b => b.transfer_id === transfer.id && ['confirmed', 'completed'].includes(b.status));
-                  const transferEarnings = transferBookings.reduce((sum, b) => sum + (b.supplier_earnings || 0), 0);
-                  
+            ) : (
+              <div className="space-y-4">
+                {filtered.map(booking => {
+                  const p = booking.proposal || {};
+                  const cities = (p.cities || []).map(c => c.name).join(', ');
                   return (
-                    <div
-                      key={transfer.id}
-                      className="bg-white/5 rounded-xl p-4 flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                          <Car size={20} className="text-purple-400" />
-                        </div>
-                        <div>
-                          <div className="text-white font-medium line-clamp-1">{transfer.title}</div>
-                          <div className="text-white/50 text-sm">{transferBookings.length} bookings</div>
+                    <div key={booking.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden" data-testid={`supplier-booking-${booking.id}`}>
+                      <div className="p-5">
+                        <div className="flex items-start justify-between gap-4">
+                          {/* Left: Booking Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="font-bold text-gray-900">{p.proposal_name || 'Trip Booking'}</h3>
+                              <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-bold uppercase", statusColors[booking.supplier_status] || statusColors.pending)}>
+                                {booking.supplier_status || 'pending'}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-4 text-sm">
+                              <div className="flex items-center gap-2">
+                                <User size={14} className="text-gray-400" />
+                                <span className="text-gray-600">{p.customer_name || 'N/A'}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <MapPin size={14} className="text-gray-400" />
+                                <span className="text-gray-600">{cities || 'N/A'}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Calendar size={14} className="text-gray-400" />
+                                <span className="text-gray-600">{p.leaving_on ? new Date(p.leaving_on).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}</span>
+                              </div>
+                            </div>
+
+                            {/* Matched Services */}
+                            {booking.matched_services?.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-3">
+                                {booking.matched_services.map((s, i) => (
+                                  <span key={i} className={cn("px-2 py-1 rounded text-xs font-medium",
+                                    s.type === 'hotel' ? 'bg-purple-50 text-purple-700' :
+                                    s.type === 'transfer' ? 'bg-blue-50 text-blue-700' : 'bg-teal-50 text-teal-700'
+                                  )}>
+                                    {s.type === 'hotel' && <Hotel size={10} className="inline mr-1" />}
+                                    {s.type === 'transfer' && <Car size={10} className="inline mr-1" />}
+                                    {s.type === 'activity' && <Camera size={10} className="inline mr-1" />}
+                                    {s.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {booking.supplier_note && (
+                              <p className="text-xs text-green-600 mt-2">Note: {booking.supplier_note}</p>
+                            )}
+                            {booking.supplier_rejection_reason && (
+                              <p className="text-xs text-red-600 mt-2">Rejection: {booking.supplier_rejection_reason}</p>
+                            )}
+                          </div>
+
+                          {/* Right: Actions */}
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button onClick={() => setDetailBooking(booking)}
+                              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
+                              data-testid={`view-booking-${booking.id}`}>
+                              <Eye size={14} /> Details
+                            </button>
+                            {(!booking.supplier_status || booking.supplier_status === 'pending') && (
+                              <>
+                                <button onClick={() => { setActionModal({ open: true, booking, type: 'confirm' }); setActionNote(''); }}
+                                  className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
+                                  data-testid={`confirm-booking-${booking.id}`}>
+                                  <CheckCircle size={14} /> Confirm
+                                </button>
+                                <button onClick={() => { setActionModal({ open: true, booking, type: 'reject' }); setActionNote(''); }}
+                                  className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
+                                  data-testid={`reject-booking-${booking.id}`}>
+                                  <XCircle size={14} /> Reject
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-green-400 font-bold text-lg">{transferEarnings.toLocaleString()} AED</div>
-                        <div className="text-white/40 text-xs">@ {transfer.supplier_cost} AED each</div>
+                      {/* Payment info bar */}
+                      <div className="bg-gray-50 px-5 py-2.5 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+                        <span>Order: {booking.order_id || booking.id?.slice(0, 8)}</span>
+                        <span>Payment: {booking.payment_method || 'N/A'} — AED {(booking.payment_amount || p.total_price || 0).toLocaleString()}</span>
+                        <span>Booked: {booking.created_at ? new Date(booking.created_at).toLocaleDateString('en-GB') : 'N/A'}</span>
                       </div>
                     </div>
                   );
                 })}
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
+
+        {/* Services Tab */}
+        {activeTab === 'services' && (
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h3 className="font-bold text-gray-900 mb-4">Your Linked Services</h3>
+            <p className="text-sm text-gray-500 mb-2">Total services: {stats.total_services || 0} (Hotels: {stats.total_hotels || 0}, Transfers: {stats.total_transfers || 0}, Activities: {stats.total_activities || 0})</p>
+            <p className="text-xs text-gray-400">Bookings containing your services are auto-routed to this dashboard.</p>
+          </div>
+        )}
       </div>
 
-      {/* Edit Transfer Modal */}
+      {/* Confirm/Reject Modal */}
       <AnimatePresence>
-        {editModal.open && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => setEditModal({ open: false, transfer: null })}>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-slate-800 rounded-2xl p-6 w-full max-w-md mx-4 border border-white/10"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">Edit Transfer</h3>
-                <button
-                  onClick={() => setEditModal({ open: false, transfer: null })}
-                  className="p-2 hover:bg-white/10 rounded-lg"
-                >
-                  <X size={20} className="text-white/60" />
-                </button>
+        {actionModal.open && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setActionModal({ open: false, booking: null, type: null })} />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white rounded-xl shadow-2xl w-full max-w-md" data-testid="action-modal">
+              <div className={cn("px-6 py-4 rounded-t-xl text-white", actionModal.type === 'confirm' ? 'bg-green-600' : 'bg-red-600')}>
+                <h3 className="text-lg font-bold">{actionModal.type === 'confirm' ? 'Confirm Booking' : 'Reject Booking'}</h3>
+                <p className="text-sm text-white/80">{actionModal.booking?.proposal?.proposal_name}</p>
               </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-white/70 mb-1">Duration</label>
-                  <input
-                    type="text"
-                    value={editForm.duration || ''}
-                    onChange={(e) => handleFieldChange('duration', e.target.value)}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-purple-500"
-                    data-testid="edit-transfer-duration"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-bold text-white/70 mb-1">Confirmation Time</label>
-                  <input
-                    type="text"
-                    value={editForm.confirmation_time || ''}
-                    onChange={(e) => handleFieldChange('confirmation_time', e.target.value)}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-purple-500"
-                    data-testid="edit-transfer-confirmation"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-bold text-white/70 mb-1">Pick-up Times (comma-separated)</label>
-                  <input
-                    type="text"
-                    value={Array.isArray(editForm.pickup_times) ? editForm.pickup_times.join(', ') : ''}
-                    onChange={(e) => handleFieldChange('pickup_times', e.target.value.split(',').map(t => t.trim()).filter(t => t))}
-                    placeholder="06:00, 09:00, 12:00"
-                    className="w-full px-4 py-3 bg-white/10 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-purple-500"
-                    data-testid="edit-transfer-pickup-times"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-bold text-white/70 mb-1">Description</label>
-                  <textarea
-                    value={editForm.description || ''}
-                    onChange={(e) => handleFieldChange('description', e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-purple-500 resize-none"
-                    data-testid="edit-transfer-description"
-                  />
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={editForm.is_available}
-                    onChange={(e) => handleFieldChange('is_available', e.target.checked)}
-                    className="w-5 h-5 rounded border-white/20 bg-white/10 text-purple-500 focus:ring-purple-500"
-                    data-testid="edit-transfer-available"
-                  />
-                  <label className="text-sm font-bold text-white/70">Transfer Available</label>
+              <div className="p-6">
+                <label className="text-sm font-medium text-gray-700">
+                  {actionModal.type === 'confirm' ? 'Note (optional)' : 'Reason for rejection *'}
+                </label>
+                <textarea value={actionNote} onChange={e => setActionNote(e.target.value)}
+                  placeholder={actionModal.type === 'confirm' ? 'Add a note...' : 'Please provide a reason...'}
+                  className="mt-2 w-full border border-gray-300 rounded-lg px-4 py-3 text-sm resize-none h-28 focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                  data-testid="action-note-input" />
+                <div className="flex gap-3 mt-5">
+                  <button onClick={() => setActionModal({ open: false, booking: null, type: null })}
+                    className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={actionModal.type === 'confirm' ? handleConfirm : handleReject}
+                    disabled={actionLoading || (actionModal.type === 'reject' && !actionNote.trim())}
+                    className={cn("flex-1 px-4 py-2.5 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50",
+                      actionModal.type === 'confirm' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
+                    )} data-testid="action-submit-btn">
+                    {actionLoading && <Loader2 size={14} className="animate-spin" />}
+                    {actionModal.type === 'confirm' ? 'Confirm' : 'Reject'}
+                  </button>
                 </div>
               </div>
-              
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setEditModal({ open: false, transfer: null })}
-                  className="flex-1 px-4 py-3 bg-white/10 text-white rounded-xl font-bold hover:bg-white/20 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={saveTransferEdit}
-                  disabled={saving}
-                  className="flex-1 px-4 py-3 bg-purple-500 text-white rounded-xl font-bold hover:bg-purple-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                  data-testid="save-transfer-button"
-                >
-                  {saving ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <Save size={18} />
-                      Save Changes
-                    </>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Booking Detail Modal */}
+      <AnimatePresence>
+        {detailBooking && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDetailBooking(null)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="booking-detail-modal">
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
+                <h3 className="text-lg font-bold text-gray-900">Booking Details</h3>
+                <button onClick={() => setDetailBooking(null)} className="p-1 hover:bg-gray-100 rounded-full"><X size={18} /></button>
+              </div>
+              <div className="p-6 space-y-5">
+                {/* Customer Info */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Customer</h4>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div><span className="text-gray-400">Name:</span> <span className="font-medium">{detailBooking.proposal?.customer_name || 'N/A'}</span></div>
+                    <div><span className="text-gray-400">Email:</span> <span className="font-medium">{detailBooking.proposal?.customer_email || 'N/A'}</span></div>
+                    <div><span className="text-gray-400">Phone:</span> <span className="font-medium">{detailBooking.proposal?.customer_phone || 'N/A'}</span></div>
+                    <div><span className="text-gray-400">Travel Date:</span> <span className="font-medium">{detailBooking.proposal?.leaving_on || 'N/A'}</span></div>
+                  </div>
+                </div>
+
+                {/* Trip Details */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Trip Details</h4>
+                  <p className="text-sm text-gray-700 font-medium mb-2">{detailBooking.proposal?.proposal_name}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(detailBooking.proposal?.cities || []).map((c, i) => (
+                      <span key={i} className="px-3 py-1 bg-gray-100 rounded-lg text-sm">
+                        <MapPin size={12} className="inline mr-1 text-gray-400" />{c.name} — {c.nights} night{c.nights > 1 ? 's' : ''}
+                      </span>
+                    ))}
+                  </div>
+                  {detailBooking.proposal?.room_data?.length > 0 && (
+                    <div className="mt-3 text-sm text-gray-600">
+                      <Users size={14} className="inline mr-1" />
+                      {detailBooking.proposal.room_data.map((r, i) => (
+                        <span key={i}>{i > 0 && ', '}Room {i + 1}: {r.adults} adult{r.adults > 1 ? 's' : ''}{r.children?.length > 0 ? `, ${r.children.length} child` : ''}</span>
+                      ))}
+                    </div>
                   )}
-                </button>
+                </div>
+
+                {/* Your Services in This Booking */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Your Services</h4>
+                  <div className="space-y-2">
+                    {(detailBooking.matched_services || []).map((s, i) => (
+                      <div key={i} className={cn("p-3 rounded-lg border text-sm",
+                        s.type === 'hotel' ? 'bg-purple-50 border-purple-200' :
+                        s.type === 'transfer' ? 'bg-blue-50 border-blue-200' : 'bg-teal-50 border-teal-200'
+                      )}>
+                        <span className="font-medium capitalize">{s.type}:</span> {s.name}
+                        {s.direction && <span className="text-xs text-gray-500 ml-2">({s.direction})</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Hotels */}
+                {detailBooking.proposal?.selected_hotels && Object.keys(detailBooking.proposal.selected_hotels).length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Hotels</h4>
+                    {Object.entries(detailBooking.proposal.selected_hotels).map(([key, hotel]) => (
+                      <div key={key} className="p-3 bg-gray-50 rounded-lg text-sm mb-2">
+                        <p className="font-medium">{hotel?.name}</p>
+                        <p className="text-gray-500">{hotel?.selectedRoom?.name || 'Standard Room'} • {hotel?.star_rating} star</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Transfers */}
+                {(detailBooking.proposal?.arrival_transfer || detailBooking.proposal?.departure_transfer) && (
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Transfers</h4>
+                    {detailBooking.proposal.arrival_transfer && (
+                      <div className="p-3 bg-blue-50 rounded-lg text-sm mb-2">
+                        <p className="font-medium text-blue-800">Arrival: {detailBooking.proposal.arrival_transfer.title}</p>
+                      </div>
+                    )}
+                    {detailBooking.proposal.departure_transfer && (
+                      <div className="p-3 bg-orange-50 rounded-lg text-sm mb-2">
+                        <p className="font-medium text-orange-800">Departure: {detailBooking.proposal.departure_transfer.title}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Travelers */}
+                {detailBooking.travelers?.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Travelers</h4>
+                    {detailBooking.travelers.map((t, i) => (
+                      <div key={i} className="p-3 bg-gray-50 rounded-lg text-sm mb-2">
+                        <p className="font-medium">{t.title} {t.firstName} {t.lastName}</p>
+                        {t.passportNumber && <p className="text-gray-500">Passport: {t.passportNumber}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Payment */}
+                <div>
+                  <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Payment</h4>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div><span className="text-gray-400">Method:</span> <span className="font-medium capitalize">{detailBooking.payment_method || 'N/A'}</span></div>
+                    <div><span className="text-gray-400">Amount:</span> <span className="font-bold text-green-700">AED {(detailBooking.payment_amount || detailBooking.proposal?.total_price || 0).toLocaleString()}</span></div>
+                    <div><span className="text-gray-400">Order ID:</span> <span className="font-medium">{detailBooking.order_id || 'N/A'}</span></div>
+                    <div><span className="text-gray-400">Status:</span> <span className={cn("font-bold uppercase", detailBooking.supplier_status === 'confirmed' ? 'text-green-600' : detailBooking.supplier_status === 'rejected' ? 'text-red-600' : 'text-amber-600')}>{detailBooking.supplier_status || 'Pending'}</span></div>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </div>

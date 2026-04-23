@@ -138,3 +138,8 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 
 ## MOCKED
 - Google Sheets sync, PayPal checkout, Aviationstack, Credit Card/EMI/Tabby payments (wallet payment is LIVE)
+
+## Credentials
+- Admin: testadmin@example.com / password123
+- Agent: rashid@travotours.ae / password123
+- Supplier: supplier@georgiancars.ge / password123 (company: Travo Georgia)

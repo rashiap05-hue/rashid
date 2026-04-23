@@ -172,6 +172,58 @@ function AdminBookingsTab() {
   );
 }
 
+
+function AdminSupplierBookingsTab() {
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+
+  const fetchBookings = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/supplier/bookings/all');
+      setBookings(res.data?.bookings || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchBookings(); }, []);
+
+  const statusColors = { pending: 'bg-amber-100 text-amber-800', confirmed: 'bg-green-100 text-green-800', rejected: 'bg-red-100 text-red-800' };
+  const filtered = bookings.filter(b => filter === 'all' || b.supplier_status === filter);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold">Supplier Bookings ({filtered.length})</h2>
+        <div className="flex gap-2">
+          {['all', 'pending', 'confirmed', 'rejected'].map(s => (
+            <button key={s} onClick={() => setFilter(s)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize ${filter === s ? 'bg-[#002B5B] text-white' : 'bg-gray-100 text-gray-600'}`}>{s}</button>
+          ))}
+          <button onClick={fetchBookings} className="px-3 py-1.5 bg-gray-100 rounded-lg text-xs font-medium flex items-center gap-1"><RefreshCw size={12} /> Refresh</button>
+        </div>
+      </div>
+      {loading ? <p className="text-center py-8 text-gray-400">Loading...</p> : filtered.length === 0 ? <p className="text-center py-8 text-gray-400">No bookings</p> : (
+        <div className="space-y-3">
+          {filtered.map(b => (
+            <div key={b.id} className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-900">{b.proposal?.proposal_name || 'Booking'}</p>
+                <p className="text-sm text-gray-500">{b.proposal?.customer_name} • {b.proposal?.cities?.map(c => c.name).join(', ')} • {b.proposal?.leaving_on ? new Date(b.proposal.leaving_on).toLocaleDateString('en-GB') : ''}</p>
+                <p className="text-xs text-gray-400 mt-1">Order: {b.order_id || b.id?.slice(0, 8)} • Payment: {b.payment_method || 'N/A'} AED {(b.payment_amount || 0).toLocaleString()}</p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${statusColors[b.supplier_status] || statusColors.pending}`}>
+                {b.supplier_status || 'pending'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminWalletTab() {
   const [wallets, setWallets] = useState([]);
   const [proofs, setProofs] = useState([]);
@@ -1701,7 +1753,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-gray-100 overflow-x-auto">
-            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'visas', 'sim-cards', 'terms', 'insurance', 'staff', 'wallets'].map((tab) => (
+            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'visas', 'sim-cards', 'terms', 'insurance', 'staff', 'wallets', 'supplier-bookings'].map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -2862,6 +2914,10 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
 
             {activeTab === 'bookings' && (
               <AdminBookingsTab />
+            )}
+
+            {activeTab === 'supplier-bookings' && (
+              <AdminSupplierBookingsTab />
             )}
           </div>
         </div>

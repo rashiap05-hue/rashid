@@ -19,6 +19,7 @@ class UserResponse(BaseModel):
     full_name: str
     company_name: str
     mobile: Optional[str] = None
+    role: Optional[str] = None
 
 class TokenResponse(BaseModel):
     access_token: str
