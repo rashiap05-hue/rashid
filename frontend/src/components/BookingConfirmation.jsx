@@ -344,11 +344,15 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
   );
 }
 
-export default function BookingConfirmation({ proposal, onBack, onConfirmBooking }) {
+export default function BookingConfirmation({ proposal, initialBookingData, onBack, onConfirmBooking }) {
   // Build traveler list from room_data
   const roomData = proposal.room_data || [{ adults: proposal.total_pax || 2, children: [] }];
   
   const [travelers, setTravelers] = useState(() => {
+    // Restore from initialBookingData if available (back from payment page)
+    if (initialBookingData?.travelers?.length > 0) {
+      return initialBookingData.travelers;
+    }
     const initial = [];
     roomData.forEach((room, rIdx) => {
       const adults = room.adults || 2;
@@ -386,16 +390,16 @@ export default function BookingConfirmation({ proposal, onBack, onConfirmBooking
     return initial;
   });
 
-  const [consentChecked, setConsentChecked] = useState(false);
-  const [specialOccasion, setSpecialOccasion] = useState('none');
-  const [contactInfo, setContactInfo] = useState({
+  const [consentChecked, setConsentChecked] = useState(initialBookingData ? true : false);
+  const [specialOccasion, setSpecialOccasion] = useState(initialBookingData?.specialOccasion || 'none');
+  const [contactInfo, setContactInfo] = useState(initialBookingData?.contactInfo || {
     clientProfile: '',
     email: proposal.customer_email || 'ticketing@travotours.ae',
     phone: proposal.customer_phone || '',
     city: 'Dubai',
     agentReference: ''
   });
-  const [paymentOption, setPaymentOption] = useState('full');
+  const [paymentOption, setPaymentOption] = useState(initialBookingData?.paymentOption || 'full');
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponDiscount, setCouponDiscount] = useState(0);
