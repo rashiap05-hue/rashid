@@ -49,7 +49,7 @@
     },
     "transfer_detail_modal": {
       "Modal opens on VIEW click": "PASSED",
-      "Modal shows image": "PASSED - https://trip-builder-ui.preview.emergentagent.com/api/static/activities/activity_4cc6e88e.jpg",
+      "Modal shows image": "PASSED - https://agent-payment.preview.emergentagent.com/api/static/activities/activity_4cc6e88e.jpg",
       "Modal shows description": "PASSED - Full airport pickup description",
       "Modal shows route": "PASSED - From Tbilisi International Airport (TBS) To Tbilisi center",
       "Modal shows duration": "PASSED - 45 mins",

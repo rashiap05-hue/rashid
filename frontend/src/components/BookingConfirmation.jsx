@@ -344,7 +344,7 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
   );
 }
 
-export default function BookingConfirmation({ proposal, initialBookingData, onBack, onConfirmBooking }) {
+export default function BookingConfirmation({ proposal, initialBookingData, onBack, onConfirmBooking, onHoldBooking }) {
   // Build traveler list from room_data
   const roomData = proposal.room_data || [{ adults: proposal.total_pax || 2, children: [] }];
   
@@ -408,6 +408,9 @@ export default function BookingConfirmation({ proposal, initialBookingData, onBa
   const [confirmationTime, setConfirmationTime] = useState(null);
   const [validationError, setValidationError] = useState('');
   const [attachments, setAttachments] = useState([]);
+  const [holdingBooking, setHoldingBooking] = useState(false);
+  const [holdSuccess, setHoldSuccess] = useState(false);
+  const [holdError, setHoldError] = useState('');
 
   // Pricing
   const totalPrice = proposal.pricing_breakdown?.total || proposal.total_price || 0;
@@ -486,6 +489,24 @@ export default function BookingConfirmation({ proposal, initialBookingData, onBa
     const timestamp = new Date().toISOString();
     setConfirmationTime(timestamp);
     setBookingConfirmed(true);
+  };
+
+  const handleHoldBooking = async () => {
+    if (holdingBooking) return;
+    setHoldingBooking(true);
+    setHoldError('');
+    try {
+      await api.post(`/proposals/${proposal.id}/hold`, { hold_until_date: holdDate });
+      setHoldSuccess(true);
+      // Give user a moment to see the success state, then navigate away
+      setTimeout(() => {
+        onHoldBooking?.();
+      }, 1200);
+    } catch (e) {
+      console.error('Failed to hold booking', e);
+      setHoldError(e.response?.data?.detail || 'Failed to hold booking. Please try again.');
+      setHoldingBooking(false);
+    }
   };
 
   // Collect all activities and transfers for sidebar
@@ -872,17 +893,53 @@ export default function BookingConfirmation({ proposal, initialBookingData, onBa
                   )}
                 </AnimatePresence>
 
+                {/* Hold Booking feedback */}
+                <AnimatePresence>
+                  {holdSuccess && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4"
+                      data-testid="hold-success-message"
+                    >
+                      <div className="flex items-start gap-3">
+                        <Clock size={20} className="text-amber-700 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-amber-900">Booking held successfully until {formatDate(holdDate)}.</p>
+                          <p className="text-sm text-amber-800 mt-1">Redirecting to My Bookings…</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                  {holdError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4"
+                      data-testid="hold-error-message"
+                    >
+                      <div className="flex items-start gap-3">
+                        <AlertCircle size={20} className="text-red-600 mt-0.5" />
+                        <p className="text-sm font-semibold text-red-800">{holdError}</p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {/* Action Buttons */}
                 <div className="flex gap-4 mt-6">
                   {(() => {
                     const diffDays = Math.ceil((new Date(holdDate) - new Date()) / (1000 * 60 * 60 * 24));
-                    return diffDays >= 7;
+                    return diffDays >= 7 && proposal.status !== 'held';
                   })() && (
                     <button
-                      className="flex-1 py-3 bg-amber-700 hover:bg-amber-800 text-white font-semibold rounded-lg transition-colors text-sm"
+                      onClick={handleHoldBooking}
+                      disabled={holdingBooking || holdSuccess}
+                      className="flex-1 py-3 bg-amber-700 hover:bg-amber-800 disabled:bg-amber-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
                       data-testid="hold-booking-btn"
                     >
-                      Hold Booking Until {formatDate(holdDate, 'short')}
+                      {holdingBooking && <Loader2 size={16} className="animate-spin" />}
+                      {holdingBooking ? 'Holding…' : holdSuccess ? 'Booking Held' : `Hold Booking Until ${formatDate(holdDate, 'short')}`}
                     </button>
                   )}
                   {!bookingConfirmed ? (

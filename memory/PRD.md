@@ -126,6 +126,14 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - All auto-selections are fully changeable/removable by the user
   - Skipped when editing existing proposals (`data.isEditing`)
 
+### Session 8
+- **Hold Booking from BookingConfirmation Page (Feb 2026)**: Fixed "Hold Booking Until XX" button on BookingConfirmation page — previously it had no `onClick` handler and clicking did nothing.
+  - Wired `handleHoldBooking` → `POST /api/proposals/{id}/hold` with loading/success/error states
+  - Added inline success (amber) / error (red) feedback with Framer Motion
+  - On success: 1.2s delay then redirects to Dashboard → My Bookings tab
+  - Added `onHoldBooking` prop in App.js that clears savedProposal and navigates to held bookings
+  - Button hides if proposal is already held or departure is within 28 days (matches ProposalView sidebar behaviour)
+
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
 - P2: AI-powered trip recommendations frontend

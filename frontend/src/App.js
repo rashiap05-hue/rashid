@@ -308,6 +308,12 @@ function App() {
                       setBookingData(data);
                       setCurrentView('payment');
                     }}
+                    onHoldBooking={() => {
+                      setSavedProposal(null);
+                      setBookingData(null);
+                      setCurrentView('dashboard');
+                      setActiveTab('My Bookings');
+                    }}
                   />
                 )}
 
