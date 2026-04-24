@@ -496,7 +496,12 @@ export default function BookingConfirmation({ proposal, initialBookingData, onBa
     setHoldingBooking(true);
     setHoldError('');
     try {
-      await api.post(`/proposals/${proposal.id}/hold`, { hold_until_date: holdDate });
+      await api.post(`/proposals/${proposal.id}/hold`, {
+        hold_until_date: holdDate,
+        travelers,
+        contact_info: contactInfo,
+        special_occasion: specialOccasion,
+      });
       setHoldSuccess(true);
       // Give user a moment to see the success state, then navigate away
       setTimeout(() => {

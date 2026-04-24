@@ -148,6 +148,11 @@ async def hold_proposal(proposal_id: str, body: dict, current_user: dict = Depen
     now = datetime.now(timezone.utc)
     user_id = current_user.get("id") or current_user.get("user_id", "")
 
+    # Optional traveler/contact data carried over from BookingConfirmation page
+    travelers = body.get("travelers") or []
+    contact_info = body.get("contact_info") or body.get("contactInfo") or {}
+    special_occasion = body.get("special_occasion") or body.get("specialOccasion") or "none"
+
     # Update proposal status to held
     await db.proposals.update_one(
         {"id": proposal_id},
@@ -175,12 +180,23 @@ async def hold_proposal(proposal_id: str, body: dict, current_user: dict = Depen
         "status": "held",
         "hold_until_date": hold_until_date,
         "held_at": now.isoformat(),
+        "created_at": now.isoformat(),
         "created_by": user_id,
-        "booked_by_name": current_user.get("name", ""),
+        "user_id": user_id,
+        "booked_by_name": current_user.get("name") or current_user.get("full_name", ""),
         "type": "Package",
+        "travelers": travelers,
+        "contact_info": contact_info,
+        "special_occasion": special_occasion,
+        "supplier_status": "pending",
     }
     await db.held_bookings.insert_one(booking)
     booking.pop("_id", None)
+
+    # Also insert into db.bookings so Supplier Dashboard and Admin supplier booking management see it
+    bookings_doc = {k: v for k, v in booking.items() if k != "_id"}
+    await db.bookings.insert_one(bookings_doc)
+    bookings_doc.pop("_id", None)
 
     return {"success": True, "booking": booking}
 

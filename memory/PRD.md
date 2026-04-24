@@ -133,6 +133,8 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - On success: 1.2s delay then redirects to Dashboard → My Bookings tab
   - Added `onHoldBooking` prop in App.js that clears savedProposal and navigates to held bookings
   - Button hides if proposal is already held or departure is within 28 days (matches ProposalView sidebar behaviour)
+- **Hold Booking carries Traveler + Contact Info (Feb 2026)**: Previously, traveler details filled on BookingConfirmation were lost when clicking Hold. Now the hold API accepts `travelers`, `contact_info`, `special_occasion` and persists them on the held booking — so BookingDetail page pre-fills them correctly.
+- **Held bookings now visible in Supplier / Admin dashboards (Feb 2026)**: `/proposals/{id}/hold` now also writes the booking into `db.bookings` (in addition to `db.held_bookings`) with `status=held` and `supplier_status=pending`, so Supplier Dashboard (`/api/supplier/bookings`) and Admin supplier booking management (`/api/supplier/bookings/all`) route them correctly based on matched services.
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
