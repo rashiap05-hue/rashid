@@ -10,84 +10,64 @@ supplier_router = APIRouter(prefix="/supplier", tags=["Supplier"])
 
 # --- Supplier Booking Management ---
 
-@supplier_router.get("/bookings")
-async def get_supplier_bookings(
-    status: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
-):
-    """Get all bookings routed to this supplier based on linked services."""
+async def _get_supplier_relevant_bookings(current_user: dict, status_filter: Optional[str] = None):
+    """Return bookings matched to this supplier's linked services. Admins see all bookings."""
     supplier_id = current_user.get("id")
-    supplier_name = current_user.get("company_name", "")
-    
+    supplier_name = current_user.get("company_name", "") or ""
+    is_admin = current_user.get("role") == "admin"
+
     # Find services linked to this supplier
     hotel_ids = [h["id"] async for h in db.hotels.find(
         {"$or": [{"supplier_id": supplier_id}, {"supplier_name": supplier_name}]}, {"id": 1, "_id": 0}
-    )]
+    )] if supplier_id or supplier_name else []
     transfer_ids = [t["id"] async for t in db.transfers.find(
         {"$or": [{"supplier_id": supplier_id}, {"supplier_name": supplier_name}]}, {"id": 1, "_id": 0}
-    )]
+    )] if supplier_id or supplier_name else []
     activity_ids = [a["id"] async for a in db.activities.find(
         {"$or": [{"supplier_id": supplier_id}, {"supplier_name": supplier_name}]}, {"id": 1, "_id": 0}
-    )]
-    
-    # Find bookings that contain any of these services
-    query = {"$or": [
-        {"proposal_id": {"$exists": True}},
-    ]}
-    
+    )] if supplier_id or supplier_name else []
+
     all_bookings_raw = await db.bookings.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
-    
-    # Filter bookings that are related to this supplier's services
+
     supplier_bookings = []
     for booking in all_bookings_raw:
         pid = booking.get("proposal_id")
         if not pid:
             continue
-        
-        # Get the proposal to check linked services
+
         proposal = await db.proposals.find_one({"id": pid}, {"_id": 0})
         if not proposal:
             continue
-        
-        is_relevant = False
+
         matched_services = []
-        
-        # Check hotels
-        selected_hotels = proposal.get("selected_hotels", {})
+        selected_hotels = proposal.get("selected_hotels", {}) or {}
         for key, hotel in selected_hotels.items():
             if hotel and hotel.get("id") in hotel_ids:
-                is_relevant = True
                 matched_services.append({"type": "hotel", "name": hotel.get("name"), "id": hotel.get("id")})
-        
-        # Check transfers
+
         arr_transfer = proposal.get("arrival_transfer")
         if arr_transfer and arr_transfer.get("id") in transfer_ids:
-            is_relevant = True
             matched_services.append({"type": "transfer", "name": arr_transfer.get("title"), "id": arr_transfer.get("id"), "direction": "arrival"})
-        
+
         dep_transfer = proposal.get("departure_transfer")
         if dep_transfer and dep_transfer.get("id") in transfer_ids:
-            is_relevant = True
             matched_services.append({"type": "transfer", "name": dep_transfer.get("title"), "id": dep_transfer.get("id"), "direction": "departure"})
-        
-        # Check activities
-        selected_activities = proposal.get("selected_activities", {})
+
+        selected_activities = proposal.get("selected_activities", {}) or {}
         for key, acts in selected_activities.items():
             act_list = acts if isinstance(acts, list) else [acts]
             for act in act_list:
                 if act and act.get("id") in activity_ids:
-                    is_relevant = True
                     matched_services.append({"type": "activity", "name": act.get("name"), "id": act.get("id")})
-        
-        if not is_relevant:
+
+        # Admins see every booking regardless of service matching; suppliers only see bookings with their services
+        if not matched_services and not is_admin:
             continue
-        
-        # Apply status filter
+
         supplier_status = booking.get("supplier_status", "pending")
-        if status and supplier_status != status:
+        if status_filter and supplier_status != status_filter:
             continue
-        
-        # Enrich booking with proposal details
+
         booking["proposal"] = {
             "proposal_name": proposal.get("proposal_name"),
             "customer_name": proposal.get("customer_name"),
@@ -105,7 +85,17 @@ async def get_supplier_bookings(
         booking["matched_services"] = matched_services
         booking["supplier_status"] = supplier_status
         supplier_bookings.append(booking)
-    
+
+    return supplier_bookings
+
+
+@supplier_router.get("/bookings")
+async def get_supplier_bookings(
+    status: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all bookings routed to this supplier based on linked services."""
+    supplier_bookings = await _get_supplier_relevant_bookings(current_user, status_filter=status)
     return {"success": True, "bookings": supplier_bookings}
 
 
@@ -227,21 +217,11 @@ async def get_supplier_dashboard(
         {"$or": [{"supplier_name": name}, {"supplier_id": current_user.get("id")}]}, {"_id": 0}
     ).to_list(100)
     
-    all_bookings = await db.bookings.find({}, {"_id": 0}).to_list(500)
-    supplier_booking_count = 0
-    pending_count = 0
-    confirmed_count = 0
-    rejected_count = 0
-    
-    for b in all_bookings:
-        ss = b.get("supplier_status", "pending")
-        supplier_booking_count += 1
-        if ss == "pending":
-            pending_count += 1
-        elif ss == "confirmed":
-            confirmed_count += 1
-        elif ss == "rejected":
-            rejected_count += 1
+    # Count stats consistent with /supplier/bookings (respects service matching + admin override)
+    relevant = await _get_supplier_relevant_bookings(current_user)
+    pending_count = sum(1 for b in relevant if b.get("supplier_status", "pending") == "pending")
+    confirmed_count = sum(1 for b in relevant if b.get("supplier_status") == "confirmed")
+    rejected_count = sum(1 for b in relevant if b.get("supplier_status") == "rejected")
     
     return {
         "success": True,
@@ -250,7 +230,7 @@ async def get_supplier_dashboard(
             "total_transfers": len(transfers),
             "total_hotels": len(hotels),
             "total_activities": len(activities),
-            "total_bookings": supplier_booking_count,
+            "total_bookings": len(relevant),
             "pending_bookings": pending_count,
             "confirmed_bookings": confirmed_count,
             "rejected_bookings": rejected_count,

@@ -134,7 +134,9 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Added `onHoldBooking` prop in App.js that clears savedProposal and navigates to held bookings
   - Button hides if proposal is already held or departure is within 28 days (matches ProposalView sidebar behaviour)
 - **Hold Booking carries Traveler + Contact Info (Feb 2026)**: Previously, traveler details filled on BookingConfirmation were lost when clicking Hold. Now the hold API accepts `travelers`, `contact_info`, `special_occasion` and persists them on the held booking — so BookingDetail page pre-fills them correctly.
+- **Traveler fallback seed (Feb 2026)**: If the user clicks Hold without filling travelers, backend seeds the first traveler with the proposal's `customer_name` so the Traveler Details section is never completely blank. Existing held bookings backfilled via one-time script.
 - **Held bookings now visible in Supplier / Admin dashboards (Feb 2026)**: `/proposals/{id}/hold` now also writes the booking into `db.bookings` (in addition to `db.held_bookings`) with `status=held` and `supplier_status=pending`, so Supplier Dashboard (`/api/supplier/bookings`) and Admin supplier booking management (`/api/supplier/bookings/all`) route them correctly based on matched services.
+- **Supplier Dashboard stats consistent with bookings list (Feb 2026)**: Refactored `/api/supplier/bookings` + `/api/supplier/dashboard` to share a single `_get_supplier_relevant_bookings` helper. Admins see all bookings (can confirm/reject on behalf of suppliers); suppliers see only bookings with their matched services. Fixes the "stats show 2, list shows 0" inconsistency.
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)

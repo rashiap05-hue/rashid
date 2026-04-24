@@ -153,6 +153,28 @@ async def hold_proposal(proposal_id: str, body: dict, current_user: dict = Depen
     contact_info = body.get("contact_info") or body.get("contactInfo") or {}
     special_occasion = body.get("special_occasion") or body.get("specialOccasion") or "none"
 
+    # Fallback: if no traveler info was filled, seed the first traveler with proposal's customer_name
+    # so the Traveler Details section on BookingDetail is not completely blank.
+    def _is_blank(t):
+        return not (t.get("firstName") or t.get("lastName") or t.get("passportNumber"))
+
+    if not travelers or all(_is_blank(t) for t in travelers):
+        customer_name = (proposal.get("customer_name") or "").strip()
+        if customer_name:
+            parts = customer_name.split(" ", 1)
+            first = parts[0]
+            last = parts[1] if len(parts) > 1 else ""
+            seed = {
+                "title": "Mr",
+                "firstName": first,
+                "lastName": last,
+                "dobDay": "", "dobMonth": "", "dobYear": "",
+                "passportNumber": "",
+                "expiryDay": "", "expiryMonth": "", "expiryYear": "",
+                "nationality": "",
+            }
+            travelers = [seed] + (travelers[1:] if len(travelers) > 1 else [])
+
     # Update proposal status to held
     await db.proposals.update_one(
         {"id": proposal_id},
