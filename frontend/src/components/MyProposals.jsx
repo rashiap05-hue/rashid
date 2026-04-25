@@ -187,6 +187,75 @@ export default function MyProposals({ onViewProposal, onEditProposal }) {
     </th>
   );
 
+  // Build proposal table rows as an array (avoids inline conditional that triggers visual-editor span injection)
+  const proposalRows = paginatedProposals.length === 0
+    ? [
+        <tr key="__empty__">
+          <td colSpan={11} className="px-4 py-12 text-center text-gray-500">
+            No proposals found
+          </td>
+        </tr>
+      ]
+    : paginatedProposals.map((proposal) => {
+        const adultsCount = proposal.room_data?.reduce((acc, r) => acc + (r.adults || 0), 0) || 2;
+        const childrenCount = proposal.room_data?.reduce((acc, r) => acc + (r.children?.length || 0), 0) || 0;
+        const nightsCount = proposal.cities?.reduce((acc, c) => acc + (c.nights || 0), 0) || 1;
+        const destinations = proposal.cities?.map(c => c.name).join(', ') || '-';
+        return (
+          <tr
+            key={proposal.id}
+            className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+            data-testid={`proposal-row-${proposal.id}`}
+          >
+            <td className="px-4 py-4 text-sm text-gray-800 font-medium">{generateProposalNumber(proposal.id)}</td>
+            <td className="px-4 py-4 text-sm text-gray-600">{proposal.sent_by || proposal.created_by || 'Admin'}</td>
+            <td className="px-4 py-4 text-sm text-gray-600">{proposal.customer_name || proposal.client_name || '-'}</td>
+            <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">{formatDateTime(proposal.created_at)}</td>
+            <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">{formatDate(proposal.expected_booking_date) || '-'}</td>
+            <td className="px-4 py-4">
+              <div className="text-sm text-gray-800 font-medium">{proposal.proposal_name || `Trip to ${proposal.cities?.[0]?.name || 'Unknown'}`}</div>
+              <div className="text-xs text-gray-500">{destinations}</div>
+            </td>
+            <td className="px-4 py-4 text-sm text-gray-600">{proposal.leaving_from || proposal.leaving_from_code || '-'}</td>
+            <td className="px-4 py-4">
+              <div className="text-sm text-gray-800">{formatDate(proposal.leaving_on)}</div>
+              <div className="text-xs text-gray-500">{nightsCount} night{nightsCount !== 1 ? 's' : ''}</div>
+              <div className="text-xs text-gray-500">{adultsCount}A {childrenCount > 0 ? `${childrenCount}C` : ''}</div>
+            </td>
+            <td className="px-4 py-4 text-sm font-medium text-gray-800 whitespace-nowrap">AED {(proposal.total_price || 0).toLocaleString()}</td>
+            <td className="px-4 py-4">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => onEditProposal && onEditProposal(proposal)}
+                  className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
+                  data-testid={`edit-proposal-${proposal.id}`}
+                  title="Edit Proposal"
+                >
+                  <Edit2 size={14} />Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(proposal.id)}
+                  className="flex items-center gap-1 text-red-500 hover:text-red-700 text-sm font-medium hover:underline"
+                  data-testid={`delete-proposal-${proposal.id}`}
+                  title="Delete Proposal"
+                >
+                  <Trash2 size={14} />Delete
+                </button>
+              </div>
+            </td>
+            <td className="px-4 py-4">
+              <button
+                onClick={() => onViewProposal && onViewProposal(proposal)}
+                className="flex items-center gap-1 text-[#002B5B] hover:text-[#004080] text-sm font-medium hover:underline whitespace-nowrap"
+                data-testid={`view-proposal-${proposal.id}`}
+              >
+                <Eye size={14} />View Proposal
+              </button>
+            </td>
+          </tr>
+        );
+      });
+
   return (
     <div className="min-h-screen bg-white p-6" data-testid="my-proposals-page">
       {/* Header */}
@@ -275,15 +344,14 @@ export default function MyProposals({ onViewProposal, onEditProposal }) {
       </div>
 
       {/* Table */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="animate-spin text-[#002B5B]" size={40} />
-            <p className="mt-4 text-gray-500">Loading proposals...</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full" data-testid="proposals-table">
+      {loading ? (
+        <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col items-center justify-center py-20">
+          <Loader2 className="animate-spin text-[#002B5B]" size={40} />
+          <p className="mt-4 text-gray-500">Loading proposals...</p>
+        </div>
+      ) : (
+        <div className="border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
+          <table className="w-full" data-testid="proposals-table">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <SortableHeader field="proposal_number" label="Proposal #" />
@@ -313,128 +381,10 @@ export default function MyProposals({ onViewProposal, onEditProposal }) {
                   <th className="px-4 py-2"></th>
                 </tr>
               </thead>
-              <tbody>
-                {paginatedProposals.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} className="px-4 py-12 text-center text-gray-500">
-                      No proposals found
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedProposals.map((proposal) => {
-                    const adultsCount = proposal.room_data?.reduce((acc, r) => acc + (r.adults || 0), 0) || 2;
-                    const childrenCount = proposal.room_data?.reduce((acc, r) => acc + (r.children?.length || 0), 0) || 0;
-                    const nightsCount = proposal.cities?.reduce((acc, c) => acc + (c.nights || 0), 0) || 1;
-                    const destinations = proposal.cities?.map(c => c.name).join(', ') || '-';
-                    
-                    return (
-                      <tr 
-                        key={proposal.id} 
-                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                        data-testid={`proposal-row-${proposal.id}`}
-                      >
-                        {/* Proposal # */}
-                        <td className="px-4 py-4 text-sm text-gray-800 font-medium">
-                          {generateProposalNumber(proposal.id)}
-                        </td>
-                        
-                        {/* Sent By */}
-                        <td className="px-4 py-4 text-sm text-gray-600">
-                          {proposal.sent_by || proposal.created_by || 'Admin'}
-                        </td>
-                        
-                        {/* Customer */}
-                        <td className="px-4 py-4 text-sm text-gray-600">
-                          {proposal.customer_name || proposal.client_name || '-'}
-                        </td>
-                        
-                        {/* Created At */}
-                        <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
-                          {formatDateTime(proposal.created_at)}
-                        </td>
-                        
-                        {/* Expected Booking Date */}
-                        <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
-                          {formatDate(proposal.expected_booking_date) || '-'}
-                        </td>
-                        
-                        {/* Proposal Name */}
-                        <td className="px-4 py-4">
-                          <div className="text-sm text-gray-800 font-medium">
-                            {proposal.proposal_name || `Trip to ${proposal.cities?.[0]?.name || 'Unknown'}`}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {destinations}
-                          </div>
-                        </td>
-                        
-                        {/* From */}
-                        <td className="px-4 py-4 text-sm text-gray-600">
-                          {proposal.leaving_from || proposal.leaving_from_code || '-'}
-                        </td>
-                        
-                        {/* Travel Date */}
-                        <td className="px-4 py-4">
-                          <div className="text-sm text-gray-800">
-                            {formatDate(proposal.leaving_on)}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {nightsCount} night{nightsCount !== 1 ? 's' : ''}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {adultsCount}A {childrenCount > 0 ? `${childrenCount}C` : ''}
-                          </div>
-                        </td>
-                        
-                        {/* Price Quoted */}
-                        <td className="px-4 py-4 text-sm font-medium text-gray-800 whitespace-nowrap">
-                          AED {(proposal.total_price || 0).toLocaleString()}
-                        </td>
-                        
-                        {/* Actions - Edit & Delete */}
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-3">
-                            <button
-                              onClick={() => onEditProposal && onEditProposal(proposal)}
-                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
-                              data-testid={`edit-proposal-${proposal.id}`}
-                              title="Edit Proposal"
-                            >
-                              <Edit2 size={14} />
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(proposal.id)}
-                              className="flex items-center gap-1 text-red-500 hover:text-red-700 text-sm font-medium hover:underline"
-                              data-testid={`delete-proposal-${proposal.id}`}
-                              title="Delete Proposal"
-                            >
-                              <Trash2 size={14} />
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                        
-                        {/* View Proposal */}
-                        <td className="px-4 py-4">
-                          <button
-                            onClick={() => onViewProposal && onViewProposal(proposal)}
-                            className="flex items-center gap-1 text-[#002B5B] hover:text-[#004080] text-sm font-medium hover:underline whitespace-nowrap"
-                            data-testid={`view-proposal-${proposal.id}`}
-                          >
-                            <Eye size={14} />
-                            View Proposal
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
+              <tbody>{proposalRows}</tbody>
             </table>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Pagination */}
       <div className="flex items-center justify-between mt-4 px-2">

@@ -165,6 +165,11 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Form: free-text preferences, optional budget, duration, travelers count.
   - Calls `/api/ai/recommendations` (Gemini via Emergent LLM Key) and renders parsed destinations as cards with name, description, highlights chips, best time, estimated budget. Shows travel tips below.
   - Loading / error states + "Refine search" back button.
+- **Cleaned up React hydration warnings on MyBookings & MyProposals (Feb 2026)**: Visual editor was wrapping inline `{condition ? a : b}` JSX expressions inside `<tbody>` with a tracking `<span>`, producing `<span> tbody` and `<tr> span` HTML hydration warnings. Refactored both tables to:
+  - Compute the rows array (`bookingRows`, `proposalRows`) outside the JSX as plain const expressions.
+  - Use `<tbody>{rows}</tbody>` directly so no inline conditional sits inside the table.
+  - Lifted the `loading` ternary above the bordered wrapper div for cleaner conditional rendering.
+  - Verified across multiple tab cycles → 0 console errors.
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)

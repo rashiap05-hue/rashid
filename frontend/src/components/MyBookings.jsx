@@ -156,6 +156,56 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
     </th>
   );
 
+  // Build booking rows array (avoids inline conditional that triggers visual-editor span injection)
+  const bookingRows = filtered.length === 0
+    ? [
+        <tr key="__empty__"><td colSpan={12} className="text-center py-12 text-gray-400">No bookings found</td></tr>
+      ]
+    : filtered.map((b, idx) => (
+        <tr key={b.id} className="border-b border-gray-50 hover:bg-gray-50/50 cursor-pointer" onClick={() => onViewBooking?.(b.id)} data-testid={`booking-row-${b.id}`}>
+          <td className="px-4 py-4 text-gray-500">{idx + 1}</td>
+          <td className="px-4 py-4">
+            <button onClick={(e) => { e.stopPropagation(); onViewBooking?.(b.id); }} className="text-[#0066CC] hover:underline font-medium text-sm" data-testid={`booking-ref-${b.id}`}>
+              {getShortRef(b.id)}
+            </button>
+          </td>
+          <td className="px-4 py-4">
+            <span className={`px-2.5 py-1 rounded text-xs font-medium ${getTypeBadge(b.type || 'Package')}`}>
+              {b.type || 'Package'}
+            </span>
+          </td>
+          <td className="px-4 py-4">
+            {(() => {
+              const ds = getDisplayStatus(b);
+              return (
+                <span className={`px-2.5 py-1 rounded text-xs font-bold capitalize ${getStatusBadge(ds.key)}`}>
+                  {ds.label}
+                </span>
+              );
+            })()}
+          </td>
+          <td className="px-4 py-4 text-gray-600 text-xs whitespace-nowrap">{formatDateTime(b.held_at)}</td>
+          <td className="px-4 py-4 text-gray-600 text-xs whitespace-nowrap">{formatDate(b.leaving_on)}</td>
+          <td className="px-4 py-4 text-gray-700">{b.booked_by_name || '—'}</td>
+          <td className="px-4 py-4">
+            <div className="text-gray-800">{b.customer_name || '—'}</div>
+            <div className="text-xs text-gray-400 mt-0.5">
+              {b.adults || 0} adult{(b.adults || 0) !== 1 ? 's' : ''}
+            </div>
+          </td>
+          <td className="px-4 py-4 text-gray-700">
+            {(b.cities || []).map(c => c.name || c).join(', ') || '—'}
+          </td>
+          <td className="px-4 py-4 text-gray-800 font-medium">{format(b.total_price || 0)}</td>
+          <td className="px-4 py-4 text-gray-500">
+            {b.status === 'confirmed' ? format(0) : format(b.total_price || 0)}
+          </td>
+          <td className="px-4 py-4">
+            <BookingStatusTrackerMini status={b.status} />
+          </td>
+        </tr>
+      ));
+
   return (
     <div className="max-w-full mx-auto px-3 md:px-6 py-4 md:py-8" data-testid="my-bookings-page">
       <h1 className="text-xl md:text-2xl font-black text-[#002B5B] mb-4 md:mb-6">My Bookings</h1>
@@ -247,56 +297,7 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
                 <td className="px-4 py-2" />
               </tr>
             </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr><td colSpan={12} className="text-center py-12 text-gray-400">No bookings found</td></tr>
-              ) : (
-                filtered.map((b, idx) => (
-                  <tr key={b.id} className="border-b border-gray-50 hover:bg-gray-50/50 cursor-pointer" onClick={() => onViewBooking?.(b.id)} data-testid={`booking-row-${b.id}`}>
-                    <td className="px-4 py-4 text-gray-500">{idx + 1}</td>
-                    <td className="px-4 py-4">
-                      <button onClick={(e) => { e.stopPropagation(); onViewBooking?.(b.id); }} className="text-[#0066CC] hover:underline font-medium text-sm" data-testid={`booking-ref-${b.id}`}>
-                        {getShortRef(b.id)}
-                      </button>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className={`px-2.5 py-1 rounded text-xs font-medium ${getTypeBadge(b.type || 'Package')}`}>
-                        {b.type || 'Package'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      {(() => {
-                        const ds = getDisplayStatus(b);
-                        return (
-                          <span className={`px-2.5 py-1 rounded text-xs font-bold capitalize ${getStatusBadge(ds.key)}`}>
-                            {ds.label}
-                          </span>
-                        );
-                      })()}
-                    </td>
-                    <td className="px-4 py-4 text-gray-600 text-xs whitespace-nowrap">{formatDateTime(b.held_at)}</td>
-                    <td className="px-4 py-4 text-gray-600 text-xs whitespace-nowrap">{formatDate(b.leaving_on)}</td>
-                    <td className="px-4 py-4 text-gray-700">{b.booked_by_name || '—'}</td>
-                    <td className="px-4 py-4">
-                      <div className="text-gray-800">{b.customer_name || '—'}</div>
-                      <div className="text-xs text-gray-400 mt-0.5">
-                        {b.adults || 0} adult{(b.adults || 0) !== 1 ? 's' : ''}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-gray-700">
-                      {(b.cities || []).map(c => c.name || c).join(', ') || '—'}
-                    </td>
-                    <td className="px-4 py-4 text-gray-800 font-medium">{format(b.total_price || 0)}</td>
-                    <td className="px-4 py-4 text-gray-500">
-                      {b.status === 'confirmed' ? format(0) : format(b.total_price || 0)}
-                    </td>
-                    <td className="px-4 py-4">
-                      <BookingStatusTrackerMini status={b.status} />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
+            <tbody>{bookingRows}</tbody>
           </table>
         </div>
       )}
