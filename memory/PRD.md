@@ -137,6 +137,11 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - **Traveler fallback seed (Feb 2026)**: If the user clicks Hold without filling travelers, backend seeds the first traveler with the proposal's `customer_name` so the Traveler Details section is never completely blank. Existing held bookings backfilled via one-time script.
 - **Held bookings now visible in Supplier / Admin dashboards (Feb 2026)**: `/proposals/{id}/hold` now also writes the booking into `db.bookings` (in addition to `db.held_bookings`) with `status=held` and `supplier_status=pending`, so Supplier Dashboard (`/api/supplier/bookings`) and Admin supplier booking management (`/api/supplier/bookings/all`) route them correctly based on matched services.
 - **Supplier Dashboard stats consistent with bookings list (Feb 2026)**: Refactored `/api/supplier/bookings` + `/api/supplier/dashboard` to share a single `_get_supplier_relevant_bookings` helper. Admins see all bookings (can confirm/reject on behalf of suppliers); suppliers see only bookings with their matched services. Fixes the "stats show 2, list shows 0" inconsistency.
+- **Paid bookings flow into My Bookings + "Under Process" status (Feb 2026)**:
+  - `POST /api/bookings` now upserts into both `db.bookings` and `db.held_bookings` (reusing the held booking's id when present), so paid bookings always show up in My Bookings.
+  - Booking `status` flips from `held` → `payment_received` after payment; `supplier_status` stays `pending` until the supplier confirms/rejects.
+  - MyBookings UI now derives a display label: `payment_received + supplier=pending` → "Under Process" (indigo badge); `+ supplier=confirmed` → "Confirmed"; `+ supplier=rejected` → "Rejected by Supplier".
+  - PaymentPage auto-navigates to Dashboard → My Bookings tab 1.5s after a successful wallet payment via new `onPaymentSuccess` callback.
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)

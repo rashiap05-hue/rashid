@@ -9,7 +9,7 @@ function generateOrderId() {
   return id;
 }
 
-export default function PaymentPage({ proposal, bookingData, onBack }) {
+export default function PaymentPage({ proposal, bookingData, onBack, onPaymentSuccess }) {
   const [paymentMethod, setPaymentMethod] = useState('tabby');
   const [copied, setCopied] = useState(false);
   const [walletBalance, setWalletBalance] = useState(null);
@@ -62,6 +62,11 @@ export default function PaymentPage({ proposal, bookingData, onBack }) {
 
       setPaymentSuccess(true);
       setWalletBalance(prev => prev - amountToPay);
+
+      // Redirect to My Bookings dashboard after a brief success state
+      setTimeout(() => {
+        onPaymentSuccess?.();
+      }, 1500);
     } catch (e) {
       alert(e.response?.data?.detail || 'Payment failed. Please try again.');
     }

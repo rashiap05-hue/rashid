@@ -106,17 +106,33 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
 
   const STAGE_LABELS = { held: 'Hold', payment_pending: 'Payment Pending', payment_received: 'Payment Received', confirmed: 'Confirmed', ticketed: 'Ticketed' };
 
-  const getStatusBadge = (status) => {
+  // Derive a display status that reflects supplier response.
+  // - payment_received + supplier pending  -> "Under Process"
+  // - payment_received + supplier rejected -> "Rejected by Supplier"
+  // - payment_received + supplier confirmed -> "Confirmed"
+  const getDisplayStatus = (b) => {
+    const ss = b.supplier_status || 'pending';
+    if (b.status === 'payment_received') {
+      if (ss === 'pending') return { label: 'Under Process', key: 'under_process' };
+      if (ss === 'rejected') return { label: 'Rejected by Supplier', key: 'cancelled' };
+      if (ss === 'confirmed') return { label: 'Confirmed', key: 'confirmed' };
+    }
+    if (b.status === 'confirmed') return { label: 'Confirmed', key: 'confirmed' };
+    return { label: STAGE_LABELS[b.status] || b.status, key: b.status };
+  };
+
+  const getStatusBadge = (key) => {
     const styles = {
       held: 'bg-amber-100 text-amber-800',
       payment_pending: 'bg-orange-100 text-orange-800',
       payment_received: 'bg-teal-100 text-teal-800',
+      under_process: 'bg-indigo-100 text-indigo-800',
       confirmed: 'bg-green-100 text-green-800',
       ticketed: 'bg-blue-100 text-blue-800',
       cancelled: 'bg-red-100 text-red-700',
       pending: 'bg-blue-100 text-blue-700',
     };
-    return styles[status] || 'bg-gray-100 text-gray-700';
+    return styles[key] || 'bg-gray-100 text-gray-700';
   };
 
   const getTypeBadge = (type) => {
@@ -158,6 +174,7 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-gray-300 rounded-lg px-2 md:px-3 py-2 text-xs md:text-sm" data-testid="filter-status">
           <option value="all">Any Status</option>
           <option value="held">Held</option>
+          <option value="payment_received">Payment Received</option>
           <option value="confirmed">Confirmed</option>
           <option value="cancelled">Cancelled</option>
           <option value="pending">Pending</option>
@@ -248,9 +265,14 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
                       </span>
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`px-2.5 py-1 rounded text-xs font-bold capitalize ${getStatusBadge(b.status)}`}>
-                        {STAGE_LABELS[b.status] || b.status}
-                      </span>
+                      {(() => {
+                        const ds = getDisplayStatus(b);
+                        return (
+                          <span className={`px-2.5 py-1 rounded text-xs font-bold capitalize ${getStatusBadge(ds.key)}`}>
+                            {ds.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-4 text-gray-600 text-xs whitespace-nowrap">{formatDateTime(b.held_at)}</td>
                     <td className="px-4 py-4 text-gray-600 text-xs whitespace-nowrap">{formatDate(b.leaving_on)}</td>

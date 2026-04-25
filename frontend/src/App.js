@@ -322,6 +322,12 @@ function App() {
                     proposal={savedProposal}
                     bookingData={bookingData}
                     onBack={() => setCurrentView('booking-confirmation')}
+                    onPaymentSuccess={() => {
+                      setSavedProposal(null);
+                      setBookingData(null);
+                      setCurrentView('dashboard');
+                      setActiveTab('My Bookings');
+                    }}
                   />
                 )}
 

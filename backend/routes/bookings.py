@@ -67,34 +67,74 @@ async def create_booking(booking: BookingCreate, current_user: dict = Depends(ge
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found")
 
-    booking_doc = {
-        "id": str(uuid.uuid4()),
-        "proposal_id": booking.proposal_id,
-        "user_id": current_user.get("id") or current_user.get("email"),
-        "travelers": booking.travelers,
-        "contact_info": booking.contact_info,
-        "special_occasion": booking.special_occasion,
-        "payment_option": booking.payment_option,
-        "confirmation_time": booking.confirmation_time,
+    user_id = current_user.get("id") or current_user.get("email")
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    # If a held booking already exists for this proposal, reuse its id so MyBookings
+    # row simply flips from "Hold" to "Under Process" / "Payment Received".
+    existing_held = await db.held_bookings.find_one({"proposal_id": booking.proposal_id}, {"_id": 0})
+    booking_id = existing_held["id"] if existing_held else str(uuid.uuid4())
+
+    payment_fields = {
         "payment_method": booking.payment_method,
         "payment_amount": booking.payment_amount,
         "order_id": booking.order_id,
-        "status": "confirmed",
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "payment_option": booking.payment_option,
+        "confirmation_time": booking.confirmation_time,
+        "travelers": booking.travelers,
+        "contact_info": booking.contact_info,
+        "special_occasion": booking.special_occasion,
     }
 
-    await db.bookings.insert_one(booking_doc)
+    # Status is "payment_received" until supplier confirms
+    new_status = "payment_received"
+
+    booking_doc = {
+        "id": booking_id,
+        "proposal_id": booking.proposal_id,
+        "user_id": user_id,
+        "created_by": user_id,
+        "booked_by_name": current_user.get("name") or current_user.get("full_name", ""),
+        "proposal_name": proposal.get("proposal_name", ""),
+        "customer_name": proposal.get("customer_name", ""),
+        "customer_email": proposal.get("customer_email", ""),
+        "cities": proposal.get("cities", []),
+        "leaving_on": proposal.get("leaving_on", ""),
+        "nights": proposal.get("nights", 0),
+        "rooms": proposal.get("rooms", 1),
+        "adults": proposal.get("adults", 1),
+        "total_price": proposal.get("total_price", 0),
+        "type": "Package",
+        "status": new_status,
+        "supplier_status": (existing_held or {}).get("supplier_status", "pending"),
+        "held_at": (existing_held or {}).get("held_at") or now_iso,
+        "created_at": (existing_held or {}).get("created_at") or now_iso,
+        "paid_at": now_iso,
+        **payment_fields,
+    }
+
+    # Upsert into both collections so MyBookings, Supplier & Admin views all reflect the paid booking
+    await db.bookings.update_one(
+        {"id": booking_id},
+        {"$set": booking_doc},
+        upsert=True,
+    )
+    await db.held_bookings.update_one(
+        {"id": booking_id},
+        {"$set": booking_doc},
+        upsert=True,
+    )
 
     # Update proposal status
     await db.proposals.update_one(
         {"id": booking.proposal_id},
-        {"$set": {"status": "booked", "booking_id": booking_doc["id"]}}
+        {"$set": {"status": "booked", "booking_id": booking_id}}
     )
 
     return {
-        "id": booking_doc["id"],
-        "status": "confirmed",
-        "confirmation_time": booking_doc["confirmation_time"],
+        "id": booking_id,
+        "status": new_status,
+        "confirmation_time": booking.confirmation_time,
         "message": "Booking confirmed successfully"
     }
 
