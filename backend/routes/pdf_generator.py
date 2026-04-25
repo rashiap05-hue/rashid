@@ -278,7 +278,6 @@ def section_hotel_card(hotel, city, checkin, checkout, nights):
             <div class="hot-room-row">
                 <div><span class="lbl">Room Type</span><span class="val">{room_name}</span></div>
                 <div><span class="lbl">Meal Plan</span><span class="val">{meal_plan}</span></div>
-                <div><span class="lbl">Confirmation</span><span class="val pending">Pending</span></div>
             </div>
         </div>
     </section>
