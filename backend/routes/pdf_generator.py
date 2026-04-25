@@ -524,15 +524,39 @@ def build_pdf_html(proposal, terms, expert, user):
     prepared_by = (user or {}).get("full_name") or (user or {}).get("name") or "Travel Advisor"
     company = (user or {}).get("company_name") or "Travo Tours & Travels"
 
-    # Cover image: first hotel image or destination fallback
+    # Cover image: prefer a destination/scenic photo of the FIRST city.
+    # Priority: 1) first activity image of first city  2) first hotel image  3) Unsplash by city name
     cover_image = ""
-    for ci, c in enumerate(cities):
-        cname = c.get("name") if isinstance(c, dict) else c
-        h = get_hotel(proposal, cname, ci)
-        img = hotel_image(h)
-        if img:
-            cover_image = img
+    first_city_name = (cities[0].get("name") if isinstance(cities[0], dict) else cities[0]) if cities else ""
+
+    # 1) Look for activity images in the first city
+    sel_acts = proposal.get("selected_activities", {}) or {}
+    for key, val in sel_acts.items():
+        if not key.startswith(f"{first_city_name}_"):
+            continue
+        items = val if isinstance(val, list) else [val]
+        for a in items:
+            if a:
+                img = activity_image(a)
+                if img:
+                    cover_image = img
+                    break
+        if cover_image:
             break
+
+    # 2) Fall back to first hotel image
+    if not cover_image:
+        for ci, c in enumerate(cities):
+            cname = c.get("name") if isinstance(c, dict) else c
+            h = get_hotel(proposal, cname, ci)
+            img = hotel_image(h)
+            if img:
+                cover_image = img
+                break
+
+    # 3) Fall back to a city-specific destination photo
+    if not cover_image and first_city_name:
+        cover_image = f"https://source.unsplash.com/1600x900/?{first_city_name.replace(' ', '+')},city,landmark"
 
     days = build_day_plan(proposal)
 
