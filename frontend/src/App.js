@@ -74,6 +74,15 @@ function App() {
   });
   const [bookingData, setBookingData] = useState(null);
   const [selectedBookingId, setSelectedBookingId] = useState(null);
+  // Tracks where the proposal-view was entered from so the Back button can return there.
+  // 'edit' → came from TripBuilder edit/save flow; 'list' → came from My Proposals listing.
+  const [proposalViewSource, setProposalViewSource] = useState(() => {
+    return sessionStorage.getItem('travo_proposalViewSource') || 'list';
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('travo_proposalViewSource', proposalViewSource);
+  }, [proposalViewSource]);
 
   // Persist view state to sessionStorage
   useEffect(() => {
@@ -207,6 +216,7 @@ function App() {
                       // Handle both proposal object and proposal ID
                       if (typeof proposal === 'object') {
                         setSavedProposal(proposal);
+                        setProposalViewSource('list');
                         setCurrentView('proposal-view');
                       } else {
                         setSelectedProposalId(proposal);
@@ -251,6 +261,7 @@ function App() {
                     onConfirm={async (savedProposalData) => {
                       if (savedProposalData) {
                         setSavedProposal(savedProposalData);
+                        setProposalViewSource('edit');
                         setCurrentView('proposal-view');
                       } else {
                         setCurrentView('dashboard');
@@ -275,9 +286,21 @@ function App() {
                   <ProposalView 
                     proposal={savedProposal}
                     onBack={() => {
-                      setSavedProposal(null);
-                      setCurrentView('dashboard');
-                      setActiveTab('My Proposals');
+                      if (proposalViewSource === 'edit') {
+                        // Came from TripBuilder edit/save flow → return to that edit page
+                        setPendingProposalData({
+                          ...savedProposal,
+                          isEditing: true,
+                          editProposalId: savedProposal.id,
+                        });
+                        setSavedProposal(null);
+                        setCurrentView('customize');
+                      } else {
+                        // Came from My Proposals listing → go back to dashboard list
+                        setSavedProposal(null);
+                        setCurrentView('dashboard');
+                        setActiveTab('My Proposals');
+                      }
                     }}
                     onBookNow={() => {
                       setCurrentView('booking-confirmation');
