@@ -1055,13 +1055,11 @@ def build_pdf_html(proposal, terms, expert, user):
 
 {day_wise_html}
 
-{pricing_html}
-
 {inclusions_html}
 
 {terms_html}
 
-<div class="footer-line">Generated on {datetime.now(timezone.utc).strftime('%d %b %Y')} • {company} • For queries contact your travel advisor</div>
+{pricing_html}
 
 </body>
 </html>
