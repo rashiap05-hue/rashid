@@ -1,14 +1,32 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import Response
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
+import re
 from weasyprint import HTML
 
 from db import db, get_current_user
 
 router = APIRouter()
 
+UPLOADS_DIR = Path(__file__).resolve().parent.parent / "uploads"
+
 
 # ---------------- helpers ----------------
+
+def resolve_image(url: str) -> str:
+    """Convert stale preview domain URLs pointing to /api/static/... or /uploads/... into
+    local file:// URIs so WeasyPrint can embed them. External URLs (https) are returned as-is."""
+    if not url:
+        return ""
+    m = re.search(r"/(?:api/static|uploads)/([^?#]+)", str(url))
+    if m:
+        local = UPLOADS_DIR / m.group(1)
+        if local.exists():
+            return f"file://{local}"
+        return ""  # don't return broken stale URL
+    return url
+
 
 def fmt_date(d, with_weekday=False):
     if not d:
@@ -37,9 +55,24 @@ def hotel_image(hotel):
     if not hotel:
         return ""
     imgs = hotel.get("images") or []
+    candidate = ""
     if imgs and isinstance(imgs, list):
-        return imgs[0]
-    return hotel.get("image") or ""
+        candidate = imgs[0]
+    if not candidate:
+        candidate = hotel.get("image") or ""
+    return resolve_image(candidate)
+
+
+def activity_image(activity):
+    if not activity:
+        return ""
+    imgs = activity.get("images") or []
+    candidate = ""
+    if imgs and isinstance(imgs, list):
+        candidate = imgs[0]
+    if not candidate:
+        candidate = activity.get("image") or ""
+    return resolve_image(candidate)
 
 
 def short_ref(pid):
@@ -177,13 +210,25 @@ def section_hotel_card(hotel, city, checkin, checkout, nights):
     address = hotel.get("address", "") or hotel.get("location", "")
     img = hotel_image(hotel)
     desc = (hotel.get("description") or "").strip()[:600]
-    sel_room = hotel.get("selected_room") or {}
+    sel_room = hotel.get("selected_room") or hotel.get("selectedRoom") or {}
     room_name = sel_room.get("name", "Standard Room")
-    meal_plan = sel_room.get("meal_plan") or hotel.get("meal_plan", "Room Only")
+    meal_plan = sel_room.get("meal_plan") or sel_room.get("mealPlan") or hotel.get("meal_plan", "Room Only")
 
     amenities = hotel.get("amenities") or []
     if isinstance(amenities, str):
-        amenities = [a.strip() for a in amenities.split(",") if a.strip()]
+        amenities = [a.strip() for a in re.split(r"[,•|;]", amenities) if a.strip()]
+    elif isinstance(amenities, list):
+        flat = []
+        for a in amenities:
+            if isinstance(a, str):
+                parts = [p.strip() for p in re.split(r"[,•|;]", a) if p.strip()]
+                flat.extend(parts if parts else [a])
+            else:
+                flat.append(a)
+        # If we still have a single weird concatenated string of >4 words and no separators were found, fall back
+        if len(flat) == 1 and isinstance(flat[0], str) and len(flat[0].split()) >= 4:
+            flat = []
+        amenities = flat
     if not amenities:
         amenities = [
             "Free Wi-Fi in all rooms",
@@ -241,8 +286,9 @@ def render_item(it):
         name = data.get("name", "")
         rating = data.get("star_rating", data.get("rating", ""))
         stars = "★" * int(rating) if rating and str(rating).isdigit() else ""
-        room = (data.get("selected_room") or {}).get("name", "Standard Room")
-        meal = (data.get("selected_room") or {}).get("meal_plan", "Room Only")
+        sel_room = data.get("selected_room") or data.get("selectedRoom") or {}
+        room = sel_room.get("name", "Standard Room")
+        meal = sel_room.get("meal_plan") or sel_room.get("mealPlan") or "Room Only"
         return f"""
         <div class="day-item">
             <div class="day-icon hotel-icon">🏨</div>
@@ -278,22 +324,60 @@ def render_item(it):
     name = data.get("name", "") or data.get("title", "")
     duration = data.get("duration", "")
     desc = (data.get("description") or "").strip()
-    if len(desc) > 200:
-        desc = desc[:200] + "…"
-    has_meal = bool(data.get("meal_included") or data.get("includes_meal"))
-    has_ticket = bool(data.get("ticket_included") or data.get("includes_ticket"))
+    highlights = data.get("highlights") or []
+    if isinstance(highlights, str):
+        highlights = [h.strip() for h in highlights.split(",") if h.strip()]
+    inclusions = data.get("inclusions") or []
+    if isinstance(inclusions, str):
+        inclusions = [i.strip() for i in inclusions.split(",") if i.strip()]
+    meeting_point = data.get("meeting_point") or data.get("meetingPoint") or ""
+    start_times = data.get("start_times") or []
+    if isinstance(start_times, list):
+        start_times = ", ".join(start_times)
+    img_url = activity_image(data)
+
+    has_meal = bool(data.get("meal_included") or data.get("includes_meal") or any("lunch" in str(i).lower() or "meal" in str(i).lower() or "breakfast" in str(i).lower() for i in inclusions))
+    has_ticket = bool(data.get("ticket_included") or data.get("includes_ticket") or any("ticket" in str(i).lower() or "entrance" in str(i).lower() for i in inclusions))
+    has_transfer = bool(any("transfer" in str(i).lower() or "transport" in str(i).lower() or "pickup" in str(i).lower() for i in inclusions))
     tags = ['<span class="tag tag-violet">Activity</span>']
+    if has_transfer:
+        tags.append('<span class="tag tag-green">Private Transfer</span>')
     if has_meal:
-        tags.append('<span class="tag tag-green">Meal Included</span>')
+        tags.append('<span class="tag tag-amber">Meal Included</span>')
     if has_ticket:
         tags.append('<span class="tag tag-blue">Ticket</span>')
+
+    img_html = f'<img src="{img_url}" alt="{name}" class="act-thumb" />' if img_url else ''
+
+    highlights_html = ''
+    if highlights:
+        items = ''.join(f'<li>{h}</li>' for h in highlights[:6])
+        highlights_html = f'<div class="act-extra"><div class="act-extra-title">Highlights</div><ul class="act-bullets">{items}</ul></div>'
+
+    inclusions_html = ''
+    if inclusions:
+        items = ''.join(f'<li>{i}</li>' for i in inclusions[:6])
+        inclusions_html = f'<div class="act-extra"><div class="act-extra-title">Inclusions</div><ul class="act-bullets">{items}</ul></div>'
+
+    meta_lines = []
+    if duration:
+        meta_lines.append(f'<div class="day-item-meta"><strong>Duration:</strong> {duration}</div>')
+    if start_times:
+        meta_lines.append(f'<div class="day-item-meta"><strong>Start times:</strong> {start_times}</div>')
+    if meeting_point:
+        meta_lines.append(f'<div class="day-item-meta"><strong>Meeting point:</strong> {meeting_point}</div>')
+
     return f"""
-    <div class="day-item">
-        <div class="day-icon activity-icon">📷</div>
+    <div class="day-item activity-row">
+        {img_html if img_html else '<div class="day-icon activity-icon">📷</div>'}
         <div class="day-content">
             <div class="day-item-title">{name}</div>
-            {f'<div class="day-item-meta">Duration: {duration}</div>' if duration else ''}
+            {''.join(meta_lines)}
             {f'<div class="day-item-desc">{desc}</div>' if desc else ''}
+            <div class="act-extras-row">
+                {highlights_html}
+                {inclusions_html}
+            </div>
             <div class="day-tags">{''.join(tags)}</div>
         </div>
     </div>
@@ -584,7 +668,17 @@ def build_pdf_html(proposal, terms, expert, user):
   .day-item-title {{ font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 4px; }}
   .day-item-title .stars {{ color: #F59E0B; font-size: 12px; margin-left: 4px; }}
   .day-item-meta {{ font-size: 10px; color: #6B7280; margin-bottom: 2px; }}
-  .day-item-desc {{ font-size: 10px; color: #4B5563; margin-top: 4px; line-height: 1.5; }}
+  .day-item-meta strong {{ color: #374151; }}
+  .day-item-desc {{ font-size: 10px; color: #4B5563; margin-top: 4px; line-height: 1.55; }}
+
+  .activity-row {{ align-items: flex-start; }}
+  .act-thumb {{ width: 130px; height: 110px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }}
+  .act-extras-row {{ display: flex; gap: 18px; margin-top: 8px; }}
+  .act-extra {{ flex: 1; background: #F9FAFB; border-left: 3px solid #002B5B; padding: 8px 10px; border-radius: 4px; }}
+  .act-extra-title {{ font-size: 10px; font-weight: 700; color: #002B5B; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }}
+  .act-bullets {{ font-size: 10px; color: #374151; padding-left: 14px; margin: 0; }}
+  .act-bullets li {{ margin-bottom: 2px; }}
+
   .day-tags {{ margin-top: 6px; }}
   .tag {{ display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.5px; margin-right: 4px; text-transform: uppercase; }}
   .tag-blue {{ background: #DBEAFE; color: #1E40AF; }}
@@ -699,6 +793,46 @@ async def generate_proposal_pdf(proposal_id: str, current_user: dict = Depends(g
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found")
 
+    # ---- Enrich selected_activities & selected_hotels with full DB records ----
+    sel_acts = proposal.get("selected_activities", {}) or {}
+    enriched_acts = {}
+    for key, val in sel_acts.items():
+        items = val if isinstance(val, list) else [val]
+        new_items = []
+        for a in items:
+            if not a:
+                continue
+            full = None
+            aid = a.get("id")
+            if aid:
+                full = await db.activities.find_one({"id": aid}, {"_id": 0})
+            merged = {**(full or {}), **a}
+            # If proposal copy has empty images but full record has them, take from full
+            if not merged.get("images") and full and full.get("images"):
+                merged["images"] = full["images"]
+            new_items.append(merged)
+        enriched_acts[key] = new_items if isinstance(val, list) else (new_items[0] if new_items else val)
+    proposal["selected_activities"] = enriched_acts
+
+    sel_hotels = proposal.get("selected_hotels", {}) or {}
+    enriched_hotels = {}
+    for key, h in sel_hotels.items():
+        if not h:
+            enriched_hotels[key] = h
+            continue
+        full = None
+        hid = h.get("id")
+        if hid:
+            full = await db.hotels.find_one({"id": hid}, {"_id": 0})
+        merged = {**(full or {}), **h}
+        if not merged.get("images") and full and full.get("images"):
+            merged["images"] = full["images"]
+        # Carry selected room from proposal if present (proposal stores `selectedRoom`)
+        if h.get("selectedRoom") and not merged.get("selected_room"):
+            merged["selected_room"] = h["selectedRoom"]
+        enriched_hotels[key] = merged
+    proposal["selected_hotels"] = enriched_hotels
+
     terms = await db.terms_policies.find({}, {"_id": 0}).to_list(50)
 
     expert = None
@@ -711,7 +845,7 @@ async def generate_proposal_pdf(proposal_id: str, current_user: dict = Depends(g
     html_content = build_pdf_html(proposal, terms, expert, user)
 
     try:
-        pdf_bytes = HTML(string=html_content).write_pdf()
+        pdf_bytes = HTML(string=html_content, base_url=str(UPLOADS_DIR)).write_pdf()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
 

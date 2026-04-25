@@ -148,6 +148,11 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Hotel detail pages with image, address, "What to know about this hotel" two-column bullets, and a Room Type / Meal Plan / Confirmation footer.
   - Day-wise itinerary cards with day-number header, weekday date, city, and per-item rows with colored icons and tags (Private Transfer, Stay, Activity, Meal Included, Ticket).
   - Cleaner Pricing Summary, Inclusions/Exclusions in two columns, and Terms & Conditions sections.
+- **PDF activity images + rich day-wise details (Feb 2026)**:
+  - Activity entries in Day-wise Itinerary now show a thumbnail image (left) plus full description, duration, start times, meeting point, Highlights and Inclusions cards.
+  - Backend enriches `selected_activities` and `selected_hotels` with the latest full DB record (description, images, amenities, highlights, inclusions) before rendering.
+  - Stale preview-domain image URLs (`/api/static/...`, `/uploads/...`) are auto-resolved to local `file://` paths under `/app/backend/uploads/` so images embed correctly into the PDF regardless of pod URL changes.
+  - Hotel amenities parser cleaned up — falls back to a sensible default list when stored as a single concatenated string.
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
