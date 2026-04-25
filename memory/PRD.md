@@ -142,6 +142,12 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Booking `status` flips from `held` → `payment_received` after payment; `supplier_status` stays `pending` until the supplier confirms/rejects.
   - MyBookings UI now derives a display label: `payment_received + supplier=pending` → "Under Process" (indigo badge); `+ supplier=confirmed` → "Confirmed"; `+ supplier=rejected` → "Rejected by Supplier".
   - PaymentPage auto-navigates to Dashboard → My Bookings tab 1.5s after a successful wallet payment via new `onPaymentSuccess` callback.
+- **Proposal PDF redesigned to match reference style (Feb 2026)**: Replaced legacy FPDF generator (~500 lines) in `routes/proposals.py` with a clean WeasyPrint/HTML-CSS implementation in `routes/pdf_generator.py`. New layout includes:
+  - Full-bleed cover page with destination image overlay, route summary (e.g., "Tbilisi 2N, Gudauri 1N"), travel date, occupancy, ORN reference, prepared-by block.
+  - Itinerary Overview table (Date | Product | Description) listing every hotel/transfer/activity at a glance.
+  - Hotel detail pages with image, address, "What to know about this hotel" two-column bullets, and a Room Type / Meal Plan / Confirmation footer.
+  - Day-wise itinerary cards with day-number header, weekday date, city, and per-item rows with colored icons and tags (Private Transfer, Stay, Activity, Meal Included, Ticket).
+  - Cleaner Pricing Summary, Inclusions/Exclusions in two columns, and Terms & Conditions sections.
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
