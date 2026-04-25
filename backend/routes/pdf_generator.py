@@ -443,23 +443,177 @@ def section_pricing(proposal, total_pax):
 
 
 def section_inclusions_exclusions(proposal):
-    inclusions = []
-    if proposal.get("arrival_transfer"):
-        inclusions.append("Airport arrival transfer")
-    if proposal.get("departure_transfer"):
-        inclusions.append("Airport departure transfer")
-    inter = proposal.get("inter_city_transfers", {}) or {}
-    if inter:
-        inclusions.append("Inter-city transfers as per itinerary")
-    if proposal.get("selected_activities"):
-        inclusions.append("Sightseeing & activities as per itinerary")
-    if proposal.get("selected_hotels"):
-        inclusions.append("Hotel accommodation as per itinerary")
-    if proposal.get("travel_insurance"):
-        inclusions.append("Travel insurance")
-    inclusions.append("Daily breakfast (where mentioned)")
-    inclusions.append("All applicable government taxes")
+    """Rich Inclusions section grouped per city + a separate Exclusions section."""
+    cities = proposal.get("cities", []) or []
+    leaving_on = proposal.get("leaving_on", "")
+    selected_hotels = proposal.get("selected_hotels", {}) or {}
+    selected_activities = proposal.get("selected_activities", {}) or {}
+    inter_city = proposal.get("inter_city_transfers", {}) or {}
+    arrival_transfer = proposal.get("arrival_transfer") or {}
+    departure_transfer = proposal.get("departure_transfer") or {}
 
+    HOTEL_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.6"><path d="M3 21h18M5 21V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v13M9 12h.01M15 12h.01M9 16h.01M15 16h.01M9 8h.01M15 8h.01"/></svg>'
+    CAR_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.6"><path d="M3 13h18l-2-6H5l-2 6zM5 13v5h2v-2h10v2h2v-5"/><circle cx="7" cy="16" r="1.5"/><circle cx="17" cy="16" r="1.5"/></svg>'
+    CAMERA_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.6"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>'
+    PIN_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>'
+    CHECK_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+
+    def fmt_short(d):
+        if not d:
+            return ""
+        try:
+            dt = datetime.strptime(str(d)[:10], "%Y-%m-%d")
+            return dt.strftime("%a, %d %b %Y")
+        except Exception:
+            return d
+
+    has_breakfast = False
+    has_lunch = False
+    has_dinner = False
+
+    city_blocks = ""
+    day_cursor = 0
+    for ci, c in enumerate(cities):
+        city_name = c.get("name") if isinstance(c, dict) else c
+        nights = c.get("nights", 1) if isinstance(c, dict) else 1
+        first_day_date = add_days(leaving_on, day_cursor)
+        items_html = ""
+
+        # Inter-city transfer (when entering this city after the first)
+        if ci > 0:
+            t = inter_city.get(f"{ci-1}_{ci}") or {}
+            if t:
+                items_html += render_transfer_inclusion(t, "Inter-city Transfer", day_cursor + 1, fmt_short(first_day_date), CAR_ICON)
+
+        # Arrival transfer on first city, first day
+        if ci == 0 and arrival_transfer:
+            items_html += render_transfer_inclusion(arrival_transfer, "Arrival Transfer", 1, fmt_short(first_day_date), CAR_ICON)
+
+        # Hotel block
+        hotel = selected_hotels.get(f"{city_name}_{ci}") or {}
+        if hotel:
+            sel_room = hotel.get("selected_room") or hotel.get("selectedRoom") or {}
+            room_name = sel_room.get("name") or "Standard Room"
+            meal_plan_raw = (sel_room.get("meal_plan") or sel_room.get("mealPlan") or hotel.get("meal_plan") or "Room Only").strip()
+            mp_lower = meal_plan_raw.lower()
+            if "breakfast" in mp_lower or "bb" in mp_lower or "hb" in mp_lower or "fb" in mp_lower or "ai" == mp_lower:
+                has_breakfast = True
+                bk_text = "Breakfast: Included"
+            else:
+                bk_text = "Breakfast: Not Included"
+            if "lunch" in mp_lower or "hb" in mp_lower or "fb" in mp_lower or "ai" == mp_lower:
+                has_lunch = True
+            if "dinner" in mp_lower or "hb" in mp_lower or "fb" in mp_lower or "ai" == mp_lower:
+                has_dinner = True
+            items_html += f"""
+            <div class="inc-item">
+                <div class="inc-icon">{HOTEL_ICON}</div>
+                <div class="inc-content">
+                    <div class="inc-title">Stay for {nights} night{'s' if nights>1 else ''} at <strong>{hotel.get('name','')}</strong></div>
+                    <div class="inc-meta">1 x {room_name}</div>
+                    <div class="inc-meta">{bk_text}</div>
+                </div>
+                <div class="inc-day">
+                    <div class="inc-day-num">Day {day_cursor + 1}</div>
+                    <div class="inc-day-date">{fmt_short(first_day_date)}</div>
+                </div>
+            </div>
+            """
+
+        # Activities for each day in this city
+        for night in range(nights):
+            day_num = day_cursor + night + 1
+            day_date = add_days(leaving_on, day_num - 1)
+            acts = selected_activities.get(f"{city_name}_{day_num}", [])
+            if not isinstance(acts, list):
+                acts = [acts] if acts else []
+            for a in acts:
+                if not a:
+                    continue
+                act_name = a.get("name") or a.get("title") or ""
+                duration = a.get("duration") or ""
+                ttype = (a.get("transfer_type") or a.get("type") or "Private").title()
+                inclusions_list = a.get("inclusions") or []
+                if isinstance(inclusions_list, str):
+                    inclusions_list = [i.strip() for i in inclusions_list.split(",") if i.strip()]
+
+                # Check meals from inclusions
+                inc_lower = " ".join(str(i).lower() for i in inclusions_list)
+                if "breakfast" in inc_lower:
+                    has_breakfast = True
+                if "lunch" in inc_lower:
+                    has_lunch = True
+                if "dinner" in inc_lower:
+                    has_dinner = True
+
+                bullets = ""
+                for inc in inclusions_list[:8]:
+                    bullets += f'<div class="inc-bullet"><span class="inc-tick">{CHECK_ICON}</span><span>{inc}</span></div>'
+                meta_line = f"{duration} • {ttype}" if duration else ttype
+                items_html += f"""
+                <div class="inc-item">
+                    <div class="inc-icon">{CAMERA_ICON}</div>
+                    <div class="inc-content">
+                        <div class="inc-title">{act_name}</div>
+                        <div class="inc-meta">{meta_line}</div>
+                        {f'<div class="inc-bullets">{bullets}</div>' if bullets else ''}
+                    </div>
+                    <div class="inc-day">
+                        <div class="inc-day-num">Day {day_num}</div>
+                        <div class="inc-day-date">{fmt_short(day_date)}</div>
+                    </div>
+                </div>
+                """
+
+        # Departure transfer on the very last city's last day
+        is_last_city = (ci == len(cities) - 1)
+        if is_last_city and departure_transfer:
+            last_day_num = day_cursor + nights + 1  # arrival day on last day
+            last_day_date = add_days(leaving_on, last_day_num - 1)
+            items_html += render_transfer_inclusion(departure_transfer, "Departure Transfer", last_day_num, fmt_short(last_day_date), CAR_ICON)
+
+        city_blocks += f"""
+        <div class="inc-city-block">
+            <div class="inc-city-header">
+                <span class="inc-city-pin">{PIN_ICON}</span>
+                <span class="inc-city-name">{city_name}</span>
+                <span class="inc-city-meta">{nights} night{'s' if nights>1 else ''} - {fmt_short(first_day_date)}</span>
+            </div>
+            <div class="inc-city-body">{items_html}</div>
+        </div>
+        """
+
+        day_cursor += nights
+
+    bk_status = "Included" if has_breakfast else "Not Included"
+    lunch_status = "Included" if has_lunch else "Not Included"
+    dinner_status = "Included" if has_dinner else "Not Included"
+    bk_color = "#10B981" if has_breakfast else "#9CA3AF"
+    lunch_color = "#10B981" if has_lunch else "#9CA3AF"
+    dinner_color = "#10B981" if has_dinner else "#9CA3AF"
+
+    inclusions_html = f"""
+    <section class="inclusions-section page-break-before">
+        <h2 class="section-title-centered">INCLUSIONS</h2>
+        {city_blocks}
+        <div class="meal-strip">
+            <div class="meal-cell">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{bk_color}" stroke-width="1.8" stroke-linecap="round"><path d="M14 14V3a1 1 0 0 1 2 0v11M16 14v7M4 4v6a3 3 0 0 0 3 3v8M7 13a3 3 0 0 0 3-3V4"/></svg>
+                <div><div class="meal-label">Breakfast</div><div class="meal-status">{bk_status}</div></div>
+            </div>
+            <div class="meal-cell">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{lunch_color}" stroke-width="1.8" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+                <div><div class="meal-label">Lunch</div><div class="meal-status">{lunch_status}</div></div>
+            </div>
+            <div class="meal-cell">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{dinner_color}" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                <div><div class="meal-label">Dinner</div><div class="meal-status">{dinner_status}</div></div>
+            </div>
+        </div>
+    </section>
+    """
+
+    # Exclusions section (page break, simple list)
     exclusions = [
         "International airfare unless specifically mentioned",
         "Visa fees and travel insurance (unless specified)",
@@ -469,23 +623,36 @@ def section_inclusions_exclusions(proposal):
         "Anything not mentioned under inclusions",
         "Any additional optional tours or upgrades",
     ]
-
-    inc_html = "".join(f"<li>{i}</li>" for i in inclusions)
     exc_html = "".join(f"<li>{e}</li>" for e in exclusions)
-    return f"""
-    <section class="inclusions-section page-break-before">
-        <h2 class="section-title">Inclusions & Exclusions</h2>
-        <div class="two-col">
-            <div class="col">
-                <h3 class="sub-title green">✓ Inclusions</h3>
-                <ul class="bullet-list">{inc_html}</ul>
-            </div>
-            <div class="col">
-                <h3 class="sub-title red">✗ Exclusions</h3>
-                <ul class="bullet-list">{exc_html}</ul>
-            </div>
-        </div>
+    exclusions_html = f"""
+    <section class="exclusions-section page-break-before">
+        <h2 class="section-title-centered">EXCLUSIONS</h2>
+        <ul class="bullet-list excl-list">{exc_html}</ul>
     </section>
+    """
+
+    return inclusions_html + exclusions_html
+
+
+def render_transfer_inclusion(transfer, label, day_num, day_date_str, car_icon):
+    title = transfer.get("title") or transfer.get("name") or label
+    duration = transfer.get("duration") or ""
+    ttype = transfer.get("transfer_type") or transfer.get("type") or "Private"
+    is_private = "private" in str(ttype).lower()
+    tag_label = "Private Transfers" if is_private else "Shared Transfer"
+    return f"""
+    <div class="inc-item">
+        <div class="inc-icon">{car_icon}</div>
+        <div class="inc-content">
+            <div class="inc-title">{title}</div>
+            {f'<div class="inc-meta">Duration: {duration}</div>' if duration else ''}
+            <div class="inc-tag-row"><span class="inc-tag">{tag_label}</span></div>
+        </div>
+        <div class="inc-day">
+            <div class="inc-day-num">Day {day_num}</div>
+            <div class="inc-day-date">{day_date_str}</div>
+        </div>
+    </div>
     """
 
 
@@ -675,9 +842,45 @@ def build_pdf_html(proposal, terms, expert, user):
 
   /* ---- Section header ---- */
   .section-title {{ color: #002B5B; font-size: 18px; font-weight: 800; padding-bottom: 8px; border-bottom: 2px solid #002B5B; margin-bottom: 14px; }}
+  .section-title-centered {{ color: #1F2937; font-size: 24px; font-weight: 800; text-align: center; letter-spacing: 1px; margin: 14mm 0 10mm 0; }}
   .sub-title {{ font-size: 13px; font-weight: 700; margin-bottom: 8px; }}
   .sub-title.green {{ color: #047857; }}
   .sub-title.red {{ color: #B91C1C; }}
+
+  /* ---- Inclusions per-city blocks ---- */
+  .inc-city-block {{ margin-bottom: 16px; page-break-inside: avoid; }}
+  .inc-city-header {{
+    background: #002B5B; color: #fff; padding: 10px 16px; display: flex; align-items: center; gap: 10px;
+    border-top-left-radius: 8px; border-top-right-radius: 8px;
+  }}
+  .inc-city-pin {{ background: #10B981; padding: 4px 6px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }}
+  .inc-city-name {{ font-size: 14px; font-weight: 800; }}
+  .inc-city-meta {{ font-size: 11px; opacity: 0.85; margin-left: 6px; }}
+  .inc-city-body {{ border: 1px solid #E5E7EB; border-top: none; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; padding: 6px 14px; background: #fff; }}
+
+  .inc-item {{ display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #F3F4F6; align-items: flex-start; }}
+  .inc-item:last-child {{ border-bottom: none; }}
+  .inc-icon {{ width: 28px; height: 28px; background: #F3F4F6; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }}
+  .inc-content {{ flex: 1; min-width: 0; }}
+  .inc-title {{ font-size: 12px; font-weight: 700; color: #111827; margin-bottom: 3px; line-height: 1.4; }}
+  .inc-meta {{ font-size: 10.5px; color: #4B5563; margin-bottom: 2px; }}
+  .inc-tag-row {{ margin-top: 6px; }}
+  .inc-tag {{ display: inline-block; padding: 3px 10px; border: 1px solid #10B981; color: #10B981; font-size: 10px; font-weight: 700; border-radius: 4px; }}
+  .inc-bullets {{ margin-top: 6px; }}
+  .inc-bullet {{ display: flex; align-items: flex-start; gap: 6px; font-size: 10.5px; color: #374151; margin-bottom: 3px; }}
+  .inc-tick {{ display: inline-flex; flex-shrink: 0; margin-top: 3px; }}
+
+  .inc-day {{ text-align: right; flex-shrink: 0; min-width: 110px; padding-left: 8px; border-left: 1px solid #E5E7EB; }}
+  .inc-day-num {{ font-size: 11px; font-weight: 800; color: #002B5B; }}
+  .inc-day-date {{ font-size: 9.5px; color: #6B7280; margin-top: 2px; }}
+
+  .meal-strip {{ display: flex; gap: 12px; margin-top: 14mm; padding: 12px; background: #F9FAFB; border-radius: 8px; }}
+  .meal-cell {{ flex: 1; display: flex; align-items: center; gap: 10px; padding: 4px 12px; border-right: 1px solid #E5E7EB; }}
+  .meal-cell:last-child {{ border-right: none; }}
+  .meal-label {{ font-size: 11px; font-weight: 700; color: #111827; }}
+  .meal-status {{ font-size: 10px; color: #6B7280; }}
+
+  .excl-list {{ max-width: 600px; margin: 0 auto; font-size: 12px; }}
 
   /* ---- Specially Prepared Page ---- */
   .prepared-page {{ display: flex; min-height: 250mm; width: 100%; page-break-before: always; margin: -15mm; }}
