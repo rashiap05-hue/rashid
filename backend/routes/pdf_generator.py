@@ -514,6 +514,51 @@ def section_terms(terms):
     """
 
 
+def section_prepared(customer_name, prepared_by, company, phone, email, cover_image):
+    """Page 2: 'Specially prepared for / by' page with image strip on left."""
+    img_style = f"background-image: url('{cover_image}');" if cover_image else "background: #002B5B;"
+    phone_row = f"""
+        <div class="contact-row">
+            <span class="contact-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#002B5B"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 0 0-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg>
+            </span>
+            <span class="contact-text">{phone}</span>
+        </div>
+    """ if phone else ""
+    email_row = f"""
+        <div class="contact-row">
+            <span class="contact-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#002B5B"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            </span>
+            <span class="contact-text">{email}</span>
+        </div>
+    """ if email else ""
+
+    return f"""
+    <section class="prepared-page">
+        <div class="prepared-strip" style="{img_style}"></div>
+        <div class="prepared-content">
+            <h2 class="prepared-heading">Specially prepared for</h2>
+            <div class="prepared-name">{customer_name}</div>
+
+            <h2 class="prepared-heading prepared-heading-by">Specially prepared by</h2>
+            <div class="prepared-by">{prepared_by.upper()}</div>
+            <div class="prepared-at">at <u>{company.upper()}</u></div>
+
+            <div class="contacts">
+                {phone_row}
+                {email_row}
+            </div>
+
+            <div class="prepared-footer">
+                <p>This itinerary is a preliminary proposal. Please review it carefully and inform us of any changes or discrepancies.</p>
+                <p>Currently, no services are being held and all services and prices are subject to availability and potential currency fluctuations. A deposit for a booking constitutes Customer's acceptance of these Terms &amp; Conditions. Please review land deposit and air payment conditions. Please note that paying the deposit does not guarantee confirmation. Services remain On Request at the time of booking, and if the original services are unavailable, alternatives may be offered with potential price adjustments.</p>
+            </div>
+        </div>
+    </section>
+    """
+
+
 # ---------------- main HTML builder ----------------
 
 def build_pdf_html(proposal, terms, expert, user):
@@ -584,15 +629,11 @@ def build_pdf_html(proposal, terms, expert, user):
             hotels_html += section_hotel_card(hotel, cname, checkin, checkout, nights)
         day_cursor += nights
 
-    expert_html = ""
-    if expert and isinstance(expert, dict):
-        expert_html = f"""
-        <div class="expert-card">
-            <div class="expert-eyebrow">Your Destination Expert</div>
-            <div class="expert-name">{expert.get('name', '')}</div>
-            <div class="expert-meta">{expert.get('email', '')} {('• ' + expert.get('phone', '')) if expert.get('phone') else ''}</div>
-        </div>
-        """
+    # "Specially prepared for / by" page (page 2)
+    advisor_phone = (user or {}).get("phone") or (expert or {}).get("phone") or ""
+    advisor_email = (user or {}).get("email") or (expert or {}).get("email") or ""
+    advisor_name = (expert or {}).get("name") or prepared_by
+    prepared_html = section_prepared(customer_name, advisor_name, company, advisor_phone, advisor_email, cover_image)
 
     cover_bg = (
         f"background-image: linear-gradient(rgba(0,30,70,0.55), rgba(0,30,70,0.85)), url('{cover_image}');"
@@ -637,6 +678,35 @@ def build_pdf_html(proposal, terms, expert, user):
   .sub-title {{ font-size: 13px; font-weight: 700; margin-bottom: 8px; }}
   .sub-title.green {{ color: #047857; }}
   .sub-title.red {{ color: #B91C1C; }}
+
+  /* ---- Specially Prepared Page ---- */
+  .prepared-page {{ display: flex; min-height: 250mm; width: 100%; page-break-before: always; page-break-after: always; margin: -15mm; }}
+  .prepared-strip {{
+    width: 30%;
+    background-size: cover;
+    background-position: center;
+    background-color: #002B5B;
+    position: relative;
+  }}
+  .prepared-strip::before {{
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(0,30,70,0.85) 0%, rgba(0,30,70,0.55) 35%, rgba(0,30,70,0.0) 70%);
+  }}
+  .prepared-content {{ width: 70%; padding: 30mm 18mm; display: flex; flex-direction: column; }}
+  .prepared-heading {{ font-family: Georgia, 'Times New Roman', serif; font-size: 32px; font-weight: 700; color: #0E1B3D; margin-bottom: 8mm; }}
+  .prepared-heading-by {{ margin-top: 14mm; }}
+  .prepared-name {{ font-size: 18px; font-weight: 700; color: #111827; }}
+  .prepared-by {{ font-size: 16px; font-weight: 800; color: #111827; letter-spacing: 0.5px; }}
+  .prepared-at {{ font-size: 14px; color: #111827; margin-top: 4px; }}
+  .prepared-at u {{ font-weight: 800; }}
+
+  .contacts {{ margin-top: 8mm; display: flex; flex-direction: column; gap: 4mm; }}
+  .contact-row {{ display: flex; align-items: center; gap: 10px; font-size: 13px; color: #111827; }}
+  .contact-icon {{ width: 28px; height: 28px; border-radius: 50%; background: #DBE3EC; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }}
+  .contact-text {{ font-weight: 600; }}
+
+  .prepared-footer {{ margin-top: 30mm; font-size: 9.5px; color: #6B7280; line-height: 1.6; }}
+  .prepared-footer p {{ margin: 0 0 6px 0; }}
 
   /* ---- Overview Table ---- */
   .overview-table {{ width: 100%; border-collapse: collapse; font-size: 11px; }}
@@ -769,12 +839,12 @@ def build_pdf_html(proposal, terms, expert, user):
 </div>
 
 <!-- ============== INNER PAGES ============== -->
+{prepared_html}
+
 <div class="inner-header">
   <div class="left">{proposal_name}</div>
   <div class="right">{short_ref(proposal.get('id'))} • {fmt_date(leaving_on)}</div>
 </div>
-
-{expert_html}
 
 {overview_html}
 
