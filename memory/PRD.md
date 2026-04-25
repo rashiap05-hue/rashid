@@ -153,6 +153,18 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Backend enriches `selected_activities` and `selected_hotels` with the latest full DB record (description, images, amenities, highlights, inclusions) before rendering.
   - Stale preview-domain image URLs (`/api/static/...`, `/uploads/...`) are auto-resolved to local `file://` paths under `/app/backend/uploads/` so images embed correctly into the PDF regardless of pod URL changes.
   - Hotel amenities parser cleaned up — falls back to a sensible default list when stored as a single concatenated string.
+- **PDF cover redesigned to match Bangkok reference (Feb 2026)**: Serif title, "Reference Number: XXXXXXX" line, divider, then 3 SVG-icon-prefixed info rows (📍 cities, 📅 date+nights/days, 👤 occupancy). Cover hero uses first city's activity photo (e.g., Tbilisi sunset cityscape) with priority over hotel/Unsplash fallback.
+- **PDF Page 2 "Specially prepared for/by" added (Feb 2026)**: Two-column layout with destination photo strip on the left and dark blue serif headings on the right (customer name, advisor name uppercase, company underlined, phone/email contact rows with circular icons, disclaimer paragraphs at the bottom).
+- **Removed PDF blank 3rd page (Feb 2026)**: Stacked `page-break-after` + `page-break-before` was inserting a blank page between "Specially prepared" and "Itinerary Overview" — fixed by removing one.
+- **Auto-advance booking status when supplier confirms/rejects (Feb 2026)**:
+  - `POST /api/supplier/bookings/{id}/confirm`: when current status is `payment_received`, also flips main `status` to `confirmed` and stamps `confirmed_at`.
+  - `POST /api/supplier/bookings/{id}/reject`: when current status is `payment_received`, flips main `status` to `cancelled` and stamps `cancelled_at`.
+  - Both endpoints now mirror updates into `db.held_bookings` so MyBookings + BookingDetail stay in sync.
+  - Held bookings (not yet paid) keep `status=held`; only `supplier_status` changes — so the agent can still pay and complete the booking flow.
+- **AI Trip Recommendations frontend wired (Feb 2026)**: New `AIRecommendationsModal.jsx` mounted on the Home dashboard via a "AI Trip Recommendations" Quick Link card (violet/sparkle icon).
+  - Form: free-text preferences, optional budget, duration, travelers count.
+  - Calls `/api/ai/recommendations` (Gemini via Emergent LLM Key) and renders parsed destinations as cards with name, description, highlights chips, best time, estimated budget. Shows travel tips below.
+  - Loading / error states + "Refine search" back button.
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)

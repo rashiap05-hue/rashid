@@ -132,16 +132,23 @@ async def confirm_booking(booking_id: str, data: dict = Body(default={}), curren
         raise HTTPException(status_code=404, detail="Booking not found")
     
     note = data.get("note", "")
-    
-    await db.bookings.update_one(
-        {"id": booking_id},
-        {"$set": {
-            "supplier_status": "confirmed",
-            "supplier_confirmed_by": current_user.get("full_name"),
-            "supplier_confirmed_at": datetime.now(timezone.utc).isoformat(),
-            "supplier_note": note,
-        }}
-    )
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    update_fields = {
+        "supplier_status": "confirmed",
+        "supplier_confirmed_by": current_user.get("full_name"),
+        "supplier_confirmed_at": now_iso,
+        "supplier_note": note,
+    }
+    # Auto-advance the main booking status only when payment has been received.
+    # Held bookings stay as "held" until the agent pays; supplier acknowledgment is captured in supplier_status.
+    if booking.get("status") == "payment_received":
+        update_fields["status"] = "confirmed"
+        update_fields["confirmed_at"] = now_iso
+
+    await db.bookings.update_one({"id": booking_id}, {"$set": update_fields})
+    # Keep held_bookings (used by MyBookings + BookingDetail) in sync
+    await db.held_bookings.update_one({"id": booking_id}, {"$set": update_fields})
     
     # Create notification for the agent
     agent_id = booking.get("user_id")
@@ -154,7 +161,7 @@ async def confirm_booking(booking_id: str, data: dict = Body(default={}), curren
             "message": f"Your booking has been confirmed by the supplier.{(' Note: ' + note) if note else ''}",
             "booking_id": booking_id,
             "read": False,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": now_iso
         })
     
     return {"success": True, "message": "Booking confirmed"}
@@ -168,16 +175,21 @@ async def reject_booking(booking_id: str, data: dict = Body(...), current_user: 
         raise HTTPException(status_code=404, detail="Booking not found")
     
     reason = data.get("reason", "No reason provided")
-    
-    await db.bookings.update_one(
-        {"id": booking_id},
-        {"$set": {
-            "supplier_status": "rejected",
-            "supplier_rejected_by": current_user.get("full_name"),
-            "supplier_rejected_at": datetime.now(timezone.utc).isoformat(),
-            "supplier_rejection_reason": reason,
-        }}
-    )
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    update_fields = {
+        "supplier_status": "rejected",
+        "supplier_rejected_by": current_user.get("full_name"),
+        "supplier_rejected_at": now_iso,
+        "supplier_rejection_reason": reason,
+    }
+    # If the booking had been paid, mark it cancelled so the agent sees the final outcome.
+    if booking.get("status") == "payment_received":
+        update_fields["status"] = "cancelled"
+        update_fields["cancelled_at"] = now_iso
+
+    await db.bookings.update_one({"id": booking_id}, {"$set": update_fields})
+    await db.held_bookings.update_one({"id": booking_id}, {"$set": update_fields})
     
     # Create notification for the agent
     agent_id = booking.get("user_id")
@@ -190,7 +202,7 @@ async def reject_booking(booking_id: str, data: dict = Body(...), current_user: 
             "message": f"Your booking has been rejected. Reason: {reason}",
             "booking_id": booking_id,
             "read": False,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": now_iso
         })
     
     return {"success": True, "message": "Booking rejected"}

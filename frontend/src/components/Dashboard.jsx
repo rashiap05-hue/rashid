@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, Plane, Hotel, MapPin, Calendar, Users, ChevronRight, 
-  Star, Globe, ShieldCheck, FileText, Loader2
+  Star, Globe, ShieldCheck, FileText, Loader2, Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import FlightDashboard from './FlightDashboard';
 import ActivitiesDashboard from './ActivitiesDashboard';
 import MyProposals from './MyProposals';
 import MyBookings from './MyBookings';
+import AIRecommendationsModal from './AIRecommendationsModal';
 import { api } from '@/App';
 
 export default function Dashboard({ 
@@ -24,6 +25,7 @@ export default function Dashboard({
 }) {
   const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
 
   useEffect(() => {
     fetchProposals();
@@ -123,15 +125,15 @@ export default function Dashboard({
                   <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-8 md:mb-12">
                     {[
                       { title: 'Book FIT Package', icon: Users, color: 'bg-blue-50 text-blue-600', onClick: onNewProposal },
+                      { title: 'AI Trip Recommendations', icon: Sparkles, color: 'bg-violet-50 text-violet-600', onClick: () => setAiOpen(true), testid: 'quick-ai-recommendations' },
                       { title: 'Book Group Tours', icon: Globe, color: 'bg-green-50 text-green-600' },
                       { title: 'Book Private Van Tours', icon: MapPin, color: 'bg-orange-50 text-orange-600' },
-                      { title: 'Book Adhoc Groups', icon: Users, color: 'bg-purple-50 text-purple-600' },
                     ].map((item, i) => (
                       <motion.div 
                         key={i}
                         whileHover={{ y: -5 }}
                         onClick={item.onClick}
-                        data-testid={`quick-link-${i}`}
+                        data-testid={item.testid || `quick-link-${i}`}
                         className="bg-white p-4 md:p-6 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between cursor-pointer group"
                       >
                         <div className="flex items-center gap-2 md:gap-4">
@@ -236,6 +238,9 @@ export default function Dashboard({
           © 2026 Travo DMC. All rights reserved.
         </div>
       </footer>
+
+      {/* AI Recommendations Modal */}
+      <AIRecommendationsModal open={aiOpen} onClose={() => setAiOpen(false)} />
     </div>
   );
 }
