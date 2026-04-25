@@ -591,10 +591,94 @@ def section_inclusions_exclusions(proposal):
     lunch_color = "#10B981" if has_lunch else "#9CA3AF"
     dinner_color = "#10B981" if has_dinner else "#9CA3AF"
 
+    # Add-ons block: Travel Insurance, Visa, SIM Card
+    SHIELD_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.6"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>'
+    PASSPORT_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="11" r="3"/><path d="M8 17h8"/></svg>'
+    SIM_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.6"><path d="M19 7l-5-5H6a2 2 0 0 0-2 2v18a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a2 2 0 0 0-1-1z"/><line x1="9" y1="14" x2="9" y2="18"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="15" y1="14" x2="15" y2="18"/></svg>'
+
+    addons_items = ""
+    # Travel Insurance
+    if proposal.get("travel_insurance"):
+        persons = proposal.get("travel_insurance_persons") or 1
+        price = proposal.get("travel_insurance_price")
+        price_text = f" • AED {price} per person" if price else ""
+        addons_items += f"""
+        <div class="inc-item">
+            <div class="inc-icon">{SHIELD_ICON}</div>
+            <div class="inc-content">
+                <div class="inc-title">Travel Insurance</div>
+                <div class="inc-meta">{persons} traveler{'s' if persons != 1 else ''}{price_text}</div>
+                <div class="inc-tag-row"><span class="inc-tag">Included</span></div>
+            </div>
+        </div>
+        """
+
+    # Visa
+    if proposal.get("visa_included"):
+        persons = proposal.get("visa_persons") or 1
+        vd = proposal.get("visa_details") or {}
+        country = vd.get("country") or ""
+        visa_type = vd.get("visa_type") or vd.get("type") or "Tourist Visa"
+        price = vd.get("price")
+        price_text = f" • AED {price} per person" if price else ""
+        meta_bits = [f"{persons} traveler{'s' if persons != 1 else ''}{price_text}"]
+        if country:
+            meta_bits.append(country)
+        addons_items += f"""
+        <div class="inc-item">
+            <div class="inc-icon">{PASSPORT_ICON}</div>
+            <div class="inc-content">
+                <div class="inc-title">{visa_type}</div>
+                <div class="inc-meta">{' • '.join(meta_bits)}</div>
+                <div class="inc-tag-row"><span class="inc-tag">Included</span></div>
+            </div>
+        </div>
+        """
+
+    # SIM Card
+    if proposal.get("sim_card_included"):
+        persons = proposal.get("sim_card_persons") or 1
+        sd = proposal.get("sim_card_details") or {}
+        provider = sd.get("provider") or "Local SIM"
+        plan_name = sd.get("plan_name") or "Tourist Data Plan"
+        data_allowance = sd.get("data_allowance") or ""
+        validity = sd.get("validity") or ""
+        price = sd.get("price")
+        price_text = f" • AED {price} per person" if price else ""
+        meta_bits = [f"{persons} traveler{'s' if persons != 1 else ''}{price_text}"]
+        if data_allowance:
+            meta_bits.append(data_allowance)
+        if validity:
+            meta_bits.append(validity)
+        addons_items += f"""
+        <div class="inc-item">
+            <div class="inc-icon">{SIM_ICON}</div>
+            <div class="inc-content">
+                <div class="inc-title">{provider} - {plan_name}</div>
+                <div class="inc-meta">{' • '.join(meta_bits)}</div>
+                <div class="inc-tag-row"><span class="inc-tag">Included</span></div>
+            </div>
+        </div>
+        """
+
+    addons_block = ""
+    if addons_items:
+        addons_block = f"""
+        <div class="inc-city-block">
+            <div class="inc-city-header">
+                <span class="inc-city-pin">{PIN_ICON}</span>
+                <span class="inc-city-name">Add-ons</span>
+                <span class="inc-city-meta">Extras included with your trip</span>
+            </div>
+            <div class="inc-city-body">{addons_items}</div>
+        </div>
+        """
+
     inclusions_html = f"""
     <section class="inclusions-section page-break-before">
         <h2 class="section-title-centered">INCLUSIONS</h2>
         {city_blocks}
+        {addons_block}
         <div class="meal-strip">
             <div class="meal-cell">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{bk_color}" stroke-width="1.8" stroke-linecap="round"><path d="M14 14V3a1 1 0 0 1 2 0v11M16 14v7M4 4v6a3 3 0 0 0 3 3v8M7 13a3 3 0 0 0 3-3V4"/></svg>
