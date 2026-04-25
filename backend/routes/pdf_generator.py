@@ -78,7 +78,12 @@ def activity_image(activity):
 def short_ref(pid):
     if not pid:
         return ""
-    return "ORN" + str(pid).replace("-", "")[:8].upper()
+    # Numeric-style reference like "8362858" (7 digits)
+    digits = "".join(ch for ch in str(pid) if ch.isdigit())
+    if len(digits) >= 7:
+        return digits[:7]
+    # fallback: hash-like 7 digits
+    return str(abs(hash(str(pid))))[:7]
 
 
 def cities_summary(cities):
@@ -616,20 +621,16 @@ def build_pdf_html(proposal, terms, expert, user):
     {cover_bg}
     background-size: cover; background-position: center;
     color: #fff;
-    width: 100%; min-height: 297mm; padding: 30mm 20mm; display: flex; flex-direction: column;
+    width: 100%; min-height: 297mm; padding: 30mm 22mm 30mm 22mm; display: flex; flex-direction: column;
     page-break-after: always; position: relative;
   }}
-  .cover-brand {{ font-size: 10px; letter-spacing: 6px; text-transform: uppercase; opacity: 0.85; }}
-  .cover h1 {{ font-size: 38px; font-weight: 800; margin-top: 10mm; line-height: 1.1; max-width: 80%; }}
-  .cover .ref-line {{ height: 2px; width: 60px; background: rgba(255,255,255,0.6); margin: 6mm 0; }}
-  .cover .summary {{ font-size: 14px; opacity: 0.92; }}
-  .cover .summary .sep {{ opacity: 0.5; padding: 0 8px; }}
-  .cover .footer-block {{ margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; }}
-  .cover .field-grid {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 8mm 14mm; max-width: 60%; margin-top: 8mm; }}
-  .cover .f-lbl {{ font-size: 9px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.65; }}
-  .cover .f-val {{ font-size: 13px; font-weight: 600; margin-top: 2px; }}
-  .cover .ref-tag {{ background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: 1px; backdrop-filter: blur(6px); }}
-  .cover .prepared {{ font-size: 11px; opacity: 0.9; text-align: right; }}
+  .cover h1 {{ font-family: Georgia, 'Times New Roman', serif; font-size: 60px; font-weight: 700; line-height: 1.05; max-width: 88%; text-shadow: 0 2px 12px rgba(0,0,0,0.35); }}
+  .cover .ref-line-text {{ font-family: Georgia, serif; font-size: 22px; font-weight: 400; margin-top: 14mm; }}
+  .cover .ref-line-text .ref-num {{ font-weight: 700; }}
+  .cover .divider {{ border: none; border-top: 1px solid rgba(255,255,255,0.85); margin: 12mm 0 14mm 0; }}
+  .cover .info-list {{ display: flex; flex-direction: column; gap: 10mm; }}
+  .cover .info-row {{ display: flex; align-items: center; gap: 8mm; font-size: 24px; font-weight: 500; text-shadow: 0 1px 6px rgba(0,0,0,0.4); }}
+  .cover .info-row svg {{ flex-shrink: 0; }}
 
   /* ---- Section header ---- */
   .section-title {{ color: #002B5B; font-size: 18px; font-weight: 800; padding-bottom: 8px; border-bottom: 2px solid #002B5B; margin-bottom: 14px; }}
@@ -748,36 +749,21 @@ def build_pdf_html(proposal, terms, expert, user):
 
 <!-- ============== COVER PAGE ============== -->
 <div class="cover">
-  <div class="cover-brand">{company}</div>
   <h1>{proposal_name}</h1>
-  <div class="ref-line"></div>
-  <div class="summary">{city_summary}<span class="sep">|</span>{total_nights} Nights / {total_days} Days</div>
-
-  <div class="field-grid">
-    <div>
-      <div class="f-lbl">Travel Date</div>
-      <div class="f-val">{fmt_date(leaving_on)}</div>
+  <div class="ref-line-text">Reference Number: <span class="ref-num">{short_ref(proposal.get('id'))}</span></div>
+  <hr class="divider" />
+  <div class="info-list">
+    <div class="info-row">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      <span>{city_summary}</span>
     </div>
-    <div>
-      <div class="f-lbl">Occupancy</div>
-      <div class="f-val">{rooms_count} room{'s' if rooms_count!=1 else ''}, {adults} adult{'s' if adults!=1 else ''}</div>
+    <div class="info-row">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>{fmt_date(leaving_on)} - {total_nights} nights/{total_days} days</span>
     </div>
-    <div>
-      <div class="f-lbl">Reference</div>
-      <div class="f-val">{short_ref(proposal.get('id'))}</div>
-    </div>
-    <div>
-      <div class="f-lbl">Prepared For</div>
-      <div class="f-val">{customer_name}</div>
-    </div>
-  </div>
-
-  <div class="footer-block">
-    <div class="ref-tag">{short_ref(proposal.get('id'))}</div>
-    <div class="prepared">
-      <div style="opacity:0.65;font-size:9px;letter-spacing:2px;text-transform:uppercase;">Prepared By</div>
-      <div style="font-weight:700;margin-top:2px;">{prepared_by}</div>
-      <div style="font-size:10px;opacity:0.85;">{company}</div>
+    <div class="info-row">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>{rooms_count} room{'s' if rooms_count!=1 else ''}, {adults} adult{'s' if adults!=1 else ''}</span>
     </div>
   </div>
 </div>
