@@ -680,7 +680,7 @@ def build_pdf_html(proposal, terms, expert, user):
   .sub-title.red {{ color: #B91C1C; }}
 
   /* ---- Specially Prepared Page ---- */
-  .prepared-page {{ display: flex; min-height: 250mm; width: 100%; page-break-before: always; page-break-after: always; margin: -15mm; }}
+  .prepared-page {{ display: flex; min-height: 250mm; width: 100%; page-break-before: always; margin: -15mm; }}
   .prepared-strip {{
     width: 30%;
     background-size: cover;
