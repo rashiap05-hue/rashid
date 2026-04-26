@@ -107,11 +107,7 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
 
       {/* Page Title */}
       <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 md:mb-6">
-        <h1 className="text-xl font-black text-[#002B5B]">
-          {booking.status === 'ticketed' ? 'Booking Complete' :
-           booking.status === 'confirmed' ? 'Booking Confirmed' :
-           'Please complete payment'}
-        </h1>
+        <h1 className="text-xl md:text-2xl font-black text-[#002B5B]">Your Trip Confirmation</h1>
         <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
           booking.status === 'held' ? 'bg-amber-100 text-amber-800' :
           booking.status === 'payment_pending' ? 'bg-orange-100 text-orange-800' :
@@ -119,7 +115,9 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
           booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
           booking.status === 'ticketed' ? 'bg-blue-100 text-blue-800' :
           'bg-gray-100 text-gray-800'
-        }`} data-testid="booking-page-status">{STAGE_LABELS[booking.status] || booking.status}</span>
+        }`} data-testid="booking-page-status">
+          {booking.status === 'confirmed' || booking.status === 'ticketed' ? '✓ Confirmed' : (STAGE_LABELS[booking.status] || booking.status)}
+        </span>
       </div>
 
       {/* Trip Reference Header */}
@@ -303,6 +301,64 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
             );
           })}
 
+          {/* Activity Cards */}
+          {Object.entries(selectedActivities).map(([key, val]) => {
+            const activitiesArr = Array.isArray(val) ? val : (val ? [val] : []);
+            return activitiesArr.map((activity, ai) => {
+              if (!activity) return null;
+              const cityDay = key.split('_');
+              const dayLabel = cityDay.length > 1 ? `${cityDay[0]} • Day ${cityDay[1]}` : cityDay[0];
+              const img = (activity.images && activity.images[0]) || activity.image;
+              const incList = Array.isArray(activity.inclusions) ? activity.inclusions : (activity.inclusions ? [activity.inclusions] : []);
+              return (
+                <div key={`${key}-${ai}`} className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid={`activity-card-${key}-${ai}`}>
+                  <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                    <h2 className="font-bold text-gray-800 flex items-center gap-2"><MapPin size={18} /> Activity — {dayLabel}</h2>
+                  </div>
+                  <div className="p-5 flex flex-col md:flex-row gap-5">
+                    <div className="w-full md:w-40 h-28 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                      {img ? (
+                        <img src={resolveImageUrl(img)} alt={activity.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center"><MapPin size={32} className="text-gray-300" /></div>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-gray-900">{activity.name || activity.title || '—'}</h3>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {activity.duration && (
+                          <span className="text-xs text-gray-600 flex items-center gap-1">
+                            <Clock size={12} className="text-gray-400" />{activity.duration}
+                          </span>
+                        )}
+                        {activity.transfer_type && (
+                          <span className="text-xs px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-semibold">
+                            {activity.transfer_type}
+                          </span>
+                        )}
+                      </div>
+                      {activity.description && (
+                        <p className="text-xs text-gray-500 mt-2 line-clamp-2">{activity.description}</p>
+                      )}
+                      {incList.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Inclusions</p>
+                          <ul className="mt-1 space-y-0.5">
+                            {incList.slice(0, 4).map((inc, i) => (
+                              <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
+                                <CheckCircle size={11} className="text-emerald-500 mt-0.5 flex-shrink-0" />{inc}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            });
+          })}
+
           {/* Inclusions */}
           {proposal?.inter_city_transfers && Object.keys(proposal.inter_city_transfers).length > 0 && (
             <div className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid="inclusions-section">
@@ -387,6 +443,33 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
               <div className="flex justify-end mt-4">
                 <button onClick={saveTravelers} disabled={savingTravelers} className="px-6 py-2.5 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-lg text-sm disabled:opacity-50" data-testid="save-travelers-btn">
                   {savingTravelers ? 'SAVING...' : 'SAVE TRAVELER INFORMATION'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Trip Documents */}
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid="trip-documents-section">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+              <h2 className="font-bold text-gray-800 flex items-center gap-2"><FileText size={18} /> Trip Documents</h2>
+            </div>
+            <div className="p-5">
+              <div className="flex items-center justify-between gap-4 p-4 border border-gray-200 rounded-lg hover:border-[#002B5B] transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <FileText size={22} className="text-[#002B5B]" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Itinerary</p>
+                    <p className="font-semibold text-sm text-gray-800">{shortRef} - {(booking.customer_name || 'Trip Itinerary').toUpperCase()}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onViewProposal?.(booking.proposal_id)}
+                  className="px-4 py-2 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold text-xs rounded-lg uppercase tracking-wider transition-colors flex items-center gap-1.5"
+                  data-testid="view-itinerary-btn"
+                >
+                  <FileText size={12} /> View Itinerary
                 </button>
               </div>
             </div>
