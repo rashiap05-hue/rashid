@@ -77,8 +77,23 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
   const { booking, proposal, terms, expert, user } = data;
   const shortRef = 'ORN' + (booking.id || '').replace(/-/g, '').slice(0, 8).toUpperCase();
   const totalPrice = Number(booking.total_price || 0);
-  const paidAmount = 0;
-  const outstanding = totalPrice - paidAmount;
+  // Build payment transactions list from booking.payments[] if present, else synthesize from booking.paid_at/amount.
+  const transactions = Array.isArray(booking.payments) && booking.payments.length > 0
+    ? booking.payments.map(p => ({
+        date: p.paid_at || p.created_at,
+        amount: Number(p.amount || 0),
+        status: p.status || 'Processed Successfully',
+        receipt_id: p.id || p.order_id,
+      }))
+    : (booking.paid_at ? [{
+        date: booking.paid_at,
+        amount: Number(booking.payment_amount || totalPrice),
+        status: 'Processed Successfully',
+        receipt_id: booking.order_id,
+      }] : []);
+  const paidAmount = transactions.reduce((s, t) => s + (t.amount || 0), 0);
+  const outstanding = Math.max(totalPrice - paidAmount, 0);
+  const isPaid = paidAmount >= totalPrice && totalPrice > 0;
 
   // Extract hotels & activities from proposal
   const selectedHotels = proposal?.selected_hotels || {};
@@ -159,8 +174,11 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
 
           {/* Payment Details */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid="payment-details">
-            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
               <h2 className="font-bold text-gray-800 flex items-center gap-2"><CreditCard size={18} /> Payment Details</h2>
+              <button className="px-3 py-1.5 border border-gray-300 rounded-md text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-1" data-testid="payment-invoice-btn">
+                Invoice <ChevronDown size={12} />
+              </button>
             </div>
             <div className="px-6 py-5">
               {booking.status === 'held' && (
@@ -172,40 +190,64 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
                   </div>
                 </div>
               )}
-              <div className="flex justify-between items-center py-3 border-b border-gray-100">
-                <span className="text-sm text-gray-600">Total Net Price</span>
-                <span className="font-bold text-gray-900">{formatPrice(totalPrice)}</span>              </div>
-              <div className="mt-4">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-xs text-gray-500 uppercase border-b">
-                      <th className="text-left py-2">Date</th>
-                      <th className="text-left py-2">Description</th>
-                      <th className="text-right py-2">Amount</th>
-                      <th className="text-right py-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-gray-50">
-                      <td className="py-3 text-gray-600">{formatDate(booking.held_at)}</td>
-                      <td className="py-3 text-gray-700">Booking Hold</td>
-                      <td className="py-3 text-right text-gray-800">{formatPrice(totalPrice)}</td>
-                      <td className="py-3 text-right">
-                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-bold">Pending</span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex justify-between items-center mt-5 pt-4 border-t border-gray-200">
-                <div>
-                  <p className="text-sm text-gray-600">Outstanding Amount</p>
-                  <p className="text-xl font-black text-red-600">{formatPrice(outstanding)}</p>
+
+              {/* Top row: Total Net Price (highlighted) + Voucher dropdown */}
+              <div className="flex items-start justify-between gap-4 mb-5">
+                <div className="bg-blue-50 rounded-md px-5 py-3 flex items-center gap-6 flex-1 max-w-md">
+                  <span className="text-xs font-bold uppercase tracking-wider text-gray-700">Total Net Price</span>
+                  <span className="text-lg font-black text-gray-900">{formatPrice(totalPrice)}</span>
                 </div>
-                <button className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg text-sm transition-colors" data-testid="click-to-pay-btn">
-                  Click to pay
-                </button>
+                <div className="text-right">
+                  <button className="px-3 py-1.5 border border-gray-300 rounded-md text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-1 ml-auto" data-testid="payment-voucher-btn">
+                    Voucher <ChevronDown size={12} />
+                  </button>
+                  {booking.last_voucher_sent_at && (
+                    <p className="text-[11px] text-gray-400 mt-2">Last voucher mail sent at {formatDateTime(booking.last_voucher_sent_at)}</p>
+                  )}
+                </div>
               </div>
+
+              {/* Transactions list — 3 column grid layout */}
+              {transactions.length > 0 ? (
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  {transactions.map((t, i) => (
+                    <div key={i} className={`grid grid-cols-3 gap-4 px-5 py-4 items-center ${i < transactions.length - 1 ? 'border-b border-gray-100' : ''}`} data-testid={`txn-row-${i}`}>
+                      <div className="text-sm text-gray-700">{formatDateTime(t.date)}</div>
+                      <div>
+                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-md text-xs font-semibold inline-block">{t.status}</span>
+                        <div className="flex gap-3 mt-2 text-xs">
+                          <button className="text-blue-600 hover:underline italic" data-testid={`print-receipt-${i}`}>Print Receipt</button>
+                          <button className="text-blue-600 hover:underline italic" data-testid={`refresh-status-${i}`}>Refresh Status</button>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-base font-black text-green-700">{formatPrice(t.amount)}</span>
+                        <span className="text-xs text-gray-600 ml-2">paid on {formatDateTime(t.date)}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {/* Footer summary */}
+                  <div className="grid grid-cols-3 gap-4 px-5 py-3 bg-stone-100 items-center text-sm">
+                    <div></div>
+                    <div className="text-right text-gray-700 font-semibold">{isPaid ? 'Payment Received' : 'Payment Pending'}</div>
+                    <div className="text-right font-bold text-gray-900">{formatPrice(paidAmount)}</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-400 text-sm border border-dashed border-gray-200 rounded-lg">No transactions yet</div>
+              )}
+
+              {!isPaid && (
+                <div className="flex justify-between items-center mt-5 pt-4 border-t border-gray-200">
+                  <div>
+                    <p className="text-sm text-gray-600">Outstanding Amount</p>
+                    <p className="text-xl font-black text-red-600">{formatPrice(outstanding)}</p>
+                  </div>
+                  <button className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg text-sm transition-colors" data-testid="click-to-pay-btn">
+                    Click to pay
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
