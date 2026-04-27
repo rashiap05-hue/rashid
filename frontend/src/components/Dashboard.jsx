@@ -210,7 +210,7 @@ export default function Dashboard({
               <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
               <li><a href="#" className="hover:text-white transition-colors">Our Services</a></li>
               <li><button onClick={onAdminView} className="hover:text-white transition-colors text-left">Backend Admin Dashboard</button></li>
-              <li><a href="/supplier-dashboard" className="hover:text-white transition-colors">Supplier Dashboard</a></li>
+              <li><a href="/supplier-dashboard" className="hover:text-white transition-colors">Operational Dashboard</a></li>
               <li><a href="#" className="hover:text-white transition-colors">Terms & Conditions</a></li>
             </ul>
           </div>

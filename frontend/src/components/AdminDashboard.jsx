@@ -195,7 +195,7 @@ function AdminSupplierBookingsTab() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold">Supplier Bookings ({filtered.length})</h2>
+        <h2 className="text-xl font-bold">Operational Bookings ({filtered.length})</h2>
         <div className="flex gap-2">
           {['all', 'pending', 'confirmed', 'rejected'].map(s => (
             <button key={s} onClick={() => setFilter(s)}
@@ -1763,7 +1763,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView }) {
                   activeTab === tab ? "text-[#002B5B]" : "text-gray-400 hover:text-gray-600"
                 )}
               >
-                {tab === 'terms' ? 'Terms & Policies' : tab === 'insurance' ? 'Insurance' : tab === 'staff' ? 'Staff / Experts' : tab === 'wallets' ? 'Wallets' : tab === 'bookings' ? 'Bookings' : tab === 'visas' ? 'Visas' : tab === 'sim-cards' ? 'SIM Cards' : `${tab} Management`}
+                {tab === 'terms' ? 'Terms & Policies' : tab === 'insurance' ? 'Insurance' : tab === 'staff' ? 'Staff / Experts' : tab === 'wallets' ? 'Wallets' : tab === 'bookings' ? 'Bookings' : tab === 'visas' ? 'Visas' : tab === 'sim-cards' ? 'SIM Cards' : tab === 'supplier-bookings' ? 'Operational Bookings' : `${tab} Management`}
                 {activeTab === tab && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-[#002B5B]" />}
               </button>
             ))}

@@ -101,7 +101,7 @@ export default function SupplierDashboard({ user, onBack }) {
               <ArrowLeft size={20} />
             </button>
             <div>
-              <h1 className="text-2xl font-bold">Supplier Dashboard</h1>
+              <h1 className="text-2xl font-bold">Operational Dashboard</h1>
               <p className="text-sm text-white/70">{user?.company_name || user?.full_name}</p>
             </div>
           </div>
