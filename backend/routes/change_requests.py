@@ -10,12 +10,58 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 
 from db import db, get_current_user
+from routes.notifications import create_notification
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 CHANGE_REQUEST_FEE_AED = 100.0
 ALLOWED_STATUSES = {"open", "under_process", "closed", "rejected"}
+
+
+def _short_ref(booking_id: str) -> str:
+    return "ORN" + (booking_id or "").replace("-", "")[:8].upper()
+
+
+async def _expert_user_ids(proposal_id: Optional[str]) -> List[str]:
+    """Return user_ids that should receive advisor notifications for this proposal:
+    every admin user + the user matching the assigned destination expert's email (if any).
+    """
+    user_ids: List[str] = []
+    # All admin users
+    async for u in db.users.find({"role": "admin"}, {"_id": 0, "id": 1}):
+        if u.get("id"):
+            user_ids.append(u["id"])
+    # Assigned destination expert (if linked to a real user account by email)
+    if proposal_id:
+        proposal = await db.proposals.find_one({"id": proposal_id}, {"_id": 0, "assigned_expert_id": 1})
+        if proposal and proposal.get("assigned_expert_id"):
+            expert = await db.destination_experts.find_one(
+                {"id": proposal["assigned_expert_id"]}, {"_id": 0, "email": 1}
+            )
+            if expert and expert.get("email"):
+                expert_user = await db.users.find_one(
+                    {"email": expert["email"]}, {"_id": 0, "id": 1}
+                )
+                if expert_user and expert_user.get("id") and expert_user["id"] not in user_ids:
+                    user_ids.append(expert_user["id"])
+    return user_ids
+
+
+async def _notify(user_ids: List[str], title: str, message: str, booking_id: Optional[str], notif_type: str):
+    for uid in user_ids:
+        if not uid:
+            continue
+        try:
+            await create_notification(
+                user_id=uid,
+                title=title,
+                message=message,
+                booking_id=booking_id,
+                notif_type=notif_type,
+            )
+        except Exception as e:  # pragma: no cover
+            logger.warning(f"Failed to write notification for {uid}: {e}")
 
 
 class ChangeRequestCreate(BaseModel):
@@ -89,19 +135,18 @@ async def create_change_request(
     }
     await db.trip_change_requests.insert_one(record)
 
-    # Notify advisor / admin via in-app notification (best-effort)
-    try:
-        await db.notifications.insert_one({
-            "id": str(uuid.uuid4()),
-            "user_role": "admin",
-            "title": "New Trip Change Request",
-            "body": f"{record['type']} — {record['for_scope']} (Booking {booking_id[:8]})",
-            "link": f"/admin/bookings/{booking_id}",
-            "read": False,
-            "created_at": now,
-        })
-    except Exception as e:  # pragma: no cover
-        logger.warning(f"Failed to write notification for change request: {e}")
+    # Notify advisors (admins + assigned expert user)
+    advisor_ids = await _expert_user_ids(booking.get("proposal_id"))
+    # Don't notify the requester themselves
+    advisor_ids = [uid for uid in advisor_ids if uid != current_user.get("id")]
+    ref = _short_ref(booking_id)
+    await _notify(
+        advisor_ids,
+        title="New Trip Change Request",
+        message=f"{record['type']} — {record['for_scope']} (Booking {ref}) by {record['requested_by_name']}",
+        booking_id=booking_id,
+        notif_type="change_request_new",
+    )
 
     return {"success": True, "change_request": _serialise(record)}
 
@@ -144,6 +189,7 @@ async def update_change_request(
         raise HTTPException(status_code=404, detail="Change request not found")
 
     update: dict = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    new_status = None
     if payload.status is not None:
         new_status = _normalise_status(payload.status)
         if new_status not in ALLOWED_STATUSES:
@@ -156,6 +202,27 @@ async def update_change_request(
 
     await db.trip_change_requests.update_one({"id": request_id}, {"$set": update})
     refreshed = await db.trip_change_requests.find_one({"id": request_id}, {"_id": 0})
+
+    # Notify the OTHER party of the status change
+    if new_status and new_status != _normalise_status(record.get("status")):
+        ref = _short_ref(record.get("booking_id", ""))
+        actor_role = current_user.get("role", "agent")
+        if actor_role in ("admin", "supplier"):
+            # Advisor changed status → notify the original agent
+            target_ids = [record.get("requested_by")] if record.get("requested_by") and record.get("requested_by") != current_user.get("id") else []
+        else:
+            # Agent changed status → notify advisors
+            advisor_ids = await _expert_user_ids(record.get("proposal_id"))
+            target_ids = [uid for uid in advisor_ids if uid != current_user.get("id")]
+        status_label = {"open": "Open", "under_process": "Under Process", "closed": "Closed", "rejected": "Rejected"}.get(new_status, new_status)
+        await _notify(
+            target_ids,
+            title=f"Trip Change Request {status_label}",
+            message=f"{record.get('type')} — {record.get('for_scope')} (Booking {ref})",
+            booking_id=record.get("booking_id"),
+            notif_type="change_request_status",
+        )
+
     return {"success": True, "change_request": _serialise(refreshed)}
 
 
@@ -192,4 +259,22 @@ async def add_reply(
         {"$push": {"replies": reply}, "$set": {"updated_at": reply["created_at"]}},
     )
     refreshed = await db.trip_change_requests.find_one({"id": request_id}, {"_id": 0})
+
+    # Notify the OTHER party of the new reply
+    ref = _short_ref(record.get("booking_id", ""))
+    actor_role = current_user.get("role", "agent")
+    if actor_role in ("admin", "supplier"):
+        target_ids = [record.get("requested_by")] if record.get("requested_by") and record.get("requested_by") != current_user.get("id") else []
+    else:
+        advisor_ids = await _expert_user_ids(record.get("proposal_id"))
+        target_ids = [uid for uid in advisor_ids if uid != current_user.get("id")]
+    snippet = text[:80] + ("…" if len(text) > 80 else "")
+    await _notify(
+        target_ids,
+        title=f"New reply from {reply['sender_name']}",
+        message=f"{record.get('type')} (Booking {ref}): {snippet}",
+        booking_id=record.get("booking_id"),
+        notif_type="change_request_reply",
+    )
+
     return {"success": True, "change_request": _serialise(refreshed), "reply": reply}

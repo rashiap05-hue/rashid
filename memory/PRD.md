@@ -187,6 +187,11 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - New `BookingDetail/TripTaskDetailsModal.jsx` opens conversation thread modal: original request card, alternating reply bubbles (mine = dark blue right-aligned, theirs = gray left-aligned), reply composer with ⌘/Ctrl+Enter shortcut, status dropdown (any authenticated user can change status).
   - Backend stores `replies[]` array on each request with sender_role/name/email/text/created_at.
   - Verified end-to-end via Playwright: create → reply → status change → list refresh all working.
+- **Trip Change Request Notifications to Advisors (Apr 2026)**: Bidirectional in-app notifications via `db.notifications` (read by Header bell `/api/notifications`).
+  - **Agent creates request** → all admin users (except the requester) + the assigned destination expert (if linked to a user account by email) receive a `change_request_new` notification.
+  - **Advisor replies** → original requester gets a `change_request_reply` notification with sender name + message snippet.
+  - **Advisor changes status** → original requester gets a `change_request_status` notification with the new status label (Open / Under Process / Closed / Rejected).
+  - Verified: rashid creates request → 7 other admins all get unread notifications; testadmin replies + closes → rashid sees 2 new notifications (reply + status) in the notification bell with timestamp + title + message.
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
