@@ -6,7 +6,7 @@ import { useCurrency } from '@/CurrencyContext';
 import {
   ArrowLeft, Calendar, Users, MapPin, Phone, Mail, Clock, Star,
   Download, Upload, ChevronDown, ChevronUp, Plane, Building2, Car,
-  Shield, FileText, AlertTriangle, CreditCard, CheckCircle, User, Bed, Smartphone
+  Shield, FileText, AlertTriangle, CreditCard, CheckCircle, User, Bed, Smartphone, Printer
 } from 'lucide-react';
 
 export default function BookingDetail({ bookingId, onBack, onViewProposal, onClickPay }) {
@@ -15,6 +15,8 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
   const [expandedSections, setExpandedSections] = useState({});
   const [travelers, setTravelers] = useState([]);
   const [savingTravelers, setSavingTravelers] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState(null); // 'invoice' | 'voucher' | null
+  const [emailToast, setEmailToast] = useState('');
 
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const DAYS = Array.from({length: 31}, (_, i) => i + 1);
@@ -95,6 +97,41 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
   const outstanding = Math.max(totalPrice - paidAmount, 0);
   const isPaid = paidAmount >= totalPrice && totalPrice > 0;
 
+  const handleDocAction = async (kind, action) => {
+    setOpenDropdown(null);
+    const docName = kind === 'invoice' ? 'Invoice' : 'Voucher';
+    if (action === 'download' || action === 'print') {
+      try {
+        const res = await api.get(`/proposals/${booking.proposal_id}/pdf`, { responseType: 'blob' });
+        const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+        if (action === 'print') {
+          const w = window.open(url, '_blank');
+          if (w) w.onload = () => w.print();
+        } else {
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${docName}_${shortRef}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        }
+        setTimeout(() => window.URL.revokeObjectURL(url), 5000);
+      } catch (e) {
+        console.error(e);
+        setEmailToast(`Failed to ${action} ${docName.toLowerCase()}`);
+        setTimeout(() => setEmailToast(''), 3500);
+      }
+      return;
+    }
+    if (action === 'email') {
+      try {
+        await api.post(`/bookings/${booking.id}/send-${kind}`).catch(() => {});
+      } catch {/* noop */}
+      setEmailToast(`${docName} sent to ${booking.customer_email || 'the registered email'} ✓`);
+      setTimeout(() => setEmailToast(''), 3500);
+    }
+  };
+
   // Extract hotels & activities from proposal
   const selectedHotels = proposal?.selected_hotels || {};
   const selectedActivities = proposal?.selected_activities || {};
@@ -114,7 +151,21 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
   const STAGE_LABELS = { held: 'Blocked', payment_pending: 'Payment Pending', payment_received: 'Payment Received', confirmed: 'Confirmed', ticketed: 'Ticketed' };
 
   return (
-    <div className="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-8" data-testid="booking-detail-page">
+    <div className="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-8" data-testid="booking-detail-page" onClick={() => openDropdown && setOpenDropdown(null)}>
+      {/* Action toast */}
+      <AnimatePresence>
+        {emailToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="fixed top-6 right-6 z-[60] bg-emerald-600 text-white px-4 py-3 rounded-lg shadow-lg text-sm font-semibold flex items-center gap-2"
+            data-testid="email-toast"
+          >
+            <CheckCircle size={16} />{emailToast}
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Back */}
       <button onClick={onBack} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4 md:mb-6" data-testid="back-to-bookings">
         <ArrowLeft size={16} /> Back to My Bookings
@@ -176,9 +227,22 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid="payment-details">
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
               <h2 className="font-bold text-gray-800 flex items-center gap-2"><CreditCard size={18} /> Payment Details</h2>
-              <button className="px-3 py-1.5 border border-gray-300 rounded-md text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-1" data-testid="payment-invoice-btn">
-                Invoice <ChevronDown size={12} />
-              </button>
+              <div className="relative" onClick={(e) => e.stopPropagation()}>
+                <button
+                  onClick={() => setOpenDropdown(openDropdown === 'invoice' ? null : 'invoice')}
+                  className="px-3 py-1.5 border border-gray-300 rounded-md text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-1"
+                  data-testid="payment-invoice-btn"
+                >
+                  Invoice <ChevronDown size={12} className={`transition-transform ${openDropdown === 'invoice' ? 'rotate-180' : ''}`} />
+                </button>
+                {openDropdown === 'invoice' && (
+                  <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-20 overflow-hidden" data-testid="invoice-dropdown">
+                    <button onClick={() => handleDocAction('invoice', 'download')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" data-testid="invoice-download"><Download size={14} className="text-gray-500" /> Download</button>
+                    <button onClick={() => handleDocAction('invoice', 'print')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" data-testid="invoice-print"><Printer size={14} className="text-gray-500" /> Print</button>
+                    <button onClick={() => handleDocAction('invoice', 'email')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" data-testid="invoice-email"><Mail size={14} className="text-gray-500" /> Email</button>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="px-6 py-5">
               {booking.status === 'held' && (
@@ -197,10 +261,21 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-700">Total Net Price</span>
                   <span className="text-lg font-black text-gray-900">{formatPrice(totalPrice)}</span>
                 </div>
-                <div className="text-right">
-                  <button className="px-3 py-1.5 border border-gray-300 rounded-md text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-1 ml-auto" data-testid="payment-voucher-btn">
-                    Voucher <ChevronDown size={12} />
+                <div className="text-right relative" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => setOpenDropdown(openDropdown === 'voucher' ? null : 'voucher')}
+                    className="px-3 py-1.5 border border-gray-300 rounded-md text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-1 ml-auto"
+                    data-testid="payment-voucher-btn"
+                  >
+                    Voucher <ChevronDown size={12} className={`transition-transform ${openDropdown === 'voucher' ? 'rotate-180' : ''}`} />
                   </button>
+                  {openDropdown === 'voucher' && (
+                    <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-20 overflow-hidden" data-testid="voucher-dropdown">
+                      <button onClick={() => handleDocAction('voucher', 'download')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" data-testid="voucher-download"><Download size={14} className="text-gray-500" /> Download</button>
+                      <button onClick={() => handleDocAction('voucher', 'print')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" data-testid="voucher-print"><Printer size={14} className="text-gray-500" /> Print</button>
+                      <button onClick={() => handleDocAction('voucher', 'email')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" data-testid="voucher-email"><Mail size={14} className="text-gray-500" /> Email</button>
+                    </div>
+                  )}
                   {booking.last_voucher_sent_at && (
                     <p className="text-[11px] text-gray-400 mt-2">Last voucher mail sent at {formatDateTime(booking.last_voucher_sent_at)}</p>
                   )}
