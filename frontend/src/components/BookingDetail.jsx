@@ -8,6 +8,7 @@ import {
   Download, Upload, ChevronDown, ChevronUp, Plane, Building2, Car,
   Shield, FileText, AlertTriangle, CreditCard, CheckCircle, User, Bed, Smartphone, Printer
 } from 'lucide-react';
+import TripChangeRequestModal from './BookingDetail/TripChangeRequestModal';
 
 export default function BookingDetail({ bookingId, onBack, onViewProposal, onClickPay }) {
   const [data, setData] = useState(null);
@@ -17,6 +18,7 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
   const [savingTravelers, setSavingTravelers] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null); // 'invoice' | 'voucher' | null
   const [emailToast, setEmailToast] = useState('');
+  const [showChangeRequestModal, setShowChangeRequestModal] = useState(false);
 
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const DAYS = Array.from({length: 31}, (_, i) => i + 1);
@@ -858,7 +860,7 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
               {user?.email && <div className="flex items-center gap-2 text-sm text-gray-600"><Mail size={14} className="text-gray-400" />{user.email}</div>}
               {user?.mobile && <div className="flex items-center gap-2 text-sm text-gray-600"><Phone size={14} className="text-gray-400" />{user.mobile}</div>}
             </div>
-            <button className="w-full mt-4 py-2.5 border-2 border-dashed border-[#002B5B] text-[#002B5B] font-bold text-xs rounded-lg hover:bg-[#002B5B]/5 transition-colors uppercase tracking-wider" data-testid="add-change-request-btn">
+            <button onClick={() => setShowChangeRequestModal(true)} className="w-full mt-4 py-2.5 border-2 border-dashed border-[#002B5B] text-[#002B5B] font-bold text-xs rounded-lg hover:bg-[#002B5B]/5 transition-colors uppercase tracking-wider" data-testid="add-change-request-btn">
               Add Trip Change Request
             </button>
           </div>
@@ -894,6 +896,17 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
           </div>
         </div>
       </div>
+
+      {/* Trip Change Request Modal */}
+      <TripChangeRequestModal
+        open={showChangeRequestModal}
+        onClose={() => setShowChangeRequestModal(false)}
+        bookingId={booking.id}
+        onSubmitted={() => {
+          setEmailToast('Change request submitted to your travel advisor ✓');
+          setTimeout(() => setEmailToast(''), 3500);
+        }}
+      />
     </div>
   );
 }

@@ -178,6 +178,11 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - `POST /api/bookings/{id}/send-invoice` & `POST /api/bookings/{id}/send-voucher` — Email PDF as attachment via Resend (base64 attachment), stamps `last_invoice_sent_at` / `last_voucher_sent_at` on booking.
   - Frontend `BookingDetail.jsx` `handleDocAction` rewired to hit the new endpoints for Download / Print / Email.
   - Verified via curl: invoice PDF (16KB) and voucher PDF (22KB) generate with valid `%PDF-1.7` headers and correct sections (analyzed via Gemini Vision).
+- **Trip Change Request Modal (Apr 2026)**: "Add Trip Change Request" button on `BookingDetail.jsx` Seller Details card now opens a modal popup matching user reference.
+  - `routes/change_requests.py` registered in server.py with `POST/GET /api/bookings/{id}/change-requests` and `PATCH /api/change-requests/{id}` (admin/supplier only) for advisor resolution.
+  - New `BookingDetail/TripChangeRequestModal.jsx` with: Important Information bullets, AED 100 service charge banner, For dropdown (Complete Trip, Hotels, Transfers, Activities, Flights), Type dropdown (Date Change, Hotel Change, etc.), Description textarea, SAVE button.
+  - Stores in `db.trip_change_requests` with status=pending, also writes an admin notification.
+  - End-to-end UI flow verified via Playwright screenshot: modal opens → form fills → SAVE → toast "Change request submitted to your travel advisor ✓" → record persisted in DB.
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
