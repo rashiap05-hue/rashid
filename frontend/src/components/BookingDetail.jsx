@@ -6,7 +6,7 @@ import { useCurrency } from '@/CurrencyContext';
 import {
   ArrowLeft, Calendar, Users, MapPin, Phone, Mail, Clock, Star,
   Download, Upload, ChevronDown, ChevronUp, Plane, Building2, Car,
-  Shield, FileText, AlertTriangle, CreditCard, CheckCircle, User, Bed
+  Shield, FileText, AlertTriangle, CreditCard, CheckCircle, User, Bed, Smartphone
 } from 'lucide-react';
 
 export default function BookingDetail({ bookingId, onBack, onViewProposal, onClickPay }) {
@@ -421,24 +421,125 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
             });
           })}
 
-          {/* Inclusions */}
-          {proposal?.inter_city_transfers && Object.keys(proposal.inter_city_transfers).length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid="inclusions-section">
-              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                <h2 className="font-bold text-gray-800 flex items-center gap-2"><Car size={18} /> Inclusions</h2>
-              </div>
-              <div className="px-6 py-4">
-                <ul className="space-y-2 text-sm text-gray-700">
-                  {Object.entries(proposal.inter_city_transfers).map(([key, transfer]) => (
-                    <li key={key} className="flex items-center gap-2">
-                      <Car size={14} className="text-gray-400" />
-                      {transfer.name || `Transfer: ${key}`}
-                    </li>
+          {/* Transfer Cards (arrival, inter-city, departure) */}
+          {(() => {
+            const transferCards = [];
+            if (proposal?.arrival_transfer) {
+              transferCards.push({ key: 'arrival', label: 'Arrival Transfer', data: proposal.arrival_transfer });
+            }
+            const inter = proposal?.inter_city_transfers || {};
+            Object.entries(inter).forEach(([k, t]) => {
+              if (t) transferCards.push({ key: `inter-${k}`, label: 'Inter-city Transfer', data: t });
+            });
+            if (proposal?.departure_transfer) {
+              transferCards.push({ key: 'departure', label: 'Departure Transfer', data: proposal.departure_transfer });
+            }
+            return transferCards.map(({ key, label, data: t }) => {
+              const ttype = t.transfer_type || t.type || 'Private';
+              const isPrivate = String(ttype).toLowerCase().includes('private');
+              return (
+                <div key={key} className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid={`transfer-card-${key}`}>
+                  <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                    <h2 className="font-bold text-gray-800 flex items-center gap-2"><Car size={18} /> {label}</h2>
+                  </div>
+                  <div className="p-5 flex gap-5">
+                    <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Car size={22} className="text-[#002B5B]" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-gray-900">{t.title || t.name || label}</h3>
+                      {(t.from_location || t.to_location) && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {t.from_location || ''} {t.to_location ? `→ ${t.to_location}` : ''}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-3 mt-2 text-sm">
+                        {t.duration && (
+                          <span className="text-xs text-gray-600 flex items-center gap-1">
+                            <Clock size={12} className="text-gray-400" />Duration: {t.duration}
+                          </span>
+                        )}
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold border ${isPrivate ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                          {isPrivate ? 'Private Transfer' : 'Shared Transfer'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            });
+          })()}
+
+          {/* Add-ons: Travel Insurance, Visa, SIM Card */}
+          {(() => {
+            const hasAddons = proposal?.travel_insurance || proposal?.visa_included || proposal?.sim_card_included;
+            if (!hasAddons) return null;
+            const addons = [];
+            if (proposal.travel_insurance) {
+              const persons = proposal.travel_insurance_persons || 1;
+              const price = proposal.travel_insurance_price;
+              addons.push({
+                key: 'insurance',
+                title: 'Travel Insurance',
+                icon: <Shield size={18} className="text-emerald-600" />,
+                meta: `${persons} traveler${persons !== 1 ? 's' : ''}${price ? ` • AED ${price} per person` : ''}`,
+              });
+            }
+            if (proposal.visa_included) {
+              const persons = proposal.visa_persons || 1;
+              const vd = proposal.visa_details || {};
+              const country = vd.country || '';
+              const visaType = vd.visa_type || vd.type || 'Tourist Visa';
+              const price = vd.price;
+              const metaBits = [`${persons} traveler${persons !== 1 ? 's' : ''}${price ? ` • AED ${price} per person` : ''}`];
+              if (country) metaBits.push(country);
+              addons.push({
+                key: 'visa',
+                title: visaType,
+                icon: <FileText size={18} className="text-blue-600" />,
+                meta: metaBits.join(' • '),
+              });
+            }
+            if (proposal.sim_card_included) {
+              const persons = proposal.sim_card_persons || 1;
+              const sd = proposal.sim_card_details || {};
+              const provider = sd.provider || 'Local SIM';
+              const planName = sd.plan_name || 'Tourist Data Plan';
+              const dataAllowance = sd.data_allowance || '';
+              const validity = sd.validity || '';
+              const price = sd.price;
+              const metaBits = [`${persons} traveler${persons !== 1 ? 's' : ''}${price ? ` • AED ${price} per person` : ''}`];
+              if (dataAllowance) metaBits.push(dataAllowance);
+              if (validity) metaBits.push(validity);
+              addons.push({
+                key: 'sim',
+                title: `${provider} - ${planName}`,
+                icon: <Smartphone size={18} className="text-violet-600" />,
+                meta: metaBits.join(' • '),
+              });
+            }
+            return (
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid="addons-section">
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                  <h2 className="font-bold text-gray-800 flex items-center gap-2"><Star size={18} className="text-amber-500" /> Add-on Services</h2>
+                </div>
+                <div className="p-5 space-y-3">
+                  {addons.map(a => (
+                    <div key={a.key} className="flex items-center gap-4 p-3 border border-gray-200 rounded-lg" data-testid={`addon-${a.key}`}>
+                      <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center flex-shrink-0">
+                        {a.icon}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-gray-900 text-sm">{a.title}</h3>
+                        <p className="text-xs text-gray-600 mt-0.5">{a.meta}</p>
+                      </div>
+                      <span className="text-xs px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-semibold">Included</span>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Traveler Details */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid="traveler-details-section">
