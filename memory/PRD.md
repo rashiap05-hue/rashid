@@ -198,6 +198,12 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Each service tab shows a relevant data table (Hotels: hotel + stars, guest, check-in/out, rooms, meal plan, confirmation; Transfers: kind pill, service, vehicle, passenger, date; Activities: name + city, guest, date, start, duration, vehicle; Flights: direction, airline, route, departure, cabin, PNR; Insurance/Visa/SIM: customer, pax, plan, destination, travel date) plus Status badge + View action.
   - Each tab has its own search box (filters across all columns) + status filter pills (All / Pending / Confirmed / Rejected) + count indicator.
   - Verified via Playwright with Travo Georgia supplier login: Bookings, Hotels, Transfers, Activities tabs all render correctly with real data.
+- **Hotel View Modal — Confirmation Number required + Trip Change Requests inline (Apr 2026)**: New `SupplierDashboard/HotelViewModal.jsx` opens when the hotel team clicks View on any Hotels-tab row.
+  - **Hotel-only sections**: Check-in / Check-out / Nights / Rooms × Room type / Meal Plan / Confirmation # / Order Ref + Guests. (Transfers, Activities, Travelers' passport details, Payment info intentionally hidden.)
+  - **Trip Change Requests** for the booking surfaced inline with colored status badges; clicking one opens the conversation thread inside the same modal — hotel team can read original request, reply (Enter to send), and change task status (Open / Under Process / Closed / Rejected).
+  - **Status update with required Confirmation Number**: Backend `/api/supplier/bookings/{id}/confirm` now rejects the request with HTTP 400 if `confirmation_number` is missing. On success, the confirmation # is stamped on `bookings.supplier_confirmation_number` AND on every hotel inside `proposals.selected_hotels[*].confirmation_code` so it appears on the Hotels-tab row.
+  - The Bookings-tab Confirm/Reject modal also now requires Confirmation Number when confirming.
+  - Verified end-to-end via curl (400 without number, 200 with number) and Playwright (modal → Confirm → number entered → submit → row + modal show CONFIRMED + the entered number).
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)

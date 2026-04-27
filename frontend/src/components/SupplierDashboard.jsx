@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { api } from '@/App';
 import ServiceItemsTable, { StarRating, formatDate } from './SupplierDashboard/ServiceItemsTable';
 import { extractHotels, extractTransfers, extractActivities, extractFlights, extractAddons } from './SupplierDashboard/serviceExtractors';
+import HotelViewModal from './SupplierDashboard/HotelViewModal';
 
 export default function SupplierDashboard({ user, onBack }) {
   const [loading, setLoading] = useState(true);
@@ -20,8 +21,10 @@ export default function SupplierDashboard({ user, onBack }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [actionModal, setActionModal] = useState({ open: false, booking: null, type: null });
   const [actionNote, setActionNote] = useState('');
+  const [actionConfirmNumber, setActionConfirmNumber] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [detailBooking, setDetailBooking] = useState(null);
+  const [hotelView, setHotelView] = useState({ booking: null, row: null });
 
   const fetchData = async () => {
     setLoading(true);
@@ -42,11 +45,19 @@ export default function SupplierDashboard({ user, onBack }) {
 
   const handleConfirm = async () => {
     if (!actionModal.booking) return;
+    if (!actionConfirmNumber.trim()) {
+      alert('Confirmation number is required to confirm a booking');
+      return;
+    }
     setActionLoading(true);
     try {
-      await api.post(`/supplier/bookings/${actionModal.booking.id}/confirm`, { note: actionNote });
+      await api.post(`/supplier/bookings/${actionModal.booking.id}/confirm`, {
+        confirmation_number: actionConfirmNumber.trim(),
+        note: actionNote,
+      });
       setActionModal({ open: false, booking: null, type: null });
       setActionNote('');
+      setActionConfirmNumber('');
       fetchData();
     } catch (e) {
       alert(e.response?.data?.detail || 'Failed to confirm');
@@ -286,7 +297,14 @@ export default function SupplierDashboard({ user, onBack }) {
           <ServiceTab
             tab={activeTab}
             bookings={filtered}
-            onView={(bid) => setDetailBooking(bookings.find(x => x.id === bid))}
+            onView={(bid, row) => {
+              const b = bookings.find(x => x.id === bid);
+              if (activeTab === 'hotels' && b) {
+                setHotelView({ booking: b, row });
+              } else {
+                setDetailBooking(b);
+              }
+            }}
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
             searchQuery={searchQuery}
@@ -294,6 +312,16 @@ export default function SupplierDashboard({ user, onBack }) {
           />
         )}
       </div>
+
+      {/* Hotel View modal — hotel-only sections, status update with confirmation number, change requests */}
+      <HotelViewModal
+        open={!!hotelView.booking}
+        onClose={() => setHotelView({ booking: null, row: null })}
+        booking={hotelView.booking}
+        hotelRow={hotelView.row}
+        currentUser={user}
+        onUpdated={fetchData}
+      />
 
       {/* Confirm/Reject Modal */}
       <AnimatePresence>
@@ -307,22 +335,40 @@ export default function SupplierDashboard({ user, onBack }) {
                 <h3 className="text-lg font-bold">{actionModal.type === 'confirm' ? 'Confirm Booking' : 'Reject Booking'}</h3>
                 <p className="text-sm text-white/80">{actionModal.booking?.proposal?.proposal_name}</p>
               </div>
-              <div className="p-6">
-                <label className="text-sm font-medium text-gray-700">
-                  {actionModal.type === 'confirm' ? 'Note (optional)' : 'Reason for rejection *'}
-                </label>
-                <textarea value={actionNote} onChange={e => setActionNote(e.target.value)}
-                  placeholder={actionModal.type === 'confirm' ? 'Add a note...' : 'Please provide a reason...'}
-                  className="mt-2 w-full border border-gray-300 rounded-lg px-4 py-3 text-sm resize-none h-28 focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-                  data-testid="action-note-input" />
-                <div className="flex gap-3 mt-5">
-                  <button onClick={() => setActionModal({ open: false, booking: null, type: null })}
+              <div className="p-6 space-y-4">
+                {actionModal.type === 'confirm' && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Confirmation Number <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      value={actionConfirmNumber}
+                      onChange={(e) => setActionConfirmNumber(e.target.value)}
+                      placeholder="e.g. HX12345 / hotel PNR"
+                      className="mt-2 w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      data-testid="action-confirm-number"
+                      autoFocus
+                    />
+                  </div>
+                )}
+                <div>
+                  <label className="text-sm font-medium text-gray-700">
+                    {actionModal.type === 'confirm' ? 'Note (optional)' : 'Reason for rejection *'}
+                  </label>
+                  <textarea value={actionNote} onChange={e => setActionNote(e.target.value)}
+                    placeholder={actionModal.type === 'confirm' ? 'Add a note...' : 'Please provide a reason...'}
+                    className="mt-2 w-full border border-gray-300 rounded-lg px-4 py-3 text-sm resize-none h-24 focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
+                    data-testid="action-note-input" />
+                </div>
+                <div className="flex gap-3 mt-1">
+                  <button onClick={() => { setActionModal({ open: false, booking: null, type: null }); setActionConfirmNumber(''); setActionNote(''); }}
                     className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50">
                     Cancel
                   </button>
                   <button
                     onClick={actionModal.type === 'confirm' ? handleConfirm : handleReject}
-                    disabled={actionLoading || (actionModal.type === 'reject' && !actionNote.trim())}
+                    disabled={actionLoading
+                      || (actionModal.type === 'reject' && !actionNote.trim())
+                      || (actionModal.type === 'confirm' && !actionConfirmNumber.trim())}
                     className={cn("flex-1 px-4 py-2.5 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50",
                       actionModal.type === 'confirm' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
                     )} data-testid="action-submit-btn">

@@ -51,7 +51,7 @@ export default function ServiceItemsTable({ rows, columns, emptyText, onView, te
                   <StatusPill status={r.status} />
                 </td>
                 <td className="px-4 py-3">
-                  <button onClick={() => onView?.(r.booking_id)} className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition-colors flex items-center gap-1" data-testid={`${testId}-view-${i}`}>
+                  <button onClick={() => onView?.(r.booking_id, r)} className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition-colors flex items-center gap-1" data-testid={`${testId}-view-${i}`}>
                     <Eye size={12} /> View
                   </button>
                 </td>

@@ -1,0 +1,434 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  X, Hotel as HotelIcon, Bed, Users, Calendar, Star, CheckCircle, XCircle,
+  Loader2, Send, MessageCircle, AlertTriangle,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { api } from '@/App';
+
+const STATUS_COLORS = {
+  pending: 'bg-amber-100 text-amber-800',
+  confirmed: 'bg-green-100 text-green-800',
+  rejected: 'bg-red-100 text-red-800',
+};
+
+const STAR = ({ rating }) => {
+  const r = Math.max(0, Math.min(5, Number(rating) || 0));
+  if (!r) return null;
+  return (
+    <span className="inline-flex items-center gap-0.5 text-amber-500" aria-label={`${r} star`}>
+      {Array.from({ length: r }).map((_, i) => <Star key={i} size={12} fill="currentColor" />)}
+    </span>
+  );
+};
+
+const formatDate = (d) => {
+  if (!d) return '—';
+  try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
+  catch { return '—'; }
+};
+
+const formatRelative = (iso) => {
+  if (!iso) return '';
+  const dt = new Date(iso);
+  const diff = (Date.now() - dt.getTime()) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+const TASK_STATUS_META = {
+  open: { label: 'Open', cls: 'bg-amber-500 text-white' },
+  under_process: { label: 'Under Process', cls: 'bg-orange-500 text-white' },
+  closed: { label: 'Closed', cls: 'bg-emerald-500 text-white' },
+  rejected: { label: 'Rejected', cls: 'bg-red-500 text-white' },
+};
+
+export default function HotelViewModal({ open, onClose, booking, hotelRow, currentUser, onUpdated }) {
+  const [tasks, setTasks] = useState([]);
+  const [activeTask, setActiveTask] = useState(null);
+  const [reply, setReply] = useState('');
+  const [sending, setSending] = useState(false);
+  const [confirmNumber, setConfirmNumber] = useState('');
+  const [actionNote, setActionNote] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [rejectReason, setRejectReason] = useState('');
+  const [actionMode, setActionMode] = useState(null); // 'confirm' | 'reject' | null
+
+  const fetchTasks = useCallback(async () => {
+    if (!booking?.id) return;
+    try {
+      const res = await api.get(`/bookings/${booking.id}/change-requests`);
+      setTasks(res.data?.change_requests || []);
+    } catch { /* noop */ }
+  }, [booking?.id]);
+
+  useEffect(() => {
+    if (open) {
+      setActionMode(null);
+      setActionError('');
+      setConfirmNumber(booking?.supplier_confirmation_number || hotelRow?.confirmation || '');
+      setActionNote('');
+      setRejectReason('');
+      fetchTasks();
+    }
+  }, [open, booking, hotelRow, fetchTasks]);
+
+  if (!open || !booking || !hotelRow) return null;
+
+  const status = booking.supplier_status || 'pending';
+  const isPending = status === 'pending' || !status;
+
+  const handleConfirm = async () => {
+    setActionError('');
+    if (!confirmNumber.trim()) {
+      setActionError('Confirmation number is required to confirm.');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await api.post(`/supplier/bookings/${booking.id}/confirm`, {
+        confirmation_number: confirmNumber.trim(),
+        note: actionNote.trim(),
+      });
+      onUpdated?.();
+      onClose?.();
+    } catch (e) {
+      setActionError(e?.response?.data?.detail || 'Failed to confirm');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReject = async () => {
+    setActionError('');
+    if (!rejectReason.trim()) {
+      setActionError('Reason is required to reject.');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await api.post(`/supplier/bookings/${booking.id}/reject`, { reason: rejectReason.trim() });
+      onUpdated?.();
+      onClose?.();
+    } catch (e) {
+      setActionError(e?.response?.data?.detail || 'Failed to reject');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReply = async () => {
+    if (!reply.trim() || !activeTask?.id) return;
+    setSending(true);
+    try {
+      const res = await api.post(`/change-requests/${activeTask.id}/replies`, { text: reply.trim() });
+      const updated = res.data?.change_request;
+      setActiveTask(updated);
+      setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
+      setReply('');
+    } catch { /* noop */ }
+    setSending(false);
+  };
+
+  const handleTaskStatus = async (newStatus) => {
+    if (!activeTask?.id) return;
+    try {
+      const res = await api.patch(`/change-requests/${activeTask.id}`, { status: newStatus });
+      const updated = res.data?.change_request;
+      setActiveTask(updated);
+      setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
+    } catch { /* noop */ }
+  };
+
+  const room = hotelRow.room_type;
+  const meal = hotelRow.meal_plan;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-3 py-6 overflow-y-auto"
+        onClick={onClose}
+        data-testid="hotel-view-modal"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 20, scale: 0.96 }}
+          transition={{ duration: 0.2 }}
+          className="relative w-full max-w-3xl bg-white rounded-xl shadow-xl my-auto max-h-[92vh] flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-4 border-b border-gray-100">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center flex-shrink-0">
+                <HotelIcon size={20} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Hotel Reservation</p>
+                <h2 className="text-lg font-bold text-gray-900 leading-tight truncate">
+                  {hotelRow.name} <STAR rating={hotelRow.star_rating} />
+                </h2>
+                <p className="text-sm text-gray-500">{hotelRow.city}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={cn('px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap', STATUS_COLORS[status] || STATUS_COLORS.pending)}>
+                {status}
+              </span>
+              <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500" data-testid="hotel-view-close" aria-label="Close">
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="overflow-y-auto px-6 py-5 space-y-5">
+            {/* Reservation grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1"><Calendar size={11} /> Check-in</p>
+                <p className="text-sm font-semibold text-gray-900">{formatDate(hotelRow.check_in)}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1"><Calendar size={11} /> Check-out</p>
+                <p className="text-sm font-semibold text-gray-900">{formatDate(hotelRow.check_out)}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Nights</p>
+                <p className="text-sm font-semibold text-gray-900">{hotelRow.nights}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1"><Bed size={11} /> Rooms</p>
+                <p className="text-sm font-semibold text-gray-900">{hotelRow.rooms} × {room}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Meal Plan</p>
+                <p className="text-sm font-semibold text-gray-900">{meal}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Confirmation #</p>
+                <p className="text-sm font-semibold text-gray-900">{booking.supplier_confirmation_number || hotelRow.confirmation || 'Pending'}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Order Ref</p>
+                <p className="text-sm font-semibold text-gray-900">{booking.order_id || booking.id?.slice(0, 8)}</p>
+              </div>
+            </div>
+
+            {/* Guests */}
+            <div>
+              <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1"><Users size={11} /> Guests</p>
+              <div className="flex flex-wrap gap-2">
+                {(booking.travelers || []).length === 0 ? (
+                  <span className="text-sm text-gray-700">{hotelRow.guests}</span>
+                ) : (
+                  (booking.travelers || []).map((t, i) => (
+                    <div key={i} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800">
+                      {t.title} {t.firstName} {t.lastName}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Trip Change Requests */}
+            <div>
+              <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <MessageCircle size={11} /> Trip Change Requests
+                {tasks.length > 0 && <span className="text-gray-400">· {tasks.length}</span>}
+              </p>
+              {tasks.length === 0 ? (
+                <p className="text-sm text-gray-400 py-2">No change requests for this booking</p>
+              ) : !activeTask ? (
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  {tasks.map((t) => {
+                    const meta = TASK_STATUS_META[t.status] || TASK_STATUS_META.open;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => setActiveTask(t)}
+                        className="w-full text-left px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 flex items-center gap-3"
+                        data-testid={`hotel-view-task-${t.id}`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-gray-900 truncate">{t.type} · {t.for_scope}</p>
+                          <p className="text-xs text-gray-500 line-clamp-1">{t.description}</p>
+                          <p className="text-[10px] text-blue-500 mt-1">{(t.replies?.length || 0)} replies · {formatRelative(t.created_at)}</p>
+                        </div>
+                        <span className={cn('px-2.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap', meta.cls)}>{meta.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* Active task view */
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+                    <button onClick={() => setActiveTask(null)} className="text-xs text-[#0066CC] hover:underline" data-testid="hotel-view-task-back">
+                      ← Back to all requests
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={activeTask.status}
+                        onChange={(e) => handleTaskStatus(e.target.value)}
+                        className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+                        data-testid="hotel-view-task-status"
+                      >
+                        {Object.entries(TASK_STATUS_META).map(([k, m]) => (
+                          <option key={k} value={k}>{m.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="p-4 max-h-72 overflow-y-auto space-y-3">
+                    <div className="bg-gray-50 border border-gray-200 rounded p-3">
+                      <p className="text-[11px] font-bold text-gray-700">{activeTask.requested_by_name} <span className="font-normal text-gray-400">· {activeTask.requested_by_role}</span> · {formatRelative(activeTask.created_at)}</p>
+                      <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">{activeTask.description}</p>
+                    </div>
+                    {(activeTask.replies || []).map((r) => {
+                      const mine = r.sender_id === currentUser?.id;
+                      return (
+                        <div key={r.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[85%] rounded-lg p-3 ${mine ? 'bg-[#002B5B] text-white' : 'bg-gray-100 text-gray-800'}`}>
+                            <p className={`text-[10px] font-bold ${mine ? 'text-white/80' : 'text-gray-700'}`}>{r.sender_name} · {r.sender_role}</p>
+                            <p className="text-sm mt-0.5 whitespace-pre-wrap">{r.text}</p>
+                            <p className={`text-[10px] mt-1 ${mine ? 'text-white/60' : 'text-gray-400'}`}>{formatRelative(r.created_at)}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="border-t border-gray-200 px-3 py-2 flex gap-2 bg-gray-50">
+                    <input
+                      value={reply}
+                      onChange={(e) => setReply(e.target.value)}
+                      placeholder="Type a reply..."
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm"
+                      data-testid="hotel-view-reply-input"
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
+                    />
+                    <button
+                      onClick={handleReply}
+                      disabled={sending || !reply.trim()}
+                      className="px-3 py-2 bg-[#002B5B] hover:bg-[#001f44] disabled:opacity-40 text-white rounded text-xs font-bold flex items-center gap-1"
+                      data-testid="hotel-view-reply-send"
+                    >
+                      {sending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                      Send
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action footer */}
+          {isPending && actionMode === null && (
+            <div className="border-t border-gray-100 px-6 py-4 flex items-center justify-end gap-2 bg-gray-50 rounded-b-xl">
+              <button
+                onClick={() => { setActionMode('reject'); setActionError(''); }}
+                className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold flex items-center gap-1.5"
+                data-testid="hotel-view-reject-btn"
+              >
+                <XCircle size={14} /> Reject
+              </button>
+              <button
+                onClick={() => { setActionMode('confirm'); setActionError(''); }}
+                className="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold flex items-center gap-1.5"
+                data-testid="hotel-view-confirm-btn"
+              >
+                <CheckCircle size={14} /> Confirm
+              </button>
+            </div>
+          )}
+
+          {actionMode === 'confirm' && (
+            <div className="border-t border-gray-100 px-6 py-4 bg-green-50 rounded-b-xl space-y-3">
+              <p className="text-sm font-bold text-green-900">Confirm hotel reservation</p>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Confirmation Number <span className="text-red-500">*</span></label>
+                <input
+                  value={confirmNumber}
+                  onChange={(e) => setConfirmNumber(e.target.value)}
+                  placeholder="e.g. HX12345 / hotel PNR"
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  data-testid="hotel-confirm-number"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Note (optional)</label>
+                <textarea
+                  value={actionNote}
+                  onChange={(e) => setActionNote(e.target.value)}
+                  rows={2}
+                  placeholder="Internal note for the agent..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm resize-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  data-testid="hotel-confirm-note"
+                />
+              </div>
+              {actionError && (
+                <div className="px-3 py-2 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-center gap-1.5">
+                  <AlertTriangle size={12} /> {actionError}
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setActionMode(null)} disabled={actionLoading} className="px-4 py-2 border border-gray-300 text-gray-700 rounded text-sm font-medium hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+                <button
+                  onClick={handleConfirm}
+                  disabled={actionLoading || !confirmNumber.trim()}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded text-sm font-bold flex items-center gap-1.5"
+                  data-testid="hotel-confirm-submit"
+                >
+                  {actionLoading && <Loader2 size={12} className="animate-spin" />}
+                  Confirm Reservation
+                </button>
+              </div>
+            </div>
+          )}
+
+          {actionMode === 'reject' && (
+            <div className="border-t border-gray-100 px-6 py-4 bg-red-50 rounded-b-xl space-y-3">
+              <p className="text-sm font-bold text-red-900">Reject hotel reservation</p>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Reason <span className="text-red-500">*</span></label>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  rows={3}
+                  placeholder="e.g. Hotel sold out for these dates"
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  data-testid="hotel-reject-reason"
+                  autoFocus
+                />
+              </div>
+              {actionError && (
+                <div className="px-3 py-2 bg-red-100 border border-red-200 rounded text-xs text-red-700 flex items-center gap-1.5">
+                  <AlertTriangle size={12} /> {actionError}
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setActionMode(null)} disabled={actionLoading} className="px-4 py-2 border border-gray-300 text-gray-700 rounded text-sm font-medium hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+                <button
+                  onClick={handleReject}
+                  disabled={actionLoading || !rejectReason.trim()}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded text-sm font-bold flex items-center gap-1.5"
+                  data-testid="hotel-reject-submit"
+                >
+                  {actionLoading && <Loader2 size={12} className="animate-spin" />}
+                  Reject Reservation
+                </button>
+              </div>
+            </div>
+          )}
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}

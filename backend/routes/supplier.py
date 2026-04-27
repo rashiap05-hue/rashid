@@ -126,11 +126,15 @@ async def get_all_bookings_admin(current_user: dict = Depends(get_current_user))
 
 @supplier_router.post("/bookings/{booking_id}/confirm")
 async def confirm_booking(booking_id: str, data: dict = Body(default={}), current_user: dict = Depends(get_current_user)):
-    """Supplier confirms a booking."""
+    """Supplier confirms a booking. `confirmation_number` is required."""
     booking = await db.bookings.find_one({"id": booking_id})
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
+
+    confirmation_number = (data.get("confirmation_number") or "").strip()
+    if not confirmation_number:
+        raise HTTPException(status_code=400, detail="Confirmation number is required to confirm a booking")
+
     note = data.get("note", "")
     now_iso = datetime.now(timezone.utc).isoformat()
 
@@ -139,12 +143,33 @@ async def confirm_booking(booking_id: str, data: dict = Body(default={}), curren
         "supplier_confirmed_by": current_user.get("full_name"),
         "supplier_confirmed_at": now_iso,
         "supplier_note": note,
+        "supplier_confirmation_number": confirmation_number,
     }
     # Auto-advance the main booking status only when payment has been received.
     # Held bookings stay as "held" until the agent pays; supplier acknowledgment is captured in supplier_status.
     if booking.get("status") == "payment_received":
         update_fields["status"] = "confirmed"
         update_fields["confirmed_at"] = now_iso
+
+    # Stamp the confirmation number onto the matched hotel(s) inside the proposal so
+    # the operational dashboard's hotel rows display it.
+    proposal_id = booking.get("proposal_id")
+    if proposal_id:
+        proposal = await db.proposals.find_one({"id": proposal_id}, {"_id": 0, "selected_hotels": 1})
+        selected_hotels = (proposal or {}).get("selected_hotels", {}) or {}
+        if selected_hotels:
+            updated = {}
+            for k, h in selected_hotels.items():
+                if isinstance(h, dict):
+                    new_h = dict(h)
+                    new_h["confirmation_code"] = confirmation_number
+                    new_h["confirmation_status"] = "confirmed"
+                    updated[k] = new_h
+            if updated:
+                await db.proposals.update_one(
+                    {"id": proposal_id},
+                    {"$set": {"selected_hotels": updated}},
+                )
 
     await db.bookings.update_one({"id": booking_id}, {"$set": update_fields})
     # Keep held_bookings (used by MyBookings + BookingDetail) in sync
@@ -158,13 +183,13 @@ async def confirm_booking(booking_id: str, data: dict = Body(default={}), curren
             "user_id": agent_id,
             "type": "booking_confirmed",
             "title": "Booking Confirmed by Supplier",
-            "message": f"Your booking has been confirmed by the supplier.{(' Note: ' + note) if note else ''}",
+            "message": f"Confirmation #{confirmation_number}.{(' Note: ' + note) if note else ''}",
             "booking_id": booking_id,
             "read": False,
             "created_at": now_iso
         })
     
-    return {"success": True, "message": "Booking confirmed"}
+    return {"success": True, "message": "Booking confirmed", "confirmation_number": confirmation_number}
 
 
 @supplier_router.post("/bookings/{booking_id}/reject")
