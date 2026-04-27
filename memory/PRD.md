@@ -192,6 +192,12 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - **Advisor replies** → original requester gets a `change_request_reply` notification with sender name + message snippet.
   - **Advisor changes status** → original requester gets a `change_request_status` notification with the new status label (Open / Under Process / Closed / Rejected).
   - Verified: rashid creates request → 7 other admins all get unread notifications; testadmin replies + closes → rashid sees 2 new notifications (reply + status) in the notification bell with timestamp + title + message.
+- **Operational Dashboard renamed + service-typed tabs (Apr 2026)**: Renamed all user-facing "Supplier Dashboard"/"Supplier Portal"/"Supplier Bookings" labels to "Operational Dashboard"/"Operational Bookings" (Header button, page heading, AdminDashboard tab, footer link).
+  - Replaced single Bookings/Services tab structure with 8 service-type tabs: **Bookings | Hotels | Transfers | Activities | Flights | Insurance | Visa | SIM Cards**.
+  - New helpers: `SupplierDashboard/serviceExtractors.js` flattens each booking into per-service rows; `SupplierDashboard/ServiceItemsTable.jsx` is a generic columnar table component.
+  - Each service tab shows a relevant data table (Hotels: hotel + stars, guest, check-in/out, rooms, meal plan, confirmation; Transfers: kind pill, service, vehicle, passenger, date; Activities: name + city, guest, date, start, duration, vehicle; Flights: direction, airline, route, departure, cabin, PNR; Insurance/Visa/SIM: customer, pax, plan, destination, travel date) plus Status badge + View action.
+  - Each tab has its own search box (filters across all columns) + status filter pills (All / Pending / Confirmed / Rejected) + count indicator.
+  - Verified via Playwright with Travo Georgia supplier login: Bookings, Hotels, Transfers, Activities tabs all render correctly with real data.
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)

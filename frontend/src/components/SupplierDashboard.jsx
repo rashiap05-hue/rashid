@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Car, Hotel, Camera, DollarSign, Calendar, Clock, Users, CheckCircle, XCircle, 
   AlertCircle, Package, MapPin, Phone, Mail, User, RefreshCw, Search, Eye, X,
-  ArrowLeft, Building2, Loader2, ChevronDown, Plane, FileText, MessageSquare
+  ArrowLeft, Building2, Loader2, ChevronDown, Plane, FileText, MessageSquare,
+  Shield, Smartphone, BookOpen
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
+import ServiceItemsTable, { StarRating, formatDate } from './SupplierDashboard/ServiceItemsTable';
+import { extractHotels, extractTransfers, extractActivities, extractFlights, extractAddons } from './SupplierDashboard/serviceExtractors';
 
 export default function SupplierDashboard({ user, onBack }) {
   const [loading, setLoading] = useState(true);
@@ -135,12 +138,24 @@ export default function SupplierDashboard({ user, onBack }) {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-white rounded-lg p-1 border border-gray-200 w-fit">
-          {['bookings', 'services'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={cn("px-5 py-2 rounded-md text-sm font-medium transition-colors capitalize",
-                activeTab === tab ? 'bg-[#002B5B] text-white' : 'text-gray-600 hover:bg-gray-100'
-              )}>{tab}</button>
+        <div className="flex gap-1 mb-6 bg-white rounded-lg p-1 border border-gray-200 overflow-x-auto" data-testid="op-dashboard-tabs">
+          {[
+            { key: 'bookings', label: 'Bookings', icon: Package },
+            { key: 'hotels', label: 'Hotels', icon: Hotel },
+            { key: 'transfers', label: 'Transfers', icon: Car },
+            { key: 'activities', label: 'Activities', icon: Camera },
+            { key: 'flights', label: 'Flights', icon: Plane },
+            { key: 'insurance', label: 'Insurance', icon: Shield },
+            { key: 'visa', label: 'Visa', icon: BookOpen },
+            { key: 'sim', label: 'SIM Cards', icon: Smartphone },
+          ].map(({ key, label, icon: Icon }) => (
+            <button key={key} onClick={() => setActiveTab(key)}
+              data-testid={`op-tab-${key}`}
+              className={cn('px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap',
+                activeTab === key ? 'bg-[#002B5B] text-white' : 'text-gray-600 hover:bg-gray-100'
+              )}>
+              <Icon size={14} /> {label}
+            </button>
           ))}
         </div>
 
@@ -266,13 +281,17 @@ export default function SupplierDashboard({ user, onBack }) {
           </div>
         )}
 
-        {/* Services Tab */}
-        {activeTab === 'services' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="font-bold text-gray-900 mb-4">Your Linked Services</h3>
-            <p className="text-sm text-gray-500 mb-2">Total services: {stats.total_services || 0} (Hotels: {stats.total_hotels || 0}, Transfers: {stats.total_transfers || 0}, Activities: {stats.total_activities || 0})</p>
-            <p className="text-xs text-gray-400">Bookings containing your services are auto-routed to this dashboard.</p>
-          </div>
+        {/* Service-type Tabs */}
+        {activeTab !== 'bookings' && (
+          <ServiceTab
+            tab={activeTab}
+            bookings={filtered}
+            onView={(bid) => setDetailBooking(bookings.find(x => x.id === bid))}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+          />
         )}
       </div>
 
@@ -436,6 +455,170 @@ export default function SupplierDashboard({ user, onBack }) {
           </div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+
+// ===========================
+// Service-type tab subcomponent
+// ===========================
+function ServiceTab({ tab, bookings, onView, statusFilter, setStatusFilter, searchQuery, setSearchQuery }) {
+  const rows = useMemo(() => {
+    let r = [];
+    if (tab === 'hotels') r = extractHotels(bookings);
+    else if (tab === 'transfers') r = extractTransfers(bookings);
+    else if (tab === 'activities') r = extractActivities(bookings);
+    else if (tab === 'flights') r = extractFlights(bookings);
+    else if (tab === 'insurance') r = extractAddons(bookings, 'insurance');
+    else if (tab === 'visa') r = extractAddons(bookings, 'visa');
+    else if (tab === 'sim') r = extractAddons(bookings, 'sim');
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      r = r.filter(x => Object.values(x).some(v => String(v ?? '').toLowerCase().includes(q)));
+    }
+    return r;
+  }, [tab, bookings, searchQuery]);
+
+  const COLUMNS = {
+    hotels: [
+      { key: 'name', label: 'Hotel', render: (r) => (
+        <div>
+          <p className="font-bold text-gray-900">{r.name} <StarRating rating={r.star_rating} /></p>
+          <p className="text-xs text-gray-500">{r.city}</p>
+        </div>
+      ) },
+      { key: 'guests', label: 'Guest' },
+      { key: 'check_in', label: 'Check-in', render: (r) => formatDate(r.check_in) },
+      { key: 'check_out', label: 'Check-out', render: (r) => formatDate(r.check_out) },
+      { key: 'rooms', label: 'Rooms', render: (r) => `${r.rooms} × ${r.room_type}` },
+      { key: 'meal_plan', label: 'Meal Plan' },
+      { key: 'confirmation', label: 'Confirmation' },
+    ],
+    transfers: [
+      { key: 'kind', label: 'Type', render: (r) => (
+        <span className={cn('px-2 py-0.5 rounded text-xs font-medium',
+          r.kind === 'Arrival' ? 'bg-blue-50 text-blue-700' :
+          r.kind === 'Departure' ? 'bg-orange-50 text-orange-700' : 'bg-purple-50 text-purple-700'
+        )}>{r.kind}</span>
+      ) },
+      { key: 'name', label: 'Service', render: (r) => (
+        <div>
+          <p className="font-bold text-gray-900">{r.name}</p>
+          {r.route && <p className="text-xs text-gray-500">Route: {r.route}</p>}
+        </div>
+      ) },
+      { key: 'type', label: 'Vehicle' },
+      { key: 'guests', label: 'Passenger(s)' },
+      { key: 'date', label: 'Date', render: (r) => formatDate(r.date || r.travel_date) },
+    ],
+    activities: [
+      { key: 'name', label: 'Activity', render: (r) => (
+        <div>
+          <p className="font-bold text-gray-900">{r.name}</p>
+          <p className="text-xs text-gray-500">{r.city}</p>
+        </div>
+      ) },
+      { key: 'guests', label: 'Guest(s)' },
+      { key: 'date', label: 'Date', render: (r) => formatDate(r.date || r.travel_date) },
+      { key: 'start_time', label: 'Start', render: (r) => r.start_time || '—' },
+      { key: 'duration', label: 'Duration', render: (r) => {
+        if (!r.duration) return '—';
+        const s = String(r.duration);
+        return /hr|hour|day/i.test(s) ? s : `${s} hrs`;
+      } },
+      { key: 'type', label: 'Vehicle' },
+    ],
+    flights: [
+      { key: 'kind', label: 'Direction', render: (r) => r.kind || 'Onward' },
+      { key: 'airline', label: 'Airline', render: (r) => (
+        <div>
+          <p className="font-bold text-gray-900">{r.airline}</p>
+          <p className="text-xs text-gray-500">{r.flight_no || ''}</p>
+        </div>
+      ) },
+      { key: 'route', label: 'Route', render: (r) => `${r.from || '—'} → ${r.to || '—'}` },
+      { key: 'depart_at', label: 'Departure', render: (r) => formatDate(r.depart_at) },
+      { key: 'cabin', label: 'Cabin' },
+      { key: 'guests', label: 'Passenger(s)' },
+      { key: 'pnr', label: 'PNR' },
+    ],
+    insurance: [
+      { key: 'customer', label: 'Customer' },
+      { key: 'pax', label: 'Pax' },
+      { key: 'detail', label: 'Plan' },
+      { key: 'travel_date', label: 'Travel Date', render: (r) => formatDate(r.travel_date) },
+      { key: 'city', label: 'Destination' },
+    ],
+    visa: [
+      { key: 'customer', label: 'Customer' },
+      { key: 'pax', label: 'Pax' },
+      { key: 'detail', label: 'Visa' },
+      { key: 'city', label: 'Destination' },
+      { key: 'travel_date', label: 'Travel Date', render: (r) => formatDate(r.travel_date) },
+    ],
+    sim: [
+      { key: 'customer', label: 'Customer' },
+      { key: 'pax', label: 'Pax' },
+      { key: 'detail', label: 'SIM Plan' },
+      { key: 'city', label: 'Destination' },
+      { key: 'travel_date', label: 'Travel Date', render: (r) => formatDate(r.travel_date) },
+    ],
+  };
+
+  const titles = {
+    hotels: 'Hotel Reservations',
+    transfers: 'Transfer Bookings',
+    activities: 'Activity Bookings',
+    flights: 'Flight Reservations',
+    insurance: 'Travel Insurance',
+    visa: 'Visa Cases',
+    sim: 'SIM Card Orders',
+  };
+
+  return (
+    <div data-testid={`service-tab-${tab}`}>
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <div className="relative flex-1 min-w-[240px] max-w-sm">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder={`Search ${titles[tab].toLowerCase()}...`}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm"
+            data-testid={`service-search-${tab}`}
+          />
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {['all', 'pending', 'confirmed', 'rejected'].map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={cn(
+                'px-3.5 py-2 rounded-lg text-sm font-medium capitalize transition-colors',
+                statusFilter === s ? 'bg-[#002B5B] text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+              )}
+              data-testid={`service-filter-${tab}-${s}`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <span className="ml-auto text-sm text-gray-500" data-testid={`service-count-${tab}`}>
+          {rows.length} {rows.length === 1 ? 'item' : 'items'}
+        </span>
+      </div>
+
+      <h3 className="text-sm font-bold text-gray-700 mb-3">{titles[tab]}</h3>
+      <ServiceItemsTable
+        rows={rows}
+        columns={COLUMNS[tab]}
+        emptyText={`No ${titles[tab].toLowerCase()} for the current filter`}
+        onView={onView}
+        testId={`service-table-${tab}`}
+      />
     </div>
   );
 }
