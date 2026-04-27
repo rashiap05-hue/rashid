@@ -363,101 +363,74 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
             );
           })}
 
-          {/* Activity Cards */}
-          {Object.entries(selectedActivities).map(([key, val]) => {
-            const activitiesArr = Array.isArray(val) ? val : (val ? [val] : []);
-            return activitiesArr.map((activity, ai) => {
-              if (!activity) return null;
-              const cityDay = key.split('_');
-              const dayLabel = cityDay.length > 1 ? `${cityDay[0]} • Day ${cityDay[1]}` : cityDay[0];
-              const img = (activity.images && activity.images[0]) || activity.image;
-              const incList = Array.isArray(activity.inclusions) ? activity.inclusions : (activity.inclusions ? [activity.inclusions] : []);
-              return (
-                <div key={`${key}-${ai}`} className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid={`activity-card-${key}-${ai}`}>
-                  <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                    <h2 className="font-bold text-gray-800 flex items-center gap-2"><MapPin size={18} /> Activity — {dayLabel}</h2>
-                  </div>
-                  <div className="p-5 flex flex-col md:flex-row gap-5">
-                    <div className="w-full md:w-40 h-28 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                      {img ? (
-                        <img src={resolveImageUrl(img)} alt={activity.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center"><MapPin size={32} className="text-gray-300" /></div>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-gray-900">{activity.name || activity.title || '—'}</h3>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {activity.duration && (
-                          <span className="text-xs text-gray-600 flex items-center gap-1">
-                            <Clock size={12} className="text-gray-400" />{activity.duration}
-                          </span>
-                        )}
-                        {activity.transfer_type && (
-                          <span className="text-xs px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-semibold">
-                            {activity.transfer_type}
-                          </span>
-                        )}
-                      </div>
-                      {activity.description && (
-                        <p className="text-xs text-gray-500 mt-2 line-clamp-2">{activity.description}</p>
-                      )}
-                      {incList.length > 0 && (
-                        <div className="mt-3">
-                          <p className="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Inclusions</p>
-                          <ul className="mt-1 space-y-0.5">
-                            {incList.slice(0, 4).map((inc, i) => (
-                              <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
-                                <CheckCircle size={11} className="text-emerald-500 mt-0.5 flex-shrink-0" />{inc}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            });
-          })}
-
-          {/* Transfer Cards (arrival, inter-city, departure) */}
+          {/* Day-by-day Itinerary (groups arrival, inter-city, activities, departure in chronological order) */}
           {(() => {
-            const transferCards = [];
-            if (proposal?.arrival_transfer) {
-              transferCards.push({ key: 'arrival', label: 'Arrival Transfer', data: proposal.arrival_transfer });
+            if (!cities.length) return null;
+            const leavingOn = booking.leaving_on || proposal?.leaving_on;
+            const interCityTransfers = proposal?.inter_city_transfers || {};
+            const arrivalT = proposal?.arrival_transfer;
+            const departureT = proposal?.departure_transfer;
+
+            const addDays = (iso, n) => {
+              if (!iso) return '';
+              const d = new Date(iso);
+              if (isNaN(d.getTime())) return '';
+              d.setDate(d.getDate() + n);
+              return d.toISOString();
+            };
+
+            const days = [];
+            let dayNum = 0;
+            for (let ci = 0; ci < cities.length; ci++) {
+              const c = cities[ci];
+              const cityName = c?.name || c;
+              const nights = (c && typeof c === 'object' && c.nights) || 1;
+              for (let n = 0; n < nights; n++) {
+                dayNum++;
+                const dayDate = addDays(leavingOn, dayNum - 1);
+                const items = [];
+                // Arrival transfer on day 1
+                if (ci === 0 && n === 0 && arrivalT) {
+                  items.push({ kind: 'transfer', label: 'Arrival Transfer', data: arrivalT });
+                }
+                // Inter-city transfer when entering a new city after day 1
+                if (n === 0 && ci > 0) {
+                  const t = interCityTransfers[`${ci - 1}_${ci}`];
+                  if (t) items.push({ kind: 'transfer', label: 'Inter-city Transfer', data: t });
+                }
+                // Activities for the day
+                const acts = selectedActivities[`${cityName}_${dayNum}`];
+                if (acts) {
+                  const arr = Array.isArray(acts) ? acts : [acts];
+                  arr.forEach(a => { if (a) items.push({ kind: 'activity', data: a }); });
+                }
+                // Departure transfer on the last day
+                const isLastDay = (ci === cities.length - 1) && (n === nights - 1);
+                if (isLastDay && departureT) {
+                  items.push({ kind: 'transfer', label: 'Departure Transfer', data: departureT });
+                }
+                days.push({ num: dayNum, date: dayDate, city: cityName, items });
+              }
             }
-            const inter = proposal?.inter_city_transfers || {};
-            Object.entries(inter).forEach(([k, t]) => {
-              if (t) transferCards.push({ key: `inter-${k}`, label: 'Inter-city Transfer', data: t });
-            });
-            if (proposal?.departure_transfer) {
-              transferCards.push({ key: 'departure', label: 'Departure Transfer', data: proposal.departure_transfer });
-            }
-            return transferCards.map(({ key, label, data: t }) => {
-              const ttype = t.transfer_type || t.type || 'Private';
-              const isPrivate = String(ttype).toLowerCase().includes('private');
-              return (
-                <div key={key} className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid={`transfer-card-${key}`}>
-                  <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                    <h2 className="font-bold text-gray-800 flex items-center gap-2"><Car size={18} /> {label}</h2>
-                  </div>
-                  <div className="p-5 flex gap-5">
-                    <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Car size={22} className="text-[#002B5B]" />
+
+            const renderItem = (it, idx) => {
+              const data = it.data || {};
+              if (it.kind === 'transfer') {
+                const ttype = data.transfer_type || data.type || 'Private';
+                const isPrivate = String(ttype).toLowerCase().includes('private');
+                return (
+                  <div key={idx} className="flex gap-3 items-start py-3 border-b border-gray-100 last:border-b-0">
+                    <div className="w-9 h-9 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Car size={16} className="text-[#002B5B]" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-bold text-gray-900">{t.title || t.name || label}</h3>
-                      {(t.from_location || t.to_location) && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          {t.from_location || ''} {t.to_location ? `→ ${t.to_location}` : ''}
-                        </p>
+                      <h4 className="font-bold text-sm text-gray-900">{data.title || data.name || it.label}</h4>
+                      {(data.from_location || data.to_location) && (
+                        <p className="text-xs text-gray-500 mt-0.5">{data.from_location || ''} {data.to_location ? `→ ${data.to_location}` : ''}</p>
                       )}
-                      <div className="flex flex-wrap gap-3 mt-2 text-sm">
-                        {t.duration && (
-                          <span className="text-xs text-gray-600 flex items-center gap-1">
-                            <Clock size={12} className="text-gray-400" />Duration: {t.duration}
-                          </span>
+                      <div className="flex flex-wrap gap-2 mt-1.5">
+                        {data.duration && (
+                          <span className="text-xs text-gray-600 flex items-center gap-1"><Clock size={11} className="text-gray-400" />{data.duration}</span>
                         )}
                         <span className={`text-xs px-2 py-0.5 rounded-full font-semibold border ${isPrivate ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
                           {isPrivate ? 'Private Transfer' : 'Shared Transfer'}
@@ -465,9 +438,72 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
                       </div>
                     </div>
                   </div>
+                );
+              }
+              // activity
+              const img = (data.images && data.images[0]) || data.image;
+              const incList = Array.isArray(data.inclusions) ? data.inclusions : (data.inclusions ? [data.inclusions] : []);
+              return (
+                <div key={idx} className="flex gap-3 items-start py-3 border-b border-gray-100 last:border-b-0">
+                  <div className="w-20 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                    {img ? (
+                      <img src={resolveImageUrl(img)} alt={data.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center"><MapPin size={20} className="text-gray-300" /></div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-sm text-gray-900">{data.name || data.title || '—'}</h4>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {data.duration && (
+                        <span className="text-xs text-gray-600 flex items-center gap-1"><Clock size={11} className="text-gray-400" />{data.duration}</span>
+                      )}
+                      {data.transfer_type && (
+                        <span className="text-xs px-2 py-0.5 bg-violet-50 text-violet-700 border border-violet-200 rounded-full font-semibold">{data.transfer_type}</span>
+                      )}
+                    </div>
+                    {data.description && (
+                      <p className="text-xs text-gray-500 mt-1.5 line-clamp-2">{data.description}</p>
+                    )}
+                    {incList.length > 0 && (
+                      <ul className="mt-1.5 space-y-0.5">
+                        {incList.slice(0, 4).map((inc, i) => (
+                          <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
+                            <CheckCircle size={10} className="text-emerald-500 mt-0.5 flex-shrink-0" />{inc}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
               );
-            });
+            };
+
+            return (
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid="day-itinerary-section">
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                  <h2 className="font-bold text-gray-800 flex items-center gap-2"><MapPin size={18} /> Day-by-Day Itinerary</h2>
+                </div>
+                <div className="divide-y divide-gray-200">
+                  {days.map((d) => (
+                    <div key={d.num} className="px-6 py-4" data-testid={`day-card-${d.num}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="bg-[#002B5B] text-white text-xs font-bold px-2.5 py-1 rounded">Day {d.num}</span>
+                          <span className="text-sm font-semibold text-gray-700">{formatDate(d.date)}</span>
+                        </div>
+                        <span className="text-xs text-gray-500">{d.city}</span>
+                      </div>
+                      {d.items.length === 0 ? (
+                        <p className="text-xs text-gray-400 italic ml-1">No activities planned — free day in {d.city}</p>
+                      ) : (
+                        <div>{d.items.map((it, i) => renderItem(it, i))}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
           })()}
 
           {/* Add-ons: Travel Insurance, Visa, SIM Card */}
