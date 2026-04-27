@@ -33,6 +33,7 @@ from routes.currency import router as currency_router
 from routes.visas import visa_router
 from routes.sim_cards import sim_cards_router
 from routes.messages import messages_router
+from routes.invoice_voucher import router as invoice_voucher_router
 
 from seed import seed_initial_data, seed_terms_policies, migrate_image_urls, migrate_activities_fields, migrate_transfer_image_urls, seed_destination_experts
 
@@ -80,6 +81,7 @@ api_router.include_router(currency_router)
 api_router.include_router(visa_router)
 api_router.include_router(sim_cards_router)
 api_router.include_router(messages_router)
+api_router.include_router(invoice_voucher_router)
 
 app.include_router(api_router)
 

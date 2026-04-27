@@ -1,6 +1,9 @@
 """Invoice & Voucher PDF generators (WeasyPrint).
 Layouts mirror the Nexus DMC reference PDFs provided by the user.
 """
+import base64
+import logging
+import os
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import Response
 from datetime import datetime, timezone, timedelta
@@ -8,6 +11,10 @@ from weasyprint import HTML
 
 from db import db, get_current_user
 from routes.pdf_generator import resolve_image, fmt_date, add_days, short_ref
+from routes.email_service import send_email_async, RESEND_API_KEY, SENDER_EMAIL
+import resend
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -504,3 +511,99 @@ async def get_voucher_pdf(booking_id: str, current_user: dict = Depends(get_curr
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{ref}_Voucher.pdf"'},
     )
+
+
+# ---------------- EMAIL (with PDF attachment) ----------------
+
+def _send_pdf_email(to_email, subject, html_body, attachment_filename, pdf_bytes):
+    if not RESEND_API_KEY:
+        logger.warning("RESEND_API_KEY not set — skipping email")
+        return None
+    try:
+        resend.api_key = RESEND_API_KEY
+        params = {
+            "from": SENDER_EMAIL,
+            "to": [to_email],
+            "subject": subject,
+            "html": html_body,
+            "attachments": [{
+                "filename": attachment_filename,
+                "content": base64.b64encode(pdf_bytes).decode("utf-8"),
+            }],
+        }
+        result = resend.Emails.send(params)
+        logger.info(f"Email with {attachment_filename} sent to {to_email}: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Failed to send PDF email to {to_email}: {e}")
+        return None
+
+
+def _build_doc_email_html(doc_kind, customer_name, ref, company_name):
+    title = "Trip Invoice" if doc_kind == "invoice" else "Travel Voucher"
+    return f'''
+    <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;">
+        <div style="background:#002B5B;padding:28px 24px;text-align:center;">
+            <div style="color:rgba(255,255,255,0.6);font-size:11px;letter-spacing:2px;text-transform:uppercase;">{company_name}</div>
+            <h1 style="color:white;font-size:22px;margin:10px 0 4px;font-weight:800;">Your {title}</h1>
+            <div style="color:rgba(255,255,255,0.7);font-size:13px;">Reference: {ref}</div>
+        </div>
+        <div style="padding:24px;">
+            <p style="font-size:14px;color:#374151;">Dear {customer_name or 'Valued Client'},</p>
+            <p style="font-size:14px;color:#374151;">Please find your <strong>{title.lower()}</strong> attached as a PDF for your reference.</p>
+            <p style="font-size:13px;color:#6b7280;margin-top:16px;">For any questions, just reply to this email — we're happy to help.</p>
+            <p style="font-size:13px;color:#6b7280;margin-top:16px;">Best regards,<br><strong>{company_name}</strong></p>
+        </div>
+        <div style="background:#f8fafc;padding:16px 24px;text-align:center;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb;">
+            {company_name} | care@travotours.ae
+        </div>
+    </div>
+    '''
+
+
+@router.post("/bookings/{booking_id}/send-invoice")
+async def send_invoice_email(booking_id: str, current_user: dict = Depends(get_current_user)):
+    booking, proposal, user, _ = await _load_booking_context(booking_id, current_user)
+    to_email = booking.get("customer_email") or proposal.get("customer_email")
+    if not to_email:
+        raise HTTPException(status_code=400, detail="No customer email on booking")
+
+    html_pdf = build_invoice_html(booking, proposal, user)
+    pdf_bytes = HTML(string=html_pdf).write_pdf()
+    ref = _short_ref(booking.get("id"))
+    company = _company_block(user)
+    subject = f"Trip Invoice — {ref} | {company['name']}"
+    body = _build_doc_email_html("invoice", booking.get("customer_name") or proposal.get("customer_name"), ref, company["name"])
+    result = _send_pdf_email(to_email, subject, body, f"Trip_Invoice_{ref}.pdf", pdf_bytes)
+
+    if RESEND_API_KEY and result is None:
+        raise HTTPException(status_code=500, detail="Failed to send invoice email")
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.bookings.update_one({"id": booking_id}, {"$set": {"last_invoice_sent_at": now}})
+    await db.held_bookings.update_one({"id": booking_id}, {"$set": {"last_invoice_sent_at": now}})
+    return {"status": "success", "recipient": to_email, "sent_at": now}
+
+
+@router.post("/bookings/{booking_id}/send-voucher")
+async def send_voucher_email(booking_id: str, current_user: dict = Depends(get_current_user)):
+    booking, proposal, user, terms = await _load_booking_context(booking_id, current_user)
+    to_email = booking.get("customer_email") or proposal.get("customer_email")
+    if not to_email:
+        raise HTTPException(status_code=400, detail="No customer email on booking")
+
+    html_pdf = build_voucher_html(booking, proposal, user, terms)
+    pdf_bytes = HTML(string=html_pdf).write_pdf()
+    ref = _short_ref(booking.get("id"))
+    company = _company_block(user)
+    subject = f"Travel Voucher — {ref} | {company['name']}"
+    body = _build_doc_email_html("voucher", booking.get("customer_name") or proposal.get("customer_name"), ref, company["name"])
+    result = _send_pdf_email(to_email, subject, body, f"{ref}_Voucher.pdf", pdf_bytes)
+
+    if RESEND_API_KEY and result is None:
+        raise HTTPException(status_code=500, detail="Failed to send voucher email")
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.bookings.update_one({"id": booking_id}, {"$set": {"last_voucher_sent_at": now}})
+    await db.held_bookings.update_one({"id": booking_id}, {"$set": {"last_voucher_sent_at": now}})
+    return {"status": "success", "recipient": to_email, "sent_at": now}

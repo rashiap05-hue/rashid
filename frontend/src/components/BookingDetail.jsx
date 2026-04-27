@@ -100,9 +100,13 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
   const handleDocAction = async (kind, action) => {
     setOpenDropdown(null);
     const docName = kind === 'invoice' ? 'Invoice' : 'Voucher';
+    const endpoint = kind === 'invoice'
+      ? `/bookings/${booking.id}/invoice-pdf`
+      : `/bookings/${booking.id}/voucher-pdf`;
+
     if (action === 'download' || action === 'print') {
       try {
-        const res = await api.get(`/proposals/${booking.proposal_id}/pdf`, { responseType: 'blob' });
+        const res = await api.get(endpoint, { responseType: 'blob' });
         const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
         if (action === 'print') {
           const w = window.open(url, '_blank');
@@ -125,9 +129,17 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
     }
     if (action === 'email') {
       try {
-        await api.post(`/bookings/${booking.id}/send-${kind}`).catch(() => {});
-      } catch {/* noop */}
-      setEmailToast(`${docName} sent to ${booking.customer_email || 'the registered email'} ✓`);
+        const sendUrl = kind === 'invoice'
+          ? `/bookings/${booking.id}/send-invoice`
+          : `/bookings/${booking.id}/send-voucher`;
+        const res = await api.post(sendUrl);
+        const recipient = res?.data?.recipient || booking.customer_email || 'the registered email';
+        setEmailToast(`${docName} sent to ${recipient} ✓`);
+      } catch (e) {
+        console.error(e);
+        const detail = e?.response?.data?.detail || `Failed to email ${docName.toLowerCase()}`;
+        setEmailToast(detail);
+      }
       setTimeout(() => setEmailToast(''), 3500);
     }
   };

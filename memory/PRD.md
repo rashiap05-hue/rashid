@@ -171,6 +171,14 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Lifted the `loading` ternary above the bordered wrapper div for cleaner conditional rendering.
   - Verified across multiple tab cycles → 0 console errors.
 
+### Session 9 (Apr 2026)
+- **Invoice & Voucher PDF Generation (Apr 2026)**: New `routes/invoice_voucher.py` registered in server.py.
+  - `GET /api/bookings/{id}/invoice-pdf` — Proforma Invoice PDF (header, Issued To, Transaction Details with booking ref/dates, Guest Names, service Description blocks, Notes, Totals with Balance Due) — modeled on user reference.
+  - `GET /api/bookings/{id}/voucher-pdf` — Travel Voucher PDF (Trip Reference, Itinerary, Guest Details, Hotel block per city with check-in/out, Inclusions, Cancellation Policy, full Terms & Conditions on page 2).
+  - `POST /api/bookings/{id}/send-invoice` & `POST /api/bookings/{id}/send-voucher` — Email PDF as attachment via Resend (base64 attachment), stamps `last_invoice_sent_at` / `last_voucher_sent_at` on booking.
+  - Frontend `BookingDetail.jsx` `handleDocAction` rewired to hit the new endpoints for Download / Print / Email.
+  - Verified via curl: invoice PDF (16KB) and voucher PDF (22KB) generate with valid `%PDF-1.7` headers and correct sections (analyzed via Gemini Vision).
+
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
 - P2: AI-powered trip recommendations frontend
