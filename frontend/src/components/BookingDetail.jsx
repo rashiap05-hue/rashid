@@ -261,7 +261,7 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
               <h2 className="font-bold text-gray-800 flex items-center gap-2"><MapPin size={18} /> Attached Trips</h2>
             </div>
             <div className="px-6 py-4">
-              <p className="text-sm text-gray-500">{cities.map(c => c.name || c).join(' → ')} | {booking.nights || 0} Nights | {booking.rooms || 1} Room, {booking.adults || 0} Adults</p>
+              <p className="text-sm text-gray-500">{cities.map(c => c.name || c).join(' → ')} | {(booking.nights || cities.reduce((s, c) => s + (c?.nights ?? 0), 0))} Nights | {booking.rooms || 1} Room, {booking.adults || 0} Adults</p>
             </div>
           </div>
 
@@ -306,7 +306,23 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
           {/* Hotel Cards */}
           {Object.entries(selectedHotels).map(([key, hotel]) => {
             if (!hotel) return null;
-            const cityName = key.split('_')[0];
+            // key format: "<CityName>_<cityIndex>" e.g. "Tbilisi_0"
+            const lastUnderscore = key.lastIndexOf('_');
+            const cityName = lastUnderscore > 0 ? key.substring(0, lastUnderscore) : key;
+            const cityIdx = lastUnderscore > 0 ? parseInt(key.substring(lastUnderscore + 1), 10) : NaN;
+            const matchedCity = !isNaN(cityIdx) ? cities[cityIdx] : cities.find(c => (c?.name || c) === cityName);
+            const cityNights = (matchedCity && (matchedCity.nights ?? matchedCity)) || hotel.nights || 0;
+            // Compute check-in by walking through cities up to this index
+            let priorNights = 0;
+            for (let i = 0; i < cityIdx && i < cities.length; i++) {
+              priorNights += (cities[i]?.nights ?? 0);
+            }
+            const computedCheckIn = hotel.check_in || (booking.leaving_on ? new Date(new Date(booking.leaving_on).getTime() + priorNights * 86400000).toISOString() : '');
+            const computedCheckOut = hotel.check_out || (computedCheckIn && cityNights ? new Date(new Date(computedCheckIn).getTime() + cityNights * 86400000).toISOString() : '');
+            const sel_room = hotel.selected_room || hotel.selectedRoom || {};
+            const roomName = hotel.room_type || sel_room.name || sel_room.room_type || 'Standard Room';
+            const mealPlan = hotel.meal_plan || sel_room.meal_plan || sel_room.mealPlan || 'Room Only';
+            const hotelImg = (hotel.images && hotel.images[0]) || hotel.image;
             return (
               <div key={key} className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid={`hotel-card-${key}`}>
                 <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
@@ -314,8 +330,8 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
                 </div>
                 <div className="p-5 flex gap-5">
                   <div className="w-40 h-28 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                    {hotel.image ? (
-                      <img src={resolveImageUrl(hotel.image)} alt={hotel.name} className="w-full h-full object-cover" />
+                    {hotelImg ? (
+                      <img src={resolveImageUrl(hotelImg)} alt={hotel.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center"><Building2 size={32} className="text-gray-300" /></div>
                     )}
@@ -327,13 +343,13 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
                     </div>
                     {hotel.address && <p className="text-xs text-gray-500 mt-1">{hotel.address}</p>}
                     <div className="grid grid-cols-3 gap-4 mt-3 text-sm">
-                      <div><p className="text-xs text-gray-500">Check-in</p><p className="font-medium">{formatDate(hotel.check_in || booking.leaving_on)}</p></div>
-                      <div><p className="text-xs text-gray-500">Check-out</p><p className="font-medium">{formatDate(hotel.check_out)}</p></div>
-                      <div><p className="text-xs text-gray-500">Room Type</p><p className="font-medium">{hotel.room_type || hotel.selected_room?.name || '—'}</p></div>
+                      <div><p className="text-xs text-gray-500">Check-in</p><p className="font-medium">{formatDate(computedCheckIn) || '—'}</p></div>
+                      <div><p className="text-xs text-gray-500">Check-out</p><p className="font-medium">{formatDate(computedCheckOut) || '—'}</p></div>
+                      <div><p className="text-xs text-gray-500">Room Type</p><p className="font-medium">{roomName}</p></div>
                     </div>
                     <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
-                      <div><p className="text-xs text-gray-500">Meals</p><p className="font-medium">{hotel.meal_plan || hotel.selected_room?.meal_plan || 'Room Only'}</p></div>
-                      <div><p className="text-xs text-gray-500">Nights</p><p className="font-medium">{hotel.nights || '—'}</p></div>
+                      <div><p className="text-xs text-gray-500">Meals</p><p className="font-medium">{mealPlan}</p></div>
+                      <div><p className="text-xs text-gray-500">Nights</p><p className="font-medium">{cityNights || '—'}</p></div>
                       <div><p className="text-xs text-gray-500">Confirmation</p><p className="font-medium text-[#0066CC]">{hotel.confirmation_code || 'Pending'}</p></div>
                     </div>
                     <div className="flex items-center gap-4 mt-3">
@@ -641,7 +657,7 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
               <div className="flex justify-between"><span className="text-gray-500">Reference</span><span className="font-medium">{shortRef}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Destinations</span><span className="font-medium">{cities.map(c => c.name || c).join(', ')}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Travel Date</span><span className="font-medium">{formatDate(booking.leaving_on)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Duration</span><span className="font-medium">{booking.nights || 0} Nights</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Duration</span><span className="font-medium">{(booking.nights || cities.reduce((s, c) => s + (c?.nights ?? 0), 0))} Nights</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Hold Until</span><span className="font-medium text-amber-600">{formatDate(booking.hold_until_date)}</span></div>
               <div className="flex justify-between pt-3 border-t border-gray-100"><span className="text-gray-800 font-bold">Total</span><span className="font-black text-gray-900">{formatPrice(totalPrice)}</span></div>
             </div>

@@ -30,8 +30,12 @@ export const API = `${BACKEND_URL}/api`;
 // Resolve image URLs - handles relative (/api/static/...) and absolute (http://...) paths
 export function resolveImageUrl(url) {
   if (!url) return '';
+  // Rewrite stale preview-domain URLs that contain /api/static/... to the current backend
+  if (typeof url === 'string') {
+    const m = url.match(/\/(?:api\/static|uploads)\/[^?#]+/);
+    if (m) return `${BACKEND_URL}/api/static/${m[0].replace(/^\/(api\/static|uploads)\//, '')}`;
+  }
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  if (url.startsWith('/api/static/')) return `${BACKEND_URL}${url}`;
   if (url.startsWith('/')) return `${BACKEND_URL}${url}`;
   return url;
 }
