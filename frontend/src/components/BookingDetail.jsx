@@ -9,7 +9,7 @@ import {
   Shield, FileText, AlertTriangle, CreditCard, CheckCircle, User, Bed
 } from 'lucide-react';
 
-export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
+export default function BookingDetail({ bookingId, onBack, onViewProposal, onClickPay }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState({});
@@ -243,7 +243,11 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal }) {
                     <p className="text-sm text-gray-600">Outstanding Amount</p>
                     <p className="text-xl font-black text-red-600">{formatPrice(outstanding)}</p>
                   </div>
-                  <button className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg text-sm transition-colors" data-testid="click-to-pay-btn">
+                  <button
+                    onClick={() => onClickPay?.(booking)}
+                    className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg text-sm transition-colors"
+                    data-testid="click-to-pay-btn"
+                  >
                     Click to pay
                   </button>
                 </div>

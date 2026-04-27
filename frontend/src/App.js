@@ -371,6 +371,23 @@ function App() {
                         console.error('Failed to load proposal:', err);
                       }
                     }}
+                    onClickPay={async (booking) => {
+                      try {
+                        // Load the related proposal so PaymentPage has full context
+                        const res = await api.get(`/proposals/${booking.proposal_id}`);
+                        setSavedProposal(res.data);
+                        setBookingData({
+                          travelers: booking.travelers || [],
+                          contactInfo: booking.contact_info || {},
+                          specialOccasion: booking.special_occasion || 'none',
+                          paymentOption: booking.payment_option || 'full',
+                          existingBookingId: booking.id,
+                        });
+                        setCurrentView('payment');
+                      } catch (err) {
+                        console.error('Failed to start payment flow:', err);
+                      }
+                    }}
                   />
                 )}
 
