@@ -9,6 +9,8 @@ import {
   Shield, FileText, AlertTriangle, CreditCard, CheckCircle, User, Bed, Smartphone, Printer
 } from 'lucide-react';
 import TripChangeRequestModal from './BookingDetail/TripChangeRequestModal';
+import TripTasksCard from './BookingDetail/TripTasksCard';
+import TripTaskDetailsModal from './BookingDetail/TripTaskDetailsModal';
 
 export default function BookingDetail({ bookingId, onBack, onViewProposal, onClickPay }) {
   const [data, setData] = useState(null);
@@ -19,6 +21,8 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
   const [openDropdown, setOpenDropdown] = useState(null); // 'invoice' | 'voucher' | null
   const [emailToast, setEmailToast] = useState('');
   const [showChangeRequestModal, setShowChangeRequestModal] = useState(false);
+  const [tripTasks, setTripTasks] = useState([]);
+  const [activeTask, setActiveTask] = useState(null);
 
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const DAYS = Array.from({length: 31}, (_, i) => i + 1);
@@ -41,7 +45,14 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
     setLoading(false);
   }, [bookingId]);
 
-  useEffect(() => { fetchDetail(); }, [fetchDetail]);
+  const fetchTripTasks = useCallback(async () => {
+    try {
+      const res = await api.get(`/bookings/${bookingId}/change-requests`);
+      setTripTasks(res.data?.change_requests || []);
+    } catch (e) { /* noop */ }
+  }, [bookingId]);
+
+  useEffect(() => { fetchDetail(); fetchTripTasks(); }, [fetchDetail, fetchTripTasks]);
 
   const toggleSection = (key) => setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -865,6 +876,9 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
             </button>
           </div>
 
+          {/* Trip Tasks (change requests list) */}
+          <TripTasksCard tasks={tripTasks} onOpenDetails={setActiveTask} />
+
           {/* Destination Expert */}
           {expert && (
             <div className="bg-white border border-gray-200 rounded-xl p-5" data-testid="booking-expert-card">
@@ -905,6 +919,21 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
         onSubmitted={() => {
           setEmailToast('Change request submitted to your travel advisor ✓');
           setTimeout(() => setEmailToast(''), 3500);
+          fetchTripTasks();
+        }}
+      />
+
+      {/* Trip Task Details Modal */}
+      <TripTaskDetailsModal
+        open={!!activeTask}
+        onClose={() => setActiveTask(null)}
+        request={activeTask}
+        currentUser={user}
+        onUpdated={(updated) => {
+          if (updated) {
+            setTripTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
+            setActiveTask(updated);
+          }
         }}
       />
     </div>

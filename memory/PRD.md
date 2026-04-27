@@ -179,10 +179,14 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Frontend `BookingDetail.jsx` `handleDocAction` rewired to hit the new endpoints for Download / Print / Email.
   - Verified via curl: invoice PDF (16KB) and voucher PDF (22KB) generate with valid `%PDF-1.7` headers and correct sections (analyzed via Gemini Vision).
 - **Trip Change Request Modal (Apr 2026)**: "Add Trip Change Request" button on `BookingDetail.jsx` Seller Details card now opens a modal popup matching user reference.
-  - `routes/change_requests.py` registered in server.py with `POST/GET /api/bookings/{id}/change-requests` and `PATCH /api/change-requests/{id}` (admin/supplier only) for advisor resolution.
+  - `routes/change_requests.py` registered in server.py with `POST/GET /api/bookings/{id}/change-requests`, `GET/PATCH /api/change-requests/{id}` (status update by anyone authenticated), `POST /api/change-requests/{id}/replies` (conversation thread).
   - New `BookingDetail/TripChangeRequestModal.jsx` with: Important Information bullets, AED 100 service charge banner, For dropdown (Complete Trip, Hotels, Transfers, Activities, Flights), Type dropdown (Date Change, Hotel Change, etc.), Description textarea, SAVE button.
-  - Stores in `db.trip_change_requests` with status=pending, also writes an admin notification.
-  - End-to-end UI flow verified via Playwright screenshot: modal opens → form fills → SAVE → toast "Change request submitted to your travel advisor ✓" → record persisted in DB.
+  - Stores in `db.trip_change_requests` with status=open, also writes an admin notification.
+- **Trip Tasks Sidebar + Conversation Thread (Apr 2026)**: New `BookingDetail/TripTasksCard.jsx` listed below "Add Trip Change Request" button on the right sidebar of BookingDetail.
+  - Each task row shows: type/scope, description preview, replies count, relative time, colored status badge (Open=amber, Under Process=orange, Closed=emerald, Rejected=red), "Details" link.
+  - New `BookingDetail/TripTaskDetailsModal.jsx` opens conversation thread modal: original request card, alternating reply bubbles (mine = dark blue right-aligned, theirs = gray left-aligned), reply composer with ⌘/Ctrl+Enter shortcut, status dropdown (any authenticated user can change status).
+  - Backend stores `replies[]` array on each request with sender_role/name/email/text/created_at.
+  - Verified end-to-end via Playwright: create → reply → status change → list refresh all working.
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
