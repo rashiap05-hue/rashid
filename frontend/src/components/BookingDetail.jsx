@@ -404,13 +404,19 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
                   const arr = Array.isArray(acts) ? acts : [acts];
                   arr.forEach(a => { if (a) items.push({ kind: 'activity', data: a }); });
                 }
-                // Departure transfer on the last day
-                const isLastDay = (ci === cities.length - 1) && (n === nights - 1);
-                if (isLastDay && departureT) {
-                  items.push({ kind: 'transfer', label: 'Departure Transfer', data: departureT });
-                }
                 days.push({ num: dayNum, date: dayDate, city: cityName, items });
               }
+            }
+            // Final departure day (after the last night)
+            if (departureT) {
+              dayNum++;
+              const lastCity = cities[cities.length - 1];
+              days.push({
+                num: dayNum,
+                date: addDays(leavingOn, dayNum - 1),
+                city: (lastCity?.name || lastCity || ''),
+                items: [{ kind: 'transfer', label: 'Departure Transfer', data: departureT }],
+              });
             }
 
             const renderItem = (it, idx) => {

@@ -142,17 +142,24 @@ def build_day_plan(proposal):
                 if a:
                     items.append({"type": "activity", "data": a})
 
-            # Departure transfer on the very last day
-            is_last_day = (ci == len(cities) - 1) and (night == nights - 1)
-            if is_last_day and departure_transfer:
-                items.append({"type": "transfer", "data": departure_transfer, "label": "Departure Transfer"})
-
             days.append({
                 "num": day_num,
                 "date": day_date,
                 "city": city_name,
                 "items": items,
             })
+
+    # Final departure day (after the last night)
+    if departure_transfer and cities:
+        day_num += 1
+        last_city = cities[-1]
+        last_city_name = last_city.get("name") if isinstance(last_city, dict) else last_city
+        days.append({
+            "num": day_num,
+            "date": add_days(leaving_on, day_num - 1),
+            "city": last_city_name,
+            "items": [{"type": "transfer", "data": departure_transfer, "label": "Departure Transfer"}],
+        })
 
     return days
 
