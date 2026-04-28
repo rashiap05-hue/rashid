@@ -428,7 +428,15 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
             const computedCheckOut = hotel.check_out || (computedCheckIn && cityNights ? new Date(new Date(computedCheckIn).getTime() + cityNights * 86400000).toISOString() : '');
             const sel_room = hotel.selected_room || hotel.selectedRoom || {};
             const roomName = hotel.room_type || sel_room.name || sel_room.room_type || 'Standard Room';
-            const mealPlan = hotel.meal_plan || sel_room.meal_plan || sel_room.mealPlan || 'Room Only';
+            const _ratePlan = sel_room.rate_plan || sel_room.ratePlan || {};
+            const mealPlan =
+              _ratePlan.meal_plan
+              || _ratePlan.mealPlan
+              || sel_room.meal_plan
+              || sel_room.mealPlan
+              || sel_room.meals
+              || hotel.meal_plan
+              || 'Room Only';
             const hotelImg = (hotel.images && hotel.images[0]) || hotel.image;
             return (
               <div key={key} className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid={`hotel-card-${key}`}>
