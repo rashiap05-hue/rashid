@@ -860,11 +860,15 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
 
                             {/* Meal Plan - from actual data */}
                             {(() => {
-                              const mealPlan = hotel?.selectedRoom?.rate_plan?.meal_plan || hotel?.selectedRoom?.meals || '';
-                              if (mealPlan) {
+                              const mealPlan = hotel?.selectedRoom?.rate_plan?.meal_plan
+                                || hotel?.selectedRoom?.meal_plan
+                                || hotel?.selectedRoom?.mealPlan
+                                || hotel?.selectedRoom?.meals
+                                || '';
+                              if (mealPlan && mealPlan !== 'Room Only') {
                                 return <p className="text-teal-600 text-sm font-medium mb-2">{mealPlan}</p>;
                               }
-                              return <p className="text-gray-500 text-sm mb-2">No meals included</p>;
+                              return <p className="text-gray-500 text-sm mb-2">No meals included (Room Only)</p>;
                             })()}
 
                             {/* Refund Policy */}

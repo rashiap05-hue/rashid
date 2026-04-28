@@ -1678,12 +1678,19 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                             <Check className="w-5 h-5 text-green-500" />
                             <span className="text-gray-700">Selected Room: <strong>1 x {cityHotel.selectedRoom?.name || 'Standard Room'}, {cityHotel.selectedRoom?.bed_type || 'Twin Beds'}</strong></span>
                           </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <Check className="w-5 h-5 text-green-500" />
-                            <span className="text-gray-700">
-                              {cityHotel.selectedRoom?.rate_plan?.meal_plan || cityHotel.selectedRoom?.meals || 'Bed and Breakfast'}, No Extra Bed
-                            </span>
-                          </div>
+                          {(() => {
+                            const mealPlan = cityHotel.selectedRoom?.rate_plan?.meal_plan
+                              || cityHotel.selectedRoom?.meal_plan
+                              || cityHotel.selectedRoom?.mealPlan
+                              || cityHotel.selectedRoom?.meals
+                              || 'Room Only';
+                            return (
+                              <div className="flex items-center gap-2 text-sm">
+                                <Check className="w-5 h-5 text-green-500" />
+                                <span className="text-gray-700">{mealPlan}, No Extra Bed</span>
+                              </div>
+                            );
+                          })()}
                           {cityHotel.selectedRoom?.rate_plan?.refund_policy === 'Refundable' ? (
                             <p className="text-orange-500 font-medium text-sm ml-7">
                               {cityHotel.selectedRoom?.rate_plan?.refund_deadline || 'Fully refundable before check-in'}
@@ -1696,20 +1703,29 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                         {/* Selected Meals */}
                         <div className="mt-4 pt-4 border-t border-gray-100">
                           <h5 className="font-bold text-gray-800 mb-2">Selected Meals at Hotel</h5>
-                          {cityHotel.selectedRoom?.rate_plan?.meal_plan && cityHotel.selectedRoom?.rate_plan?.meal_plan !== 'Room Only' ? (
-                            <>
-                              <div className="flex items-center gap-2 text-sm">
-                                <Check className="w-5 h-5 text-green-500" />
-                                <span className="text-gray-700">{cityHotel.selectedRoom.rate_plan.meal_plan}</span>
-                              </div>
-                              {cityHotel.selectedRoom.rate_plan.meal_details && (
-                                <p className="text-gray-500 text-xs ml-7">{cityHotel.selectedRoom.rate_plan.meal_details}</p>
-                              )}
-                              <p className="text-green-600 font-medium text-sm ml-7">Included</p>
-                            </>
-                          ) : (
-                            <p className="text-gray-500 text-sm">No meals included (Room Only)</p>
-                          )}
+                          {(() => {
+                            const mealPlan = cityHotel.selectedRoom?.rate_plan?.meal_plan
+                              || cityHotel.selectedRoom?.meal_plan
+                              || cityHotel.selectedRoom?.mealPlan
+                              || cityHotel.selectedRoom?.meals
+                              || 'Room Only';
+                            const hasMeals = mealPlan && mealPlan !== 'Room Only';
+                            if (!hasMeals) {
+                              return <p className="text-gray-500 text-sm">No meals included (Room Only)</p>;
+                            }
+                            return (
+                              <>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Check className="w-5 h-5 text-green-500" />
+                                  <span className="text-gray-700">{mealPlan}</span>
+                                </div>
+                                {cityHotel.selectedRoom?.rate_plan?.meal_details && (
+                                  <p className="text-gray-500 text-xs ml-7">{cityHotel.selectedRoom.rate_plan.meal_details}</p>
+                                )}
+                                <p className="text-green-600 font-medium text-sm ml-7">Included</p>
+                              </>
+                            );
+                          })()}
                         </div>
                         
                         {/* Action Buttons */}
