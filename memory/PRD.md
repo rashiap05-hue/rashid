@@ -222,6 +222,7 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Counts computed via memoised `pendingCounts` using the same extractors as the tab content (so they always agree).
   - Tabs with zero pending items intentionally hide the badge to reduce noise.
   - Active-tab badge inverts (white pill on dark background) for contrast; inactive shows amber-on-white.
+- **Add Activity on inter-city transfer days (Apr 2026)**: Removed the `!isCheckInDay` guard on the "Add Activity in {city}" button inside `TripBuilder/DayCard.jsx`. Agents can now manually add activities to days that are also inter-city transfer days (e.g., Day 2 with the Bangkok → Pattaya transfer). Auto-recommendation already covered these days; this just closes the manual-entry gap.
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
