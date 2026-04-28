@@ -313,12 +313,18 @@ export default function TransferEditForm({ transfer, onSave, onClose, isNew = fa
   ];
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      onMouseDown={(e) => {
+        // Only close when the user actually clicks the backdrop itself, not when
+        // a descendant (input, button, framer-motion gesture handler, etc.) bubbles up.
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="bg-white rounded-2xl w-full max-w-3xl mx-4 shadow-2xl max-h-[90vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
         data-testid="transfer-edit-form"
       >
         {/* Header */}
