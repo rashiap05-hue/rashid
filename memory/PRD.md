@@ -209,6 +209,15 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - All four reuse the same Trip Change Requests conversation thread, required-confirmation-number action footer, and Reject reason flow.
   - Verified end-to-end via Playwright (Activity Confirm flow: View → Confirm → "ACT-PNR-99" entered → submit → status flips to CONFIRMED, sidebar count Pending: 2→1).
   - Old `HotelViewModal.jsx` deleted (replaced by the generic component).
+- **Notification click-through to Trip Task modal (Apr 2026)**: Each notification entry in the Header bell is now a clickable button.
+  - Backend writes `change_request_id` onto every `change_request_*` notification (via the extended `create_notification(...)` helper).
+  - Header `handleNotifClick(n)` marks the notification read, closes the bell, and calls `onOpenBookingTask(booking_id, change_request_id)` passed from App.js.
+  - App.js sets `selectedBookingId` + `openTaskId` and switches to `booking-detail` view; BookingDetail picks up `initialTaskId` and auto-opens the Trip Task Details modal once tasks load.
+  - Verified end-to-end via Playwright: testadmin clicks "New Trip Change Request — Late Checkout" → BookingDetail loads → "Trip Special Request: Late Checkout (Open)" modal pre-opened with original request + reply composer.
+- **CSV Export per service tab (Apr 2026)**: New `SupplierDashboard/csvExport.js` (`rowsToCsv`, `downloadCsv`, `todayStamp`).
+  - Each service tab now has a green "Export CSV" button next to the search/filter row that downloads `<tab>-YYYY-MM-DD.csv` of the currently filtered rows with UTF-8 BOM (Excel-friendly), proper field escaping for commas/quotes/newlines, and includes a final Status + Booking Ref column.
+  - Each column can specify a `csv: (row) => ...` callback so JSX-rich cells (badges, hotel + stars composite) export as plain text.
+  - Verified by downloading `hotels-2026-04-28.csv` (835 chars, 5 rows) showing proper escaping and all visible columns.
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)

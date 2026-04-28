@@ -48,7 +48,7 @@ async def _expert_user_ids(proposal_id: Optional[str]) -> List[str]:
     return user_ids
 
 
-async def _notify(user_ids: List[str], title: str, message: str, booking_id: Optional[str], notif_type: str):
+async def _notify(user_ids: List[str], title: str, message: str, booking_id: Optional[str], notif_type: str, change_request_id: Optional[str] = None):
     for uid in user_ids:
         if not uid:
             continue
@@ -59,6 +59,7 @@ async def _notify(user_ids: List[str], title: str, message: str, booking_id: Opt
                 message=message,
                 booking_id=booking_id,
                 notif_type=notif_type,
+                change_request_id=change_request_id,
             )
         except Exception as e:  # pragma: no cover
             logger.warning(f"Failed to write notification for {uid}: {e}")
@@ -146,6 +147,7 @@ async def create_change_request(
         message=f"{record['type']} — {record['for_scope']} (Booking {ref}) by {record['requested_by_name']}",
         booking_id=booking_id,
         notif_type="change_request_new",
+        change_request_id=record["id"],
     )
 
     return {"success": True, "change_request": _serialise(record)}
@@ -221,6 +223,7 @@ async def update_change_request(
             message=f"{record.get('type')} — {record.get('for_scope')} (Booking {ref})",
             booking_id=record.get("booking_id"),
             notif_type="change_request_status",
+            change_request_id=request_id,
         )
 
     return {"success": True, "change_request": _serialise(refreshed)}
@@ -275,6 +278,7 @@ async def add_reply(
         message=f"{record.get('type')} (Booking {ref}): {snippet}",
         booking_id=record.get("booking_id"),
         notif_type="change_request_reply",
+        change_request_id=request_id,
     )
 
     return {"success": True, "change_request": _serialise(refreshed), "reply": reply}

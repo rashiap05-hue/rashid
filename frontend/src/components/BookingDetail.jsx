@@ -12,7 +12,7 @@ import TripChangeRequestModal from './BookingDetail/TripChangeRequestModal';
 import TripTasksCard from './BookingDetail/TripTasksCard';
 import TripTaskDetailsModal from './BookingDetail/TripTaskDetailsModal';
 
-export default function BookingDetail({ bookingId, onBack, onViewProposal, onClickPay }) {
+export default function BookingDetail({ bookingId, initialTaskId, onBack, onViewProposal, onClickPay }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState({});
@@ -53,6 +53,13 @@ export default function BookingDetail({ bookingId, onBack, onViewProposal, onCli
   }, [bookingId]);
 
   useEffect(() => { fetchDetail(); fetchTripTasks(); }, [fetchDetail, fetchTripTasks]);
+
+  // Auto-open a specific task when navigating from a notification click
+  useEffect(() => {
+    if (!initialTaskId || !tripTasks.length) return;
+    const target = tripTasks.find(t => t.id === initialTaskId);
+    if (target) setActiveTask(target);
+  }, [initialTaskId, tripTasks]);
 
   const toggleSection = (key) => setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }));
 

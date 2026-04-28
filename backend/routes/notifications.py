@@ -45,7 +45,7 @@ async def mark_all_read(current_user: dict = Depends(get_current_user)):
     return {"message": "All notifications marked as read"}
 
 
-async def create_notification(user_id: str, title: str, message: str, booking_id: str = None, notif_type: str = "status_change"):
+async def create_notification(user_id: str, title: str, message: str, booking_id: str = None, notif_type: str = "status_change", change_request_id: str = None):
     doc = {
         "id": str(uuid.uuid4()),
         "user_id": user_id,
@@ -53,6 +53,7 @@ async def create_notification(user_id: str, title: str, message: str, booking_id
         "title": title,
         "message": message,
         "booking_id": booking_id,
+        "change_request_id": change_request_id,
         "read": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }

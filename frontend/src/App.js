@@ -78,6 +78,7 @@ function App() {
   });
   const [bookingData, setBookingData] = useState(null);
   const [selectedBookingId, setSelectedBookingId] = useState(null);
+  const [openTaskId, setOpenTaskId] = useState(null);
   // Tracks where the proposal-view was entered from so the Back button can return there.
   // 'edit' → came from TripBuilder edit/save flow; 'list' → came from My Proposals listing.
   const [proposalViewSource, setProposalViewSource] = useState(() => {
@@ -204,6 +205,11 @@ function App() {
                   }}
                   showNewBooking={currentView === 'dashboard'}
                   onNavigate={(view) => setCurrentView(view)}
+                  onOpenBookingTask={(bookingId, taskId) => {
+                    setSelectedBookingId(bookingId);
+                    setOpenTaskId(taskId);
+                    setCurrentView('booking-detail');
+                  }}
                 />
 
                 {currentView === 'dashboard' && (
@@ -361,8 +367,10 @@ function App() {
                 {currentView === 'booking-detail' && selectedBookingId && (
                   <BookingDetail
                     bookingId={selectedBookingId}
+                    initialTaskId={openTaskId}
                     onBack={() => {
                       setSelectedBookingId(null);
+                      setOpenTaskId(null);
                       setCurrentView('dashboard');
                       setActiveTab('My Bookings');
                     }}

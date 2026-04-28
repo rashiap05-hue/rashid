@@ -66,7 +66,7 @@ const PROFILE_ITEMS = [
 
 export default function Header({ 
   user, onLogout, activeTab, setActiveTab, onNewBooking,
-  currentView, onGoHome, onBack, showNewBooking = true, onNavigate
+  currentView, onGoHome, onBack, showNewBooking = true, onNavigate, onOpenBookingTask
 }) {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [profileDropdown, setProfileDropdown] = useState(false);
@@ -103,6 +103,21 @@ export default function Header({
       setUnreadCount(0);
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch {}
+  };
+
+  const handleNotifClick = async (n) => {
+    // Mark as read
+    if (!n.read) {
+      try {
+        await api.put(`/notifications/${n.id}/read`);
+      } catch {}
+      setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x));
+      setUnreadCount(c => Math.max(0, c - 1));
+    }
+    setNotifOpen(false);
+    if (n.booking_id && onOpenBookingTask) {
+      onOpenBookingTask(n.booking_id, n.change_request_id || null);
+    }
   };
 
   const formatNotifTime = (isoStr) => {
@@ -163,18 +178,28 @@ export default function Header({
                 <div className="max-h-72 overflow-y-auto">
                   {notifications.length === 0 ? (
                     <p className="text-center text-sm text-gray-400 py-8">No notifications</p>
-                  ) : notifications.map(n => (
-                    <div key={n.id} className={`px-4 py-3 border-b border-gray-50 ${!n.read ? 'bg-blue-50/50' : ''}`} data-testid={`notif-${n.id}`}>
-                      <div className="flex items-start gap-2">
-                        {!n.read && <div className="w-2 h-2 rounded-full bg-[#0066CC] mt-1.5 flex-shrink-0" />}
-                        <div className={!n.read ? '' : 'ml-4'}>
-                          <p className="text-xs font-bold text-gray-800">{n.title}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">{n.message}</p>
-                          <p className="text-[10px] text-gray-400 mt-1">{formatNotifTime(n.created_at)}</p>
+                  ) : notifications.map(n => {
+                    const clickable = !!n.booking_id;
+                    return (
+                      <button
+                        key={n.id}
+                        type="button"
+                        onClick={() => clickable && handleNotifClick(n)}
+                        disabled={!clickable}
+                        className={`w-full text-left px-4 py-3 border-b border-gray-50 transition-colors ${!n.read ? 'bg-blue-50/50' : ''} ${clickable ? 'hover:bg-blue-50 cursor-pointer' : 'cursor-default'}`}
+                        data-testid={`notif-${n.id}`}
+                      >
+                        <div className="flex items-start gap-2">
+                          {!n.read && <div className="w-2 h-2 rounded-full bg-[#0066CC] mt-1.5 flex-shrink-0" />}
+                          <div className={!n.read ? 'flex-1 min-w-0' : 'ml-4 flex-1 min-w-0'}>
+                            <p className="text-xs font-bold text-gray-800">{n.title}</p>
+                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
+                            <p className="text-[10px] text-gray-400 mt-1">{formatNotifTime(n.created_at)}</p>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -4,13 +4,14 @@ import {
   Car, Hotel, Camera, DollarSign, Calendar, Clock, Users, CheckCircle, XCircle, 
   AlertCircle, Package, MapPin, Phone, Mail, User, RefreshCw, Search, Eye, X,
   ArrowLeft, Building2, Loader2, ChevronDown, Plane, FileText, MessageSquare,
-  Shield, Smartphone, BookOpen, Bed
+  Shield, Smartphone, BookOpen, Bed, Download, Star
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
 import ServiceItemsTable, { StarRating, formatDate } from './SupplierDashboard/ServiceItemsTable';
 import { extractHotels, extractTransfers, extractActivities, extractFlights, extractAddons } from './SupplierDashboard/serviceExtractors';
 import ServiceViewModal from './SupplierDashboard/ServiceViewModal';
+import { rowsToCsv, downloadCsv, todayStamp } from './SupplierDashboard/csvExport';
 
 // Per-service config (icon, title, details grid) for the generic ServiceViewModal
 // Returns a stable shape even when `kind` is null so that conditional rendering
@@ -627,11 +628,11 @@ function ServiceTab({ tab, bookings, onView, statusFilter, setStatusFilter, sear
           <p className="font-bold text-gray-900">{r.name} <StarRating rating={r.star_rating} /></p>
           <p className="text-xs text-gray-500">{r.city}</p>
         </div>
-      ) },
+      ), csv: (r) => `${r.name}${r.star_rating ? ` (${r.star_rating}*)` : ''} — ${r.city || ''}` },
       { key: 'guests', label: 'Guest' },
-      { key: 'check_in', label: 'Check-in', render: (r) => formatDate(r.check_in) },
-      { key: 'check_out', label: 'Check-out', render: (r) => formatDate(r.check_out) },
-      { key: 'rooms', label: 'Rooms', render: (r) => `${r.rooms} × ${r.room_type}` },
+      { key: 'check_in', label: 'Check-in', render: (r) => formatDate(r.check_in), csv: (r) => formatDate(r.check_in) },
+      { key: 'check_out', label: 'Check-out', render: (r) => formatDate(r.check_out), csv: (r) => formatDate(r.check_out) },
+      { key: 'rooms', label: 'Rooms', render: (r) => `${r.rooms} × ${r.room_type}`, csv: (r) => `${r.rooms} × ${r.room_type}` },
       { key: 'meal_plan', label: 'Meal Plan' },
       { key: 'confirmation', label: 'Confirmation' },
     ],
@@ -641,16 +642,16 @@ function ServiceTab({ tab, bookings, onView, statusFilter, setStatusFilter, sear
           r.kind === 'Arrival' ? 'bg-blue-50 text-blue-700' :
           r.kind === 'Departure' ? 'bg-orange-50 text-orange-700' : 'bg-purple-50 text-purple-700'
         )}>{r.kind}</span>
-      ) },
+      ), csv: (r) => r.kind },
       { key: 'name', label: 'Service', render: (r) => (
         <div>
           <p className="font-bold text-gray-900">{r.name}</p>
           {r.route && <p className="text-xs text-gray-500">Route: {r.route}</p>}
         </div>
-      ) },
+      ), csv: (r) => `${r.name}${r.route ? ` (Route: ${r.route})` : ''}` },
       { key: 'type', label: 'Vehicle' },
       { key: 'guests', label: 'Passenger(s)' },
-      { key: 'date', label: 'Date', render: (r) => formatDate(r.date || r.travel_date) },
+      { key: 'date', label: 'Date', render: (r) => formatDate(r.date || r.travel_date), csv: (r) => formatDate(r.date || r.travel_date) },
     ],
     activities: [
       { key: 'name', label: 'Activity', render: (r) => (
@@ -658,7 +659,7 @@ function ServiceTab({ tab, bookings, onView, statusFilter, setStatusFilter, sear
           <p className="font-bold text-gray-900">{r.name}</p>
           <p className="text-xs text-gray-500">{r.city}</p>
         </div>
-      ) },
+      ), csv: (r) => `${r.name} — ${r.city || ''}` },
       { key: 'guests', label: 'Guest(s)' },
       { key: 'date', label: 'Date', render: (r) => formatDate(r.date || r.travel_date) },
       { key: 'start_time', label: 'Start', render: (r) => r.start_time || '—' },
@@ -746,9 +747,29 @@ function ServiceTab({ tab, bookings, onView, statusFilter, setStatusFilter, sear
             </button>
           ))}
         </div>
-        <span className="ml-auto text-sm text-gray-500" data-testid={`service-count-${tab}`}>
-          {rows.length} {rows.length === 1 ? 'item' : 'items'}
-        </span>
+        <div className="ml-auto flex items-center gap-3">
+          <span className="text-sm text-gray-500" data-testid={`service-count-${tab}`}>
+            {rows.length} {rows.length === 1 ? 'item' : 'items'}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              if (!rows.length) return;
+              const csv = rowsToCsv(rows, COLUMNS[tab]);
+              const filename = `${tab}-${todayStamp()}.csv`;
+              downloadCsv(filename, csv);
+            }}
+            disabled={!rows.length}
+            className={cn(
+              'px-3.5 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors',
+              rows.length ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            )}
+            data-testid={`service-export-csv-${tab}`}
+            title={rows.length ? 'Download as CSV' : 'No rows to export'}
+          >
+            <Download size={14} /> Export CSV
+          </button>
+        </div>
       </div>
 
       <h3 className="text-sm font-bold text-gray-700 mb-3">{titles[tab]}</h3>
