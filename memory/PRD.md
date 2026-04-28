@@ -204,6 +204,11 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - **Status update with required Confirmation Number**: Backend `/api/supplier/bookings/{id}/confirm` now rejects the request with HTTP 400 if `confirmation_number` is missing. On success, the confirmation # is stamped on `bookings.supplier_confirmation_number` AND on every hotel inside `proposals.selected_hotels[*].confirmation_code` so it appears on the Hotels-tab row.
   - The Bookings-tab Confirm/Reject modal also now requires Confirmation Number when confirming.
   - Verified end-to-end via curl (400 without number, 200 with number) and Playwright (modal → Confirm → number entered → submit → row + modal show CONFIRMED + the entered number).
+- **Generic ServiceViewModal across all 4 service tabs (Apr 2026)**: Refactored hotel-only view into a generic `SupplierDashboard/ServiceViewModal.jsx` that powers Hotels / Transfers / Activities / Flights tabs identically.
+  - Per-tab config built via `serviceViewConfig(kind, row)`: Hotels → Check-in/out/Nights/Rooms/Meal Plan + 4-star rating; Transfers → Direction/Vehicle/Date/Route; Activities → Date/Start Time/Duration/Vehicle; Flights → Direction/Departure/Arrival/Cabin/PNR.
+  - All four reuse the same Trip Change Requests conversation thread, required-confirmation-number action footer, and Reject reason flow.
+  - Verified end-to-end via Playwright (Activity Confirm flow: View → Confirm → "ACT-PNR-99" entered → submit → status flips to CONFIRMED, sidebar count Pending: 2→1).
+  - Old `HotelViewModal.jsx` deleted (replaced by the generic component).
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)

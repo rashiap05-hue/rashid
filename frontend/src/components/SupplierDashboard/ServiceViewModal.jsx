@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Hotel as HotelIcon, Bed, Users, Calendar, Star, CheckCircle, XCircle,
-  Loader2, Send, MessageCircle, AlertTriangle,
+  X, Users, CheckCircle, XCircle, Loader2, Send, MessageCircle, AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
@@ -13,20 +12,11 @@ const STATUS_COLORS = {
   rejected: 'bg-red-100 text-red-800',
 };
 
-const STAR = ({ rating }) => {
-  const r = Math.max(0, Math.min(5, Number(rating) || 0));
-  if (!r) return null;
-  return (
-    <span className="inline-flex items-center gap-0.5 text-amber-500" aria-label={`${r} star`}>
-      {Array.from({ length: r }).map((_, i) => <Star key={i} size={12} fill="currentColor" />)}
-    </span>
-  );
-};
-
-const formatDate = (d) => {
-  if (!d) return '—';
-  try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
-  catch { return '—'; }
+const TASK_STATUS_META = {
+  open: { label: 'Open', cls: 'bg-amber-500 text-white' },
+  under_process: { label: 'Under Process', cls: 'bg-orange-500 text-white' },
+  closed: { label: 'Closed', cls: 'bg-emerald-500 text-white' },
+  rejected: { label: 'Rejected', cls: 'bg-red-500 text-white' },
 };
 
 const formatRelative = (iso) => {
@@ -39,14 +29,36 @@ const formatRelative = (iso) => {
   return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-const TASK_STATUS_META = {
-  open: { label: 'Open', cls: 'bg-amber-500 text-white' },
-  under_process: { label: 'Under Process', cls: 'bg-orange-500 text-white' },
-  closed: { label: 'Closed', cls: 'bg-emerald-500 text-white' },
-  rejected: { label: 'Rejected', cls: 'bg-red-500 text-white' },
-};
-
-export default function HotelViewModal({ open, onClose, booking, hotelRow, currentUser, onUpdated }) {
+/**
+ * Generic Service View modal used by Hotels / Transfers / Activities / Flights tabs.
+ *
+ * Props:
+ *  - kind: 'hotel' | 'transfer' | 'activity' | 'flight' (label / copy)
+ *  - icon: Lucide icon component
+ *  - iconClassName: tailwind classes for the icon container
+ *  - title: bold service title (e.g. hotel name, activity name)
+ *  - titleExtra: optional ReactNode rendered next to title (e.g. star rating)
+ *  - subtitle: small line under title
+ *  - detailsGrid: array of {label, value} objects rendered as a responsive grid
+ *  - booking: full supplier booking object (for status, supplier_confirmation_number, travelers, customer_name)
+ *  - guestsFallback: string to use if booking.travelers is empty
+ */
+export default function ServiceViewModal({
+  open,
+  onClose,
+  booking,
+  currentUser,
+  onUpdated,
+  kind = 'service',
+  icon: Icon,
+  iconClassName = 'bg-gray-50 text-gray-700',
+  title,
+  titleExtra = null,
+  subtitle,
+  detailsGrid = [],
+  guestsFallback = '',
+  testIdPrefix = 'service-view',
+}) {
   const [tasks, setTasks] = useState([]);
   const [activeTask, setActiveTask] = useState(null);
   const [reply, setReply] = useState('');
@@ -70,14 +82,15 @@ export default function HotelViewModal({ open, onClose, booking, hotelRow, curre
     if (open) {
       setActionMode(null);
       setActionError('');
-      setConfirmNumber(booking?.supplier_confirmation_number || hotelRow?.confirmation || '');
+      setConfirmNumber(booking?.supplier_confirmation_number || '');
       setActionNote('');
       setRejectReason('');
+      setActiveTask(null);
       fetchTasks();
     }
-  }, [open, booking, hotelRow, fetchTasks]);
+  }, [open, booking, fetchTasks]);
 
-  if (!open || !booking || !hotelRow) return null;
+  if (!open || !booking) return null;
 
   const status = booking.supplier_status || 'pending';
   const isPending = status === 'pending' || !status;
@@ -144,16 +157,29 @@ export default function HotelViewModal({ open, onClose, booking, hotelRow, curre
     } catch { /* noop */ }
   };
 
-  const room = hotelRow.room_type;
-  const meal = hotelRow.meal_plan;
+  const kindLabel = {
+    hotel: 'Hotel Reservation',
+    transfer: 'Transfer Booking',
+    activity: 'Activity Booking',
+    flight: 'Flight Reservation',
+    service: 'Service Booking',
+  }[kind] || 'Service Booking';
+
+  const confirmCtaLabel = {
+    hotel: 'Confirm Reservation',
+    transfer: 'Confirm Transfer',
+    activity: 'Confirm Activity',
+    flight: 'Confirm Flight',
+    service: 'Confirm',
+  }[kind] || 'Confirm';
 
   return (
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-3 py-6 overflow-y-auto"
-        onClick={onClose}
-        data-testid="hotel-view-modal"
+        onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
+        data-testid={`${testIdPrefix}-modal`}
       >
         <motion.div
           initial={{ opacity: 0, y: 20, scale: 0.96 }}
@@ -161,27 +187,26 @@ export default function HotelViewModal({ open, onClose, booking, hotelRow, curre
           exit={{ opacity: 0, y: 20, scale: 0.96 }}
           transition={{ duration: 0.2 }}
           className="relative w-full max-w-3xl bg-white rounded-xl shadow-xl my-auto max-h-[92vh] flex flex-col"
-          onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-4 border-b border-gray-100">
             <div className="flex items-start gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center flex-shrink-0">
-                <HotelIcon size={20} />
+              <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0', iconClassName)}>
+                {Icon && <Icon size={20} />}
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Hotel Reservation</p>
-                <h2 className="text-lg font-bold text-gray-900 leading-tight truncate">
-                  {hotelRow.name} <STAR rating={hotelRow.star_rating} />
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">{kindLabel}</p>
+                <h2 className="text-lg font-bold text-gray-900 leading-tight truncate flex items-center gap-2">
+                  {title} {titleExtra}
                 </h2>
-                <p className="text-sm text-gray-500">{hotelRow.city}</p>
+                {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className={cn('px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap', STATUS_COLORS[status] || STATUS_COLORS.pending)}>
+              <span className={cn('px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap', STATUS_COLORS[status] || STATUS_COLORS.pending)} data-testid={`${testIdPrefix}-status`}>
                 {status}
               </span>
-              <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500" data-testid="hotel-view-close" aria-label="Close">
+              <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500" data-testid={`${testIdPrefix}-close`} aria-label="Close">
                 <X size={16} />
               </button>
             </div>
@@ -189,44 +214,34 @@ export default function HotelViewModal({ open, onClose, booking, hotelRow, curre
 
           {/* Body */}
           <div className="overflow-y-auto px-6 py-5 space-y-5">
-            {/* Reservation grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div>
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1"><Calendar size={11} /> Check-in</p>
-                <p className="text-sm font-semibold text-gray-900">{formatDate(hotelRow.check_in)}</p>
+            {/* Details grid */}
+            {detailsGrid.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {detailsGrid.map((item, idx) => (
+                  <div key={idx}>
+                    <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                      {item.icon && <item.icon size={11} />} {item.label}
+                    </p>
+                    <p className="text-sm font-semibold text-gray-900 break-words">{item.value || '—'}</p>
+                  </div>
+                ))}
+                <div>
+                  <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Confirmation #</p>
+                  <p className="text-sm font-semibold text-gray-900">{booking.supplier_confirmation_number || 'Pending'}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Order Ref</p>
+                  <p className="text-sm font-semibold text-gray-900">{booking.order_id || booking.id?.slice(0, 8)}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1"><Calendar size={11} /> Check-out</p>
-                <p className="text-sm font-semibold text-gray-900">{formatDate(hotelRow.check_out)}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Nights</p>
-                <p className="text-sm font-semibold text-gray-900">{hotelRow.nights}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1"><Bed size={11} /> Rooms</p>
-                <p className="text-sm font-semibold text-gray-900">{hotelRow.rooms} × {room}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Meal Plan</p>
-                <p className="text-sm font-semibold text-gray-900">{meal}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Confirmation #</p>
-                <p className="text-sm font-semibold text-gray-900">{booking.supplier_confirmation_number || hotelRow.confirmation || 'Pending'}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Order Ref</p>
-                <p className="text-sm font-semibold text-gray-900">{booking.order_id || booking.id?.slice(0, 8)}</p>
-              </div>
-            </div>
+            )}
 
             {/* Guests */}
             <div>
               <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1"><Users size={11} /> Guests</p>
               <div className="flex flex-wrap gap-2">
                 {(booking.travelers || []).length === 0 ? (
-                  <span className="text-sm text-gray-700">{hotelRow.guests}</span>
+                  <span className="text-sm text-gray-700">{guestsFallback || booking.customer_name || '—'}</span>
                 ) : (
                   (booking.travelers || []).map((t, i) => (
                     <div key={i} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800">
@@ -254,7 +269,7 @@ export default function HotelViewModal({ open, onClose, booking, hotelRow, curre
                         key={t.id}
                         onClick={() => setActiveTask(t)}
                         className="w-full text-left px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 flex items-center gap-3"
-                        data-testid={`hotel-view-task-${t.id}`}
+                        data-testid={`${testIdPrefix}-task-${t.id}`}
                       >
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-gray-900 truncate">{t.type} · {t.for_scope}</p>
@@ -267,24 +282,21 @@ export default function HotelViewModal({ open, onClose, booking, hotelRow, curre
                   })}
                 </div>
               ) : (
-                /* Active task view */
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
-                    <button onClick={() => setActiveTask(null)} className="text-xs text-[#0066CC] hover:underline" data-testid="hotel-view-task-back">
+                    <button onClick={() => setActiveTask(null)} className="text-xs text-[#0066CC] hover:underline" data-testid={`${testIdPrefix}-task-back`}>
                       ← Back to all requests
                     </button>
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={activeTask.status}
-                        onChange={(e) => handleTaskStatus(e.target.value)}
-                        className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
-                        data-testid="hotel-view-task-status"
-                      >
-                        {Object.entries(TASK_STATUS_META).map(([k, m]) => (
-                          <option key={k} value={k}>{m.label}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <select
+                      value={activeTask.status}
+                      onChange={(e) => handleTaskStatus(e.target.value)}
+                      className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+                      data-testid={`${testIdPrefix}-task-status`}
+                    >
+                      {Object.entries(TASK_STATUS_META).map(([k, m]) => (
+                        <option key={k} value={k}>{m.label}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="p-4 max-h-72 overflow-y-auto space-y-3">
                     <div className="bg-gray-50 border border-gray-200 rounded p-3">
@@ -310,14 +322,14 @@ export default function HotelViewModal({ open, onClose, booking, hotelRow, curre
                       onChange={(e) => setReply(e.target.value)}
                       placeholder="Type a reply..."
                       className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm"
-                      data-testid="hotel-view-reply-input"
+                      data-testid={`${testIdPrefix}-reply-input`}
                       onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
                     />
                     <button
                       onClick={handleReply}
                       disabled={sending || !reply.trim()}
                       className="px-3 py-2 bg-[#002B5B] hover:bg-[#001f44] disabled:opacity-40 text-white rounded text-xs font-bold flex items-center gap-1"
-                      data-testid="hotel-view-reply-send"
+                      data-testid={`${testIdPrefix}-reply-send`}
                     >
                       {sending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                       Send
@@ -334,14 +346,14 @@ export default function HotelViewModal({ open, onClose, booking, hotelRow, curre
               <button
                 onClick={() => { setActionMode('reject'); setActionError(''); }}
                 className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold flex items-center gap-1.5"
-                data-testid="hotel-view-reject-btn"
+                data-testid={`${testIdPrefix}-reject-btn`}
               >
                 <XCircle size={14} /> Reject
               </button>
               <button
                 onClick={() => { setActionMode('confirm'); setActionError(''); }}
                 className="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold flex items-center gap-1.5"
-                data-testid="hotel-view-confirm-btn"
+                data-testid={`${testIdPrefix}-confirm-btn`}
               >
                 <CheckCircle size={14} /> Confirm
               </button>
@@ -350,15 +362,15 @@ export default function HotelViewModal({ open, onClose, booking, hotelRow, curre
 
           {actionMode === 'confirm' && (
             <div className="border-t border-gray-100 px-6 py-4 bg-green-50 rounded-b-xl space-y-3">
-              <p className="text-sm font-bold text-green-900">Confirm hotel reservation</p>
+              <p className="text-sm font-bold text-green-900">{confirmCtaLabel}</p>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">Confirmation Number <span className="text-red-500">*</span></label>
                 <input
                   value={confirmNumber}
                   onChange={(e) => setConfirmNumber(e.target.value)}
-                  placeholder="e.g. HX12345 / hotel PNR"
+                  placeholder="e.g. PNR / supplier reference"
                   className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  data-testid="hotel-confirm-number"
+                  data-testid={`${testIdPrefix}-confirm-number`}
                   autoFocus
                 />
               </div>
@@ -370,7 +382,7 @@ export default function HotelViewModal({ open, onClose, booking, hotelRow, curre
                   rows={2}
                   placeholder="Internal note for the agent..."
                   className="w-full px-3 py-2 border border-gray-300 rounded text-sm resize-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  data-testid="hotel-confirm-note"
+                  data-testid={`${testIdPrefix}-confirm-note`}
                 />
               </div>
               {actionError && (
@@ -384,10 +396,10 @@ export default function HotelViewModal({ open, onClose, booking, hotelRow, curre
                   onClick={handleConfirm}
                   disabled={actionLoading || !confirmNumber.trim()}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded text-sm font-bold flex items-center gap-1.5"
-                  data-testid="hotel-confirm-submit"
+                  data-testid={`${testIdPrefix}-confirm-submit`}
                 >
                   {actionLoading && <Loader2 size={12} className="animate-spin" />}
-                  Confirm Reservation
+                  {confirmCtaLabel}
                 </button>
               </div>
             </div>
@@ -395,16 +407,16 @@ export default function HotelViewModal({ open, onClose, booking, hotelRow, curre
 
           {actionMode === 'reject' && (
             <div className="border-t border-gray-100 px-6 py-4 bg-red-50 rounded-b-xl space-y-3">
-              <p className="text-sm font-bold text-red-900">Reject hotel reservation</p>
+              <p className="text-sm font-bold text-red-900">Reject {kindLabel.toLowerCase()}</p>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">Reason <span className="text-red-500">*</span></label>
                 <textarea
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
                   rows={3}
-                  placeholder="e.g. Hotel sold out for these dates"
+                  placeholder="Reason for rejection..."
                   className="w-full px-3 py-2 border border-gray-300 rounded text-sm resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                  data-testid="hotel-reject-reason"
+                  data-testid={`${testIdPrefix}-reject-reason`}
                   autoFocus
                 />
               </div>
@@ -419,10 +431,10 @@ export default function HotelViewModal({ open, onClose, booking, hotelRow, curre
                   onClick={handleReject}
                   disabled={actionLoading || !rejectReason.trim()}
                   className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded text-sm font-bold flex items-center gap-1.5"
-                  data-testid="hotel-reject-submit"
+                  data-testid={`${testIdPrefix}-reject-submit`}
                 >
                   {actionLoading && <Loader2 size={12} className="animate-spin" />}
-                  Reject Reservation
+                  Reject
                 </button>
               </div>
             </div>

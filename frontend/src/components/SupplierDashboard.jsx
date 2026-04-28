@@ -4,13 +4,97 @@ import {
   Car, Hotel, Camera, DollarSign, Calendar, Clock, Users, CheckCircle, XCircle, 
   AlertCircle, Package, MapPin, Phone, Mail, User, RefreshCw, Search, Eye, X,
   ArrowLeft, Building2, Loader2, ChevronDown, Plane, FileText, MessageSquare,
-  Shield, Smartphone, BookOpen
+  Shield, Smartphone, BookOpen, Bed
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
 import ServiceItemsTable, { StarRating, formatDate } from './SupplierDashboard/ServiceItemsTable';
 import { extractHotels, extractTransfers, extractActivities, extractFlights, extractAddons } from './SupplierDashboard/serviceExtractors';
-import HotelViewModal from './SupplierDashboard/HotelViewModal';
+import ServiceViewModal from './SupplierDashboard/ServiceViewModal';
+
+// Per-service config (icon, title, details grid) for the generic ServiceViewModal
+// Returns a stable shape even when `kind` is null so that conditional rendering
+// in the parent doesn't have to re-call this for every prop.
+function serviceViewConfig(kind, row) {
+  if (!kind || !row) return { icon: null, iconClassName: '', title: '', titleExtra: null, subtitle: '', detailsGrid: [] };
+
+  const fmtDate = (d) => {
+    if (!d) return '—';
+    try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
+    catch { return '—'; }
+  };
+
+  if (kind === 'hotel') {
+    const stars = Math.max(0, Math.min(5, Number(row.star_rating) || 0));
+    return {
+      icon: Hotel,
+      iconClassName: 'bg-purple-50 text-purple-700',
+      title: row.name,
+      titleExtra: stars ? (
+        <span className="inline-flex items-center gap-0.5 text-amber-500">
+          {Array.from({ length: stars }).map((_, i) => <Star key={i} size={12} fill="currentColor" />)}
+        </span>
+      ) : null,
+      subtitle: row.city,
+      detailsGrid: [
+        { label: 'Check-in', value: fmtDate(row.check_in), icon: Calendar },
+        { label: 'Check-out', value: fmtDate(row.check_out), icon: Calendar },
+        { label: 'Nights', value: row.nights },
+        { label: 'Rooms', value: `${row.rooms} × ${row.room_type}`, icon: Bed },
+        { label: 'Meal Plan', value: row.meal_plan },
+      ],
+    };
+  }
+
+  if (kind === 'transfer') {
+    return {
+      icon: Car,
+      iconClassName: 'bg-blue-50 text-blue-700',
+      title: row.name,
+      subtitle: `${row.kind || 'Transfer'} · ${row.type || 'Private'}`,
+      detailsGrid: [
+        { label: 'Direction', value: row.kind || 'Transfer' },
+        { label: 'Vehicle', value: row.type || 'Private' },
+        { label: 'Date', value: fmtDate(row.date || row.travel_date), icon: Calendar },
+        { label: 'Route', value: row.route || row.city || '—', icon: MapPin },
+      ],
+    };
+  }
+
+  if (kind === 'activity') {
+    return {
+      icon: Camera,
+      iconClassName: 'bg-pink-50 text-pink-700',
+      title: row.name,
+      subtitle: row.city,
+      detailsGrid: [
+        { label: 'Date', value: fmtDate(row.date || row.travel_date), icon: Calendar },
+        { label: 'Start Time', value: row.start_time || '—', icon: Clock },
+        { label: 'Duration', value: row.duration ? (/hr|hour|day/i.test(String(row.duration)) ? row.duration : `${row.duration} hrs`) : '—' },
+        { label: 'Vehicle', value: row.type || 'Private' },
+      ],
+    };
+  }
+
+  if (kind === 'flight') {
+    return {
+      icon: Plane,
+      iconClassName: 'bg-sky-50 text-sky-700',
+      title: row.airline || 'Flight',
+      titleExtra: row.flight_no ? <span className="text-sm font-medium text-gray-500">· {row.flight_no}</span> : null,
+      subtitle: `${row.from || '—'} → ${row.to || '—'}`,
+      detailsGrid: [
+        { label: 'Direction', value: row.kind || 'Onward' },
+        { label: 'Departure', value: fmtDate(row.depart_at), icon: Calendar },
+        { label: 'Arrival', value: fmtDate(row.arrive_at), icon: Calendar },
+        { label: 'Cabin', value: row.cabin || 'Economy' },
+        { label: 'PNR', value: row.pnr || '—' },
+      ],
+    };
+  }
+
+  return { icon: null, iconClassName: '', title: '', titleExtra: null, subtitle: '', detailsGrid: [] };
+}
 
 export default function SupplierDashboard({ user, onBack }) {
   const [loading, setLoading] = useState(true);
@@ -24,7 +108,7 @@ export default function SupplierDashboard({ user, onBack }) {
   const [actionConfirmNumber, setActionConfirmNumber] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [detailBooking, setDetailBooking] = useState(null);
-  const [hotelView, setHotelView] = useState({ booking: null, row: null });
+  const [serviceView, setServiceView] = useState({ kind: null, booking: null, row: null });
 
   const fetchData = async () => {
     setLoading(true);
@@ -299,8 +383,10 @@ export default function SupplierDashboard({ user, onBack }) {
             bookings={filtered}
             onView={(bid, row) => {
               const b = bookings.find(x => x.id === bid);
-              if (activeTab === 'hotels' && b) {
-                setHotelView({ booking: b, row });
+              if (!b) return;
+              if (['hotels', 'transfers', 'activities', 'flights'].includes(activeTab)) {
+                const KIND_MAP = { hotels: 'hotel', transfers: 'transfer', activities: 'activity', flights: 'flight' };
+                setServiceView({ kind: KIND_MAP[activeTab], booking: b, row });
               } else {
                 setDetailBooking(b);
               }
@@ -313,14 +399,22 @@ export default function SupplierDashboard({ user, onBack }) {
         )}
       </div>
 
-      {/* Hotel View modal — hotel-only sections, status update with confirmation number, change requests */}
-      <HotelViewModal
-        open={!!hotelView.booking}
-        onClose={() => setHotelView({ booking: null, row: null })}
-        booking={hotelView.booking}
-        hotelRow={hotelView.row}
+      {/* Service View modal — works for hotels / transfers / activities / flights */}
+      <ServiceViewModal
+        open={!!serviceView.booking}
+        onClose={() => setServiceView({ kind: null, booking: null, row: null })}
+        booking={serviceView.booking}
         currentUser={user}
         onUpdated={fetchData}
+        kind={serviceView.kind}
+        icon={serviceViewConfig(serviceView.kind, serviceView.row).icon}
+        iconClassName={serviceViewConfig(serviceView.kind, serviceView.row).iconClassName}
+        title={serviceViewConfig(serviceView.kind, serviceView.row).title}
+        titleExtra={serviceViewConfig(serviceView.kind, serviceView.row).titleExtra}
+        subtitle={serviceViewConfig(serviceView.kind, serviceView.row).subtitle}
+        detailsGrid={serviceViewConfig(serviceView.kind, serviceView.row).detailsGrid}
+        guestsFallback={serviceView.row?.guests}
+        testIdPrefix={`${serviceView.kind || 'service'}-view`}
       />
 
       {/* Confirm/Reject Modal */}
