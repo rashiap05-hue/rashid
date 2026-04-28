@@ -218,6 +218,10 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Each service tab now has a green "Export CSV" button next to the search/filter row that downloads `<tab>-YYYY-MM-DD.csv` of the currently filtered rows with UTF-8 BOM (Excel-friendly), proper field escaping for commas/quotes/newlines, and includes a final Status + Booking Ref column.
   - Each column can specify a `csv: (row) => ...` callback so JSX-rich cells (badges, hotel + stars composite) export as plain text.
   - Verified by downloading `hotels-2026-04-28.csv` (835 chars, 5 rows) showing proper escaping and all visible columns.
+- **Pending count badges on each service tab (Apr 2026)**: Each tab in the Operational Dashboard now shows a small numeric pill next to the label (e.g., "Hotels (1)", "Transfers (2)", "Activities (3)") so the operations team can spot which service line has outstanding work at a glance.
+  - Counts computed via memoised `pendingCounts` using the same extractors as the tab content (so they always agree).
+  - Tabs with zero pending items intentionally hide the badge to reduce noise.
+  - Active-tab badge inverts (white pill on dark background) for contrast; inactive shows amber-on-white.
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)

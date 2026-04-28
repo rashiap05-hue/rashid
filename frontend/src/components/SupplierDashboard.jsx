@@ -176,6 +176,21 @@ export default function SupplierDashboard({ user, onBack }) {
     return true;
   });
 
+  // Pending counts per tab — used to render at-a-glance badges next to tab names
+  const pendingCounts = useMemo(() => {
+    const isPending = (r) => (r.status || 'pending') === 'pending';
+    return {
+      bookings: bookings.filter(b => (b.supplier_status || 'pending') === 'pending').length,
+      hotels: extractHotels(bookings).filter(isPending).length,
+      transfers: extractTransfers(bookings).filter(isPending).length,
+      activities: extractActivities(bookings).filter(isPending).length,
+      flights: extractFlights(bookings).filter(isPending).length,
+      insurance: extractAddons(bookings, 'insurance').filter(isPending).length,
+      visa: extractAddons(bookings, 'visa').filter(isPending).length,
+      sim: extractAddons(bookings, 'sim').filter(isPending).length,
+    };
+  }, [bookings]);
+
   const statusColors = {
     pending: 'bg-amber-100 text-amber-800',
     confirmed: 'bg-green-100 text-green-800',
@@ -244,15 +259,30 @@ export default function SupplierDashboard({ user, onBack }) {
             { key: 'insurance', label: 'Insurance', icon: Shield },
             { key: 'visa', label: 'Visa', icon: BookOpen },
             { key: 'sim', label: 'SIM Cards', icon: Smartphone },
-          ].map(({ key, label, icon: Icon }) => (
-            <button key={key} onClick={() => setActiveTab(key)}
-              data-testid={`op-tab-${key}`}
-              className={cn('px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap',
-                activeTab === key ? 'bg-[#002B5B] text-white' : 'text-gray-600 hover:bg-gray-100'
-              )}>
-              <Icon size={14} /> {label}
-            </button>
-          ))}
+          ].map(({ key, label, icon: Icon }) => {
+            const pending = pendingCounts[key] || 0;
+            return (
+              <button key={key} onClick={() => setActiveTab(key)}
+                data-testid={`op-tab-${key}`}
+                className={cn('px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap',
+                  activeTab === key ? 'bg-[#002B5B] text-white' : 'text-gray-600 hover:bg-gray-100'
+                )}>
+                <Icon size={14} /> {label}
+                {pending > 0 && (
+                  <span
+                    className={cn(
+                      'inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold leading-none',
+                      activeTab === key ? 'bg-white text-[#002B5B]' : 'bg-amber-500 text-white'
+                    )}
+                    data-testid={`op-tab-pending-badge-${key}`}
+                    aria-label={`${pending} pending`}
+                  >
+                    {pending}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Bookings Tab */}
