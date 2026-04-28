@@ -274,9 +274,6 @@ function RoomOption({ room, onSelect, nights = 4, totalGuests = 2 }) {
               <div className="flex items-center gap-3 mt-1">
                 <p className="text-sm text-gray-500">
                   {ratePlan?.meal_plan || room.meals || 'No meals included'}
-                  {ratePlan?.supplier_name && (
-                    <span className="ml-2 text-purple-600 text-xs">({ratePlan.supplier_name})</span>
-                  )}
                 </p>
                 <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
                   <Users size={12} />
@@ -285,9 +282,6 @@ function RoomOption({ room, onSelect, nights = 4, totalGuests = 2 }) {
               </div>
             </div>
             <div className="text-right">
-              {supplierCost && (
-                <div className="text-xs text-purple-500">Supplier: AED {(supplierCost * nights).toLocaleString()}</div>
-              )}
               <div className="text-xl font-bold text-gray-800">AED {totalPrice.toLocaleString()}</div>
               <div className="text-xs text-gray-500">total price ({nights} nights)</div>
             </div>
