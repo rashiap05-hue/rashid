@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, User, Calendar, MapPin, Hotel, Car, Camera, 
   ChevronDown, ChevronUp, Check, AlertCircle, Clock, Shield,
-  Mail, Phone, Building, FileText, Upload, X, Info, CreditCard, Bed, Loader2, ScanLine
+  Mail, Phone, Building, FileText, Upload, X, Info, CreditCard, Bed, Loader2, ScanLine, Coffee
 } from 'lucide-react';
 import { api } from '../App';
 
@@ -1092,6 +1092,20 @@ export default function BookingConfirmation({ proposal, initialBookingData, onBa
                           <span className="text-xs text-gray-600">{hotel.selectedRoom.name}{hotel.selectedRoom.bed_type ? `, ${hotel.selectedRoom.bed_type}` : ''}</span>
                         </div>
                       )}
+                      {(() => {
+                        const mealPlan = hotel.selectedRoom?.rate_plan?.meal_plan
+                          || hotel.selectedRoom?.meal_plan
+                          || hotel.selectedRoom?.mealPlan
+                          || hotel.selectedRoom?.meals
+                          || '';
+                        if (!mealPlan || mealPlan === 'Room Only') return null;
+                        return (
+                          <div className="flex items-start gap-2 mt-1.5">
+                            <Coffee size={14} className="text-emerald-500 mt-0.5" />
+                            <span className="text-xs font-medium text-emerald-600">{mealPlan}</span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })}

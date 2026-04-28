@@ -350,8 +350,16 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
 
   // Check if hotel includes breakfast based on meal_plan
   const hotelIncludesBreakfast = (hotel) => {
-    const mealPlan = hotel?.selectedRoom?.rate_plan?.meal_plan || hotel?.selectedRoom?.meals || '';
-    return mealPlan.toLowerCase().includes('breakfast') || mealPlan.toLowerCase().includes('bb') || mealPlan.toLowerCase().includes('half board') || mealPlan.toLowerCase().includes('full board');
+    const mealPlan = (
+      hotel?.selectedRoom?.rate_plan?.meal_plan
+      || hotel?.selectedRoom?.meal_plan
+      || hotel?.selectedRoom?.mealPlan
+      || hotel?.selectedRoom?.meals
+      || hotel?.meal_plan
+      || ''
+    ).toLowerCase();
+    if (!mealPlan || mealPlan === 'room only') return false;
+    return mealPlan.includes('breakfast') || mealPlan.includes('bb') || mealPlan.includes('half board') || mealPlan.includes('full board') || mealPlan.includes('all inclusive');
   };
 
   // Check-in/Check-out dates
@@ -1848,6 +1856,15 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                             <div>
                               <p className="font-medium text-gray-800">Stay for {city.nights} night{city.nights > 1 ? 's' : ''} at {hotel.name}</p>
                               <p className="text-sm text-gray-500">{hotel.selectedRoom?.name || '1 x Double Room'}</p>
+                              {(() => {
+                                const mealPlan = hotel?.selectedRoom?.rate_plan?.meal_plan
+                                  || hotel?.selectedRoom?.meal_plan
+                                  || hotel?.selectedRoom?.mealPlan
+                                  || hotel?.selectedRoom?.meals
+                                  || '';
+                                if (!mealPlan || mealPlan === 'Room Only') return null;
+                                return <p className="text-xs font-medium text-emerald-600 mt-0.5">{mealPlan}</p>;
+                              })()}
                             </div>
                           </div>
                         </div>
