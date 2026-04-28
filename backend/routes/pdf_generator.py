@@ -224,7 +224,16 @@ def section_hotel_card(hotel, city, checkin, checkout, nights):
     desc = (hotel.get("description") or "").strip()[:600]
     sel_room = hotel.get("selected_room") or hotel.get("selectedRoom") or {}
     room_name = sel_room.get("name", "Standard Room")
-    meal_plan = sel_room.get("meal_plan") or sel_room.get("mealPlan") or hotel.get("meal_plan", "Room Only")
+    rate_plan = sel_room.get("rate_plan") or sel_room.get("ratePlan") or {}
+    meal_plan = (
+        rate_plan.get("meal_plan")
+        or rate_plan.get("mealPlan")
+        or sel_room.get("meal_plan")
+        or sel_room.get("mealPlan")
+        or sel_room.get("meals")
+        or hotel.get("meal_plan")
+        or "Room Only"
+    )
 
     amenities = hotel.get("amenities") or []
     if isinstance(amenities, str):
@@ -299,7 +308,12 @@ def render_item(it):
         stars = "★" * int(rating) if rating and str(rating).isdigit() else ""
         sel_room = data.get("selected_room") or data.get("selectedRoom") or {}
         room = sel_room.get("name", "Standard Room")
-        meal = sel_room.get("meal_plan") or sel_room.get("mealPlan") or "Room Only"
+        _rp = sel_room.get("rate_plan") or sel_room.get("ratePlan") or {}
+        meal = (
+            _rp.get("meal_plan") or _rp.get("mealPlan")
+            or sel_room.get("meal_plan") or sel_room.get("mealPlan")
+            or sel_room.get("meals") or "Room Only"
+        )
         return f"""
         <div class="day-item">
             <div class="day-icon hotel-icon">🏨</div>
@@ -500,7 +514,12 @@ def section_inclusions_exclusions(proposal):
         if hotel:
             sel_room = hotel.get("selected_room") or hotel.get("selectedRoom") or {}
             room_name = sel_room.get("name") or "Standard Room"
-            meal_plan_raw = (sel_room.get("meal_plan") or sel_room.get("mealPlan") or hotel.get("meal_plan") or "Room Only").strip()
+            _rp = sel_room.get("rate_plan") or sel_room.get("ratePlan") or {}
+            meal_plan_raw = (
+                _rp.get("meal_plan") or _rp.get("mealPlan")
+                or sel_room.get("meal_plan") or sel_room.get("mealPlan")
+                or sel_room.get("meals") or hotel.get("meal_plan") or "Room Only"
+            ).strip()
             mp_lower = meal_plan_raw.lower()
             if "breakfast" in mp_lower or "bb" in mp_lower or "hb" in mp_lower or "fb" in mp_lower or "ai" == mp_lower:
                 has_breakfast = True

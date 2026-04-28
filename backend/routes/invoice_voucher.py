@@ -104,7 +104,12 @@ def build_invoice_html(booking, proposal, user):
         if h:
             sel_room = h.get("selected_room") or h.get("selectedRoom") or {}
             room_name = sel_room.get("name") or "Standard Room"
-            meal = sel_room.get("meal_plan") or sel_room.get("mealPlan") or h.get("meal_plan") or "Room Only"
+            _rp = sel_room.get("rate_plan") or sel_room.get("ratePlan") or {}
+            meal = (
+                _rp.get("meal_plan") or _rp.get("mealPlan")
+                or sel_room.get("meal_plan") or sel_room.get("mealPlan")
+                or sel_room.get("meals") or h.get("meal_plan") or "Room Only"
+            )
             desc_blocks += f"""
             <div class="svc-block">
                 <div class="svc-title">Stay in {cname}</div>
@@ -306,7 +311,12 @@ def build_voucher_html(booking, proposal, user, terms):
         if h:
             sel_room = h.get("selected_room") or h.get("selectedRoom") or {}
             room_name = sel_room.get("name") or "Standard Room"
-            meal = sel_room.get("meal_plan") or sel_room.get("mealPlan") or h.get("meal_plan") or "Room Only"
+            _rp = sel_room.get("rate_plan") or sel_room.get("ratePlan") or {}
+            meal = (
+                _rp.get("meal_plan") or _rp.get("mealPlan")
+                or sel_room.get("meal_plan") or sel_room.get("mealPlan")
+                or sel_room.get("meals") or h.get("meal_plan") or "Room Only"
+            )
             stars = "★" * int(h.get("star_rating") or h.get("rating") or 4)
             num_rooms = sum((r.get("rooms", 1) for r in (proposal.get("room_data") or [])), 0) or 1
             address = h.get("address") or h.get("location") or ""
