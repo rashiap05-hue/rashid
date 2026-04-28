@@ -1087,6 +1087,30 @@ export default function HotelEditForm({ hotel, onSave, onClose, isNew = false, c
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent resize-none"
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-600 mb-1">Nearby Attractions <span className="font-normal text-gray-400">(one per line, e.g. "Sukhumvit – 0.5 km drive")</span></label>
+                <textarea
+                  value={Array.isArray(formData.nearby_attractions) ? formData.nearby_attractions.join('\n') : (formData.nearby_attractions || '')}
+                  onChange={(e) => handleFieldChange('nearby_attractions', e.target.value.split('\n').map(l => l.trim()).filter(Boolean))}
+                  rows={4}
+                  placeholder={'Sukhumvit – 0.5 km drive\nTerminal 21 Mall – 1 km walk\nGrand Palace – 8 km drive'}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent resize-none font-mono text-sm"
+                  data-testid="edit-hotel-nearby-attractions"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-600 mb-1">Nearby Airports <span className="font-normal text-gray-400">(one per line, e.g. "Suvarnabhumi Airport (BKK) – 80 min drive")</span></label>
+                <textarea
+                  value={Array.isArray(formData.nearby_airports) ? formData.nearby_airports.join('\n') : (formData.nearby_airports || '')}
+                  onChange={(e) => handleFieldChange('nearby_airports', e.target.value.split('\n').map(l => l.trim()).filter(Boolean))}
+                  rows={3}
+                  placeholder={'Suvarnabhumi Airport (BKK) – 80 min drive\nDon Mueang International Airport (DMK) – 60 min drive'}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent resize-none font-mono text-sm"
+                  data-testid="edit-hotel-nearby-airports"
+                />
+              </div>
             </div>
           )}
 

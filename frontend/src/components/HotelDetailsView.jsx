@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, MapPin, Star, ChevronLeft, ChevronRight, Check, X,
   Wifi, Car, Dumbbell, Coffee, Utensils, Bath, Tv, Wind, Building2,
-  Calendar, Users, Search, Info, ChevronDown, ChevronUp, Filter
+  Calendar, Users, Search, Info, ChevronDown, ChevronUp, Filter, Plane
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -559,13 +559,36 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
               <p className="text-gray-700 leading-relaxed">
                 {hotel.description || `A stay at ${hotel.name} places you in the heart of ${hotel.city}, within a 15-minute walk of major attractions. This upscale hotel features modern amenities and exceptional service.`}
               </p>
-              <p className="text-gray-700 leading-relaxed mt-4">
-                Enjoy recreation amenities such as a 24-hour fitness center or take in the view from a terrace. Additional amenities at this hotel include complimentary wireless internet access, concierge services, and shopping on site.
-              </p>
-              <p className="text-gray-700 leading-relaxed mt-4">
-                Featured amenities include a 24-hour business center, dry cleaning/laundry services, and a 24-hour front desk. This hotel has {hotel.total_rooms || 365} guestrooms featuring minibars and LED televisions.
-                <button className="text-[#0066CC] hover:underline ml-1">...more</button>
-              </p>
+
+              {/* Nearby Attractions */}
+              {Array.isArray(hotel.nearby_attractions) && hotel.nearby_attractions.length > 0 && (
+                <div className="mt-5">
+                  <h4 className="text-sm font-bold text-gray-800 mb-2 not-prose">Distances to popular places</h4>
+                  <ul className="space-y-1.5 not-prose">
+                    {hotel.nearby_attractions.map((line, idx) => (
+                      <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                        <MapPin size={14} className="text-[#0066CC] mt-0.5 flex-shrink-0" />
+                        <span>{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Nearby Airports */}
+              {Array.isArray(hotel.nearby_airports) && hotel.nearby_airports.length > 0 && (
+                <div className="mt-5">
+                  <h4 className="text-sm font-bold text-gray-800 mb-2 not-prose">The nearest major airports</h4>
+                  <ul className="space-y-1.5 not-prose">
+                    {hotel.nearby_airports.map((line, idx) => (
+                      <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                        <Plane size={14} className="text-[#0066CC] mt-0.5 flex-shrink-0" />
+                        <span>{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             {/* What to Know */}
