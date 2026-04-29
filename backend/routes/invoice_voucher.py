@@ -641,6 +641,292 @@ async def get_voucher_pdf(booking_id: str, current_user: dict = Depends(get_curr
     )
 
 
+def _build_hotel_voucher_html(booking, proposal, user, terms, hotel_key):
+    """Hotel-specific voucher (one-hotel Happihaus-style layout)."""
+    from datetime import datetime as _dt, timedelta as _td
+
+    selected_hotels = (proposal or {}).get("selected_hotels") or {}
+    hotel = selected_hotels.get(hotel_key) or {}
+    if not hotel:
+        raise HTTPException(status_code=404, detail=f"Hotel '{hotel_key}' not found on this booking")
+
+    # Parse "<City>_<cityIdx>"
+    last_us = hotel_key.rfind("_")
+    city_name = hotel_key[:last_us] if last_us > 0 else hotel_key
+    try:
+        city_idx = int(hotel_key[last_us + 1:])
+    except (ValueError, IndexError):
+        city_idx = 0
+
+    cities = (proposal or {}).get("cities") or []
+    matched_city = cities[city_idx] if city_idx < len(cities) else None
+    nights = int((matched_city or {}).get("nights") if isinstance(matched_city, dict) else 0) or int(hotel.get("nights") or 1)
+
+    # Check-in / check-out
+    leaving_on = (proposal or {}).get("leaving_on") or (proposal or {}).get("start_date")
+    prior_nights = sum(int((c or {}).get("nights", 0) if isinstance(c, dict) else 0) for c in cities[:city_idx])
+    check_in_date = hotel.get("check_in") or (add_days(leaving_on, prior_nights) if leaving_on else "")
+    check_out_date = hotel.get("check_out") or (add_days(leaving_on, prior_nights + nights) if leaving_on else "")
+
+    # Rooms / room data
+    sel_room = hotel.get("selected_room") or hotel.get("selectedRoom") or {}
+    room_name = sel_room.get("name") or hotel.get("room_type") or "Standard Room"
+    rp = sel_room.get("rate_plan") or sel_room.get("ratePlan") or {}
+    meal_plan = (
+        rp.get("meal_plan") or rp.get("mealPlan")
+        or sel_room.get("meal_plan") or sel_room.get("mealPlan") or sel_room.get("meals")
+        or hotel.get("meal_plan") or "Room Only"
+    )
+    refundable = rp.get("refundable") if "refundable" in rp else sel_room.get("refundable")
+    cancel_policy = "Non-refundable" if refundable is False else "Refundable as per hotel policy"
+    room_data = (proposal or {}).get("room_data") or []
+    total_rooms = sum(int(r.get("rooms", 1) or 1) for r in room_data) or 1
+    total_adults = sum(int(r.get("adults", 0) or 0) for r in room_data) or int(hotel.get("guests_count") or 2)
+
+    # Per-service confirmation
+    sc = (booking.get("service_confirmations") or {}).get(f"hotel:{hotel_key}") or {}
+    confirmation_num = sc.get("confirmation_number") or hotel.get("confirmation_code") or "Pending"
+
+    # Guests list (passenger info from booking)
+    passengers = booking.get("passengers") or booking.get("travelers") or []
+    guest_names = []
+    for p in passengers:
+        title = p.get("title") or ""
+        first = p.get("first_name") or ""
+        last = p.get("last_name") or ""
+        full = " ".join(x for x in [title, first, last] if x).strip()
+        if full:
+            guest_names.append(full.upper())
+    if not guest_names:
+        # Fallback to customer name
+        cn = booking.get("customer_name") or (user or {}).get("full_name") or ""
+        if cn:
+            guest_names = [cn.upper()]
+    total_guests = len(guest_names) or total_adults
+
+    address = hotel.get("address") or hotel.get("location") or ""
+    phone = hotel.get("phone") or hotel.get("contact_number") or ""
+    stars = int(hotel.get("star_rating") or hotel.get("rating") or 4)
+    ref = _short_ref(booking)
+
+    # Build room breakdown list (visual bullets with checkmark)
+    room_breakdown_items = []
+    for r in room_data:
+        qty = int(r.get("rooms", 1) or 1)
+        extras = []
+        if "breakfast" in meal_plan.lower():
+            extras.append("Breakfast")
+        if r.get("extra_bed"):
+            extras.append(f"{r.get('extra_bed')} Extra Bed/Mattress")
+        else:
+            extras.append("No Extra Bed")
+        detail = ", ".join(extras)
+        room_breakdown_items.append(f"{qty} x {room_name} ({detail})")
+    if not room_breakdown_items:
+        room_breakdown_items = [f"{total_rooms} x {room_name} ({meal_plan})"]
+
+    guests_html = "".join(f"<li>{g}</li>" for g in guest_names) if guest_names else "<li>Not provided</li>"
+    rooms_list_html = "".join(f"<li>{r}</li>" for r in room_breakdown_items)
+    room_breakdown_html = "".join(
+        f'<div class="room-row"><span class="check">✓</span> {r}</div>'
+        for r in room_breakdown_items
+    )
+    stars_html = "".join("★" for _ in range(stars))
+
+    # Terms block (reuse voucher renderer)
+    terms_blocks_html = ""
+    for t in (terms or []):
+        title = t.get("title") or t.get("name") or ""
+        content = t.get("content") or t.get("description")
+        sub_sections = t.get("sub_sections") or []
+        body = ""
+        if content:
+            if isinstance(content, list):
+                items = [str(c).strip() for c in content if str(c).strip()]
+                if sub_sections and len(items) == 1:
+                    pass
+                else:
+                    body += _render_term_bullets(items)
+            elif isinstance(content, str):
+                body += f'<p class="tc-body">{content}</p>'
+        for sub in sub_sections:
+            if not isinstance(sub, dict):
+                continue
+            sub_title = sub.get("title") or ""
+            sub_items = sub.get("items") or sub.get("content") or []
+            sub_bullets = _render_term_bullets(sub_items)
+            if sub_title or sub_bullets:
+                body += f'<div class="tc-sub">{f"<h4 class=tc-sub-title>{sub_title}</h4>" if sub_title else ""}{sub_bullets}</div>'
+        if title or body:
+            terms_blocks_html += f'<div class="tc-block"><h3 class="tc-title">{title}</h3>{body}</div>'
+
+    note_text = "You'll be asked to pay the following charges at the property. Fees may include applicable taxes."
+    note_items_html = '<li>A damage deposit may be collected before check-in.</li>'
+    if meal_plan and "tax" not in meal_plan.lower():
+        pass  # Skip injecting random items
+
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="utf-8" />
+    <title>Hotel Voucher — {ref}</title>
+    <style>
+      @page {{ size: A4; margin: 18mm 16mm 18mm 16mm; }}
+      * {{ box-sizing: border-box; }}
+      body {{ margin: 0; padding: 0; font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11.5px; color: #1F2937; line-height: 1.5; }}
+
+      .header {{ display: flex; justify-content: space-between; align-items: center; padding-bottom: 14px; border-bottom: 2px solid #E5E7EB; margin-bottom: 18px; }}
+      .brand-logo {{ max-height: 64px; max-width: 220px; object-fit: contain; }}
+      .brand-fallback {{ font-size: 22px; font-weight: 800; color: #002B5B; letter-spacing: 2px; }}
+      .trip-ref {{ text-align: right; }}
+      .trip-ref .label {{ font-size: 9px; uppercase; letter-spacing: 2px; color: #6B7280; text-transform: uppercase; font-weight: 700; }}
+      .trip-ref .val {{ font-size: 18px; font-weight: 800; color: #002B5B; margin-top: 2px; }}
+
+      .section-title {{ font-size: 14px; font-weight: 800; color: #002B5B; text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 10px 0; display: flex; align-items: center; gap: 8px; }}
+      .section-title .count {{ font-size: 10px; font-weight: 600; color: #6B7280; background: #F3F4F6; padding: 2px 8px; border-radius: 10px; }}
+
+      .guests-box {{ border: 1px solid #E5E7EB; border-radius: 8px; padding: 14px 18px; margin-bottom: 18px; }}
+      .guests-box ol {{ margin: 0; padding-left: 20px; }}
+      .guests-box li {{ margin-bottom: 4px; font-size: 11.5px; }}
+
+      .nights-badge {{ background: #F3F4F6; border-radius: 6px; padding: 10px 14px; font-weight: 700; color: #002B5B; display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 14px; }}
+      .nights-badge .right {{ color: #0066CC; font-size: 15px; }}
+
+      .hotel-row {{ display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px; }}
+      .hotel-name {{ font-size: 15px; font-weight: 800; color: #0F172A; }}
+      .stars {{ color: #F59E0B; font-size: 13px; letter-spacing: 1px; margin-top: 2px; }}
+      .kv {{ margin-bottom: 6px; font-size: 11px; }}
+      .kv .k {{ font-weight: 700; color: #374151; }}
+      .kv .v {{ color: #1F2937; }}
+
+      .conf-box {{ background: #EAF4FF; border: 1px solid #BFDBFE; border-radius: 6px; padding: 10px 14px; font-size: 13px; font-weight: 700; color: #1E40AF; margin-bottom: 14px; display: inline-block; }}
+
+      .rooms {{ margin-bottom: 14px; }}
+      .rooms ul {{ margin: 0; padding-left: 18px; }}
+      .rooms li {{ margin-bottom: 3px; }}
+
+      .checkin-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 12px 0; border-top: 1px solid #E5E7EB; border-bottom: 1px solid #E5E7EB; margin-bottom: 14px; }}
+      .checkin-grid .label {{ font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; color: #6B7280; }}
+      .checkin-grid .val {{ font-size: 13px; font-weight: 700; color: #0F172A; margin-top: 3px; }}
+
+      .room-row {{ background: #F9FAFB; border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; font-size: 11.5px; }}
+      .room-row .check {{ color: #10B981; font-weight: 800; margin-right: 6px; }}
+
+      .cancel-box {{ margin-top: 12px; }}
+      .cancel-box .label {{ font-size: 11px; font-weight: 700; color: #374151; }}
+      .cancel-box .val {{ font-size: 13px; font-weight: 700; color: #dc2626; margin-top: 3px; }}
+
+      .note-box {{ background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 12px 16px; margin-top: 14px; font-size: 11px; color: #92400E; }}
+      .note-box .label {{ font-weight: 800; color: #78350F; display: block; margin-bottom: 4px; }}
+      .note-box ul {{ margin: 4px 0 0 0; padding-left: 18px; }}
+
+      .tc-section {{ margin-top: 22px; padding-top: 16px; border-top: 2px solid #E5E7EB; }}
+      .tc-title {{ font-size: 12px; font-weight: 800; color: #002B5B; margin-bottom: 6px; }}
+      .tc-body {{ font-size: 10.5px; color: #4B5563; line-height: 1.6; margin: 4px 0; }}
+      .term-bullets {{ font-size: 10.5px; color: #4B5563; line-height: 1.55; padding-left: 18px; margin: 4px 0 8px 0; }}
+      .term-bullets li {{ margin-bottom: 4px; }}
+      .tc-sub {{ margin: 6px 0 8px 0; padding-left: 10px; border-left: 2px solid #DBE3EC; }}
+      .tc-sub-title {{ font-size: 11px; font-weight: 700; color: #1F2937; margin: 4px 0; }}
+      .tc-block {{ margin-bottom: 10px; page-break-inside: avoid; }}
+    </style>
+    </head>
+    <body>
+
+    <div class="header">
+      <div class="brand-block">
+        {f'<img src="{_LOGO_DATA_URL}" class="brand-logo" />' if _LOGO_DATA_URL else '<div class="brand-fallback">TRAVO TOURS &amp; TRAVELS</div>'}
+      </div>
+      <div class="trip-ref">
+        <div class="label">Trip Reference</div>
+        <div class="val">{ref}</div>
+      </div>
+    </div>
+
+    <div class="section-title">Guest Details <span class="count">{total_guests} Guest{'s' if total_guests != 1 else ''}</span></div>
+    <div class="guests-box">
+      <ol>{guests_html}</ol>
+    </div>
+
+    <div class="nights-badge">
+      <span>{nights} night{'s' if nights != 1 else ''} in {city_name}</span>
+      <span class="right">{nights} NIGHT{'S' if nights != 1 else ''}</span>
+    </div>
+
+    <div class="hotel-row">
+      <div>
+        <div class="hotel-name">{hotel.get('name', '—')}</div>
+        <div class="stars">{stars_html}</div>
+        <div class="kv"><span class="k">Address:</span> <span class="v">{address or '—'}</span></div>
+        <div class="kv"><span class="k">Phone:</span> <span class="v">{phone or '—'}</span></div>
+      </div>
+      <div>
+        <div class="conf-box">Confirmation No.: {confirmation_num}</div>
+        <div class="rooms">
+          <div class="kv"><span class="k">Room:</span></div>
+          <ul>{rooms_list_html}</ul>
+        </div>
+        <div class="kv"><span class="k">Guests:</span> <span class="v">{total_rooms} room{'s' if total_rooms != 1 else ''}, {total_adults} adult{'s' if total_adults != 1 else ''}</span></div>
+        <div class="kv"><span class="k">Number of rooms:</span> <span class="v">{total_rooms}</span></div>
+      </div>
+    </div>
+
+    <div class="checkin-grid">
+      <div>
+        <div class="label">Check-in</div>
+        <div class="val">{fmt_date(check_in_date)}, 02:00 PM</div>
+      </div>
+      <div>
+        <div class="label">Check-out</div>
+        <div class="val">{fmt_date(check_out_date)}, 12:00 PM</div>
+      </div>
+    </div>
+
+    {room_breakdown_html}
+
+    <div class="cancel-box">
+      <div class="label">Cancellation Policy:</div>
+      <div class="val">{cancel_policy}</div>
+    </div>
+
+    <div class="note-box">
+      <span class="label">Note:</span>
+      {note_text}
+      <ul>{note_items_html}</ul>
+    </div>
+
+    <div class="tc-section">
+      <div class="section-title" style="font-size: 13px; margin-bottom: 12px;">Terms and Conditions</div>
+      {terms_blocks_html or '<p class="tc-body">Standard terms & conditions apply. Please contact your travel advisor for details.</p>'}
+    </div>
+
+    </body>
+    </html>
+    """
+
+
+@router.get("/bookings/{booking_id}/hotel-voucher-pdf")
+async def get_hotel_voucher_pdf(
+    booking_id: str,
+    key: str,  # e.g. "Bangkok_0" (matches selected_hotels key)
+    current_user: dict = Depends(get_current_user),
+):
+    booking, proposal, user, terms = await _load_booking_context(booking_id, current_user)
+    html_content = _build_hotel_voucher_html(booking, proposal, user, terms, key)
+    try:
+        pdf_bytes = HTML(string=html_content).write_pdf()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Hotel voucher PDF generation failed: {e}")
+    ref = _short_ref(booking)
+    # Strip city idx suffix for filename
+    safe_city = key.rsplit("_", 1)[0].replace(" ", "_")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{ref}_{safe_city}_Hotel_Voucher.pdf"'},
+    )
+
+
 # ---------------- EMAIL (with PDF attachment) ----------------
 
 def _send_pdf_email(to_email, subject, html_body, attachment_filename, pdf_bytes):

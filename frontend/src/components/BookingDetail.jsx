@@ -496,7 +496,31 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
                       </div>
                     </div>
                     <div className="flex items-center gap-4 mt-3">
-                      <button className="px-3 py-1 border border-gray-300 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 flex items-center gap-1" data-testid={`download-voucher-${key}`}>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await api.get(
+                              `/bookings/${booking.id}/hotel-voucher-pdf?key=${encodeURIComponent(key)}`,
+                              { responseType: 'blob' }
+                            );
+                            const blobUrl = URL.createObjectURL(
+                              new Blob([res.data], { type: 'application/pdf' })
+                            );
+                            const a = document.createElement('a');
+                            a.href = blobUrl;
+                            a.download = `${booking.booking_ref || 'TBM'}_${cityName}_Hotel_Voucher.pdf`;
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            URL.revokeObjectURL(blobUrl);
+                          } catch (err) {
+                            console.error('Failed to download hotel voucher:', err);
+                            alert('Could not download hotel voucher. Please try again.');
+                          }
+                        }}
+                        className="px-3 py-1 border border-gray-300 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 flex items-center gap-1"
+                        data-testid={`download-voucher-${key}`}
+                      >
                         <Download size={12} /> Download Voucher
                       </button>
                     </div>
