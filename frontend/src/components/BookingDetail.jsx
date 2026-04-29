@@ -12,7 +12,7 @@ import TripChangeRequestModal from './BookingDetail/TripChangeRequestModal';
 import TripTasksCard from './BookingDetail/TripTasksCard';
 import TripTaskDetailsModal from './BookingDetail/TripTaskDetailsModal';
 
-export default function BookingDetail({ bookingId, initialTaskId, onBack, onViewProposal, onClickPay }) {
+export default function BookingDetail({ bookingId, initialTaskId, onBack, onViewProposal, onClickPay, onViewItinerary }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState({});
@@ -833,7 +833,7 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
                   </div>
                 </div>
                 <button
-                  onClick={() => onViewProposal?.(booking.proposal_id)}
+                  onClick={() => onViewItinerary?.(booking)}
                   className="px-4 py-2 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold text-xs rounded-lg uppercase tracking-wider transition-colors flex items-center gap-1.5"
                   data-testid="view-itinerary-btn"
                 >

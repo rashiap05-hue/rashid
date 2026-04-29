@@ -21,6 +21,7 @@ import BookingConfirmation from '@/components/BookingConfirmation';
 import PaymentPage from '@/components/PaymentPage';
 import MyBookings from '@/components/MyBookings';
 import BookingDetail from '@/components/BookingDetail';
+import TripItineraryView from '@/components/TripItineraryView';
 import WalletPage from '@/components/WalletPage';
 import StaffDashboard from '@/components/StaffDashboard';
 
@@ -79,6 +80,8 @@ function App() {
   const [bookingData, setBookingData] = useState(null);
   const [selectedBookingId, setSelectedBookingId] = useState(null);
   const [openTaskId, setOpenTaskId] = useState(null);
+  // For the new Trip Itinerary view (Nexus-style read-only document)
+  const [itineraryContext, setItineraryContext] = useState(null);  // {proposalId, bookingRef, customerName}
   // Tracks where the proposal-view was entered from so the Back button can return there.
   // 'edit' → came from TripBuilder edit/save flow; 'list' → came from My Proposals listing.
   const [proposalViewSource, setProposalViewSource] = useState(() => {
@@ -383,6 +386,18 @@ function App() {
                         console.error('Failed to load proposal:', err);
                       }
                     }}
+                    onViewItinerary={(booking) => {
+                      const ref = booking?.booking_ref
+                        || (booking?.booking_number != null
+                            ? `TBM-${String(booking.booking_number).padStart(6, '0')}`
+                            : 'TBM-XXXXXX');
+                      setItineraryContext({
+                        proposalId: booking?.proposal_id,
+                        bookingRef: ref,
+                        customerName: booking?.customer_name || '',
+                      });
+                      setCurrentView('trip-itinerary');
+                    }}
                     onClickPay={async (booking) => {
                       try {
                         // Load the related proposal so PaymentPage has full context
@@ -405,6 +420,18 @@ function App() {
 
                 {currentView === 'wallet' && (
                   <WalletPage />
+                )}
+
+                {currentView === 'trip-itinerary' && itineraryContext?.proposalId && (
+                  <TripItineraryView
+                    proposalId={itineraryContext.proposalId}
+                    bookingRef={itineraryContext.bookingRef}
+                    customerName={itineraryContext.customerName}
+                    onBack={() => {
+                      setItineraryContext(null);
+                      setCurrentView('booking-detail');
+                    }}
+                  />
                 )}
 
                 {currentView === 'staff-dashboard' && (
