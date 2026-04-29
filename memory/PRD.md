@@ -234,6 +234,7 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   2. Pulls active terms (`is_active != False`) and keeps only entries where `applies_to == "all"` / `country` is empty (generic), OR `country` matches one of the resolved trip countries (case-insensitive).
   3. Sorts by `order` field for stable ordering.
   - Verified end-to-end with three real proposals: Georgia (Tbilisi) PDF shows only Europe-specific sub-section + generic terms; Thailand (Bangkok/Pattaya) PDF shows only Thailand-specific (TDAC, Visa on Arrival) + generic terms; UAE (Dubai) PDF shows only UAE-specific (AED 50,000, Dirham Fee, Abu Dhabi Grand Mosque) + generic terms. Generic policies (Terms and Conditions, Hotel Cancellation, Payment Policies, Any Other Commitments) appear for all destinations.
+- **Saved Proposal page meal counts (Apr 2026)**: ProposalView.jsx Inclusions tab now displays counts for **all three meals** (Breakfast / Lunch / Dinner) — previously only Breakfast was counted. Added two new helpers `hotelIncludesLunch()` (FB/AI) and `hotelIncludesDinner()` (HB/FB/AI), and refactored the meal strip to a single `renderMeal()` helper that sums counts from per-night hotel meal plans + per-activity `meals_included` (with legacy `inclusions` text fallback). Output format: "Included on 4 days" (matches existing breakfast UX).
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)

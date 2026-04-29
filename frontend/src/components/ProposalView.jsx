@@ -362,6 +362,34 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
     return mealPlan.includes('breakfast') || mealPlan.includes('bb') || mealPlan.includes('half board') || mealPlan.includes('full board') || mealPlan.includes('all inclusive');
   };
 
+  // Check if hotel includes lunch (only FB / AI)
+  const hotelIncludesLunch = (hotel) => {
+    const mealPlan = (
+      hotel?.selectedRoom?.rate_plan?.meal_plan
+      || hotel?.selectedRoom?.meal_plan
+      || hotel?.selectedRoom?.mealPlan
+      || hotel?.selectedRoom?.meals
+      || hotel?.meal_plan
+      || ''
+    ).toLowerCase();
+    if (!mealPlan) return false;
+    return mealPlan.includes('lunch') || mealPlan.includes('full board') || mealPlan === 'fb' || mealPlan.includes('all inclusive') || mealPlan === 'ai';
+  };
+
+  // Check if hotel includes dinner (HB / FB / AI)
+  const hotelIncludesDinner = (hotel) => {
+    const mealPlan = (
+      hotel?.selectedRoom?.rate_plan?.meal_plan
+      || hotel?.selectedRoom?.meal_plan
+      || hotel?.selectedRoom?.mealPlan
+      || hotel?.selectedRoom?.meals
+      || hotel?.meal_plan
+      || ''
+    ).toLowerCase();
+    if (!mealPlan) return false;
+    return mealPlan.includes('dinner') || mealPlan.includes('half board') || mealPlan === 'hb' || mealPlan.includes('full board') || mealPlan === 'fb' || mealPlan.includes('all inclusive') || mealPlan === 'ai';
+  };
+
   // Check-in/Check-out dates
   const checkInDate = new Date(proposal.leaving_on);
   const checkOutDate = addDays(proposal.leaving_on, nightsCount);
@@ -1652,38 +1680,50 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
 
                   {/* Meals Row - single row at the bottom */}
                   <div className="px-8 py-6 border-t border-gray-100">
-                    <div className="grid grid-cols-3 gap-6">
-                      <div className="flex items-center gap-3">
-                        <Utensils size={18} className="text-gray-500" />
-                        <div>
-                          <p className="text-sm font-bold text-gray-800">Breakfast</p>
-                          {(() => {
-                            let breakfastDays = 0;
-                            proposal.cities?.forEach((c, i) => {
-                              const h = getHotelForCity(c.name, i);
-                              if (hotelIncludesBreakfast(h)) breakfastDays += c.nights;
-                            });
-                            return breakfastDays > 0
-                              ? <p className="text-xs text-teal-600 font-semibold">Included on {breakfastDays} day{breakfastDays > 1 ? 's' : ''}</p>
-                              : <p className="text-xs text-gray-400">Not Included</p>;
-                          })()}
+                    {(() => {
+                      // Compute counts: hotels (per night) + activities (per occurrence)
+                      let breakfastCount = 0, lunchCount = 0, dinnerCount = 0;
+                      proposal.cities?.forEach((c, i) => {
+                        const h = getHotelForCity(c.name, i);
+                        const n = c.nights || 0;
+                        if (hotelIncludesBreakfast(h)) breakfastCount += n;
+                        if (hotelIncludesLunch(h)) lunchCount += n;
+                        if (hotelIncludesDinner(h)) dinnerCount += n;
+                      });
+                      const sa = proposal.selected_activities || {};
+                      Object.values(sa).forEach((val) => {
+                        const items = Array.isArray(val) ? val : [val];
+                        items.forEach((a) => {
+                          if (!a) return;
+                          const m = a.meals_included || {};
+                          const incLower = (a.inclusions || []).join(' ').toLowerCase();
+                          if (m.breakfast || incLower.includes('breakfast')) breakfastCount += 1;
+                          if (m.lunch || incLower.includes('lunch')) lunchCount += 1;
+                          if (m.dinner || incLower.includes('dinner')) dinnerCount += 1;
+                        });
+                      });
+                      const renderMeal = (label, count, IconActive, IconInactive) => (
+                        <div className="flex items-center gap-3">
+                          {count > 0
+                            ? <IconActive size={18} className="text-teal-500" />
+                            : <IconInactive size={18} className="text-gray-300" />
+                          }
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">{label}</p>
+                            {count > 0
+                              ? <p className="text-xs text-teal-600 font-semibold">Included on {count} day{count > 1 ? 's' : ''}</p>
+                              : <p className="text-xs text-gray-400">Not Included</p>}
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <X size={18} className="text-gray-300" />
-                        <div>
-                          <p className="text-sm font-bold text-gray-800">Lunch</p>
-                          <p className="text-xs text-gray-400">Not Included</p>
+                      );
+                      return (
+                        <div className="grid grid-cols-3 gap-6">
+                          {renderMeal('Breakfast', breakfastCount, Utensils, Utensils)}
+                          {renderMeal('Lunch', lunchCount, Utensils, X)}
+                          {renderMeal('Dinner', dinnerCount, Moon, Moon)}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Moon size={18} className="text-gray-300" />
-                        <div>
-                          <p className="text-sm font-bold text-gray-800">Dinner</p>
-                          <p className="text-xs text-gray-400">Not Included</p>
-                        </div>
-                      </div>
-                    </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
