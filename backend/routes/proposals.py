@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Body
 from fastapi.responses import StreamingResponse
 from db import db, get_current_user, get_optional_user
 from models.schemas import ProposalCreate, ProposalResponse
+from booking_number import next_booking_number, format_booking_ref
 from typing import List
 from datetime import datetime, timezone, timedelta
 import uuid
@@ -211,8 +212,11 @@ async def hold_proposal(proposal_id: str, body: dict, current_user: dict = Depen
 
     # Create a booking record
     booking_id = str(uuid.uuid4())
+    booking_number = await next_booking_number()
     booking = {
         "id": booking_id,
+        "booking_number": booking_number,
+        "booking_ref": format_booking_ref(booking_number),
         "proposal_id": proposal_id,
         "proposal_name": proposal.get("proposal_name", ""),
         "customer_name": proposal.get("customer_name", ""),

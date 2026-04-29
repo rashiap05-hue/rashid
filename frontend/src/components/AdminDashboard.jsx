@@ -95,7 +95,7 @@ function AdminBookingsTab() {
                 return (
                   <tr key={b.id} className="border-b border-gray-50 hover:bg-gray-50/50" data-testid={`admin-booking-row-${b.id}`}>
                     <td className="px-4 py-4 text-gray-500">{idx + 1}</td>
-                    <td className="px-4 py-4 font-medium text-[#0066CC]">{'ORN' + (b.id || '').replace(/-/g, '').slice(0, 8).toUpperCase()}</td>
+                    <td className="px-4 py-4 font-medium text-[#0066CC]">{b.booking_ref || (b.booking_number != null ? `TBM-${String(b.booking_number).padStart(6, '0')}` : `TBM-${(((b.id || '').replace(/\D/g, '').slice(0, 6)) || '000000').padStart(6, '0')}`)}</td>
                     <td className="px-4 py-4">
                       <div className="text-gray-800 text-sm">{b.customer_name || '—'}</div>
                       <div className="text-xs text-gray-400">{b.customer_email || ''}</div>

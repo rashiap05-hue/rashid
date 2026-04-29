@@ -148,9 +148,13 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
     return type === 'Flight' ? 'bg-gray-100 text-gray-600' : 'bg-gray-100 text-gray-600';
   };
 
-  const getShortRef = (id) => {
-    if (!id) return '—';
-    return 'ORN' + id.replace(/-/g, '').slice(0, 8).toUpperCase();
+  const getShortRef = (b) => {
+    if (b?.booking_ref) return b.booking_ref;
+    if (b?.booking_number != null) return `TBM-${String(b.booking_number).padStart(6, '0')}`;
+    if (!b?.id) return '—';
+    // Legacy fallback for ancient rows
+    const digits = (b.id || '').replace(/\D/g, '').slice(0, 6) || '000000';
+    return `TBM-${digits.padStart(6, '0')}`;
   };
 
   const SortHeader = ({ label, field }) => (
@@ -175,7 +179,7 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
           <td className="px-4 py-4 text-gray-500">{idx + 1}</td>
           <td className="px-4 py-4">
             <button onClick={(e) => { e.stopPropagation(); onViewBooking?.(b.id); }} className="text-[#0066CC] hover:underline font-medium text-sm" data-testid={`booking-ref-${b.id}`}>
-              {getShortRef(b.id)}
+              {getShortRef(b)}
             </button>
           </td>
           <td className="px-4 py-4">

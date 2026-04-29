@@ -111,7 +111,12 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
   }
 
   const { booking, proposal, terms, expert, user } = data;
-  const shortRef = 'ORN' + (booking.id || '').replace(/-/g, '').slice(0, 8).toUpperCase();
+  const shortRef = booking.booking_ref
+    || (booking.booking_number != null ? `TBM-${String(booking.booking_number).padStart(6, '0')}` : null)
+    || (() => {
+      const digits = (booking.id || '').replace(/\D/g, '').slice(0, 6) || '000000';
+      return `TBM-${digits.padStart(6, '0')}`;
+    })();
   const totalPrice = Number(booking.total_price || 0);
   // Build payment transactions list from booking.payments[] if present, else synthesize from booking.paid_at/amount.
   const transactions = Array.isArray(booking.payments) && booking.payments.length > 0

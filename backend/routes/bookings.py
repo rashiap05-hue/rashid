@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import uuid
 
 from db import db, get_current_user
+from booking_number import next_booking_number, format_booking_ref
 
 router = APIRouter()
 
@@ -75,6 +76,13 @@ async def create_booking(booking: BookingCreate, current_user: dict = Depends(ge
     existing_held = await db.held_bookings.find_one({"proposal_id": booking.proposal_id}, {"_id": 0})
     booking_id = existing_held["id"] if existing_held else str(uuid.uuid4())
 
+    # Reuse the existing booking_number if the held booking already had one,
+    # otherwise allocate a new sequential one.
+    booking_number = (existing_held or {}).get("booking_number")
+    if not booking_number:
+        existing_booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0, "booking_number": 1})
+        booking_number = (existing_booking or {}).get("booking_number") or await next_booking_number()
+
     payment_fields = {
         "payment_method": booking.payment_method,
         "payment_amount": booking.payment_amount,
@@ -91,6 +99,8 @@ async def create_booking(booking: BookingCreate, current_user: dict = Depends(ge
 
     booking_doc = {
         "id": booking_id,
+        "booking_number": booking_number,
+        "booking_ref": format_booking_ref(booking_number),
         "proposal_id": booking.proposal_id,
         "user_id": user_id,
         "created_by": user_id,
@@ -133,6 +143,8 @@ async def create_booking(booking: BookingCreate, current_user: dict = Depends(ge
 
     return {
         "id": booking_id,
+        "booking_number": booking_number,
+        "booking_ref": format_booking_ref(booking_number),
         "status": new_status,
         "confirmation_time": booking.confirmation_time,
         "message": "Booking confirmed successfully"

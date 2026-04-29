@@ -10,6 +10,7 @@ from datetime import datetime, timezone, timedelta
 from weasyprint import HTML
 
 from db import db, get_current_user
+from booking_number import format_booking_ref
 from routes.pdf_generator import resolve_image, fmt_date, add_days, short_ref
 from routes.email_service import send_email_async, RESEND_API_KEY, SENDER_EMAIL
 import resend
@@ -19,11 +20,23 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _short_ref(pid):
+def _short_ref(booking_or_pid):
+    """Returns the booking display ref. Accepts either a booking dict or a raw id (legacy)."""
+    if isinstance(booking_or_pid, dict):
+        # Prefer the persisted ref if booking has it
+        if booking_or_pid.get("booking_ref"):
+            return booking_or_pid["booking_ref"]
+        if booking_or_pid.get("booking_number"):
+            return format_booking_ref(booking_or_pid["booking_number"])
+        pid = booking_or_pid.get("id")
+    else:
+        pid = booking_or_pid
     if not pid:
         return ""
+    # Legacy fallback for bookings created before booking_number was added.
     digits = "".join(ch for ch in str(pid) if ch.isdigit())
-    return ("ORN" + (digits[:7] if len(digits) >= 7 else str(abs(hash(str(pid))))[:7])).upper()
+    seed = digits[:6] if len(digits) >= 6 else str(abs(hash(str(pid))))[:6]
+    return format_booking_ref(seed.lstrip("0") or "0")
 
 
 def _company_block(user):
@@ -58,7 +71,7 @@ def _guest_lines(travelers):
 
 def build_invoice_html(booking, proposal, user):
     company = _company_block(user)
-    ref = _short_ref(booking.get("id"))
+    ref = _short_ref(booking)
     customer_name = booking.get("customer_name") or proposal.get("customer_name") or ""
     customer_email = booking.get("customer_email") or proposal.get("customer_email") or ""
     travelers = booking.get("travelers") or []
@@ -273,7 +286,7 @@ body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 
 
 def build_voucher_html(booking, proposal, user, terms):
     company = _company_block(user)
-    ref = _short_ref(booking.get("id"))
+    ref = _short_ref(booking)
     cities = proposal.get("cities", []) or []
     journey_date = booking.get("leaving_on") or proposal.get("leaving_on")
     travelers = booking.get("travelers") or []
@@ -321,7 +334,14 @@ def build_voucher_html(booking, proposal, user, terms):
             num_rooms = sum((r.get("rooms", 1) for r in (proposal.get("room_data") or [])), 0) or 1
             address = h.get("address") or h.get("location") or ""
             phone = h.get("phone") or ""
-            confirmation = h.get("confirmation_code") or "Pending"
+            # Prefer the operational dashboard's confirmation number for this specific hotel,
+            # then fall back to any code on the snapshot, then "Pending".
+            sc = (booking.get("service_confirmations") or {}).get(f"hotel:{cname}_{ci}") or {}
+            confirmation = (
+                sc.get("confirmation_number")
+                or h.get("confirmation_code")
+                or "Pending"
+            )
 
             hotel_html += f"""
             <div class="hotel-block">
@@ -499,7 +519,7 @@ async def get_invoice_pdf(booking_id: str, current_user: dict = Depends(get_curr
         pdf_bytes = HTML(string=html_content).write_pdf()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Invoice PDF generation failed: {e}")
-    ref = _short_ref(booking.get("id"))
+    ref = _short_ref(booking)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -515,7 +535,7 @@ async def get_voucher_pdf(booking_id: str, current_user: dict = Depends(get_curr
         pdf_bytes = HTML(string=html_content).write_pdf()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Voucher PDF generation failed: {e}")
-    ref = _short_ref(booking.get("id"))
+    ref = _short_ref(booking)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -580,7 +600,7 @@ async def send_invoice_email(booking_id: str, current_user: dict = Depends(get_c
 
     html_pdf = build_invoice_html(booking, proposal, user)
     pdf_bytes = HTML(string=html_pdf).write_pdf()
-    ref = _short_ref(booking.get("id"))
+    ref = _short_ref(booking)
     company = _company_block(user)
     subject = f"Trip Invoice — {ref} | {company['name']}"
     body = _build_doc_email_html("invoice", booking.get("customer_name") or proposal.get("customer_name"), ref, company["name"])
@@ -604,7 +624,7 @@ async def send_voucher_email(booking_id: str, current_user: dict = Depends(get_c
 
     html_pdf = build_voucher_html(booking, proposal, user, terms)
     pdf_bytes = HTML(string=html_pdf).write_pdf()
-    ref = _short_ref(booking.get("id"))
+    ref = _short_ref(booking)
     company = _company_block(user)
     subject = f"Travel Voucher — {ref} | {company['name']}"
     body = _build_doc_email_html("voucher", booking.get("customer_name") or proposal.get("customer_name"), ref, company["name"])
