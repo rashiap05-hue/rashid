@@ -393,6 +393,7 @@ function App() {
                             : 'TBM-XXXXXX');
                       setItineraryContext({
                         proposalId: booking?.proposal_id,
+                        bookingId: booking?.id,
                         bookingRef: ref,
                         customerName: booking?.customer_name || '',
                       });
@@ -425,6 +426,7 @@ function App() {
                 {currentView === 'trip-itinerary' && itineraryContext?.proposalId && (
                   <TripItineraryView
                     proposalId={itineraryContext.proposalId}
+                    bookingId={itineraryContext.bookingId}
                     bookingRef={itineraryContext.bookingRef}
                     customerName={itineraryContext.customerName}
                     onBack={() => {

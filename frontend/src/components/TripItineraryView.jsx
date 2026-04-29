@@ -123,6 +123,26 @@ const DayCard = ({ idx, date, city, hotel, isArrival, isDeparture, meals, active
 };
 
 /* ------------------- right side day section ------------------- */
+const ConfirmationLine = ({ entry }) => {
+  if (!entry) return null;
+  const status = entry.status || 'pending';
+  const num = entry.confirmation_number;
+  const note = (entry.op_note || '').trim();
+  if (status !== 'confirmed' && !num && !note) {
+    return (
+      <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2 inline-flex items-center gap-1.5">
+        <Clock size={11} /> Awaiting confirmation
+      </div>
+    );
+  }
+  return (
+    <div className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded px-3 py-2 mt-2 space-y-1">
+      {num ? <div><span className="font-bold uppercase tracking-wider text-[10px] text-emerald-700">Confirmation:</span> {num}</div> : null}
+      {note ? <div className="text-emerald-900 whitespace-pre-wrap"><span className="font-bold uppercase tracking-wider text-[10px] text-emerald-700">Operations note:</span> {note}</div> : null}
+    </div>
+  );
+};
+
 const MealStrip = ({ meals }) => (
   <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-gray-100">
     {[
@@ -140,103 +160,193 @@ const MealStrip = ({ meals }) => (
   </div>
 );
 
-const FlightCard = ({ flight, label }) => {
+const FlightCard = ({ flight, label, confirmation }) => {
   if (!flight) return null;
-  const arr = flight.arrival_time || flight.arrivalTime || flight.time || '';
-  const num = flight.flight_number || flight.flightNumber || flight.airline_code || 'Flight';
-  const date = flight.date || flight.arrival_date || '';
+  const airline = flight.airline || flight.airline_name || '';
+  const num = flight.flight_number || flight.flight_no || flight.flightNumber || '';
+  const date = flight.date || flight.departure_date || flight.arrival_date || '';
+  const dep = flight.departure_airport || flight.from || flight.from_airport || '';
+  const arr = flight.arrival_airport || flight.to || flight.to_airport || '';
+  const depTime = flight.departure_time || flight.departureTime || '';
+  const arrTime = flight.arrival_time || flight.arrivalTime || flight.time || '';
+  const terminal = flight.terminal || '';
   return (
-    <div className="flex items-start gap-3 px-4 py-3 bg-blue-50/40 border border-blue-100 rounded-lg" data-testid={`itinerary-flight-${label}`}>
-      <Plane size={18} className="text-[#0066CC] mt-0.5" />
-      <div className="text-sm text-gray-800">
-        <span className="font-semibold">{num}</span>
-        {date ? <span> · {fmtShort(date)}</span> : null}
-        {arr ? <span> at <span className="font-semibold">{arr}</span></span> : null}
-        <div className="text-xs text-gray-500 mt-0.5">{label}</div>
+    <div className="px-4 py-3 bg-blue-50/40 border border-blue-100 rounded-lg" data-testid={`itinerary-flight-${label}`}>
+      <div className="flex items-start gap-3">
+        <Plane size={18} className="text-[#0066CC] mt-0.5 flex-shrink-0" />
+        <div className="flex-1 text-sm text-gray-800">
+          <div className="font-semibold flex flex-wrap items-center gap-2">
+            <span>{airline || 'Flight'} {num}</span>
+            {date ? <span className="text-xs text-gray-500 font-normal">· {fmtShort(date)}</span> : null}
+          </div>
+          {(dep || arr) ? (
+            <div className="text-xs text-gray-600 mt-1">
+              {dep ? <span className="font-semibold">{dep}</span> : null}
+              {depTime ? <span className="text-gray-500"> {depTime}</span> : null}
+              {(dep && arr) ? <span className="mx-1.5 text-gray-400">→</span> : null}
+              {arr ? <span className="font-semibold">{arr}</span> : null}
+              {arrTime ? <span className="text-gray-500"> {arrTime}</span> : null}
+            </div>
+          ) : (arrTime ? <div className="text-xs text-gray-600 mt-1">Arrives {arrTime}</div> : null)}
+          {terminal ? <div className="text-[11px] text-gray-500 mt-0.5">Terminal: {terminal}</div> : null}
+          <div className="text-[10px] uppercase tracking-wider text-gray-400 mt-1 font-bold">{label}</div>
+        </div>
       </div>
+      <ConfirmationLine entry={confirmation} />
     </div>
   );
 };
 
-const TransferCard = ({ transfer, title }) => {
+const TransferCard = ({ transfer, title, confirmation }) => {
   if (!transfer) return null;
   const t = transfer.title || transfer.name || title;
   const veh = transfer.vehicle_type || transfer.selectedVehicle || transfer.vehicle || 'Private';
   const dur = transfer.duration || '';
+  const from = transfer.from_location || transfer.from_city || transfer.from || '';
+  const to = transfer.to_location || transfer.to_city || transfer.to || '';
+  const pickup = transfer.pickup_time || transfer.pickupTime || '';
+  const supplier = transfer.supplier_name || transfer.supplier || '';
+  const supplierPhone = transfer.supplier_phone || transfer.phone || '';
   return (
-    <div className="flex items-start gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg" data-testid="itinerary-transfer-card">
-      <Car size={18} className="text-[#7c3015] mt-0.5 flex-shrink-0" />
-      <div className="flex-1 text-sm">
-        <div className="font-semibold text-gray-800 leading-snug">{t}</div>
-        <div className="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="inline-flex items-center gap-1"><Bed size={11} />{veh}</span>
-          {dur ? <span className="inline-flex items-center gap-1"><Clock size={11} />{dur}</span> : null}
+    <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg" data-testid="itinerary-transfer-card">
+      <div className="flex items-start gap-3">
+        <Car size={18} className="text-[#7c3015] mt-0.5 flex-shrink-0" />
+        <div className="flex-1 text-sm">
+          <div className="flex items-start justify-between gap-2">
+            <div className="font-semibold text-gray-800 leading-snug">{t}</div>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded whitespace-nowrap">{veh.toString().includes('SIC') ? 'SIC' : 'Private'}</span>
+          </div>
+          {(from || to) ? (
+            <div className="text-xs text-gray-600 mt-1">
+              {from ? <span className="font-semibold">{from}</span> : null}
+              {(from && to) ? <span className="mx-1.5 text-gray-400">→</span> : null}
+              {to ? <span className="font-semibold">{to}</span> : null}
+            </div>
+          ) : null}
+          <div className="text-xs text-gray-500 mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="inline-flex items-center gap-1"><Bed size={11} />{veh}</span>
+            {dur ? <span className="inline-flex items-center gap-1"><Clock size={11} />{dur}</span> : null}
+            {pickup ? <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold"><Clock size={11} />Pickup {pickup}</span> : null}
+          </div>
+          {supplier ? <div className="text-[11px] text-gray-600 mt-1"><span className="font-semibold">Operator:</span> {supplier}{supplierPhone ? <> · <a href={`tel:${supplierPhone}`} className="text-[#0066CC]">{supplierPhone}</a></> : null}</div> : null}
         </div>
       </div>
-      <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded">Private</span>
+      <ConfirmationLine entry={confirmation} />
     </div>
   );
 };
 
-const HotelCard = ({ hotel, nights, checkIn, checkOut }) => {
+const HotelCard = ({ hotel, nights, checkIn, checkOut, confirmation }) => {
   if (!hotel) return null;
   const sel = hotel?.selectedRoom || hotel?.selected_room || {};
   const room = sel.name || sel.room_type || 'Standard Room';
   const stars = Number(hotel.star_rating || hotel.rating || 4);
   const rp = sel.rate_plan || sel.ratePlan || {};
   const mealPlan = rp.meal_plan || rp.mealPlan || sel.meals || hotel?.meal_plan || 'Room Only';
+  const address = hotel.address || hotel.location || '';
+  const phone = hotel.phone || hotel.contact_number || '';
+  const bedType = sel.bed_type || sel.bedType || '';
+  const refundable = rp.refundable || sel.refundable;
+  const refundUntil = rp.refund_deadline || sel.refundable_until;
+  const amenities = (hotel.amenities || []).slice(0, 6);
   return (
     <div className="px-4 py-3 bg-white border border-gray-200 rounded-lg" data-testid="itinerary-hotel-card">
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-3">
         <Hotel size={18} className="text-[#7c3015] mt-0.5 flex-shrink-0" />
         <div className="flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-sm text-gray-800">{hotel.name}</span>
             <span className="text-amber-500 text-xs">{'★'.repeat(stars)}</span>
           </div>
-          <div className="text-xs text-gray-500 mt-1">{room} · {mealPlan}</div>
+          <div className="text-xs text-gray-600 mt-0.5">{room}{bedType ? ` · ${bedType}` : ''} · {mealPlan}</div>
+          {address ? (
+            <div className="text-[11px] text-gray-500 mt-1 flex items-start gap-1">
+              <MapPin size={11} className="mt-0.5 flex-shrink-0" />
+              <span>{address}</span>
+            </div>
+          ) : null}
+          {phone ? (
+            <div className="text-[11px] text-gray-600 mt-0.5">
+              <span className="font-semibold">Phone:</span> <a href={`tel:${phone}`} className="text-[#0066CC]">{phone}</a>
+            </div>
+          ) : null}
           <div className="grid grid-cols-2 gap-2 mt-2 text-[11px]">
             <div className="text-gray-600"><span className="font-semibold">Check-in:</span> {fmtShort(checkIn)} · 14:00</div>
             <div className="text-gray-600"><span className="font-semibold">Check-out:</span> {fmtShort(checkOut)} · 12:00</div>
           </div>
-          <div className="text-[11px] text-gray-500 mt-1">{nights} night{nights > 1 ? 's' : ''}</div>
+          <div className="text-[11px] text-gray-500 mt-1 flex items-center gap-3">
+            <span>{nights} night{nights > 1 ? 's' : ''}</span>
+            {refundable === false ? (
+              <span className="text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded font-semibold">Non-refundable</span>
+            ) : refundUntil ? (
+              <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-semibold">Refundable until {fmtShort(refundUntil)}</span>
+            ) : null}
+          </div>
+          {amenities.length > 0 ? (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {amenities.map((am, i) => (
+                <span key={i} className="text-[10px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded">{am}</span>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
+      <ConfirmationLine entry={confirmation} />
     </div>
   );
 };
 
-const ActivityCard = ({ activity }) => {
+const ActivityCard = ({ activity, confirmation }) => {
   const meals = mealsFromActivity(activity);
   const veh = activity.selectedVehicle || activity.vehicle || 'Private';
+  const inc = (activity.inclusions || []).filter(Boolean);
+  const desc = activity.description || '';
+  const supplier = activity.supplier_name || activity.supplier || '';
+  const supplierPhone = activity.supplier_phone || activity.phone || '';
+  const pickup = activity.pickup_time || activity.pickupTime || '';
+  const meeting = activity.meeting_point || activity.meetingPoint || '';
   return (
     <div className="px-4 py-3 bg-emerald-50/30 border border-emerald-100 rounded-lg" data-testid="itinerary-activity-card">
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-3">
         <CalendarDays size={18} className="text-emerald-700 mt-0.5 flex-shrink-0" />
         <div className="flex-1">
-          <div className="font-semibold text-sm text-gray-800">{activity.name}</div>
-          {activity.duration ? (
-            <div className="text-[11px] text-gray-500 mt-0.5 inline-flex items-center gap-1">
-              <Clock size={11} /> {activity.duration}
-            </div>
-          ) : null}
-          {meals.breakfast || meals.lunch || meals.dinner ? (
-            <div className="flex gap-2 mt-1.5">
+          <div className="flex items-start justify-between gap-2">
+            <div className="font-semibold text-sm text-gray-800">{activity.name}</div>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-700 bg-white border border-emerald-200 px-2 py-1 rounded whitespace-nowrap">{veh}</span>
+          </div>
+          <div className="text-[11px] text-gray-500 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+            {activity.duration ? <span className="inline-flex items-center gap-1"><Clock size={11} /> {activity.duration}</span> : null}
+            {pickup ? <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold"><Clock size={11} /> Pickup {pickup}</span> : null}
+          </div>
+          {meeting ? <div className="text-[11px] text-gray-600 mt-1"><span className="font-semibold">Meeting point:</span> {meeting}</div> : null}
+          {desc ? <p className="text-[11px] text-gray-600 mt-1.5 leading-relaxed line-clamp-3">{desc}</p> : null}
+          {(meals.breakfast || meals.lunch || meals.dinner) ? (
+            <div className="flex gap-2 mt-2 flex-wrap">
               {meals.breakfast ? <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-medium">Breakfast incl.</span> : null}
               {meals.lunch ? <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-medium">Lunch incl.</span> : null}
               {meals.dinner ? <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-medium">Dinner incl.</span> : null}
             </div>
           ) : null}
+          {inc.length > 0 ? (
+            <div className="mt-2">
+              <div className="text-[10px] uppercase font-bold text-emerald-700 tracking-wider mb-1">Inclusions</div>
+              <ul className="text-[11px] text-gray-700 list-disc pl-4 space-y-0.5">
+                {inc.slice(0, 6).map((i, j) => <li key={j}>{i}</li>)}
+              </ul>
+            </div>
+          ) : null}
+          {supplier ? <div className="text-[11px] text-gray-600 mt-2"><span className="font-semibold">Operator:</span> {supplier}{supplierPhone ? <> · <a href={`tel:${supplierPhone}`} className="text-[#0066CC]">{supplierPhone}</a></> : null}</div> : null}
         </div>
-        <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-700 bg-white border border-emerald-200 px-2 py-1 rounded">{veh}</span>
       </div>
+      <ConfirmationLine entry={confirmation} />
     </div>
   );
 };
 
 /* ------------------- main view ------------------- */
-export default function TripItineraryView({ proposalId, bookingRef, customerName, onBack }) {
+export default function TripItineraryView({ proposalId, bookingId, bookingRef, customerName, onBack }) {
   const [proposal, setProposal] = useState(null);
+  const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeDay, setActiveDay] = useState(1);
   const dayRefs = useRef({});
@@ -245,8 +355,14 @@ export default function TripItineraryView({ proposalId, bookingRef, customerName
     let alive = true;
     (async () => {
       try {
-        const res = await api.get(`/proposals/${proposalId}`);
-        if (alive) setProposal(res.data);
+        const [pr, br] = await Promise.all([
+          api.get(`/proposals/${proposalId}`),
+          bookingId ? api.get(`/bookings/${bookingId}`).catch(() => null) : Promise.resolve(null),
+        ]);
+        if (alive) {
+          setProposal(pr.data);
+          if (br?.data) setBooking(br.data);
+        }
       } catch (e) {
         console.error('Failed to load proposal for itinerary', e);
       } finally {
@@ -254,7 +370,11 @@ export default function TripItineraryView({ proposalId, bookingRef, customerName
       }
     })();
     return () => { alive = false; };
-  }, [proposalId]);
+  }, [proposalId, bookingId]);
+
+  // service_confirmations lookup helper
+  const sc = booking?.service_confirmations || {};
+  const conf = (key) => sc[key] || null;
 
   // Build a flat day list: [{idx, date, city, cityIdx, hotel, isArrival, isDeparture, ...}]
   const days = useMemo(() => {
@@ -468,14 +588,14 @@ export default function TripItineraryView({ proposalId, bookingRef, customerName
                   {/* Day 1 arrival flight + arrival transfer */}
                   {d.isArrival ? (
                     <>
-                      <FlightCard flight={arrivalFlight} label="Arrival flight" />
-                      <TransferCard transfer={arrivalT} title="Arrival Transfer" />
+                      <FlightCard flight={arrivalFlight} label="Arrival flight" confirmation={conf('flight:arrival')} />
+                      <TransferCard transfer={arrivalT} title="Arrival Transfer" confirmation={conf('transfer:arrival')} />
                     </>
                   ) : null}
 
                   {/* Inter-city transfer day */}
                   {d.isInterCityNight && interTransfer ? (
-                    <TransferCard transfer={interTransfer} title="Inter-city Transfer" />
+                    <TransferCard transfer={interTransfer} title="Inter-city Transfer" confirmation={conf(`transfer:inter:${d.cityIdx - 1}_${d.cityIdx}`)} />
                   ) : null}
 
                   {/* Hotel card (only on first night of city, to avoid duplication) */}
@@ -485,19 +605,20 @@ export default function TripItineraryView({ proposalId, bookingRef, customerName
                       nights={cityNights}
                       checkIn={cityCheckIn}
                       checkOut={cityCheckOut}
+                      confirmation={conf(`hotel:${d.city}_${d.cityIdx}`)}
                     />
                   ) : null}
 
                   {/* Activities for the day */}
                   {!d.isDeparture && actList.length > 0 ? (
-                    actList.map((a, j) => <ActivityCard key={j} activity={a} />)
+                    actList.map((a, j) => <ActivityCard key={j} activity={a} confirmation={conf(`activity:${cityKey}#${j}`) || conf(`activity:${cityKey}`)} />)
                   ) : null}
 
                   {/* Departure flight + transfer */}
                   {d.isDeparture ? (
                     <>
-                      <TransferCard transfer={departureT} title="Departure Transfer" />
-                      <FlightCard flight={departureFlight} label="Departure flight" />
+                      <TransferCard transfer={departureT} title="Departure Transfer" confirmation={conf('transfer:departure')} />
+                      <FlightCard flight={departureFlight} label="Departure flight" confirmation={conf('flight:departure')} />
                     </>
                   ) : null}
 
