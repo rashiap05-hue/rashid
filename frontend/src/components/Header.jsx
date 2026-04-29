@@ -297,7 +297,7 @@ export default function Header({
         </div>
         
         <div className="flex items-center gap-3">
-          {user?.role === 'supplier' && (
+          {(user?.role === 'supplier' || user?.role === 'admin') && (
             <button onClick={() => window.location.href = '/supplier-dashboard'} data-testid="supplier-portal-btn"
               className="bg-teal-600 text-white px-3 md:px-4 py-2 rounded text-xs md:text-sm font-medium hover:bg-teal-700 transition-colors shadow-sm">
               Operational Dashboard

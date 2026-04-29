@@ -80,7 +80,17 @@ async def _get_supplier_relevant_bookings(current_user: dict, status_filter: Opt
             "selected_hotels": selected_hotels,
             "arrival_transfer": arr_transfer,
             "departure_transfer": dep_transfer,
+            "inter_city_transfers": proposal.get("inter_city_transfers", {}),
             "selected_activities": selected_activities,
+            "flights": proposal.get("flights", []),
+            "arrival_flight_info": proposal.get("arrival_flight_info"),
+            "departure_flight_info": proposal.get("departure_flight_info"),
+            "travel_insurance": proposal.get("travel_insurance"),
+            "visa": proposal.get("visa"),
+            "sim_card": proposal.get("sim_card"),
+            "travel_insurance_details": proposal.get("travel_insurance_details"),
+            "visa_country": proposal.get("visa_country"),
+            "sim_provider": proposal.get("sim_provider"),
         }
         booking["matched_services"] = matched_services
         booking["supplier_status"] = supplier_status

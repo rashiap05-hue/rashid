@@ -364,22 +364,31 @@ export default function ServiceViewModal({
           </div>
 
           {/* Action footer */}
-          {isPending && actionMode === null && (
-            <div className="border-t border-gray-100 px-6 py-4 flex items-center justify-end gap-2 bg-gray-50 rounded-b-xl">
-              <button
-                onClick={() => { setActionMode('reject'); setActionError(''); }}
-                className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold flex items-center gap-1.5"
-                data-testid={`${testIdPrefix}-reject-btn`}
-              >
-                <XCircle size={14} /> Reject
-              </button>
-              <button
-                onClick={() => { setActionMode('confirm'); setActionError(''); }}
-                className="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold flex items-center gap-1.5"
-                data-testid={`${testIdPrefix}-confirm-btn`}
-              >
-                <CheckCircle size={14} /> Confirm
-              </button>
+          {(isPending || currentUser?.role === 'admin') && actionMode === null && (
+            <div className="border-t border-gray-100 px-6 py-4 flex items-center justify-between gap-2 bg-gray-50 rounded-b-xl">
+              <div className="text-[11px] text-gray-500">
+                {!isPending && currentUser?.role === 'admin' && (
+                  <span className="inline-flex items-center gap-1.5 text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded">
+                    Admin override — you can change the status of an already {status} service.
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setActionMode('reject'); setActionError(''); }}
+                  className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold flex items-center gap-1.5"
+                  data-testid={`${testIdPrefix}-reject-btn`}
+                >
+                  <XCircle size={14} /> {status === 'rejected' ? 'Update Reason' : 'Reject'}
+                </button>
+                <button
+                  onClick={() => { setActionMode('confirm'); setActionError(''); }}
+                  className="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold flex items-center gap-1.5"
+                  data-testid={`${testIdPrefix}-confirm-btn`}
+                >
+                  <CheckCircle size={14} /> {status === 'confirmed' ? 'Update Confirmation' : 'Confirm'}
+                </button>
+              </div>
             </div>
           )}
 
