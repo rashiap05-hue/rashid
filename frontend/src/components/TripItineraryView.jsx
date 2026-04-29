@@ -11,6 +11,7 @@ import {
   Clock,
   Camera,
   Info,
+  Printer,
 } from 'lucide-react';
 import { api } from '@/App';
 
@@ -561,7 +562,14 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
             {bookingRef || ''}
             {customerName ? <> · <span className="opacity-90">{(customerName || '').toUpperCase()}</span></> : null}
           </div>
-          <div className="w-12" />
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs uppercase tracking-wider px-3 py-2 rounded transition-colors whitespace-nowrap no-print"
+            data-testid="itinerary-print-btn"
+            title="Print or save as PDF"
+          >
+            <Printer size={14} /> Print / Download
+          </button>
         </div>
         <div className="border-t border-white/10 bg-[#2a2a2a]">
           <div className="max-w-7xl mx-auto px-6 py-2 flex items-center gap-2 overflow-x-auto" data-testid="itinerary-day-nav">

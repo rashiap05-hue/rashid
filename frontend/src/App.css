@@ -242,3 +242,39 @@ input:focus, select:focus, textarea:focus {
 .gradient-accent {
   background: linear-gradient(135deg, #E66B31 0%, #f08a4f 100%);
 }
+
+/* ===== Print styles — used by Trip Itinerary "Print / Download" ===== */
+@media print {
+  /* Hide app chrome, sticky bars, left rail, print button itself */
+  [data-testid="header"],
+  .no-print,
+  [data-testid="itinerary-day-nav"],
+  [data-testid="trip-itinerary-view"] aside {
+    display: none !important;
+  }
+  /* Remove sticky positioning so everything flows naturally on paper */
+  [data-testid="trip-itinerary-view"] * {
+    position: static !important;
+  }
+  /* Single-column content — remove grid */
+  [data-testid="trip-itinerary-view"] > div:nth-child(2) {
+    display: block !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  [data-testid="trip-itinerary-view"] main {
+    width: 100% !important;
+  }
+  /* Break each day onto its own page start */
+  [data-testid^="itinerary-day-section-"] {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  /* Plain white background so the PDF prints cleanly */
+  [data-testid="trip-itinerary-view"] {
+    background: #fff !important;
+  }
+  body, html {
+    background: #fff !important;
+  }
+}
