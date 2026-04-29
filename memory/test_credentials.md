@@ -8,6 +8,13 @@
 - Email: rashid@travotours.ae
 - Password: password123
 
+## Agent (Abraham)
+- Email: abraham@travotours.ae
+- Password: password123
+- Display name: ABARHAM
+- Company: travo tours
+- Role: agent
+
 ## Supplier
 - Email: supplier@georgiancars.ge
 - Password: password123
