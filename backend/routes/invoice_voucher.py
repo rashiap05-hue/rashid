@@ -48,6 +48,17 @@ def _company_block(user):
     }
 
 
+# Path to the brand logo (Travo by MedVentures). Loaded once at import-time and embedded
+# as a base64 data URL so WeasyPrint can render it without a network fetch.
+_LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "travo_logo.png")
+try:
+    with open(_LOGO_PATH, "rb") as _lf:
+        _LOGO_DATA_URL = "data:image/png;base64," + base64.b64encode(_lf.read()).decode("ascii")
+except Exception as _e:
+    logger.warning("Travo logo not loaded from %s: %s", _LOGO_PATH, _e)
+    _LOGO_DATA_URL = ""
+
+
 def _format_money(amount, currency="AED"):
     try:
         v = float(amount or 0)
@@ -194,6 +205,8 @@ body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 
 .header {{ display: flex; justify-content: space-between; align-items: center; padding-bottom: 14px; border-bottom: 2px solid #002B5B; margin-bottom: 22px; }}
 .brand {{ font-size: 24px; font-weight: 800; color: #002B5B; letter-spacing: 2px; }}
 .brand-tag {{ font-size: 9px; letter-spacing: 4px; color: #6B7280; text-transform: uppercase; margin-top: 2px; }}
+.brand-block {{ display: flex; align-items: center; }}
+.brand-logo {{ max-height: 64px; max-width: 220px; object-fit: contain; }}
 .title {{ font-size: 16px; font-weight: 700; color: #4B5563; }}
 .row {{ display: flex; gap: 28px; margin-bottom: 18px; }}
 .col {{ flex: 1; }}
@@ -218,9 +231,8 @@ body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 
 </style></head><body>
 
 <div class="header">
-    <div>
-        <div class="brand">{company['name'].upper()}</div>
-        <div class="brand-tag">Travel & Tourism</div>
+    <div class="brand-block">
+        {f'<img src="{_LOGO_DATA_URL}" alt="Travo logo" class="brand-logo" />' if _LOGO_DATA_URL else f'<div class="brand">{company["name"].upper()}</div><div class="brand-tag">Travel & Tourism</div>'}
     </div>
     <div class="title">Proforma Invoice</div>
 </div>
@@ -484,6 +496,7 @@ body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 
 .brand-text {{ }}
 .brand-text .name {{ font-size: 22px; font-weight: 800; color: #002B5B; letter-spacing: 2px; }}
 .brand-text .tag {{ font-size: 9px; letter-spacing: 4px; color: #6B7280; text-transform: uppercase; margin-top: 2px; }}
+.voucher-brand-logo {{ max-height: 80px; max-width: 240px; object-fit: contain; }}
 .trip-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #E5E7EB; }}
 .trip-label {{ font-weight: 700; color: #111827; font-size: 13px; }}
 .trip-value {{ font-weight: 700; color: #002B5B; }}
@@ -515,11 +528,7 @@ body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 
 </style></head><body>
 
 <div class="header">
-    <div class="brand-circle">{company['name'][:1]}</div>
-    <div class="brand-text">
-        <div class="name">{company['name'].upper()}</div>
-        <div class="tag">Travel & Tourism</div>
-    </div>
+    {f'<img src="{_LOGO_DATA_URL}" alt="Travo logo" class="voucher-brand-logo" />' if _LOGO_DATA_URL else f'<div class="brand-circle">{company["name"][:1]}</div><div class="brand-text"><div class="name">{company["name"].upper()}</div><div class="tag">Travel & Tourism</div></div>'}
 </div>
 
 <div class="trip-row">
