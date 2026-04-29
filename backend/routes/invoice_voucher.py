@@ -9,9 +9,11 @@ from fastapi.responses import Response
 from datetime import datetime, timezone, timedelta
 from weasyprint import HTML
 
+import re
+
 from db import db, get_current_user
 from booking_number import format_booking_ref
-from routes.pdf_generator import resolve_image, fmt_date, add_days, short_ref
+from routes.pdf_generator import resolve_image, fmt_date, add_days, short_ref, _render_term_bullets
 from routes.email_service import send_email_async, RESEND_API_KEY, SENDER_EMAIL
 import resend
 
@@ -399,7 +401,7 @@ def build_voucher_html(booking, proposal, user, terms):
         inclusions_list.append(f"{title} - {ttype}")
     inclusions_html = "".join(f'<div class="inc-item">✓ {i}</div>' for i in inclusions_list)
 
-    # Terms
+    # Terms (rendered as proper bullet lists, with sub-section headings)
     default_terms = [
         ("Booking Confirmation", "Airline seats and hotel rooms are subject to availability at the time of confirmation. In case of unavailability, arrangements for an alternate accommodation will be made in a hotel of similar standard."),
         ("Refunds", "There will be no refund for unused nights, early check-out (subject to hotel policy in case of medical conditions), or any unutilized services (meals, entrance fees, optional tours, hotels, transport and sightseeing, etc.) for any reason."),
@@ -410,18 +412,68 @@ def build_voucher_html(booking, proposal, user, terms):
         ("Service Charges", "A service charge of 5% of the total booking value will be applicable for cancellations of land services (including activities and transfers), as well as for any amendments."),
         ("Amendment of Booking", f"Amendment requests must be submitted in writing to your travel expert or by email to {company['email']}. All such requests are subject to availability and may attract cancellation charges as per airline and hotel policies."),
     ]
-    if terms and isinstance(terms, list):
-        custom_terms = [(t.get("title") or t.get("name") or "", t.get("content") or t.get("description") or "") for t in terms if t]
-        custom_terms = [t for t in custom_terms if t[0] and t[1]]
-        if custom_terms:
-            default_terms = custom_terms
 
-    terms_html = "".join(f"""
-    <div class="term-block">
-        <div class="term-title">{title}</div>
-        <div class="term-body">{body}</div>
-    </div>
-    """ for title, body in default_terms)
+    def _render_voucher_term(t: dict) -> str:
+        """Build HTML for one term entry — supports list `content`, string `content`, and `sub_sections`."""
+        title = t.get("title") or t.get("name") or ""
+        content = t.get("content") or t.get("description")
+        sub_sections = t.get("sub_sections") or []
+
+        body_html = ""
+        if content:
+            if isinstance(content, list):
+                cleaned = [str(c).strip() for c in content if str(c).strip()]
+                # If only one label and we have sub_sections, treat label as a region heading and skip it
+                if sub_sections and len(cleaned) == 1:
+                    pass
+                else:
+                    body_html += _render_term_bullets(cleaned)
+            elif isinstance(content, str):
+                body_html += f'<p class="term-body">{content}</p>'
+
+        for sub in sub_sections:
+            if not isinstance(sub, dict):
+                continue
+            sub_title = sub.get("title") or ""
+            sub_items = sub.get("items") or sub.get("content") or []
+            sub_bullets = _render_term_bullets(sub_items)
+            if sub_title or sub_bullets:
+                body_html += f"""
+                <div class="term-sub">
+                    {f'<h4 class="term-sub-title">{sub_title}</h4>' if sub_title else ''}
+                    {sub_bullets}
+                </div>
+                """
+
+        if not (title or body_html):
+            return ""
+        return f"""
+        <div class="term-block">
+            <div class="term-title">{title}</div>
+            {body_html}
+        </div>
+        """
+
+    if terms and isinstance(terms, list):
+        # Build HTML directly from the structured records (with bullets + sub-sections)
+        custom_html_parts = [_render_voucher_term(t) for t in terms if t]
+        custom_html_parts = [p for p in custom_html_parts if p.strip()]
+        if custom_html_parts:
+            terms_html = "".join(custom_html_parts)
+        else:
+            terms_html = "".join(f"""
+            <div class="term-block">
+                <div class="term-title">{title}</div>
+                <p class="term-body">{body}</p>
+            </div>
+            """ for title, body in default_terms)
+    else:
+        terms_html = "".join(f"""
+        <div class="term-block">
+            <div class="term-title">{title}</div>
+            <p class="term-body">{body}</p>
+        </div>
+        """ for title, body in default_terms)
 
     return f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><style>
@@ -452,8 +504,12 @@ body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 
 .cancel-line {{ margin-top: 14px; padding: 10px 14px; background: #FEF2F2; border: 1px solid #FECACA; border-radius: 6px; color: #B91C1C; }}
 .cancel-line .k {{ font-weight: 800; }}
 .term-block {{ margin-bottom: 12px; page-break-inside: avoid; }}
-.term-title {{ font-size: 12px; font-weight: 800; color: #002B5B; margin-bottom: 4px; }}
-.term-body {{ font-size: 10.5px; color: #4B5563; line-height: 1.6; }}
+.term-title {{ font-size: 12px; font-weight: 800; color: #002B5B; margin-bottom: 6px; }}
+.term-body {{ font-size: 10.5px; color: #4B5563; line-height: 1.6; margin: 4px 0; }}
+.term-bullets {{ font-size: 10.5px; color: #4B5563; line-height: 1.55; padding-left: 18px; margin: 4px 0 8px 0; }}
+.term-bullets li {{ margin-bottom: 4px; }}
+.term-sub {{ margin: 6px 0 8px 0; padding-left: 10px; border-left: 2px solid #DBE3EC; }}
+.term-sub-title {{ font-size: 11.5px; font-weight: 700; color: #1F2937; margin: 4px 0; }}
 .page-break {{ page-break-before: always; }}
 .tc-header {{ text-align: center; font-size: 18px; font-weight: 800; color: #002B5B; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid #002B5B; }}
 </style></head><body>
@@ -507,7 +563,40 @@ async def _load_booking_context(booking_id, current_user):
         proposal = await db.proposals.find_one({"id": booking["proposal_id"]}, {"_id": 0}) or {}
 
     user = await db.users.find_one({"id": current_user.get("id")}, {"_id": 0, "password": 0})
-    terms = await db.terms_policies.find({}, {"_id": 0}).to_list(50)
+
+    # Filter terms by trip destination countries (mirror proposal-PDF logic)
+    proposal_cities = (proposal or {}).get("cities", []) or []
+    city_names = [
+        (c.get("name") if isinstance(c, dict) else c)
+        for c in proposal_cities
+        if c
+    ]
+    trip_countries = set()
+    for c in proposal_cities:
+        if isinstance(c, dict):
+            cn = (c.get("country") or "").strip()
+            if cn:
+                trip_countries.add(cn)
+    if city_names:
+        regexes = [{"name": {"$regex": f"^{re.escape(n)}$", "$options": "i"}} for n in city_names if n]
+        if regexes:
+            async for cdoc in db.cities.find({"$or": regexes}, {"_id": 0, "name": 1, "country": 1}):
+                cn = (cdoc.get("country") or "").strip()
+                if cn:
+                    trip_countries.add(cn)
+
+    all_terms = await db.terms_policies.find({"is_active": {"$ne": False}}, {"_id": 0}).to_list(200)
+    trip_countries_lower = {c.lower() for c in trip_countries}
+
+    def _is_relevant(t: dict) -> bool:
+        applies = (t.get("applies_to") or "all").lower()
+        country = (t.get("country") or "").strip()
+        if applies == "all" or not country:
+            return True
+        return country.lower() in trip_countries_lower
+
+    terms = [t for t in all_terms if _is_relevant(t)]
+    terms.sort(key=lambda t: (t.get("order") if isinstance(t.get("order"), (int, float)) else 999))
     return booking, proposal, user, terms
 
 
