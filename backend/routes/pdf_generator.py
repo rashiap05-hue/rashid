@@ -490,6 +490,9 @@ def section_inclusions_exclusions(proposal):
     has_breakfast = False
     has_lunch = False
     has_dinner = False
+    breakfast_count = 0
+    lunch_count = 0
+    dinner_count = 0
 
     city_blocks = ""
     day_cursor = 0
@@ -521,15 +524,24 @@ def section_inclusions_exclusions(proposal):
                 or sel_room.get("meals") or hotel.get("meal_plan") or "Room Only"
             ).strip()
             mp_lower = meal_plan_raw.lower()
-            if "breakfast" in mp_lower or "bb" in mp_lower or "hb" in mp_lower or "fb" in mp_lower or "ai" == mp_lower:
+            # Detect meal plan codes & full names (BB, HB, FB, AI / Bed and Breakfast / Half Board / Full Board / All Inclusive)
+            is_bb = "breakfast" in mp_lower or " bb" in f" {mp_lower}" or mp_lower.endswith("bb") or mp_lower == "bb"
+            is_hb = "half board" in mp_lower or mp_lower == "hb" or " hb " in f" {mp_lower} " or mp_lower.endswith(" hb")
+            is_fb = "full board" in mp_lower or mp_lower == "fb" or " fb " in f" {mp_lower} " or mp_lower.endswith(" fb")
+            is_ai = "all inclusive" in mp_lower or "all-inclusive" in mp_lower or mp_lower == "ai"
+            # Count meals: each night's hotel meal plan adds 1 meal of each applicable type
+            if is_bb or is_hb or is_fb or is_ai:
                 has_breakfast = True
+                breakfast_count += nights
                 bk_text = "Breakfast: Included"
             else:
                 bk_text = "Breakfast: Not Included"
-            if "lunch" in mp_lower or "hb" in mp_lower or "fb" in mp_lower or "ai" == mp_lower:
+            if "lunch" in mp_lower or is_fb or is_ai:
                 has_lunch = True
-            if "dinner" in mp_lower or "hb" in mp_lower or "fb" in mp_lower or "ai" == mp_lower:
+                lunch_count += nights
+            if "dinner" in mp_lower or is_hb or is_fb or is_ai:
                 has_dinner = True
+                dinner_count += nights
             items_html += f"""
             <div class="inc-item">
                 <div class="inc-icon">{HOTEL_ICON}</div>
@@ -566,10 +578,13 @@ def section_inclusions_exclusions(proposal):
                 inc_lower = " ".join(str(i).lower() for i in inclusions_list)
                 if "breakfast" in inc_lower:
                     has_breakfast = True
+                    breakfast_count += 1
                 if "lunch" in inc_lower:
                     has_lunch = True
+                    lunch_count += 1
                 if "dinner" in inc_lower:
                     has_dinner = True
+                    dinner_count += 1
 
                 bullets = ""
                 for inc in inclusions_list[:8]:
@@ -610,9 +625,9 @@ def section_inclusions_exclusions(proposal):
 
         day_cursor += nights
 
-    bk_status = "Included" if has_breakfast else "Not Included"
-    lunch_status = "Included" if has_lunch else "Not Included"
-    dinner_status = "Included" if has_dinner else "Not Included"
+    bk_status = f"{breakfast_count} Included" if has_breakfast else "Not Included"
+    lunch_status = f"{lunch_count} Included" if has_lunch else "Not Included"
+    dinner_status = f"{dinner_count} Included" if has_dinner else "Not Included"
     bk_color = "#10B981" if has_breakfast else "#9CA3AF"
     lunch_color = "#10B981" if has_lunch else "#9CA3AF"
     dinner_color = "#10B981" if has_dinner else "#9CA3AF"
@@ -765,6 +780,16 @@ def render_transfer_inclusion(transfer, label, day_num, day_date_str, car_icon):
     """
 
 
+def _render_term_bullets(items):
+    """Render a list of strings (or single string) as bullet points."""
+    if not items:
+        return ""
+    if isinstance(items, str):
+        items = [items]
+    bullets = "".join(f"<li>{str(s).strip()}</li>" for s in items if str(s).strip())
+    return f'<ul class="term-bullets">{bullets}</ul>' if bullets else ""
+
+
 def section_terms(terms):
     if not terms:
         return ""
@@ -773,13 +798,48 @@ def section_terms(terms):
         if not isinstance(t, dict):
             continue
         title = t.get("title") or t.get("name") or ""
-        content = t.get("content") or t.get("description") or ""
-        if not content:
+        content = t.get("content") or t.get("description")
+        sub_sections = t.get("sub_sections") or []
+
+        # Build the body: top-level bullets for `content`, then nested sub-sections
+        body_html = ""
+
+        # Top-level content as bullets
+        if content:
+            if isinstance(content, list):
+                # If the only "content" entry is a single label like "Thailand" and we have sub_sections,
+                # treat it as a region label (skip rendering as a bullet) since sub_sections carry the detail.
+                content_clean = [str(c).strip() for c in content if str(c).strip()]
+                if sub_sections and len(content_clean) == 1:
+                    # Skip the single label, sub_sections will be rendered below
+                    pass
+                else:
+                    body_html += _render_term_bullets(content_clean)
+            elif isinstance(content, str):
+                body_html += f'<p class="term-body">{content}</p>'
+
+        # Sub-sections with their own headings + bullets
+        for sub in sub_sections:
+            if not isinstance(sub, dict):
+                continue
+            sub_title = sub.get("title") or ""
+            sub_items = sub.get("items") or sub.get("content") or []
+            sub_bullets = _render_term_bullets(sub_items)
+            if sub_title or sub_bullets:
+                body_html += f"""
+                <div class="term-sub">
+                    {f'<h4 class="term-sub-title">{sub_title}</h4>' if sub_title else ''}
+                    {sub_bullets}
+                </div>
+                """
+
+        if not body_html:
             continue
+
         blocks += f"""
         <div class="term-block">
             <h3 class="term-title">{title}</h3>
-            <div class="term-body">{content}</div>
+            {body_html}
         </div>
         """
     return f"""
@@ -1110,8 +1170,12 @@ def build_pdf_html(proposal, terms, expert, user):
 
   /* ---- Terms ---- */
   .term-block {{ margin-bottom: 14px; page-break-inside: avoid; }}
-  .term-title {{ font-size: 12px; font-weight: 700; color: #002B5B; margin-bottom: 4px; }}
-  .term-body {{ font-size: 10px; color: #4B5563; line-height: 1.6; }}
+  .term-title {{ font-size: 12px; font-weight: 700; color: #002B5B; margin-bottom: 6px; }}
+  .term-body {{ font-size: 10px; color: #4B5563; line-height: 1.6; margin: 4px 0; }}
+  .term-bullets {{ font-size: 10px; color: #4B5563; line-height: 1.55; padding-left: 18px; margin: 4px 0 8px 0; }}
+  .term-bullets li {{ margin-bottom: 4px; }}
+  .term-sub {{ margin: 6px 0 8px 0; padding-left: 4px; border-left: 2px solid #DBE3EC; padding-left: 10px; }}
+  .term-sub-title {{ font-size: 11px; font-weight: 700; color: #1F2937; margin: 4px 0; }}
 
   /* ---- Expert ---- */
   .expert-card {{ background: #F0F4F8; border-left: 4px solid #002B5B; border-radius: 4px; padding: 14px 16px; margin-bottom: 16px; }}

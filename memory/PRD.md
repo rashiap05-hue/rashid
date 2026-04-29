@@ -223,6 +223,11 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Tabs with zero pending items intentionally hide the badge to reduce noise.
   - Active-tab badge inverts (white pill on dark background) for contrast; inactive shows amber-on-white.
 - **Add Activity on inter-city transfer days (Apr 2026)**: Removed the `!isCheckInDay` guard on the "Add Activity in {city}" button inside `TripBuilder/DayCard.jsx`. Agents can now manually add activities to days that are also inter-city transfer days (e.g., Day 2 with the Bangkok → Pattaya transfer). Auto-recommendation already covered these days; this just closes the manual-entry gap.
+- **PDF Polish — Meal Counts + Bullet-Formatted Terms (Apr 2026)**: Three fixes to `routes/pdf_generator.py`:
+  1. **Meal counts**: The bottom strip on the Inclusions page now shows the *total number* of breakfasts / lunches / dinners across the trip (e.g., "3 Included" instead of just "Included"). Hotel meal plans (BB / HB / FB / AI / Bed and Breakfast / Half Board / Full Board / All Inclusive / Room Only) all parse correctly — each night contributes one meal of each applicable type. Activity inclusions add their own meal count.
+  2. **Terms & Conditions formatting**: Each policy section's `content` (which is stored as a `List[str]` of bullet points) and any `sub_sections` (each with their own `title` + `items` list) are now rendered as proper `<ul>` bullet lists with sub-section headings — instead of the previous broken Python-list-as-string output (`['text1', 'text2']`).
+  3. **Important Information & Guidelines fix**: Country-specific guidelines (Thailand, UAE, Georgia, etc.) used a `sub_sections` schema where the `content` field only carried the country name and the actual bullets lived under each sub-section's `items`. The PDF was only printing the country label; now all sub-sections (General, Tours and Transfers, Visa, Hotel, etc.) render with their headings + bullets.
+  - Verified end-to-end: regenerated the same proposal PDF (HTTP 200, 71KB) and visually confirmed via pdftoppm + AI vision: bottom meal strip shows "Breakfast/Lunch/Dinner" with status; Important Notes pages render with proper bulleted sub-sections (General, Hotel, Tours and Transfers, Visa and Immigration Details).
 
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
