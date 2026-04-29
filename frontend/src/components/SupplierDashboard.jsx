@@ -435,6 +435,7 @@ export default function SupplierDashboard({ user, onBack }) {
         open={!!serviceView.booking}
         onClose={() => setServiceView({ kind: null, booking: null, row: null })}
         booking={serviceView.booking}
+        row={serviceView.row}
         currentUser={user}
         onUpdated={fetchData}
         kind={serviceView.kind}

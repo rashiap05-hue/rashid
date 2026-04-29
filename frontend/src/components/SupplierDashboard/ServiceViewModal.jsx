@@ -40,13 +40,14 @@ const formatRelative = (iso) => {
  *  - titleExtra: optional ReactNode rendered next to title (e.g. star rating)
  *  - subtitle: small line under title
  *  - detailsGrid: array of {label, value} objects rendered as a responsive grid
- *  - booking: full supplier booking object (for status, supplier_confirmation_number, travelers, customer_name)
- *  - guestsFallback: string to use if booking.travelers is empty
+ *  - booking: full supplier booking object
+ *  - row: the extracted service row (carries service_type, service_key, status, confirmation)
  */
 export default function ServiceViewModal({
   open,
   onClose,
   booking,
+  row,
   currentUser,
   onUpdated,
   kind = 'service',
@@ -82,17 +83,23 @@ export default function ServiceViewModal({
     if (open) {
       setActionMode(null);
       setActionError('');
-      setConfirmNumber(booking?.supplier_confirmation_number || '');
+      // Prefer the per-service confirmation number, then fall back to booking-level
+      setConfirmNumber(
+        (row?.confirmation && row.confirmation !== 'Pending' ? row.confirmation : '')
+        || booking?.supplier_confirmation_number
+        || ''
+      );
       setActionNote('');
       setRejectReason('');
       setActiveTask(null);
       fetchTasks();
     }
-  }, [open, booking, fetchTasks]);
+  }, [open, booking, row, fetchTasks]);
 
   if (!open || !booking) return null;
 
-  const status = booking.supplier_status || 'pending';
+  // Per-service status (falls back to booking-level if extractor didn't provide it)
+  const status = row?.status || booking.supplier_status || 'pending';
   const isPending = status === 'pending' || !status;
 
   const handleConfirm = async () => {
@@ -101,9 +108,16 @@ export default function ServiceViewModal({
       setActionError('Confirmation number is required to confirm.');
       return;
     }
+    if (!row?.service_type || !row?.service_key) {
+      setActionError('Internal error: missing service identifiers.');
+      return;
+    }
     setActionLoading(true);
     try {
-      await api.post(`/supplier/bookings/${booking.id}/confirm`, {
+      await api.post('/operational/service-confirm', {
+        booking_id: booking.id,
+        service_type: row.service_type,
+        service_key: row.service_key,
         confirmation_number: confirmNumber.trim(),
         note: actionNote.trim(),
       });
@@ -122,9 +136,18 @@ export default function ServiceViewModal({
       setActionError('Reason is required to reject.');
       return;
     }
+    if (!row?.service_type || !row?.service_key) {
+      setActionError('Internal error: missing service identifiers.');
+      return;
+    }
     setActionLoading(true);
     try {
-      await api.post(`/supplier/bookings/${booking.id}/reject`, { reason: rejectReason.trim() });
+      await api.post('/operational/service-reject', {
+        booking_id: booking.id,
+        service_type: row.service_type,
+        service_key: row.service_key,
+        reason: rejectReason.trim(),
+      });
       onUpdated?.();
       onClose?.();
     } catch (e) {
@@ -227,7 +250,7 @@ export default function ServiceViewModal({
                 ))}
                 <div>
                   <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Confirmation #</p>
-                  <p className="text-sm font-semibold text-gray-900">{booking.supplier_confirmation_number || 'Pending'}</p>
+                  <p className="text-sm font-semibold text-gray-900">{(row?.confirmation && row.confirmation !== 'Pending' ? row.confirmation : null) || booking.supplier_confirmation_number || 'Pending'}</p>
                 </div>
                 <div>
                   <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Order Ref</p>
