@@ -38,6 +38,11 @@ class ServiceConfirmRequest(BaseModel):
     service_key: str
     confirmation_number: str
     note: Optional[str] = ""
+    # Structured fields surfaced on the Trip Itinerary page (mainly for transfer/activity)
+    driver_name: Optional[str] = ""
+    driver_phone: Optional[str] = ""
+    vehicle_plate: Optional[str] = ""
+    pickup_time: Optional[str] = ""
 
 
 class ServiceRejectRequest(BaseModel):
@@ -162,6 +167,11 @@ async def confirm_service(
         "confirmed_at": _now(),
         "op_note": payload.note or "",
         "reject_reason": "",
+        # Structured driver/vehicle fields (mainly used by transfer/activity rows)
+        "driver_name": (payload.driver_name or "").strip(),
+        "driver_phone": (payload.driver_phone or "").strip(),
+        "vehicle_plate": (payload.vehicle_plate or "").strip(),
+        "pickup_time": (payload.pickup_time or "").strip(),
     }
 
     # Update on both collections (held_bookings = source of truth, bookings = supplier view)

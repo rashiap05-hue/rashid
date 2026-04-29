@@ -204,10 +204,15 @@ const TransferBlock = ({ transfer, title, confirmation, defaultPickupTime }) => 
   const t = transfer.title || transfer.name || title;
   const veh = (transfer.vehicle_type || transfer.selectedVehicle || transfer.vehicle || 'Private').toString();
   const isSic = veh.toLowerCase().includes('sic') || veh.toLowerCase().includes('sharing');
-  const pickupTime = transfer.pickup_time || transfer.pickupTime || (confirmation?.pickup_time) || defaultPickupTime || '';
+  const pickupTime = (confirmation?.pickup_time) || transfer.pickup_time || transfer.pickupTime || defaultPickupTime || '';
   const pickupInfo = transfer.pickup_info || transfer.pickup_location || 'Hotel';
-  const driver = parseDriverNote(confirmation?.op_note);
-  const plate = driver?.plate || confirmation?.vehicle_plate || '';
+  // Prefer structured fields written by the new Operational confirm modal,
+  // fall back to op_note parsing for legacy entries.
+  const parsed = parseDriverNote(confirmation?.op_note);
+  const driverName = (confirmation?.driver_name || parsed?.name || '').trim();
+  const driverPhone = (confirmation?.driver_phone || parsed?.phone || '').trim();
+  const plate = (confirmation?.vehicle_plate || parsed?.plate || '').trim();
+  const hasDriverInfo = driverName || driverPhone || plate;
   const sicLabel = veh.match(/sedan|suv|van|bus|car/i)?.[0]?.toUpperCase() || (isSic ? 'SIC' : 'CAR');
 
   return (
@@ -239,8 +244,8 @@ const TransferBlock = ({ transfer, title, confirmation, defaultPickupTime }) => 
           </div>
         </div>
 
-        {/* Driver block (only when ops have provided info) */}
-        {(driver || plate) ? (
+        {/* Driver block — shown whenever any structured driver field OR a parseable op_note is present */}
+        {hasDriverInfo ? (
           <div className="mx-5 mb-5 border border-gray-200 rounded-lg p-4">
             <div className="grid grid-cols-[64px_1fr_1fr_1fr] gap-4 items-center">
               <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-gray-300">
@@ -248,16 +253,16 @@ const TransferBlock = ({ transfer, title, confirmation, defaultPickupTime }) => 
               </div>
               <div>
                 <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">Driver</div>
-                <div className="text-sm font-bold text-gray-900 mt-0.5 leading-tight">{driver?.name || '—'}</div>
+                <div className="text-sm font-bold text-gray-900 mt-0.5 leading-tight">{driverName || '—'}</div>
               </div>
               <div>
                 <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">Driver Contact No</div>
                 <div className="text-sm font-bold text-gray-900 mt-0.5">
-                  {driver?.phone ? <a href={`tel:${driver.phone}`} className="text-[#0066CC]">{driver.phone}</a> : '—'}
+                  {driverPhone ? <a href={`tel:${driverPhone}`} className="text-[#0066CC]">{driverPhone}</a> : '—'}
                 </div>
               </div>
               <div>
-                <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">{sicLabel} {sicLabel.includes('CAR') ? '' : 'CAR'}</div>
+                <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">{sicLabel.includes('CAR') ? sicLabel : `${sicLabel} CAR`}</div>
                 <div className="text-sm font-bold text-gray-900 mt-0.5">{plate || '—'}</div>
               </div>
             </div>
@@ -277,8 +282,11 @@ const ActivityBlock = ({ activity, confirmation }) => {
   const veh = activity.selectedVehicle || activity.vehicle || 'Private';
   const inc = (activity.inclusions || []).filter(Boolean);
   const desc = activity.description || '';
-  const driver = parseDriverNote(confirmation?.op_note);
-  const pickup = activity.pickup_time || activity.pickupTime || '';
+  const parsed = parseDriverNote(confirmation?.op_note);
+  const driverName = (confirmation?.driver_name || parsed?.name || '').trim();
+  const driverPhone = (confirmation?.driver_phone || parsed?.phone || '').trim();
+  const hasDriverInfo = driverName || driverPhone;
+  const pickup = (confirmation?.pickup_time) || activity.pickup_time || activity.pickupTime || '';
 
   return (
     <>
@@ -316,21 +324,21 @@ const ActivityBlock = ({ activity, confirmation }) => {
           ) : null}
         </div>
 
-        {(driver || confirmation?.confirmation_number) ? (
+        {(hasDriverInfo || confirmation?.confirmation_number) ? (
           <div className="mx-5 mb-5">
-            {driver ? (
+            {hasDriverInfo ? (
               <div className="border border-gray-200 rounded-lg p-4 grid grid-cols-[64px_1fr_1fr] gap-4 items-center">
                 <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-gray-300">
                   <User size={32} />
                 </div>
                 <div>
                   <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">Guide / Driver</div>
-                  <div className="text-sm font-bold text-gray-900 mt-0.5 leading-tight">{driver.name || '—'}</div>
+                  <div className="text-sm font-bold text-gray-900 mt-0.5 leading-tight">{driverName || '—'}</div>
                 </div>
                 <div>
                   <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">Contact No</div>
                   <div className="text-sm font-bold text-gray-900 mt-0.5">
-                    {driver.phone ? <a href={`tel:${driver.phone}`} className="text-[#0066CC]">{driver.phone}</a> : '—'}
+                    {driverPhone ? <a href={`tel:${driverPhone}`} className="text-[#0066CC]">{driverPhone}</a> : '—'}
                   </div>
                 </div>
               </div>

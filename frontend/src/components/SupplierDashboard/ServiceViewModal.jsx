@@ -66,6 +66,10 @@ export default function ServiceViewModal({
   const [sending, setSending] = useState(false);
   const [confirmNumber, setConfirmNumber] = useState('');
   const [actionNote, setActionNote] = useState('');
+  const [driverName, setDriverName] = useState('');
+  const [driverPhone, setDriverPhone] = useState('');
+  const [vehiclePlate, setVehiclePlate] = useState('');
+  const [pickupTime, setPickupTime] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
   const [rejectReason, setRejectReason] = useState('');
@@ -84,12 +88,18 @@ export default function ServiceViewModal({
       setActionMode(null);
       setActionError('');
       // Prefer the per-service confirmation number, then fall back to booking-level
+      const sc = booking?.service_confirmations?.[`${row?.service_type}:${row?.service_key}`] || {};
       setConfirmNumber(
         (row?.confirmation && row.confirmation !== 'Pending' ? row.confirmation : '')
+        || sc.confirmation_number
         || booking?.supplier_confirmation_number
         || ''
       );
-      setActionNote('');
+      setActionNote(sc.op_note || '');
+      setDriverName(sc.driver_name || '');
+      setDriverPhone(sc.driver_phone || '');
+      setVehiclePlate(sc.vehicle_plate || '');
+      setPickupTime(sc.pickup_time || '');
       setRejectReason('');
       setActiveTask(null);
       fetchTasks();
@@ -120,6 +130,10 @@ export default function ServiceViewModal({
         service_key: row.service_key,
         confirmation_number: confirmNumber.trim(),
         note: actionNote.trim(),
+        driver_name: driverName.trim(),
+        driver_phone: driverPhone.trim(),
+        vehicle_plate: vehiclePlate.trim(),
+        pickup_time: pickupTime.trim(),
       });
       onUpdated?.();
       onClose?.();
@@ -417,6 +431,58 @@ export default function ServiceViewModal({
                   data-testid={`${testIdPrefix}-confirm-note`}
                 />
               </div>
+
+              {/* Driver / Vehicle / Pickup — shown for transfer + activity rows so the
+                  Trip Itinerary page can display them as labeled fields. */}
+              {(row?.service_type === 'transfer' || row?.service_type === 'activity') && (
+                <div className="space-y-3 pt-3 border-t border-green-200/60">
+                  <p className="text-[11px] font-bold text-green-900 uppercase tracking-wider">
+                    {row?.service_type === 'transfer' ? 'Driver / Vehicle Details' : 'Guide / Driver Details'} <span className="font-normal lowercase text-green-700/80">(optional)</span>
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Driver / Guide Name</label>
+                      <input
+                        value={driverName}
+                        onChange={(e) => setDriverName(e.target.value)}
+                        placeholder="e.g. Mr. Somchai Jaidee"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        data-testid={`${testIdPrefix}-driver-name`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Contact No</label>
+                      <input
+                        value={driverPhone}
+                        onChange={(e) => setDriverPhone(e.target.value)}
+                        placeholder="e.g. +66 81 234 5678"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        data-testid={`${testIdPrefix}-driver-phone`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">{row?.service_type === 'transfer' ? 'Vehicle Plate' : 'Vehicle / Plate'}</label>
+                      <input
+                        value={vehiclePlate}
+                        onChange={(e) => setVehiclePlate(e.target.value)}
+                        placeholder="e.g. 7กข-1234"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        data-testid={`${testIdPrefix}-vehicle-plate`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Pickup Time</label>
+                      <input
+                        value={pickupTime}
+                        onChange={(e) => setPickupTime(e.target.value)}
+                        placeholder="e.g. 13:30"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        data-testid={`${testIdPrefix}-pickup-time`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
               {actionError && (
                 <div className="px-3 py-2 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-center gap-1.5">
                   <AlertTriangle size={12} /> {actionError}
