@@ -79,6 +79,30 @@ async def get_proposal(proposal_id: str):
     proposal = await db.proposals.find_one({"id": proposal_id}, {"_id": 0})
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found")
+
+    # Always refresh the `meals_included` flag on each saved activity from the master `activities` collection
+    # — pricing/duration stay frozen, but meal flags reflect current activity configuration.
+    sel_acts = proposal.get("selected_activities") or {}
+    if sel_acts:
+        # Collect all activity ids in one batch for an efficient single query
+        ids = set()
+        for v in sel_acts.values():
+            for a in (v if isinstance(v, list) else [v]):
+                if a and a.get("id"):
+                    ids.add(a["id"])
+        meals_by_id = {}
+        if ids:
+            async for doc in db.activities.find({"id": {"$in": list(ids)}}, {"_id": 0, "id": 1, "meals_included": 1}):
+                meals_by_id[doc["id"]] = doc.get("meals_included") or {}
+        # Apply to the snapshot
+        for k, v in sel_acts.items():
+            items = v if isinstance(v, list) else [v]
+            for a in items:
+                if a and a.get("id") and a["id"] in meals_by_id:
+                    a["meals_included"] = meals_by_id[a["id"]]
+            sel_acts[k] = items if isinstance(v, list) else (items[0] if items else v)
+        proposal["selected_activities"] = sel_acts
+
     return ProposalResponse(**proposal)
 
 
