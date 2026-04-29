@@ -678,7 +678,43 @@ def _build_hotel_voucher_html(booking, proposal, user, terms, hotel_key):
         or hotel.get("meal_plan") or "Room Only"
     )
     refundable = rp.get("refundable") if "refundable" in rp else sel_room.get("refundable")
-    cancel_policy = "Non-refundable" if refundable is False else "Refundable as per hotel policy"
+    # Compute actual cancellation deadline date (check-in minus the offset phrase)
+    refund_phrase = (rp.get("refund_deadline") or sel_room.get("refundable_until") or rp.get("cancellation_deadline") or "").strip()
+    cancel_deadline_date = ""
+    if refund_phrase and check_in_date:
+        try:
+            ci_date = _dt.fromisoformat(check_in_date) if isinstance(check_in_date, str) else check_in_date
+            phrase_lower = refund_phrase.lower()
+            # Extract number + unit from phrases like "1 week before", "3 days before", "24 hours before"
+            import re as _re
+            m = _re.search(r"(\d+)\s*(hour|day|week|month)", phrase_lower)
+            if m:
+                n = int(m.group(1))
+                unit = m.group(2)
+                if unit == "hour":
+                    cancel_deadline_date = (ci_date - _td(hours=n)).date().isoformat()
+                elif unit == "day":
+                    cancel_deadline_date = (ci_date - _td(days=n)).date().isoformat()
+                elif unit == "week":
+                    cancel_deadline_date = (ci_date - _td(weeks=n)).date().isoformat()
+                elif unit == "month":
+                    cancel_deadline_date = (ci_date - _td(days=30 * n)).date().isoformat()
+        except Exception:
+            cancel_deadline_date = ""
+
+    if refundable is False:
+        cancel_policy_text = "Non-refundable"
+        cancel_policy_color = "#dc2626"
+    elif cancel_deadline_date:
+        cancel_policy_text = f"Free cancellation until {fmt_date(cancel_deadline_date)}"
+        cancel_policy_color = "#15803d"
+    elif refund_phrase:
+        cancel_policy_text = f"Refundable — {refund_phrase} check-in"
+        cancel_policy_color = "#15803d"
+    else:
+        cancel_policy_text = "Refundable as per hotel policy"
+        cancel_policy_color = "#374151"
+
     room_data = (proposal or {}).get("room_data") or []
     total_rooms = sum(int(r.get("rooms", 1) or 1) for r in room_data) or 1
     total_adults = sum(int(r.get("adults", 0) or 0) for r in room_data) or int(hotel.get("guests_count") or 2)
@@ -687,18 +723,20 @@ def _build_hotel_voucher_html(booking, proposal, user, terms, hotel_key):
     sc = (booking.get("service_confirmations") or {}).get(f"hotel:{hotel_key}") or {}
     confirmation_num = sc.get("confirmation_number") or hotel.get("confirmation_code") or "Pending"
 
-    # Guests list (passenger info from booking)
-    passengers = booking.get("passengers") or booking.get("travelers") or []
+    # Guests list from booking.travelers (preferred) or booking.passengers (legacy)
+    traveler_list = booking.get("travelers") or booking.get("passengers") or []
     guest_names = []
-    for p in passengers:
-        title = p.get("title") or ""
-        first = p.get("first_name") or ""
-        last = p.get("last_name") or ""
+    for p in traveler_list:
+        if not isinstance(p, dict):
+            continue
+        title = (p.get("title") or "").strip()
+        # Support both camelCase (firstName) and snake_case (first_name)
+        first = (p.get("firstName") or p.get("first_name") or "").strip()
+        last = (p.get("lastName") or p.get("last_name") or "").strip()
         full = " ".join(x for x in [title, first, last] if x).strip()
         if full:
             guest_names.append(full.upper())
     if not guest_names:
-        # Fallback to customer name
         cn = booking.get("customer_name") or (user or {}).get("full_name") or ""
         if cn:
             guest_names = [cn.upper()]
@@ -815,7 +853,7 @@ def _build_hotel_voucher_html(booking, proposal, user, terms, hotel_key):
 
       .cancel-box {{ margin-top: 12px; }}
       .cancel-box .label {{ font-size: 11px; font-weight: 700; color: #374151; }}
-      .cancel-box .val {{ font-size: 13px; font-weight: 700; color: #dc2626; margin-top: 3px; }}
+      .cancel-box .val {{ font-size: 13px; font-weight: 700; margin-top: 3px; }}
 
       .note-box {{ background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 12px 16px; margin-top: 14px; font-size: 11px; color: #92400E; }}
       .note-box .label {{ font-weight: 800; color: #78350F; display: block; margin-bottom: 4px; }}
@@ -886,7 +924,7 @@ def _build_hotel_voucher_html(booking, proposal, user, terms, hotel_key):
 
     <div class="cancel-box">
       <div class="label">Cancellation Policy:</div>
-      <div class="val">{cancel_policy}</div>
+      <div class="val" style="color: {cancel_policy_color};">{cancel_policy_text}</div>
     </div>
 
     <div class="note-box">
