@@ -2,14 +2,12 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ArrowLeft,
   Plane,
-  Sun,
   Utensils,
-  Moon,
-  Bed,
+  Coffee,
+  CheckCircle2,
+  XCircle,
   Car,
-  MapPin,
-  CalendarDays,
-  Hotel,
+  User,
   Clock,
 } from 'lucide-react';
 import { api } from '@/App';
@@ -24,6 +22,14 @@ const fmtShort = (iso) => {
       month: 'short',
       year: 'numeric',
     });
+  } catch {
+    return iso;
+  }
+};
+const fmtDate = (iso) => {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   } catch {
     return iso;
   }
@@ -53,7 +59,6 @@ const mealsFromHotel = (hotel) => {
     dinner: mp.includes('dinner') || isHB || isFB || isAI,
   };
 };
-
 const mealsFromActivity = (a) => {
   const m = a?.meals_included || {};
   const inc = (a?.inclusions || []).join(' ').toLowerCase();
@@ -64,284 +69,300 @@ const mealsFromActivity = (a) => {
   };
 };
 
-/* ------------------- left rail mini-card ------------------- */
-const DayCard = ({ idx, date, city, hotel, isArrival, isDeparture, meals, active, onClick }) => {
+/* parses op_note for "Driver: X | Phone: Y | Plate: Z" or freeform */
+const parseDriverNote = (note) => {
+  if (!note) return null;
+  const out = { name: '', phone: '', plate: '' };
+  const lower = note.toLowerCase();
+  const match = (re) => {
+    const m = note.match(re);
+    return m ? m[1].trim() : '';
+  };
+  out.name = match(/driver\s*[:\-]\s*([^\n|;,]+)/i);
+  out.phone = match(/(?:phone|contact|mobile|tel|whatsapp)\s*[:\-]?\s*([+\d\s()-]{6,})/i);
+  out.plate = match(/(?:plate|car\s*no|vehicle\s*no)\s*[:\-]\s*([A-Z0-9 -]+)/i);
+  if (!out.name && !out.phone && !out.plate && lower.length < 80 && /[a-zA-Z]/.test(note)) {
+    // Freeform — show as name
+    out.name = note;
+  }
+  return (out.name || out.phone || out.plate) ? out : null;
+};
+
+/* ------------------- LEFT RAIL: city-grouped card ------------------- */
+const CityCard = ({ city, nights, hotel, dateIn, dateOut, active, onClick, dayNum, dateLabel }) => {
   const sel = hotel?.selectedRoom || hotel?.selected_room || {};
   const room = sel.name || sel.room_type || 'Standard Room';
+  const stars = Number(hotel?.star_rating || hotel?.rating || 4);
   const img = hotel?.images?.[0] || hotel?.image || '';
   return (
     <button
       type="button"
       onClick={onClick}
-      data-testid={`itinerary-day-card-${idx + 1}`}
-      className={`w-full text-left rounded-lg border transition-all overflow-hidden group ${
-        active ? 'border-[#7c3015] shadow-md ring-1 ring-[#7c3015]/30' : 'border-gray-200 hover:border-gray-300'
-      }`}
+      data-testid={`itinerary-city-card-${city}`}
+      className={`w-full text-left rounded-xl bg-white border-2 transition-all overflow-hidden ${active ? 'border-emerald-500 shadow-md' : 'border-gray-200 hover:border-gray-300'}`}
     >
-      <div className="bg-[#7c3015] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 flex items-center justify-between">
-        <span>Day {idx + 1}</span>
-        <span className="opacity-90">{fmtShort(date).split(',')[0]}</span>
-      </div>
-      <div className="px-3 py-2.5 bg-white">
-        <div className="text-[11px] font-semibold text-gray-700">{fmtShort(date)}</div>
-        <div className="text-[12px] text-gray-500 mt-0.5 flex items-center gap-1">
-          <MapPin size={10} /> {city || '—'}
+      {/* Top: round image + day text */}
+      <div className="px-5 pt-5 pb-3 flex items-center gap-4">
+        {img ? (
+          <img src={img} alt={city} className="w-16 h-16 rounded-full object-cover flex-shrink-0 border border-gray-100" />
+        ) : (
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-sky-100 to-emerald-100 flex-shrink-0" />
+        )}
+        <div>
+          <div className="text-2xl font-bold text-gray-900 leading-none">Day {dayNum}</div>
+          <div className="text-sm text-gray-500 mt-1.5">{dateLabel}</div>
         </div>
       </div>
-      {isArrival ? (
-        <div className="bg-[#7c3015] text-white text-center text-[10px] font-bold uppercase tracking-wider py-1">
-          Arrive in {city}
+
+      <div className="px-5">
+        <div className="border-t border-gray-100" />
+      </div>
+
+      {/* CHECK IN TO badge + nights/city */}
+      <div className="px-5 py-4">
+        <span className="inline-block bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded">
+          Check in to
+        </span>
+        <div className="text-2xl font-bold text-gray-900 mt-3">
+          {nights}N {city}
         </div>
-      ) : isDeparture ? (
-        <div className="bg-[#7c3015] text-white text-center text-[10px] font-bold uppercase tracking-wider py-1">
-          Depart from {city}
+
+        {/* Hotel hero image */}
+        {img ? (
+          <img src={img} alt={hotel?.name} className="w-full h-44 object-cover rounded mt-4" />
+        ) : null}
+
+        {/* Hotel name + stars */}
+        <div className="mt-3">
+          <div className="font-bold text-base text-gray-900">{hotel?.name || '—'}</div>
+          <div className="text-amber-500 text-sm mt-0.5">{'★'.repeat(stars)}</div>
         </div>
-      ) : null}
-      {hotel ? (
-        <div className="border-t border-gray-100 px-3 py-2 bg-gray-50/40">
-          {img ? (
-            <img src={img} alt={hotel.name} className="w-full h-16 object-cover rounded mb-1.5" />
-          ) : null}
-          <div className="text-[10px] uppercase font-bold text-emerald-700 tracking-wider">Hotel</div>
-          <div className="text-[11px] font-semibold text-gray-800 leading-tight line-clamp-2">{hotel.name}</div>
-          <div className="text-[10px] text-gray-500 mt-0.5">{room}</div>
+
+        {/* Room */}
+        <div className="mt-3">
+          <div className="text-[11px] uppercase font-semibold text-gray-500 tracking-wider">Room</div>
+          <div className="text-sm font-bold text-gray-800 mt-0.5">{room}</div>
         </div>
-      ) : null}
-      <div className="flex border-t border-gray-100 bg-white">
-        {[
-          { key: 'breakfast', Icon: Sun, on: meals.breakfast },
-          { key: 'lunch', Icon: Utensils, on: meals.lunch },
-          { key: 'dinner', Icon: Moon, on: meals.dinner },
-        ].map(({ key, Icon, on }) => (
-          <div key={key} className="flex-1 flex justify-center py-1.5">
-            <Icon size={12} className={on ? 'text-emerald-600' : 'text-gray-300'} />
+
+        <div className="border-t border-gray-200 my-4" />
+
+        {/* Check-in / check-out grid */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <div className="text-[11px] uppercase font-semibold text-gray-500 tracking-wider">Check-in</div>
+            <div className="text-base font-bold text-gray-900 mt-0.5">02:00 PM</div>
+            <div className="text-xs text-gray-500">{fmtDate(dateIn)}</div>
           </div>
-        ))}
+          <div>
+            <div className="text-[11px] uppercase font-semibold text-gray-500 tracking-wider">Check-out</div>
+            <div className="text-base font-bold text-gray-900 mt-0.5">12:00 PM</div>
+            <div className="text-xs text-gray-500">{fmtDate(dateOut)}</div>
+          </div>
+        </div>
       </div>
     </button>
   );
 };
 
-/* ------------------- right side day section ------------------- */
-const ConfirmationLine = ({ entry }) => {
-  if (!entry) return null;
-  const status = entry.status || 'pending';
-  const num = entry.confirmation_number;
-  const note = (entry.op_note || '').trim();
-  if (status !== 'confirmed' && !num && !note) {
-    return (
-      <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2 inline-flex items-center gap-1.5">
-        <Clock size={11} /> Awaiting confirmation
-      </div>
-    );
-  }
+/* ------------------- RIGHT: Day section ------------------- */
+const FlightLine = ({ flight, label }) => {
+  if (!flight) return null;
+  const num = flight.flight_number || flight.flight_no || flight.flightNumber || '';
+  const airline = flight.airline || flight.airline_name || '';
+  const date = flight.date || flight.arrival_date || flight.departure_date || '';
+  const time = flight.arrival_time || flight.arrivalTime || flight.departure_time || flight.time || '';
+  const airport = flight.arrival_airport || flight.from_airport || flight.airport || flight.to_airport || '';
+  const isArrival = /arr/i.test(label);
   return (
-    <div className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded px-3 py-2 mt-2 space-y-1">
-      {num ? <div><span className="font-bold uppercase tracking-wider text-[10px] text-emerald-700">Confirmation:</span> {num}</div> : null}
-      {note ? <div className="text-emerald-900 whitespace-pre-wrap"><span className="font-bold uppercase tracking-wider text-[10px] text-emerald-700">Operations note:</span> {note}</div> : null}
-    </div>
-  );
-};
-
-const MealStrip = ({ meals }) => (
-  <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-gray-100">
-    {[
-      { key: 'breakfast', label: 'Breakfast', Icon: Sun },
-      { key: 'lunch', label: 'Lunch', Icon: Utensils },
-      { key: 'dinner', label: 'Dinner', Icon: Moon },
-    ].map(({ key, label, Icon }) => (
-      <div key={key} className="flex items-center gap-2 text-xs">
-        <Icon size={14} className={meals[key] ? 'text-emerald-600' : 'text-gray-300'} />
-        <span className={meals[key] ? 'text-gray-800 font-medium' : 'text-gray-400'}>
-          {label}: {meals[key] ? 'Included' : 'Not included'}
+    <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm" data-testid={`itinerary-flight-${label}`}>
+      <div className="flex items-center gap-3 text-gray-800">
+        <Plane size={18} className="text-gray-700 flex-shrink-0" />
+        <span>
+          <span className="font-bold">{[airline, num].filter(Boolean).join(' ')}</span>
+          {date ? <> - Flight {isArrival ? 'arriving' : 'departing'} on <span className="font-semibold">{fmtDate(date)}</span></> : null}
+          {time ? <> at <span className="font-semibold">{time}</span></> : null}
+          {airport ? <> - {airport}</> : null}
         </span>
       </div>
-    ))}
-  </div>
-);
-
-const FlightCard = ({ flight, label, confirmation }) => {
-  if (!flight) return null;
-  const airline = flight.airline || flight.airline_name || '';
-  const num = flight.flight_number || flight.flight_no || flight.flightNumber || '';
-  const date = flight.date || flight.departure_date || flight.arrival_date || '';
-  const dep = flight.departure_airport || flight.from || flight.from_airport || '';
-  const arr = flight.arrival_airport || flight.to || flight.to_airport || '';
-  const depTime = flight.departure_time || flight.departureTime || '';
-  const arrTime = flight.arrival_time || flight.arrivalTime || flight.time || '';
-  const terminal = flight.terminal || '';
-  return (
-    <div className="px-4 py-3 bg-blue-50/40 border border-blue-100 rounded-lg" data-testid={`itinerary-flight-${label}`}>
-      <div className="flex items-start gap-3">
-        <Plane size={18} className="text-[#0066CC] mt-0.5 flex-shrink-0" />
-        <div className="flex-1 text-sm text-gray-800">
-          <div className="font-semibold flex flex-wrap items-center gap-2">
-            <span>{airline || 'Flight'} {num}</span>
-            {date ? <span className="text-xs text-gray-500 font-normal">· {fmtShort(date)}</span> : null}
-          </div>
-          {(dep || arr) ? (
-            <div className="text-xs text-gray-600 mt-1">
-              {dep ? <span className="font-semibold">{dep}</span> : null}
-              {depTime ? <span className="text-gray-500"> {depTime}</span> : null}
-              {(dep && arr) ? <span className="mx-1.5 text-gray-400">→</span> : null}
-              {arr ? <span className="font-semibold">{arr}</span> : null}
-              {arrTime ? <span className="text-gray-500"> {arrTime}</span> : null}
-            </div>
-          ) : (arrTime ? <div className="text-xs text-gray-600 mt-1">Arrives {arrTime}</div> : null)}
-          {terminal ? <div className="text-[11px] text-gray-500 mt-0.5">Terminal: {terminal}</div> : null}
-          <div className="text-[10px] uppercase tracking-wider text-gray-400 mt-1 font-bold">{label}</div>
-        </div>
-      </div>
-      <ConfirmationLine entry={confirmation} />
     </div>
   );
 };
 
-const TransferCard = ({ transfer, title, confirmation }) => {
+const TimePill = ({ time }) => {
+  if (!time) return null;
+  return (
+    <div className="-mb-3 z-10 relative">
+      <span className="inline-flex items-center gap-1.5 bg-gray-900 text-white text-xs font-semibold px-3 py-1.5 rounded">
+        <Clock size={12} /> {time}
+      </span>
+    </div>
+  );
+};
+
+const TransferBlock = ({ transfer, title, confirmation, defaultPickupTime }) => {
   if (!transfer) return null;
   const t = transfer.title || transfer.name || title;
-  const veh = transfer.vehicle_type || transfer.selectedVehicle || transfer.vehicle || 'Private';
-  const dur = transfer.duration || '';
-  const from = transfer.from_location || transfer.from_city || transfer.from || '';
-  const to = transfer.to_location || transfer.to_city || transfer.to || '';
-  const pickup = transfer.pickup_time || transfer.pickupTime || '';
-  const supplier = transfer.supplier_name || transfer.supplier || '';
-  const supplierPhone = transfer.supplier_phone || transfer.phone || '';
+  const veh = (transfer.vehicle_type || transfer.selectedVehicle || transfer.vehicle || 'Private').toString();
+  const isSic = veh.toLowerCase().includes('sic') || veh.toLowerCase().includes('sharing');
+  const pickupTime = transfer.pickup_time || transfer.pickupTime || (confirmation?.pickup_time) || defaultPickupTime || '';
+  const pickupInfo = transfer.pickup_info || transfer.pickup_location || 'Hotel';
+  const driver = parseDriverNote(confirmation?.op_note);
+  const plate = driver?.plate || confirmation?.vehicle_plate || '';
+  const sicLabel = veh.match(/sedan|suv|van|bus|car/i)?.[0]?.toUpperCase() || (isSic ? 'SIC' : 'CAR');
+
   return (
-    <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg" data-testid="itinerary-transfer-card">
-      <div className="flex items-start gap-3">
-        <Car size={18} className="text-[#7c3015] mt-0.5 flex-shrink-0" />
-        <div className="flex-1 text-sm">
-          <div className="flex items-start justify-between gap-2">
-            <div className="font-semibold text-gray-800 leading-snug">{t}</div>
-            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded whitespace-nowrap">{veh.toString().includes('SIC') ? 'SIC' : 'Private'}</span>
+    <>
+      <TimePill time={pickupTime} />
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" data-testid="itinerary-transfer-block">
+        {/* Header row */}
+        <div className="px-5 py-4 flex items-start justify-between gap-3 border-b border-gray-100">
+          <div className="flex items-start gap-3">
+            <Car size={18} className="text-gray-800 mt-0.5 flex-shrink-0" />
+            <span className="font-semibold text-gray-900 text-[15px] leading-snug">{t}</span>
           </div>
-          {(from || to) ? (
-            <div className="text-xs text-gray-600 mt-1">
-              {from ? <span className="font-semibold">{from}</span> : null}
-              {(from && to) ? <span className="mx-1.5 text-gray-400">→</span> : null}
-              {to ? <span className="font-semibold">{to}</span> : null}
-            </div>
-          ) : null}
-          <div className="text-xs text-gray-500 mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="inline-flex items-center gap-1"><Bed size={11} />{veh}</span>
-            {dur ? <span className="inline-flex items-center gap-1"><Clock size={11} />{dur}</span> : null}
-            {pickup ? <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold"><Clock size={11} />Pickup {pickup}</span> : null}
-          </div>
-          {supplier ? <div className="text-[11px] text-gray-600 mt-1"><span className="font-semibold">Operator:</span> {supplier}{supplierPhone ? <> · <a href={`tel:${supplierPhone}`} className="text-[#0066CC]">{supplierPhone}</a></> : null}</div> : null}
+          <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded border whitespace-nowrap ${
+            isSic ? 'text-orange-700 bg-orange-50 border-orange-200' : 'text-emerald-700 bg-emerald-50 border-emerald-200'
+          }`}>
+            {isSic ? 'SIC' : 'Private'}
+          </span>
         </div>
+
+        {/* Pickup info / pickup time grid */}
+        <div className="grid grid-cols-2 gap-6 px-5 py-4">
+          <div>
+            <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">Pickup Information</div>
+            <div className="text-base font-bold text-gray-900 mt-1">{pickupInfo}</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">Pickup Time</div>
+            <div className="text-base font-bold text-gray-900 mt-1">{pickupTime || '—'}</div>
+          </div>
+        </div>
+
+        {/* Driver block (only when ops have provided info) */}
+        {(driver || plate) ? (
+          <div className="mx-5 mb-5 border border-gray-200 rounded-lg p-4">
+            <div className="grid grid-cols-[64px_1fr_1fr_1fr] gap-4 items-center">
+              <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-gray-300">
+                <User size={32} />
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">Driver</div>
+                <div className="text-sm font-bold text-gray-900 mt-0.5 leading-tight">{driver?.name || '—'}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">Driver Contact No</div>
+                <div className="text-sm font-bold text-gray-900 mt-0.5">
+                  {driver?.phone ? <a href={`tel:${driver.phone}`} className="text-[#0066CC]">{driver.phone}</a> : '—'}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">{sicLabel} {sicLabel.includes('CAR') ? '' : 'CAR'}</div>
+                <div className="text-sm font-bold text-gray-900 mt-0.5">{plate || '—'}</div>
+              </div>
+            </div>
+          </div>
+        ) : confirmation?.confirmation_number ? (
+          <div className="mx-5 mb-5 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded text-[12px] text-emerald-800">
+            <span className="font-bold uppercase tracking-wider text-[10px] text-emerald-700">Confirmation:</span> {confirmation.confirmation_number}
+          </div>
+        ) : null}
       </div>
-      <ConfirmationLine entry={confirmation} />
-    </div>
+    </>
   );
 };
 
-const HotelCard = ({ hotel, nights, checkIn, checkOut, confirmation }) => {
-  if (!hotel) return null;
-  const sel = hotel?.selectedRoom || hotel?.selected_room || {};
-  const room = sel.name || sel.room_type || 'Standard Room';
-  const stars = Number(hotel.star_rating || hotel.rating || 4);
-  const rp = sel.rate_plan || sel.ratePlan || {};
-  const mealPlan = rp.meal_plan || rp.mealPlan || sel.meals || hotel?.meal_plan || 'Room Only';
-  const address = hotel.address || hotel.location || '';
-  const phone = hotel.phone || hotel.contact_number || '';
-  const bedType = sel.bed_type || sel.bedType || '';
-  const refundable = rp.refundable || sel.refundable;
-  const refundUntil = rp.refund_deadline || sel.refundable_until;
-  const amenities = (hotel.amenities || []).slice(0, 6);
-  return (
-    <div className="px-4 py-3 bg-white border border-gray-200 rounded-lg" data-testid="itinerary-hotel-card">
-      <div className="flex items-start gap-3">
-        <Hotel size={18} className="text-[#7c3015] mt-0.5 flex-shrink-0" />
-        <div className="flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-sm text-gray-800">{hotel.name}</span>
-            <span className="text-amber-500 text-xs">{'★'.repeat(stars)}</span>
-          </div>
-          <div className="text-xs text-gray-600 mt-0.5">{room}{bedType ? ` · ${bedType}` : ''} · {mealPlan}</div>
-          {address ? (
-            <div className="text-[11px] text-gray-500 mt-1 flex items-start gap-1">
-              <MapPin size={11} className="mt-0.5 flex-shrink-0" />
-              <span>{address}</span>
-            </div>
-          ) : null}
-          {phone ? (
-            <div className="text-[11px] text-gray-600 mt-0.5">
-              <span className="font-semibold">Phone:</span> <a href={`tel:${phone}`} className="text-[#0066CC]">{phone}</a>
-            </div>
-          ) : null}
-          <div className="grid grid-cols-2 gap-2 mt-2 text-[11px]">
-            <div className="text-gray-600"><span className="font-semibold">Check-in:</span> {fmtShort(checkIn)} · 14:00</div>
-            <div className="text-gray-600"><span className="font-semibold">Check-out:</span> {fmtShort(checkOut)} · 12:00</div>
-          </div>
-          <div className="text-[11px] text-gray-500 mt-1 flex items-center gap-3">
-            <span>{nights} night{nights > 1 ? 's' : ''}</span>
-            {refundable === false ? (
-              <span className="text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded font-semibold">Non-refundable</span>
-            ) : refundUntil ? (
-              <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-semibold">Refundable until {fmtShort(refundUntil)}</span>
-            ) : null}
-          </div>
-          {amenities.length > 0 ? (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {amenities.map((am, i) => (
-                <span key={i} className="text-[10px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded">{am}</span>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      </div>
-      <ConfirmationLine entry={confirmation} />
-    </div>
-  );
-};
-
-const ActivityCard = ({ activity, confirmation }) => {
+const ActivityBlock = ({ activity, confirmation }) => {
   const meals = mealsFromActivity(activity);
   const veh = activity.selectedVehicle || activity.vehicle || 'Private';
   const inc = (activity.inclusions || []).filter(Boolean);
   const desc = activity.description || '';
-  const supplier = activity.supplier_name || activity.supplier || '';
-  const supplierPhone = activity.supplier_phone || activity.phone || '';
+  const driver = parseDriverNote(confirmation?.op_note);
   const pickup = activity.pickup_time || activity.pickupTime || '';
-  const meeting = activity.meeting_point || activity.meetingPoint || '';
+
   return (
-    <div className="px-4 py-3 bg-emerald-50/30 border border-emerald-100 rounded-lg" data-testid="itinerary-activity-card">
-      <div className="flex items-start gap-3">
-        <CalendarDays size={18} className="text-emerald-700 mt-0.5 flex-shrink-0" />
-        <div className="flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="font-semibold text-sm text-gray-800">{activity.name}</div>
-            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-700 bg-white border border-emerald-200 px-2 py-1 rounded whitespace-nowrap">{veh}</span>
+    <>
+      <TimePill time={pickup} />
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" data-testid="itinerary-activity-block">
+        <div className="px-5 py-4 flex items-start justify-between gap-3 border-b border-gray-100">
+          <div className="flex items-start gap-3">
+            <Car size={18} className="text-gray-800 mt-0.5 flex-shrink-0" />
+            <span className="font-semibold text-gray-900 text-[15px] leading-snug">{activity.name}</span>
           </div>
-          <div className="text-[11px] text-gray-500 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-            {activity.duration ? <span className="inline-flex items-center gap-1"><Clock size={11} /> {activity.duration}</span> : null}
-            {pickup ? <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold"><Clock size={11} /> Pickup {pickup}</span> : null}
-          </div>
-          {meeting ? <div className="text-[11px] text-gray-600 mt-1"><span className="font-semibold">Meeting point:</span> {meeting}</div> : null}
-          {desc ? <p className="text-[11px] text-gray-600 mt-1.5 leading-relaxed line-clamp-3">{desc}</p> : null}
-          {(meals.breakfast || meals.lunch || meals.dinner) ? (
-            <div className="flex gap-2 mt-2 flex-wrap">
-              {meals.breakfast ? <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-medium">Breakfast incl.</span> : null}
-              {meals.lunch ? <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-medium">Lunch incl.</span> : null}
-              {meals.dinner ? <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-medium">Dinner incl.</span> : null}
+          <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded border text-emerald-700 bg-emerald-50 border-emerald-200 whitespace-nowrap">{veh}</span>
+        </div>
+
+        <div className="px-5 py-4 space-y-3 text-sm">
+          {activity.duration ? (
+            <div className="text-[12px] text-gray-600 inline-flex items-center gap-1.5">
+              <Clock size={12} /> Duration: <span className="font-semibold text-gray-800">{activity.duration}</span>
             </div>
           ) : null}
+          {(meals.breakfast || meals.lunch || meals.dinner) ? (
+            <div className="flex flex-wrap gap-2">
+              {meals.breakfast ? <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">Breakfast incl.</span> : null}
+              {meals.lunch ? <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">Lunch incl.</span> : null}
+              {meals.dinner ? <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">Dinner incl.</span> : null}
+            </div>
+          ) : null}
+          {desc ? <p className="text-[13px] text-gray-700 leading-relaxed line-clamp-3">{desc}</p> : null}
           {inc.length > 0 ? (
-            <div className="mt-2">
-              <div className="text-[10px] uppercase font-bold text-emerald-700 tracking-wider mb-1">Inclusions</div>
-              <ul className="text-[11px] text-gray-700 list-disc pl-4 space-y-0.5">
-                {inc.slice(0, 6).map((i, j) => <li key={j}>{i}</li>)}
+            <div>
+              <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider mb-1">Inclusions</div>
+              <ul className="text-[12.5px] text-gray-700 list-disc pl-5 space-y-0.5">
+                {inc.slice(0, 8).map((i, j) => <li key={j}>{i}</li>)}
               </ul>
             </div>
           ) : null}
-          {supplier ? <div className="text-[11px] text-gray-600 mt-2"><span className="font-semibold">Operator:</span> {supplier}{supplierPhone ? <> · <a href={`tel:${supplierPhone}`} className="text-[#0066CC]">{supplierPhone}</a></> : null}</div> : null}
         </div>
+
+        {(driver || confirmation?.confirmation_number) ? (
+          <div className="mx-5 mb-5">
+            {driver ? (
+              <div className="border border-gray-200 rounded-lg p-4 grid grid-cols-[64px_1fr_1fr] gap-4 items-center">
+                <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-gray-300">
+                  <User size={32} />
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">Guide / Driver</div>
+                  <div className="text-sm font-bold text-gray-900 mt-0.5 leading-tight">{driver.name || '—'}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">Contact No</div>
+                  <div className="text-sm font-bold text-gray-900 mt-0.5">
+                    {driver.phone ? <a href={`tel:${driver.phone}`} className="text-[#0066CC]">{driver.phone}</a> : '—'}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="px-4 py-2 bg-emerald-50 border border-emerald-200 rounded text-[12px] text-emerald-800">
+                <span className="font-bold uppercase tracking-wider text-[10px] text-emerald-700">Confirmation:</span> {confirmation.confirmation_number}
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
-      <ConfirmationLine entry={confirmation} />
-    </div>
+    </>
   );
 };
+
+const MealRow = ({ label, included, Icon }) => (
+  <div className="bg-white border border-gray-200 rounded-lg px-5 py-4 flex items-center justify-between" data-testid={`itinerary-meal-${label.toLowerCase()}`}>
+    <div className="flex items-center gap-3">
+      <Icon size={18} className="text-gray-700" />
+      <span className="font-semibold text-gray-900">{label}</span>
+    </div>
+    {included ? (
+      <span className="inline-flex items-center gap-1.5 text-emerald-700 text-sm font-medium">
+        <CheckCircle2 size={16} /> Included
+      </span>
+    ) : (
+      <span className="inline-flex items-center gap-1.5 text-rose-600 text-sm font-medium">
+        <XCircle size={16} /> Not included
+      </span>
+    )}
+  </div>
+);
 
 /* ------------------- main view ------------------- */
 export default function TripItineraryView({ proposalId, bookingId, bookingRef, customerName, onBack }) {
@@ -364,7 +385,7 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
           if (br?.data) setBooking(br.data);
         }
       } catch (e) {
-        console.error('Failed to load proposal for itinerary', e);
+        console.error('Failed to load itinerary', e);
       } finally {
         if (alive) setLoading(false);
       }
@@ -372,11 +393,12 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
     return () => { alive = false; };
   }, [proposalId, bookingId]);
 
-  // service_confirmations lookup helper
   const sc = booking?.service_confirmations || {};
   const conf = (key) => sc[key] || null;
 
-  // Build a flat day list: [{idx, date, city, cityIdx, hotel, isArrival, isDeparture, ...}]
+  // Build day list. Two kinds of days:
+  //   (a) per-night day  -> belongs to a city, has a hotel
+  //   (b) departure-only day after the last night
   const days = useMemo(() => {
     if (!proposal) return [];
     const out = [];
@@ -386,47 +408,50 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
       const cityName = c?.name || c;
       const nights = Number(c?.nights || 0);
       const hotel = (proposal.selected_hotels || {})[`${cityName}_${ci}`];
-      const totalCities = (proposal.cities || []).length;
       for (let n = 0; n < nights; n++) {
-        const isArrival = ci === 0 && n === 0;
-        const isCheckIn = n === 0;
-        const isLastNightOfCity = n === nights - 1;
-        // departure from final city (after the last night) is its own row;
-        // here we treat each night as a stay row
         out.push({
           idx: out.length,
           date: addDays(startDate, cursor),
           city: cityName,
           cityIdx: ci,
           hotel,
-          nights,
-          isArrival,
-          isCheckIn,
-          isInterCityNight: isCheckIn && ci > 0,
-          isLastNightOfCity,
-          isDeparture: false,
-          isFinalCity: ci === totalCities - 1,
+          cityNights: nights,
+          isFirstNightOfCity: n === 0,
+          isFirstNightOfTrip: ci === 0 && n === 0,
+          isInterCityDay: n === 0 && ci > 0,
         });
         cursor += 1;
       }
     });
-    // Add a final departure-only row if there's a departure flight or we want a "Departure" card
     out.push({
       idx: out.length,
       date: addDays(startDate, cursor),
       city: (proposal.cities?.[(proposal.cities?.length || 1) - 1]?.name) || '',
       cityIdx: (proposal.cities?.length || 1) - 1,
-      hotel: null,
       isDeparture: true,
-      isArrival: false,
-      isCheckIn: false,
-      isLastNightOfCity: false,
-      isFinalCity: true,
     });
     return out;
   }, [proposal]);
 
-  // Scroll-spy: update activeDay as user scrolls
+  // Group cities for left rail (one card per city stay)
+  const cityStays = useMemo(() => {
+    if (!proposal) return [];
+    const startDate = proposal.leaving_on || proposal.start_date;
+    let cursor = 0;
+    return (proposal.cities || []).map((c, ci) => {
+      const cityName = c?.name || c;
+      const nights = Number(c?.nights || 0);
+      const hotel = (proposal.selected_hotels || {})[`${cityName}_${ci}`];
+      const dateIn = addDays(startDate, cursor);
+      const dateOut = addDays(startDate, cursor + nights);
+      const dayNum = cursor + 1;
+      const dateLabel = fmtShort(dateIn);
+      cursor += nights;
+      return { city: cityName, cityIdx: ci, nights, hotel, dateIn, dateOut, dayNum, dateLabel };
+    });
+  }, [proposal]);
+
+  // Scroll-spy: active day
   useEffect(() => {
     const onScroll = () => {
       let nearest = 1;
@@ -434,8 +459,8 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
       Object.entries(dayRefs.current).forEach(([d, el]) => {
         if (!el) return;
         const r = el.getBoundingClientRect();
-        const delta = Math.abs(r.top - 120);
-        if (r.top < 200 && delta < nearestDelta) {
+        const delta = Math.abs(r.top - 140);
+        if (r.top < 220 && delta < nearestDelta) {
           nearestDelta = delta;
           nearest = Number(d);
         }
@@ -451,12 +476,8 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  if (loading) {
-    return <div className="p-12 text-center text-gray-500">Loading itinerary…</div>;
-  }
-  if (!proposal) {
-    return <div className="p-12 text-center text-gray-500">Itinerary not available.</div>;
-  }
+  if (loading) return <div className="p-12 text-center text-gray-500">Loading itinerary…</div>;
+  if (!proposal) return <div className="p-12 text-center text-gray-500">Itinerary not available.</div>;
 
   const interCity = proposal.inter_city_transfers || {};
   const arrivalT = proposal.arrival_transfer;
@@ -465,27 +486,27 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
   const departureFlight = proposal.departure_flight_info;
   const selectedActivities = proposal.selected_activities || {};
 
+  // For left-rail "active" highlight: which city is currently in view?
+  const activeCityIdx = (() => {
+    if (!days.length) return 0;
+    const d = days[Math.min(activeDay - 1, days.length - 1)];
+    return d?.cityIdx ?? 0;
+  })();
+
   return (
     <div className="bg-gray-50 min-h-screen" data-testid="trip-itinerary-view">
       {/* Top bar */}
       <div className="bg-[#1f1f1f] text-white sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
-          <button
-            onClick={onBack}
-            className="text-white/80 hover:text-white inline-flex items-center gap-1.5 text-sm"
-            data-testid="itinerary-back-btn"
-          >
+          <button onClick={onBack} className="text-white/80 hover:text-white inline-flex items-center gap-1.5 text-sm" data-testid="itinerary-back-btn">
             <ArrowLeft size={16} /> Back
           </button>
-          <div className="text-center flex-1 truncate">
-            <span className="text-sm font-bold tracking-wide">
-              {bookingRef || ''}
-              {customerName ? <> · <span className="opacity-90">{(customerName || '').toUpperCase()}</span></> : null}
-            </span>
+          <div className="text-center flex-1 truncate text-sm font-bold tracking-wide">
+            {bookingRef || ''}
+            {customerName ? <> · <span className="opacity-90">{(customerName || '').toUpperCase()}</span></> : null}
           </div>
           <div className="w-12" />
         </div>
-        {/* Day nav strip */}
         <div className="border-t border-white/10 bg-[#2a2a2a]">
           <div className="max-w-7xl mx-auto px-6 py-2 flex items-center gap-2 overflow-x-auto" data-testid="itinerary-day-nav">
             {days.map((d, i) => (
@@ -493,9 +514,7 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
                 key={i}
                 onClick={() => scrollToDay(i + 1)}
                 className={`px-3 py-1 rounded text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors ${
-                  activeDay === i + 1
-                    ? 'bg-[#7c3015] text-white'
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
+                  activeDay === i + 1 ? 'bg-emerald-500 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'
                 }`}
                 data-testid={`itinerary-day-tab-${i + 1}`}
               >
@@ -506,51 +525,44 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
-        {/* Left rail */}
-        <aside className="space-y-2 lg:sticky lg:top-[120px] lg:self-start lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto pb-6">
-          {days.map((d, i) => {
-            // meals roll-up: hotel + activities for this city/day
-            const hotelMeals = mealsFromHotel(d.hotel);
-            const cityKey = `${d.city}_${d.cityIdx}`;
-            const acts = (selectedActivities[cityKey] || selectedActivities[`${d.city}_${i}`]) || [];
-            const actList = Array.isArray(acts) ? acts : [acts];
-            actList.forEach((a) => {
-              const m = mealsFromActivity(a);
-              hotelMeals.breakfast = hotelMeals.breakfast || m.breakfast;
-              hotelMeals.lunch = hotelMeals.lunch || m.lunch;
-              hotelMeals.dinner = hotelMeals.dinner || m.dinner;
-            });
-            return (
-              <DayCard
-                key={i}
-                idx={i}
-                date={d.date}
-                city={d.city}
-                hotel={d.hotel}
-                isArrival={d.isArrival}
-                isDeparture={d.isDeparture}
-                meals={hotelMeals}
-                active={activeDay === i + 1}
-                onClick={() => scrollToDay(i + 1)}
-              />
-            );
-          })}
+      <div className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6">
+        {/* Left rail — one card per city */}
+        <aside className="space-y-4 lg:sticky lg:top-[120px] lg:self-start lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto pb-6">
+          {cityStays.map((cs, i) => (
+            <CityCard
+              key={i}
+              city={cs.city}
+              nights={cs.nights}
+              hotel={cs.hotel}
+              dateIn={cs.dateIn}
+              dateOut={cs.dateOut}
+              dayNum={cs.dayNum}
+              dateLabel={cs.dateLabel}
+              active={activeCityIdx === cs.cityIdx}
+              onClick={() => {
+                // Find first day for this city and scroll
+                const targetDay = days.findIndex((d) => d.cityIdx === cs.cityIdx) + 1;
+                if (targetDay) scrollToDay(targetDay);
+              }}
+            />
+          ))}
         </aside>
 
-        {/* Right detail */}
-        <main className="space-y-5">
+        {/* Right rail — day sections */}
+        <main className="space-y-6">
           {days.map((d, i) => {
             const cityKey = `${d.city}_${d.cityIdx}`;
             const acts = (selectedActivities[cityKey] || []);
             const actList = Array.isArray(acts) ? acts : [acts].filter(Boolean);
-            // Day section title
-            let title = `Day in ${d.city}`;
-            if (d.isArrival) title = `Arrive in ${d.city}`;
-            else if (d.isInterCityNight) title = `Transfer to ${d.city}`;
-            else if (d.isDeparture) title = `Departure from ${d.city}`;
 
-            // Roll-up meals for the strip
+            // Title for the day
+            let title;
+            if (d.isFirstNightOfTrip) title = `Arrive in ${d.city}`;
+            else if (d.isInterCityDay) title = `Transfer to ${d.city}`;
+            else if (d.isDeparture) title = `Departure from ${d.city}`;
+            else title = `Day in ${d.city}`;
+
+            // Roll up meals
             const meals = mealsFromHotel(d.hotel);
             actList.forEach((a) => {
               const m = mealsFromActivity(a);
@@ -560,86 +572,82 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
             });
 
             const interKey = `${d.cityIdx - 1}_${d.cityIdx}`;
-            const interTransfer = d.isInterCityNight ? interCity[interKey] : null;
-
-            // Figure out city's check-in / check-out for hotel card on first night
-            const cityFirstDayIdx = days.findIndex((x) => x.cityIdx === d.cityIdx);
-            const cityNights = (proposal.cities || [])[d.cityIdx]?.nights || 0;
-            const cityCheckIn = days[cityFirstDayIdx]?.date;
-            const cityCheckOut = addDays(cityCheckIn, cityNights);
+            const interTransfer = d.isInterCityDay ? interCity[interKey] : null;
 
             return (
               <section
                 key={i}
                 ref={(el) => { dayRefs.current[i + 1] = el; }}
-                className="bg-white border border-gray-200 rounded-xl overflow-hidden"
                 data-testid={`itinerary-day-section-${i + 1}`}
+                className="space-y-4"
               >
-                <div className="px-5 py-3 bg-gradient-to-r from-[#fff8f4] to-white border-b border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-[10px] uppercase font-bold tracking-wider text-[#7c3015]">Day {i + 1}</div>
-                      <h3 className="text-base font-bold text-gray-900">{title}</h3>
-                    </div>
-                    <div className="text-xs text-gray-500">{fmtShort(d.date)}</div>
-                  </div>
+                {/* Day header */}
+                <div className="flex items-baseline gap-3 mt-2">
+                  <span className="text-sm font-semibold text-gray-500">Day {i + 1}</span>
+                  <h2 className="text-2xl font-bold text-gray-900 leading-none">{title}</h2>
+                  <span className="ml-auto text-xs text-gray-500">{fmtShort(d.date)}</span>
                 </div>
-                <div className="p-4 space-y-3">
-                  {/* Day 1 arrival flight + arrival transfer */}
-                  {d.isArrival ? (
-                    <>
-                      <FlightCard flight={arrivalFlight} label="Arrival flight" confirmation={conf('flight:arrival')} />
-                      <TransferCard transfer={arrivalT} title="Arrival Transfer" confirmation={conf('transfer:arrival')} />
-                    </>
-                  ) : null}
 
-                  {/* Inter-city transfer day */}
-                  {d.isInterCityNight && interTransfer ? (
-                    <TransferCard transfer={interTransfer} title="Inter-city Transfer" confirmation={conf(`transfer:inter:${d.cityIdx - 1}_${d.cityIdx}`)} />
-                  ) : null}
-
-                  {/* Hotel card (only on first night of city, to avoid duplication) */}
-                  {d.isCheckIn && d.hotel ? (
-                    <HotelCard
-                      hotel={d.hotel}
-                      nights={cityNights}
-                      checkIn={cityCheckIn}
-                      checkOut={cityCheckOut}
-                      confirmation={conf(`hotel:${d.city}_${d.cityIdx}`)}
+                {/* Day content */}
+                <div className="space-y-4">
+                  {d.isFirstNightOfTrip ? <FlightLine flight={arrivalFlight} label="Arrival flight" /> : null}
+                  {d.isFirstNightOfTrip ? (
+                    <TransferBlock
+                      transfer={arrivalT}
+                      title="Arrival Transfer"
+                      confirmation={conf('transfer:arrival')}
+                      defaultPickupTime={arrivalFlight?.arrival_time || arrivalFlight?.arrivalTime}
                     />
                   ) : null}
-
-                  {/* Activities for the day */}
-                  {!d.isDeparture && actList.length > 0 ? (
-                    actList.map((a, j) => <ActivityCard key={j} activity={a} confirmation={conf(`activity:${cityKey}#${j}`) || conf(`activity:${cityKey}`)} />)
+                  {d.isInterCityDay && interTransfer ? (
+                    <TransferBlock
+                      transfer={interTransfer}
+                      title="Inter-city Transfer"
+                      confirmation={conf(`transfer:inter:${interKey}`)}
+                    />
                   ) : null}
-
-                  {/* Departure flight + transfer */}
+                  {/* Activities (skip for departure) */}
+                  {!d.isDeparture && actList.length > 0 ? actList.map((a, j) => (
+                    <ActivityBlock
+                      key={j}
+                      activity={a}
+                      confirmation={conf(`activity:${cityKey}#${j}`) || conf(`activity:${cityKey}`)}
+                    />
+                  )) : null}
                   {d.isDeparture ? (
                     <>
-                      <TransferCard transfer={departureT} title="Departure Transfer" confirmation={conf('transfer:departure')} />
-                      <FlightCard flight={departureFlight} label="Departure flight" confirmation={conf('flight:departure')} />
+                      <TransferBlock
+                        transfer={departureT}
+                        title="Departure Transfer"
+                        confirmation={conf('transfer:departure')}
+                        defaultPickupTime={departureFlight?.departure_time}
+                      />
+                      <FlightLine flight={departureFlight} label="Departure flight" />
                     </>
                   ) : null}
 
-                  {/* Meal status (skip on departure-only row) */}
-                  {!d.isDeparture ? <MealStrip meals={meals} /> : null}
+                  {/* Meal rows */}
+                  {!d.isDeparture ? (
+                    <div className="space-y-3 pt-2">
+                      <MealRow label="Breakfast" included={meals.breakfast} Icon={Utensils} />
+                      <MealRow label="Lunch" included={meals.lunch} Icon={Utensils} />
+                      <MealRow label="Dinner" included={meals.dinner} Icon={Coffee} />
+                    </div>
+                  ) : null}
                 </div>
               </section>
             );
           })}
 
-          {/* Footer fine print */}
-          <div className="text-[10px] text-gray-500 leading-relaxed bg-white border border-gray-200 rounded-xl p-5">
+          {/* Footer */}
+          <div className="text-[11px] text-gray-500 leading-relaxed bg-white border border-gray-200 rounded-xl p-5 mt-4">
             <p className="font-semibold text-gray-700 mb-2">Important Notes</p>
             <ul className="list-disc pl-4 space-y-1">
-              <li>The timing of the trips and stays are subject to change depending upon the local conditions; any changes will be informed by the local operator.</li>
-              <li>You are taking the trip at your own consent. We are not liable for any unforeseen events.</li>
-              <li>Hotel rooms are subject to availability at the time of booking confirmation. Standard check-in is at 14:00 and check-out at 12:00.</li>
-              <li>Any special requests (early check-in, late check-out, room type) will be requested but not guaranteed.</li>
+              <li>The timing of trips and stays are subject to change depending on local conditions; any changes will be informed by the local operator.</li>
+              <li>Standard hotel check-in is at 14:00 and check-out at 12:00. Early check-in / late check-out is subject to availability.</li>
               <li>Transfers are scheduled based on flight timings; please be ready in the lobby 15 minutes before pick-up.</li>
               <li>All meal inclusions are as per the hotel's meal plan and any activity inclusions noted above.</li>
-              <li>Country guidelines may change without notice — please verify visa and entry requirements with the regulatory website of the destination country before travel.</li>
+              <li>Country guidelines may change without notice — please verify visa and entry requirements for your destination before travel.</li>
             </ul>
           </div>
         </main>
