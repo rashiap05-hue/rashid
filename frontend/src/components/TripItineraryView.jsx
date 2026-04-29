@@ -503,7 +503,7 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
     });
   }, [proposal]);
 
-  // Scroll-spy: active day
+  // Scroll-spy: active day (threshold accounts for the dual sticky headers, ~160px)
   useEffect(() => {
     const onScroll = () => {
       let nearest = 1;
@@ -511,8 +511,8 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
       Object.entries(dayRefs.current).forEach(([d, el]) => {
         if (!el) return;
         const r = el.getBoundingClientRect();
-        const delta = Math.abs(r.top - 140);
-        if (r.top < 220 && delta < nearestDelta) {
+        const delta = Math.abs(r.top - 180);
+        if (r.top < 260 && delta < nearestDelta) {
           nearestDelta = delta;
           nearest = Number(d);
         }
@@ -525,7 +525,11 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
 
   const scrollToDay = (n) => {
     const el = dayRefs.current[n];
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (el) {
+      // Scroll with offset to clear the dual sticky headers (~150px: 68 app + ~82 itinerary)
+      const top = el.getBoundingClientRect().top + window.scrollY - 160;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
   };
 
   if (loading) return <div className="p-12 text-center text-gray-500">Loading itinerary…</div>;
@@ -547,8 +551,8 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
 
   return (
     <div className="bg-gray-50 min-h-screen" data-testid="trip-itinerary-view">
-      {/* Top bar */}
-      <div className="bg-[#1f1f1f] text-white sticky top-0 z-30">
+      {/* Top bar — stickies below the global app Header (which is sticky top-0 z-50, ~68px tall) */}
+      <div className="bg-[#1f1f1f] text-white sticky top-[68px] z-40 shadow-md">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
           <button onClick={onBack} className="text-white/80 hover:text-white inline-flex items-center gap-1.5 text-sm" data-testid="itinerary-back-btn">
             <ArrowLeft size={16} /> Back
@@ -578,8 +582,8 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6">
-        {/* Left rail — one card per city */}
-        <aside className="space-y-4 lg:sticky lg:top-[120px] lg:self-start lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto pb-6">
+        {/* Left rail — one card per city; sticks below the itinerary nav (which sticks below the app header) */}
+        <aside className="space-y-4 lg:sticky lg:top-[220px] lg:self-start lg:max-h-[calc(100vh-240px)] lg:overflow-y-auto pb-6">
           {cityStays.map((cs, i) => (
             <CityCard
               key={i}
