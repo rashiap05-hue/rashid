@@ -31,6 +31,16 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
       console.error('Failed to refresh proposal', e);
     }
   };
+
+  // Always re-fetch on mount so we get the latest activity meal flags / hotel data
+  // (the parent list endpoint serves a frozen snapshot, but the single-proposal GET
+  // refreshes meals_included from the master activity records).
+  useEffect(() => {
+    if (initialProposal?.id) {
+      refreshProposal();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialProposal?.id]);
   const [activeTab, setActiveTab] = useState('itinerary');
   const [expandedDays, setExpandedDays] = useState({1: true});
   const [allExpanded, setAllExpanded] = useState(false);
