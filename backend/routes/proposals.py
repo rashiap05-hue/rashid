@@ -93,14 +93,20 @@ async def get_proposal(proposal_id: str):
                     ids.add(a["id"])
         meals_by_id = {}
         if ids:
-            async for doc in db.activities.find({"id": {"$in": list(ids)}}, {"_id": 0, "id": 1, "meals_included": 1}):
-                meals_by_id[doc["id"]] = doc.get("meals_included") or {}
+            async for doc in db.activities.find({"id": {"$in": list(ids)}}, {"_id": 0, "id": 1, "meals_included": 1, "useful_information": 1}):
+                meals_by_id[doc["id"]] = {
+                    "meals_included": doc.get("meals_included") or {},
+                    "useful_information": doc.get("useful_information") or [],
+                }
         # Apply to the snapshot
         for k, v in sel_acts.items():
             items = v if isinstance(v, list) else [v]
             for a in items:
                 if a and a.get("id") and a["id"] in meals_by_id:
-                    a["meals_included"] = meals_by_id[a["id"]]
+                    enr = meals_by_id[a["id"]]
+                    a["meals_included"] = enr["meals_included"]
+                    if enr["useful_information"]:
+                        a["useful_information"] = enr["useful_information"]
             sel_acts[k] = items if isinstance(v, list) else (items[0] if items else v)
         proposal["selected_activities"] = sel_acts
 

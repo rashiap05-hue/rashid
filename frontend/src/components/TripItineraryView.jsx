@@ -9,6 +9,8 @@ import {
   Car,
   User,
   Clock,
+  Camera,
+  Info,
 } from 'lucide-react';
 import { api } from '@/App';
 
@@ -279,74 +281,116 @@ const TransferBlock = ({ transfer, title, confirmation, defaultPickupTime }) => 
 
 const ActivityBlock = ({ activity, confirmation }) => {
   const meals = mealsFromActivity(activity);
-  const veh = activity.selectedVehicle || activity.vehicle || 'Private';
+  const veh = (activity.selectedVehicle || activity.vehicle || activity.transfer_type || 'Private').toString();
+  const isSic = veh.toLowerCase().includes('sic') || veh.toLowerCase().includes('shared') || veh.toLowerCase().includes('sharing');
+  const useful = (activity.useful_information || activity.usefulInformation || []).filter(Boolean);
   const inc = (activity.inclusions || []).filter(Boolean);
   const desc = activity.description || '';
   const parsed = parseDriverNote(confirmation?.op_note);
   const driverName = (confirmation?.driver_name || parsed?.name || '').trim();
   const driverPhone = (confirmation?.driver_phone || parsed?.phone || '').trim();
-  const hasDriverInfo = driverName || driverPhone;
-  const pickup = (confirmation?.pickup_time) || activity.pickup_time || activity.pickupTime || '';
+  const plate = (confirmation?.vehicle_plate || parsed?.plate || '').trim();
+  const hasDriverInfo = driverName || driverPhone || plate;
+  const pickup = (confirmation?.pickup_time) || activity.pickup_time || activity.pickupTime || activity.start_times?.[0] || '';
+  const pickupInfo = activity.pickup_info || activity.pickup_location || activity.meeting_point || 'Hotel - Lobby';
+  const sicLabel = veh.match(/sedan|suv|van|bus|car|coach/i)?.[0]?.toUpperCase() || (isSic ? 'SIC' : 'CAR');
 
   return (
     <>
       <TimePill time={pickup} />
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" data-testid="itinerary-activity-block">
+        {/* Header row — camera icon + activity name + PRIVATE/SIC badge */}
         <div className="px-5 py-4 flex items-start justify-between gap-3 border-b border-gray-100">
           <div className="flex items-start gap-3">
-            <Car size={18} className="text-gray-800 mt-0.5 flex-shrink-0" />
+            <Camera size={18} className="text-gray-800 mt-0.5 flex-shrink-0" />
             <span className="font-semibold text-gray-900 text-[15px] leading-snug">{activity.name}</span>
           </div>
-          <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded border text-emerald-700 bg-emerald-50 border-emerald-200 whitespace-nowrap">{veh}</span>
+          <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded border whitespace-nowrap ${
+            isSic ? 'text-orange-700 bg-orange-50 border-orange-200' : 'text-emerald-700 bg-emerald-50 border-emerald-200'
+          }`}>
+            {isSic ? 'SIC' : 'Private'}
+          </span>
         </div>
 
-        <div className="px-5 py-4 space-y-3 text-sm">
-          {activity.duration ? (
-            <div className="text-[12px] text-gray-600 inline-flex items-center gap-1.5">
-              <Clock size={12} /> Duration: <span className="font-semibold text-gray-800">{activity.duration}</span>
-            </div>
-          ) : null}
-          {(meals.breakfast || meals.lunch || meals.dinner) ? (
-            <div className="flex flex-wrap gap-2">
-              {meals.breakfast ? <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">Breakfast incl.</span> : null}
-              {meals.lunch ? <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">Lunch incl.</span> : null}
-              {meals.dinner ? <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">Dinner incl.</span> : null}
-            </div>
-          ) : null}
-          {desc ? <p className="text-[13px] text-gray-700 leading-relaxed line-clamp-3">{desc}</p> : null}
-          {inc.length > 0 ? (
-            <div>
-              <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider mb-1">Inclusions</div>
-              <ul className="text-[12.5px] text-gray-700 list-disc pl-5 space-y-0.5">
-                {inc.slice(0, 8).map((i, j) => <li key={j}>{i}</li>)}
-              </ul>
-            </div>
-          ) : null}
+        {/* Pickup info / pickup time grid */}
+        <div className="grid grid-cols-2 gap-6 px-5 py-4">
+          <div>
+            <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">Pickup Information</div>
+            <div className="text-base font-bold text-gray-900 mt-1">{pickupInfo}</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">Pickup Time</div>
+            <div className="text-base font-bold text-gray-900 mt-1">{pickup || '—'}</div>
+          </div>
         </div>
 
-        {(hasDriverInfo || confirmation?.confirmation_number) ? (
-          <div className="mx-5 mb-5">
-            {hasDriverInfo ? (
-              <div className="border border-gray-200 rounded-lg p-4 grid grid-cols-[64px_1fr_1fr] gap-4 items-center">
-                <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-gray-300">
-                  <User size={32} />
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">Guide / Driver</div>
-                  <div className="text-sm font-bold text-gray-900 mt-0.5 leading-tight">{driverName || '—'}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">Contact No</div>
-                  <div className="text-sm font-bold text-gray-900 mt-0.5">
-                    {driverPhone ? <a href={`tel:${driverPhone}`} className="text-[#0066CC]">{driverPhone}</a> : '—'}
-                  </div>
+        {/* Important info callout — dashed green border with bullet list */}
+        {useful.length > 0 ? (
+          <div className="mx-5 mb-4">
+            <div className="border-2 border-dashed border-emerald-300 bg-emerald-50/40 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <Info size={16} className="text-emerald-700 mt-0.5 flex-shrink-0" />
+                <ul className="flex-1 list-disc pl-4 space-y-2 text-[13px] text-emerald-900 leading-relaxed">
+                  {useful.slice(0, 8).map((u, i) => <li key={i}>{u}</li>)}
+                </ul>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Description + meal pills + inclusions (collapsible-style summary) */}
+        {(desc || meals.breakfast || meals.lunch || meals.dinner || inc.length > 0 || activity.duration) ? (
+          <div className="px-5 pb-4 space-y-3 text-sm">
+            {activity.duration ? (
+              <div className="text-[12px] text-gray-600 inline-flex items-center gap-1.5">
+                <Clock size={12} /> Duration: <span className="font-semibold text-gray-800">{activity.duration}</span>
+              </div>
+            ) : null}
+            {(meals.breakfast || meals.lunch || meals.dinner) ? (
+              <div className="flex flex-wrap gap-2">
+                {meals.breakfast ? <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">Breakfast incl.</span> : null}
+                {meals.lunch ? <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">Lunch incl.</span> : null}
+                {meals.dinner ? <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">Dinner incl.</span> : null}
+              </div>
+            ) : null}
+            {desc ? <p className="text-[13px] text-gray-700 leading-relaxed line-clamp-3">{desc}</p> : null}
+            {inc.length > 0 ? (
+              <div>
+                <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider mb-1">Inclusions</div>
+                <ul className="text-[12.5px] text-gray-700 list-disc pl-5 space-y-0.5">
+                  {inc.slice(0, 8).map((i, j) => <li key={j}>{i}</li>)}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* Driver / contact / vehicle block (same 4-col layout as Transfer) */}
+        {hasDriverInfo ? (
+          <div className="border-t border-gray-100">
+            <div className="px-5 py-4 grid grid-cols-[64px_1fr_1fr_1fr] gap-4 items-center">
+              <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-gray-300">
+                <User size={32} />
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">Driver</div>
+                <div className="text-sm font-bold text-gray-900 mt-0.5 leading-tight">{driverName || '—'}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">Driver Contact No</div>
+                <div className="text-sm font-bold text-gray-900 mt-0.5">
+                  {driverPhone ? <a href={`tel:${driverPhone}`} className="text-[#0066CC]">{driverPhone}</a> : '—'}
                 </div>
               </div>
-            ) : (
-              <div className="px-4 py-2 bg-emerald-50 border border-emerald-200 rounded text-[12px] text-emerald-800">
-                <span className="font-bold uppercase tracking-wider text-[10px] text-emerald-700">Confirmation:</span> {confirmation.confirmation_number}
+              <div>
+                <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider">{sicLabel.includes('CAR') ? sicLabel : `${sicLabel} CAR`}</div>
+                <div className="text-sm font-bold text-gray-900 mt-0.5">{plate || '—'}</div>
               </div>
-            )}
+            </div>
+          </div>
+        ) : confirmation?.confirmation_number ? (
+          <div className="mx-5 mb-5 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded text-[12px] text-emerald-800">
+            <span className="font-bold uppercase tracking-wider text-[10px] text-emerald-700">Confirmation:</span> {confirmation.confirmation_number}
           </div>
         ) : null}
       </div>
@@ -559,8 +603,11 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
         {/* Right rail — day sections */}
         <main className="space-y-6">
           {days.map((d, i) => {
+            // Activity key uses 1-based day number, e.g. "Bangkok_1" = activity on Day 1
+            const dayNum = i + 1;
             const cityKey = `${d.city}_${d.cityIdx}`;
-            const acts = (selectedActivities[cityKey] || []);
+            const activityKey = `${d.city}_${dayNum}`;
+            const acts = (selectedActivities[activityKey] || selectedActivities[cityKey] || []);
             const actList = Array.isArray(acts) ? acts : [acts].filter(Boolean);
 
             // Title for the day
@@ -619,7 +666,7 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
                     <ActivityBlock
                       key={j}
                       activity={a}
-                      confirmation={conf(`activity:${cityKey}#${j}`) || conf(`activity:${cityKey}`)}
+                      confirmation={conf(`activity:${activityKey}#${j}`) || conf(`activity:${activityKey}`) || conf(`activity:${cityKey}#${j}`) || conf(`activity:${cityKey}`)}
                     />
                   )) : null}
                   {d.isDeparture ? (
