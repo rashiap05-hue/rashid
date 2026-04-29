@@ -24,6 +24,13 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
   const [tripTasks, setTripTasks] = useState([]);
   const [activeTask, setActiveTask] = useState(null);
 
+  // Read current logged-in user from localStorage (App.js writes 'travo_user')
+  const currentUser = (() => {
+    try { return JSON.parse(localStorage.getItem('travo_user') || 'null'); }
+    catch { return null; }
+  })();
+  const isAdmin = currentUser?.role === 'admin';
+
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const DAYS = Array.from({length: 31}, (_, i) => i + 1);
   const YEARS = Array.from({length: 80}, (_, i) => new Date().getFullYear() - i);
@@ -34,7 +41,14 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
     try {
       const res = await api.get(`/held-bookings/${bookingId}`);
       setData(res.data);
-      const adults = res.data.booking?.adults || 1;
+      // Compute total travelers from proposal.room_data (sum of adults across rooms),
+      // falling back to booking.adults / 1 if not set.
+      const proposal = res.data.proposal || {};
+      const roomData = Array.isArray(proposal.room_data) ? proposal.room_data : [];
+      const totalAdults = roomData.length
+        ? roomData.reduce((s, r) => s + (Number(r.adults) || 0), 0)
+        : (res.data.booking?.adults || 1);
+      const adults = Math.max(1, totalAdults);
       const existing = res.data.booking?.travelers || [];
       const t = [];
       for (let i = 0; i < adults; i++) {
@@ -699,74 +713,94 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
           })()}
 
           {/* Traveler Details */}
+          {(() => {
+            const paidStatuses = ['payment_received', 'paid', 'confirmed', 'completed'];
+            const isPaid = paidStatuses.includes(booking.status);
+            const fieldsLocked = isPaid && !isAdmin;
+            const lockedClass = fieldsLocked ? 'opacity-70 cursor-not-allowed bg-gray-50' : '';
+            return (
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid="traveler-details-section">
-            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between gap-3">
               <h2 className="font-bold text-gray-800 flex items-center gap-2"><Users size={18} /> Traveler Details</h2>
+              {fieldsLocked && (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-700 bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-full" data-testid="traveler-fields-locked">
+                  <Shield size={12} /> Locked — admin only
+                </span>
+              )}
             </div>
             <div className="px-6 py-5">
-              <p className="text-xs text-gray-500 mb-5">Please ensure all traveler information matches passport exactly.</p>
+              <p className="text-xs text-gray-500 mb-1">Please ensure all traveler information matches passport exactly.</p>
+              {fieldsLocked && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-4" data-testid="traveler-locked-banner">
+                  Payment received. Traveler details are read-only — only an administrator can edit after payment to prevent accidental changes to confirmed bookings.
+                </p>
+              )}
               {travelers.map((t, idx) => (
                 <div key={idx} className="mb-6 pb-6 border-b border-gray-100 last:border-0 last:mb-0 last:pb-0" data-testid={`traveler-form-${idx}`}>
                   <p className="text-sm font-bold text-gray-700 mb-3">Traveler {idx + 1}</p>
                   <div className="grid grid-cols-4 gap-3 mb-3">
                     <div>
                       <label className="text-[10px] font-bold text-gray-500 uppercase">Title</label>
-                      <select value={t.title} onChange={e => updateTraveler(idx, 'title', e.target.value)} className="mt-1 w-full border border-gray-300 rounded-lg px-2 py-2 text-sm">
+                      <select disabled={fieldsLocked} value={t.title} onChange={e => updateTraveler(idx, 'title', e.target.value)} className={`mt-1 w-full border border-gray-300 rounded-lg px-2 py-2 text-sm ${lockedClass}`}>
                         <option value="">Select</option>
                         <option value="Mr">Mr</option><option value="Mrs">Mrs</option><option value="Ms">Ms</option><option value="Miss">Miss</option>
                       </select>
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-gray-500 uppercase">First Name</label>
-                      <input type="text" value={t.firstName} onChange={e => updateTraveler(idx, 'firstName', e.target.value)} className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                      <input disabled={fieldsLocked} type="text" value={t.firstName} onChange={e => updateTraveler(idx, 'firstName', e.target.value)} className={`mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm ${lockedClass}`} />
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-gray-500 uppercase">Last Name</label>
-                      <input type="text" value={t.lastName} onChange={e => updateTraveler(idx, 'lastName', e.target.value)} className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                      <input disabled={fieldsLocked} type="text" value={t.lastName} onChange={e => updateTraveler(idx, 'lastName', e.target.value)} className={`mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm ${lockedClass}`} />
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-gray-500 uppercase">Nationality</label>
-                      <input type="text" value={t.nationality} onChange={e => updateTraveler(idx, 'nationality', e.target.value)} className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="e.g. Indian" />
+                      <input disabled={fieldsLocked} type="text" value={t.nationality} onChange={e => updateTraveler(idx, 'nationality', e.target.value)} className={`mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm ${lockedClass}`} placeholder="e.g. Indian" />
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-3 mb-3">
                     <div>
                       <label className="text-[10px] font-bold text-gray-500 uppercase">Date of Birth</label>
                       <div className="flex gap-1 mt-1">
-                        <select value={t.dobDay} onChange={e => updateTraveler(idx, 'dobDay', e.target.value)} className="flex-1 border border-gray-300 rounded px-1 py-2 text-sm"><option value="">Day</option>{DAYS.map(d => <option key={d} value={String(d)}>{d}</option>)}</select>
-                        <select value={t.dobMonth} onChange={e => updateTraveler(idx, 'dobMonth', e.target.value)} className="flex-1 border border-gray-300 rounded px-1 py-2 text-sm"><option value="">Mon</option>{MONTHS.map((m,i) => <option key={m} value={String(i+1)}>{m}</option>)}</select>
-                        <select value={t.dobYear} onChange={e => updateTraveler(idx, 'dobYear', e.target.value)} className="flex-1 border border-gray-300 rounded px-1 py-2 text-sm"><option value="">Year</option>{YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}</select>
+                        <select disabled={fieldsLocked} value={t.dobDay} onChange={e => updateTraveler(idx, 'dobDay', e.target.value)} className={`flex-1 border border-gray-300 rounded px-1 py-2 text-sm ${lockedClass}`}><option value="">Day</option>{DAYS.map(d => <option key={d} value={String(d)}>{d}</option>)}</select>
+                        <select disabled={fieldsLocked} value={t.dobMonth} onChange={e => updateTraveler(idx, 'dobMonth', e.target.value)} className={`flex-1 border border-gray-300 rounded px-1 py-2 text-sm ${lockedClass}`}><option value="">Mon</option>{MONTHS.map((m,i) => <option key={m} value={String(i+1)}>{m}</option>)}</select>
+                        <select disabled={fieldsLocked} value={t.dobYear} onChange={e => updateTraveler(idx, 'dobYear', e.target.value)} className={`flex-1 border border-gray-300 rounded px-1 py-2 text-sm ${lockedClass}`}><option value="">Year</option>{YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}</select>
                       </div>
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-gray-500 uppercase">Passport Number</label>
-                      <input type="text" value={t.passportNumber} onChange={e => updateTraveler(idx, 'passportNumber', e.target.value)} className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                      <input disabled={fieldsLocked} type="text" value={t.passportNumber} onChange={e => updateTraveler(idx, 'passportNumber', e.target.value)} className={`mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm ${lockedClass}`} />
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-gray-500 uppercase">Passport Expiry</label>
                       <div className="flex gap-1 mt-1">
-                        <select value={t.expiryDay} onChange={e => updateTraveler(idx, 'expiryDay', e.target.value)} className="flex-1 border border-gray-300 rounded px-1 py-2 text-sm"><option value="">Day</option>{DAYS.map(d => <option key={d} value={String(d)}>{d}</option>)}</select>
-                        <select value={t.expiryMonth} onChange={e => updateTraveler(idx, 'expiryMonth', e.target.value)} className="flex-1 border border-gray-300 rounded px-1 py-2 text-sm"><option value="">Mon</option>{MONTHS.map((m,i) => <option key={m} value={String(i+1)}>{m}</option>)}</select>
-                        <select value={t.expiryYear} onChange={e => updateTraveler(idx, 'expiryYear', e.target.value)} className="flex-1 border border-gray-300 rounded px-1 py-2 text-sm"><option value="">Year</option>{EXPIRY_YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}</select>
+                        <select disabled={fieldsLocked} value={t.expiryDay} onChange={e => updateTraveler(idx, 'expiryDay', e.target.value)} className={`flex-1 border border-gray-300 rounded px-1 py-2 text-sm ${lockedClass}`}><option value="">Day</option>{DAYS.map(d => <option key={d} value={String(d)}>{d}</option>)}</select>
+                        <select disabled={fieldsLocked} value={t.expiryMonth} onChange={e => updateTraveler(idx, 'expiryMonth', e.target.value)} className={`flex-1 border border-gray-300 rounded px-1 py-2 text-sm ${lockedClass}`}><option value="">Mon</option>{MONTHS.map((m,i) => <option key={m} value={String(i+1)}>{m}</option>)}</select>
+                        <select disabled={fieldsLocked} value={t.expiryYear} onChange={e => updateTraveler(idx, 'expiryYear', e.target.value)} className={`flex-1 border border-gray-300 rounded px-1 py-2 text-sm ${lockedClass}`}><option value="">Year</option>{EXPIRY_YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}</select>
                       </div>
                     </div>
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-gray-500 uppercase">Upload Documents</label>
-                    <label className="mt-1 flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 text-sm text-gray-400">
+                    <label className={`mt-1 flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-400 ${fieldsLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-gray-50'}`}>
                       <Upload size={14} /> Upload passport copy
-                      <input type="file" className="hidden" accept="image/*,.pdf" />
+                      <input type="file" className="hidden" accept="image/*,.pdf" disabled={fieldsLocked} />
                     </label>
                   </div>
                 </div>
               ))}
-              <div className="flex justify-end mt-4">
-                <button onClick={saveTravelers} disabled={savingTravelers} className="px-6 py-2.5 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-lg text-sm disabled:opacity-50" data-testid="save-travelers-btn">
-                  {savingTravelers ? 'SAVING...' : 'SAVE TRAVELER INFORMATION'}
-                </button>
-              </div>
+              {!fieldsLocked && (
+                <div className="flex justify-end mt-4">
+                  <button onClick={saveTravelers} disabled={savingTravelers} className="px-6 py-2.5 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-lg text-sm disabled:opacity-50" data-testid="save-travelers-btn">
+                    {savingTravelers ? 'SAVING...' : 'SAVE TRAVELER INFORMATION'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
+            );
+          })()}
 
           {/* Trip Documents */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid="trip-documents-section">

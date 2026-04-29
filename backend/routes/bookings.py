@@ -207,6 +207,15 @@ async def update_booking_travelers(booking_id: str, body: dict, current_user: di
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
 
+    # After payment is received, only admins can edit traveler details to prevent
+    # accidental changes to confirmed bookings.
+    paid_statuses = ("payment_received", "paid", "confirmed", "completed")
+    if booking.get("status") in paid_statuses and current_user.get("role") != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Traveler details are locked after payment. Please contact an administrator to edit."
+        )
+
     travelers = body.get("travelers", [])
     await db.held_bookings.update_one(
         {"id": booking_id},
