@@ -1293,7 +1293,46 @@ async def generate_proposal_pdf(proposal_id: str, current_user: dict = Depends(g
         enriched_hotels[key] = merged
     proposal["selected_hotels"] = enriched_hotels
 
-    terms = await db.terms_policies.find({}, {"_id": 0}).to_list(50)
+    # ---- Resolve trip countries from proposal cities, then filter terms accordingly ----
+    proposal_cities = proposal.get("cities", []) or []
+    city_names = [
+        (c.get("name") if isinstance(c, dict) else c)
+        for c in proposal_cities
+        if c
+    ]
+    # First: take any country directly set on the proposal city object
+    trip_countries = set()
+    for c in proposal_cities:
+        if isinstance(c, dict):
+            cn = (c.get("country") or "").strip()
+            if cn:
+                trip_countries.add(cn)
+    # Then look up cities collection for any city whose country wasn't on the proposal (case-insensitive)
+    if city_names:
+        # Build case-insensitive regex set so that "Dubai" matches city record "DUBAI"
+        regexes = [{"name": {"$regex": f"^{re.escape(n)}$", "$options": "i"}} for n in city_names if n]
+        if regexes:
+            async for cdoc in db.cities.find({"$or": regexes}, {"_id": 0, "name": 1, "country": 1}):
+                cn = (cdoc.get("country") or "").strip()
+                if cn:
+                    trip_countries.add(cn)
+
+    # Pull all terms, then filter: keep generic (no country / applies_to=all) OR terms matching trip countries
+    all_terms = await db.terms_policies.find({"is_active": {"$ne": False}}, {"_id": 0}).to_list(200)
+    trip_countries_lower = {c.lower() for c in trip_countries}
+
+    def _is_relevant(t: dict) -> bool:
+        applies = (t.get("applies_to") or "all").lower()
+        country = (t.get("country") or "").strip()
+        # Generic / "all" terms always included
+        if applies == "all" or not country:
+            return True
+        # Country-specific: include only if its country matches one of the trip countries
+        return country.lower() in trip_countries_lower
+
+    terms = [t for t in all_terms if _is_relevant(t)]
+    # Preserve ordering by `order` field if present
+    terms.sort(key=lambda t: (t.get("order") if isinstance(t.get("order"), (int, float)) else 999))
 
     expert = None
     expert_id = proposal.get("assigned_expert_id")
