@@ -581,7 +581,9 @@ export default function ActivityEditForm({ activity, onSave, onClose, isNew = fa
       bus_55: { selling_price: 0, supplier_cost: 0 }
     },
     // Purchasable extras
-    extras: activity?.extras || []
+    extras: activity?.extras || [],
+    // Meal inclusions (Breakfast / Lunch / Dinner)
+    meals_included: activity?.meals_included || { breakfast: false, lunch: false, dinner: false }
   });
 
   const handleFieldChange = useCallback((field, value) => {
@@ -929,6 +931,39 @@ Example:
                   placeholder="Add exclusion (e.g., Lunch, Tips)"
                   label="Exclusions (What's Not Included)"
                 />
+
+                {/* Meals Included */}
+                <div data-testid="activity-meals-included-section">
+                  <label className="block text-sm font-bold text-gray-600 mb-2">Meals Included</label>
+                  <p className="text-xs text-gray-500 mb-3">Tick the meals that are part of this activity. The Trip Builder day card and the proposal PDF will count these.</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { key: 'breakfast', label: 'Breakfast', emoji: '🥐' },
+                      { key: 'lunch', label: 'Lunch', emoji: '🍽️' },
+                      { key: 'dinner', label: 'Dinner', emoji: '🌙' },
+                    ].map((m) => {
+                      const checked = !!formData.meals_included?.[m.key];
+                      return (
+                        <button
+                          key={m.key}
+                          type="button"
+                          onClick={() => handleFieldChange('meals_included', { ...formData.meals_included, [m.key]: !checked })}
+                          data-testid={`activity-meal-${m.key}-toggle`}
+                          className={cn(
+                            "flex items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all text-sm font-semibold",
+                            checked
+                              ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                              : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                          )}
+                        >
+                          <span className="text-lg">{m.emoji}</span>
+                          <span className="flex-1 text-left">{m.label}</span>
+                          {checked && <Check size={16} className="text-emerald-600" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
                 <div>
                   <label className="block text-sm font-bold text-gray-600 mb-1">Cancellation Policy</label>

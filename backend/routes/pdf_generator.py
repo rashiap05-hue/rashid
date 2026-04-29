@@ -362,6 +362,10 @@ def render_item(it):
     img_url = activity_image(data)
 
     has_meal = bool(data.get("meal_included") or data.get("includes_meal") or any("lunch" in str(i).lower() or "meal" in str(i).lower() or "breakfast" in str(i).lower() for i in inclusions))
+    # Structured meals_included field
+    meals_struct = data.get("meals_included") or {}
+    if meals_struct.get("breakfast") or meals_struct.get("lunch") or meals_struct.get("dinner"):
+        has_meal = True
     has_ticket = bool(data.get("ticket_included") or data.get("includes_ticket") or any("ticket" in str(i).lower() or "entrance" in str(i).lower() for i in inclusions))
     has_transfer = bool(any("transfer" in str(i).lower() or "transport" in str(i).lower() or "pickup" in str(i).lower() for i in inclusions))
     tags = ['<span class="tag tag-violet">Activity</span>']
@@ -574,15 +578,17 @@ def section_inclusions_exclusions(proposal):
                 if isinstance(inclusions_list, str):
                     inclusions_list = [i.strip() for i in inclusions_list.split(",") if i.strip()]
 
-                # Check meals from inclusions
+                # Check meals from inclusions text (legacy fallback)
                 inc_lower = " ".join(str(i).lower() for i in inclusions_list)
-                if "breakfast" in inc_lower:
+                # Structured meals_included field (preferred)
+                act_meals = a.get("meals_included") or {}
+                if act_meals.get("breakfast") or "breakfast" in inc_lower:
                     has_breakfast = True
                     breakfast_count += 1
-                if "lunch" in inc_lower:
+                if act_meals.get("lunch") or "lunch" in inc_lower:
                     has_lunch = True
                     lunch_count += 1
-                if "dinner" in inc_lower:
+                if act_meals.get("dinner") or "dinner" in inc_lower:
                     has_dinner = True
                     dinner_count += 1
 

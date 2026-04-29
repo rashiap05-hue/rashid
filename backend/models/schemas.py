@@ -300,6 +300,7 @@ class ActivityCreate(BaseModel):
     review_count: int = 0
     vehicle_pricing: Optional[dict] = None
     extras: Optional[List[ActivityExtra]] = []
+    meals_included: Optional[Dict[str, bool]] = None  # {breakfast: bool, lunch: bool, dinner: bool}
 
 class ChatMessage(BaseModel):
     message: str

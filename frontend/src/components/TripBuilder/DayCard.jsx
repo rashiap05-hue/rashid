@@ -285,27 +285,58 @@ function DayCard({
                 </div>
               )}
 
-              {/* Meals Section */}
-              <div className={`grid ${isFirst ? 'grid-cols-2' : (isDeparture ? 'grid-cols-1' : 'grid-cols-3')} gap-3`}>
-                {!isFirst && (
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                    <Sun className="text-yellow-500" size={16} />
-                    <span className="text-sm text-gray-600">Breakfast: {hotel || isDeparture ? 'Included' : 'Not included'}</span>
+              {/* Meals Section - rolled up from hotel breakfast + selected activities' meals_included */}
+              {(() => {
+                // Hotel meal plan parsing for breakfast inclusion
+                const sel = hotel?.selected_room || hotel?.selectedRoom || {};
+                const rp = sel.rate_plan || sel.ratePlan || {};
+                const mp = String(
+                  rp.meal_plan || rp.mealPlan || sel.meal_plan || sel.mealPlan || sel.meals || hotel?.meal_plan || ''
+                ).toLowerCase();
+                const isBB = mp.includes('breakfast') || mp === 'bb' || mp.endsWith('bb') || mp.startsWith('bb ');
+                const isHB = mp.includes('half board') || mp === 'hb';
+                const isFB = mp.includes('full board') || mp === 'fb';
+                const isAI = mp.includes('all inclusive') || mp.includes('all-inclusive') || mp === 'ai';
+
+                let breakfast = isBB || isHB || isFB || isAI;
+                let lunch = mp.includes('lunch') || isFB || isAI;
+                let dinner = mp.includes('dinner') || isHB || isFB || isAI;
+
+                // Activities can also include meals
+                (activities || []).forEach((a) => {
+                  if (a?.meals_included?.breakfast) breakfast = true;
+                  if (a?.meals_included?.lunch) lunch = true;
+                  if (a?.meals_included?.dinner) dinner = true;
+                });
+
+                // For first day & departure days the original logic still applies
+                const showBreakfast = !isFirst;
+                const showLunchDinner = !isDeparture;
+                const breakfastTxt = breakfast ? 'Included' : 'Not included';
+
+                return (
+                  <div className={`grid ${isFirst ? 'grid-cols-2' : (isDeparture ? 'grid-cols-1' : 'grid-cols-3')} gap-3`}>
+                    {showBreakfast && (
+                      <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg" data-testid="day-meal-breakfast">
+                        <Sun className={breakfast ? "text-yellow-500" : "text-gray-400"} size={16} />
+                        <span className="text-sm text-gray-600">Breakfast: {breakfastTxt}</span>
+                      </div>
+                    )}
+                    {showLunchDinner && (
+                      <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg" data-testid="day-meal-lunch">
+                        <Utensils className={lunch ? "text-emerald-500" : "text-gray-400"} size={16} />
+                        <span className="text-sm text-gray-600">Lunch: {lunch ? 'Included' : 'Not included'}</span>
+                      </div>
+                    )}
+                    {showLunchDinner && (
+                      <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg" data-testid="day-meal-dinner">
+                        <Moon className={dinner ? "text-purple-500" : "text-gray-400"} size={16} />
+                        <span className="text-sm text-gray-600">Dinner: {dinner ? 'Included' : 'Not included'}</span>
+                      </div>
+                    )}
                   </div>
-                )}
-                {!isDeparture && (
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                    <Utensils className="text-orange-500" size={16} />
-                    <span className="text-sm text-gray-600">Lunch: Not included</span>
-                  </div>
-                )}
-                {!isDeparture && (
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                    <Moon className="text-purple-500" size={16} />
-                    <span className="text-sm text-gray-600">Dinner: Not included</span>
-                  </div>
-                )}
-              </div>
+                );
+              })()}
 
               {/* Activities */}
               {activities?.length > 0 && (
