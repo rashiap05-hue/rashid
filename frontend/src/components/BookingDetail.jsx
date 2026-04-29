@@ -451,6 +451,10 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
               || sel_room.meals
               || hotel.meal_plan
               || 'Room Only';
+            // Per-service confirmation lookup (new flow stores it on booking.service_confirmations)
+            const svcConf = (booking.service_confirmations || {})[`hotel:${key}`] || {};
+            const confirmationNumber = svcConf.confirmation_number || hotel.confirmation_code || hotel.confirmation_number || '';
+            const confirmationStatus = svcConf.status;
             const hotelImg = (hotel.images && hotel.images[0]) || hotel.image;
             return (
               <div key={key} className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid={`hotel-card-${key}`}>
@@ -479,7 +483,12 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
                     <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
                       <div><p className="text-xs text-gray-500">Meals</p><p className="font-medium">{mealPlan}</p></div>
                       <div><p className="text-xs text-gray-500">Nights</p><p className="font-medium">{cityNights || '—'}</p></div>
-                      <div><p className="text-xs text-gray-500">Confirmation</p><p className="font-medium text-[#0066CC]">{hotel.confirmation_code || 'Pending'}</p></div>
+                      <div>
+                        <p className="text-xs text-gray-500">Confirmation</p>
+                        <p className={`font-medium ${confirmationStatus === 'rejected' ? 'text-red-600' : 'text-[#0066CC]'}`}>
+                          {confirmationStatus === 'rejected' ? 'Rejected' : (confirmationNumber || 'Pending')}
+                        </p>
+                      </div>
                     </div>
                     <div className="flex items-center gap-4 mt-3">
                       <button className="px-3 py-1 border border-gray-300 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 flex items-center gap-1" data-testid={`download-voucher-${key}`}>
