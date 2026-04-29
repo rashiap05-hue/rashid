@@ -104,10 +104,6 @@ export default function SupplierDashboard({ user, onBack }) {
   const [bookings, setBookings] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [actionModal, setActionModal] = useState({ open: false, booking: null, type: null });
-  const [actionNote, setActionNote] = useState('');
-  const [actionConfirmNumber, setActionConfirmNumber] = useState('');
-  const [actionLoading, setActionLoading] = useState(false);
   const [detailBooking, setDetailBooking] = useState(null);
   const [serviceView, setServiceView] = useState({ kind: null, booking: null, row: null });
 
@@ -128,41 +124,10 @@ export default function SupplierDashboard({ user, onBack }) {
 
   useEffect(() => { fetchData(); }, []);
 
-  const handleConfirm = async () => {
-    if (!actionModal.booking) return;
-    if (!actionConfirmNumber.trim()) {
-      alert('Confirmation number is required to confirm a booking');
-      return;
-    }
-    setActionLoading(true);
-    try {
-      await api.post(`/supplier/bookings/${actionModal.booking.id}/confirm`, {
-        confirmation_number: actionConfirmNumber.trim(),
-        note: actionNote,
-      });
-      setActionModal({ open: false, booking: null, type: null });
-      setActionNote('');
-      setActionConfirmNumber('');
-      fetchData();
-    } catch (e) {
-      alert(e.response?.data?.detail || 'Failed to confirm');
-    }
-    setActionLoading(false);
-  };
-
-  const handleReject = async () => {
-    if (!actionModal.booking || !actionNote.trim()) return;
-    setActionLoading(true);
-    try {
-      await api.post(`/supplier/bookings/${actionModal.booking.id}/reject`, { reason: actionNote });
-      setActionModal({ open: false, booking: null, type: null });
-      setActionNote('');
-      fetchData();
-    } catch (e) {
-      alert(e.response?.data?.detail || 'Failed to reject');
-    }
-    setActionLoading(false);
-  };
+  const handleConfirm = async () => { /* legacy — booking-level confirmations replaced by per-service flow */ };
+  const handleReject = async () => { /* legacy — booking-level rejections replaced by per-service flow */ };
+  // Suppress unused-var warnings (kept as no-ops to avoid breaking any external callers)
+  void handleConfirm; void handleReject;
 
   const filtered = bookings.filter(b => {
     if (statusFilter !== 'all' && b.supplier_status !== statusFilter) return false;
@@ -367,6 +332,37 @@ export default function SupplierDashboard({ user, onBack }) {
                             {booking.supplier_rejection_reason && (
                               <p className="text-xs text-red-600 mt-2">Rejection: {booking.supplier_rejection_reason}</p>
                             )}
+
+                            {/* Per-service progress (X / Y services confirmed) */}
+                            {(() => {
+                              const sc = booking.service_confirmations || {};
+                              const totalServices =
+                                extractHotels([booking]).length
+                                + extractTransfers([booking]).length
+                                + extractActivities([booking]).length
+                                + extractFlights([booking]).length;
+                              if (!totalServices) return null;
+                              const confirmedCount = Object.values(sc).filter(s => s?.status === 'confirmed').length;
+                              const rejectedCount = Object.values(sc).filter(s => s?.status === 'rejected').length;
+                              const pct = Math.round((confirmedCount / totalServices) * 100);
+                              return (
+                                <div className="mt-3" data-testid={`booking-progress-${booking.id}`}>
+                                  <div className="flex items-center justify-between text-[11px] mb-1">
+                                    <span className="font-bold text-gray-700">
+                                      {confirmedCount} / {totalServices} services confirmed
+                                      {rejectedCount > 0 && <span className="text-red-600 ml-2">· {rejectedCount} rejected</span>}
+                                    </span>
+                                    <span className="text-gray-500">{pct}%</span>
+                                  </div>
+                                  <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                    <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+                                  </div>
+                                  <p className="text-[10px] text-gray-500 mt-1">
+                                    Status auto-rolls up when all services are confirmed via the per-service tabs above.
+                                  </p>
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           {/* Right: Actions */}
@@ -376,20 +372,6 @@ export default function SupplierDashboard({ user, onBack }) {
                               data-testid={`view-booking-${booking.id}`}>
                               <Eye size={14} /> Details
                             </button>
-                            {(!booking.supplier_status || booking.supplier_status === 'pending') && (
-                              <>
-                                <button onClick={() => { setActionModal({ open: true, booking, type: 'confirm' }); setActionNote(''); }}
-                                  className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
-                                  data-testid={`confirm-booking-${booking.id}`}>
-                                  <CheckCircle size={14} /> Confirm
-                                </button>
-                                <button onClick={() => { setActionModal({ open: true, booking, type: 'reject' }); setActionNote(''); }}
-                                  className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
-                                  data-testid={`reject-booking-${booking.id}`}>
-                                  <XCircle size={14} /> Reject
-                                </button>
-                              </>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -448,65 +430,6 @@ export default function SupplierDashboard({ user, onBack }) {
         guestsFallback={serviceView.row?.guests}
         testIdPrefix={`${serviceView.kind || 'service'}-view`}
       />
-
-      {/* Confirm/Reject Modal */}
-      <AnimatePresence>
-        {actionModal.open && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setActionModal({ open: false, booking: null, type: null })} />
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="relative bg-white rounded-xl shadow-2xl w-full max-w-md" data-testid="action-modal">
-              <div className={cn("px-6 py-4 rounded-t-xl text-white", actionModal.type === 'confirm' ? 'bg-green-600' : 'bg-red-600')}>
-                <h3 className="text-lg font-bold">{actionModal.type === 'confirm' ? 'Confirm Booking' : 'Reject Booking'}</h3>
-                <p className="text-sm text-white/80">{actionModal.booking?.proposal?.proposal_name}</p>
-              </div>
-              <div className="p-6 space-y-4">
-                {actionModal.type === 'confirm' && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Confirmation Number <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      value={actionConfirmNumber}
-                      onChange={(e) => setActionConfirmNumber(e.target.value)}
-                      placeholder="e.g. HX12345 / hotel PNR"
-                      className="mt-2 w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                      data-testid="action-confirm-number"
-                      autoFocus
-                    />
-                  </div>
-                )}
-                <div>
-                  <label className="text-sm font-medium text-gray-700">
-                    {actionModal.type === 'confirm' ? 'Note (optional)' : 'Reason for rejection *'}
-                  </label>
-                  <textarea value={actionNote} onChange={e => setActionNote(e.target.value)}
-                    placeholder={actionModal.type === 'confirm' ? 'Add a note...' : 'Please provide a reason...'}
-                    className="mt-2 w-full border border-gray-300 rounded-lg px-4 py-3 text-sm resize-none h-24 focus:ring-2 focus:ring-[#002B5B] focus:border-transparent"
-                    data-testid="action-note-input" />
-                </div>
-                <div className="flex gap-3 mt-1">
-                  <button onClick={() => { setActionModal({ open: false, booking: null, type: null }); setActionConfirmNumber(''); setActionNote(''); }}
-                    className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50">
-                    Cancel
-                  </button>
-                  <button
-                    onClick={actionModal.type === 'confirm' ? handleConfirm : handleReject}
-                    disabled={actionLoading
-                      || (actionModal.type === 'reject' && !actionNote.trim())
-                      || (actionModal.type === 'confirm' && !actionConfirmNumber.trim())}
-                    className={cn("flex-1 px-4 py-2.5 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50",
-                      actionModal.type === 'confirm' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
-                    )} data-testid="action-submit-btn">
-                    {actionLoading && <Loader2 size={14} className="animate-spin" />}
-                    {actionModal.type === 'confirm' ? 'Confirm' : 'Reject'}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Booking Detail Modal */}
       <AnimatePresence>
