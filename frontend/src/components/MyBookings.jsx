@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '@/App';
-import { ArrowUpDown, Search, Calendar } from 'lucide-react';
+import { ArrowUpDown, Search, Calendar, Trash2, Loader2 } from 'lucide-react';
 import { BookingStatusTrackerMini } from './BookingStatusTracker';
 import { useCurrency } from '@/CurrencyContext';
 
@@ -8,6 +8,15 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
   const { format } = useCurrency();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState(null); // booking object or null
+  const [deleting, setDeleting] = useState(false);
+
+  // Read current user from localStorage to gate the delete column
+  const currentUser = (() => {
+    try { return JSON.parse(localStorage.getItem('travo_user') || 'null'); }
+    catch { return null; }
+  })();
+  const isAdmin = currentUser?.role === 'admin';
 
   // Filters
   const [dateFrom, setDateFrom] = useState('');
@@ -159,7 +168,7 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
   // Build booking rows array (avoids inline conditional that triggers visual-editor span injection)
   const bookingRows = filtered.length === 0
     ? [
-        <tr key="__empty__"><td colSpan={12} className="text-center py-12 text-gray-400">No bookings found</td></tr>
+        <tr key="__empty__"><td colSpan={isAdmin ? 13 : 12} className="text-center py-12 text-gray-400">No bookings found</td></tr>
       ]
     : filtered.map((b, idx) => (
         <tr key={b.id} className="border-b border-gray-50 hover:bg-gray-50/50 cursor-pointer" onClick={() => onViewBooking?.(b.id)} data-testid={`booking-row-${b.id}`}>
@@ -203,8 +212,35 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
           <td className="px-4 py-4">
             <BookingStatusTrackerMini status={b.status} />
           </td>
+          {isAdmin && (
+            <td className="px-4 py-4 text-center">
+              <button
+                onClick={(e) => { e.stopPropagation(); setDeleteTarget(b); }}
+                className="inline-flex items-center justify-center w-8 h-8 rounded-md text-red-500 hover:text-white hover:bg-red-600 border border-red-200 hover:border-red-600 transition-colors"
+                data-testid={`delete-booking-${b.id}`}
+                title="Delete booking (admin only)"
+                aria-label="Delete booking"
+              >
+                <Trash2 size={14} />
+              </button>
+            </td>
+          )}
         </tr>
       ));
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/bookings/${deleteTarget.id}`);
+      setBookings(prev => prev.filter(x => x.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (e) {
+      alert(e?.response?.data?.detail || 'Failed to delete booking');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="max-w-full mx-auto px-3 md:px-6 py-4 md:py-8" data-testid="my-bookings-page">
@@ -267,6 +303,7 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
                 <SortHeader label="Total Amount" field="total_price" />
                 <th className="text-left px-4 py-3 font-bold text-gray-700 text-xs whitespace-nowrap">Pending Amount</th>
                 <th className="text-left px-4 py-3 font-bold text-gray-700 text-xs whitespace-nowrap">Progress</th>
+                {isAdmin && <th className="text-center px-4 py-3 font-bold text-gray-700 text-xs whitespace-nowrap">Actions</th>}
               </tr>
               {/* Filter Row */}
               <tr className="border-b border-gray-100 bg-white">
@@ -294,11 +331,53 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
                 <td className="px-4 py-2"><input type="text" value={colDest} onChange={e => setColDest(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1 text-xs" data-testid="col-filter-dest" /></td>
                 <td className="px-4 py-2" />
                 <td className="px-4 py-2" />
-                <td className="px-4 py-2" />
+                {isAdmin && <td className="px-4 py-2" />}
               </tr>
             </thead>
             <tbody>{bookingRows}</tbody>
           </table>
+        </div>
+      )}
+
+      {/* Delete confirmation modal (admin only) */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4"
+          onMouseDown={(e) => { if (e.target === e.currentTarget && !deleting) setDeleteTarget(null); }}
+          data-testid="delete-booking-modal"
+        >
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0 text-red-600">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Delete this booking?</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Booking <span className="font-mono font-bold">{getShortRef(deleteTarget.id)}</span> for <span className="font-bold">{deleteTarget.customer_name || 'this customer'}</span> will be permanently removed, including all change requests and notifications. This cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+                data-testid="delete-booking-cancel"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold flex items-center gap-1.5 disabled:opacity-60"
+                data-testid="delete-booking-confirm"
+              >
+                {deleting && <Loader2 size={14} className="animate-spin" />}
+                {deleting ? 'Deleting...' : 'Delete booking'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

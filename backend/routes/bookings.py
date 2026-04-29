@@ -160,10 +160,12 @@ async def get_booking(booking_id: str, current_user: dict = Depends(get_current_
 @router.get("/held-bookings")
 async def get_held_bookings(current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id") or current_user.get("user_id")
+    # Admins see ALL bookings so they can manage / delete from MyBookings
+    query = {} if current_user.get("role") == "admin" else {"created_by": user_id}
     bookings = await db.held_bookings.find(
-        {"created_by": user_id},
+        query,
         {"_id": 0}
-    ).sort("held_at", -1).to_list(100)
+    ).sort("held_at", -1).to_list(200)
     return bookings
 
 
@@ -303,3 +305,28 @@ async def admin_list_all_bookings(current_user: dict = Depends(get_current_user)
         {"_id": 0}
     ).sort("held_at", -1).to_list(200)
     return bookings
+
+
+@router.delete("/bookings/{booking_id}")
+async def delete_booking(booking_id: str, current_user: dict = Depends(get_current_user)):
+    """Admin-only: remove a booking from both `held_bookings` and `bookings` collections."""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can delete bookings")
+
+    held = await db.held_bookings.find_one({"id": booking_id}, {"_id": 0})
+    main = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not held and not main:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    held_res = await db.held_bookings.delete_one({"id": booking_id})
+    main_res = await db.bookings.delete_one({"id": booking_id})
+
+    # Cascade: clean up dependent records
+    await db.trip_change_requests.delete_many({"booking_id": booking_id})
+    await db.notifications.delete_many({"booking_id": booking_id})
+
+    return {
+        "success": True,
+        "deleted_from_held_bookings": held_res.deleted_count,
+        "deleted_from_bookings": main_res.deleted_count,
+    }
