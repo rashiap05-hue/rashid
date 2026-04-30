@@ -4,7 +4,7 @@ import { X, Search, Loader2, Check, Compass } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
 
-function ActivitiesModal({ isOpen, onClose, city, dayNumber, startDate, onSelectActivity, selectedActivities = [] }) {
+function ActivitiesModal({ isOpen, onClose, city, dayNumber, startDate, onSelectActivity, selectedActivities = [], otherDayActivityMap = {} }) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -204,6 +204,15 @@ function ActivitiesModal({ isOpen, onClose, city, dayNumber, startDate, onSelect
                         )}
                         data-testid={`activity-option-${activity.id}`}
                       >
+                        {/* Duplicate-day notice — Nexus DMC behavior: if this activity is already
+                            on another day in this same city, warn the agent. Selecting will
+                            auto-remove it from the other day. */}
+                        {otherDayActivityMap[activity.id] && otherDayActivityMap[activity.id] !== dayNumber ? (
+                          <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-[12px] text-amber-800" data-testid={`activity-other-day-${activity.id}`}>
+                            <span className="font-bold">Included on day {otherDayActivityMap[activity.id]}.</span>{' '}
+                            If selected, it will be removed from day {otherDayActivityMap[activity.id]}.
+                          </div>
+                        ) : null}
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
                             <h4 className="font-bold text-gray-900 text-sm mb-1.5">{activity.name}</h4>

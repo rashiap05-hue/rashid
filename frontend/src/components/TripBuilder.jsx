@@ -573,6 +573,21 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         setTimeout(() => setTimeLimitToast(null), 5000);
         return;
       }
+      // If the same activity is already on another day in the same city, remove it
+      // from that day so it's not duplicated. (Nexus DMC behavior: an activity belongs to one day.)
+      setSelectedActivities(prev => {
+        const next = { ...prev };
+        Object.entries(next).forEach(([k, acts]) => {
+          if (k === key) return; // skip current day
+          const lastUs = k.lastIndexOf('_');
+          const k_city = lastUs > 0 ? k.slice(0, lastUs) : '';
+          if (k_city !== activeActivityCity) return;
+          if ((acts || []).some(a => a?.id === activity.id)) {
+            next[k] = acts.filter(a => a?.id !== activity.id);
+          }
+        });
+        return next;
+      });
       // Show vehicle selection modal for new activity
       setPendingActivity(activity);
       setShowVehicleModal(true);
@@ -724,6 +739,23 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const getActivitiesForDay = (cityName, dayNumber) => {
     const key = `${cityName}_${dayNumber}`;
     return selectedActivities[key] || [];
+  };
+
+  // For the ActivitiesModal: returns a map { activityId: dayNumber } of activities
+  // already selected on OTHER days within the same city, so we can warn on duplicates.
+  const getActivitiesOnOtherDaysInCity = (cityName, currentDay) => {
+    const map = {};
+    Object.entries(selectedActivities).forEach(([key, acts]) => {
+      const lastUs = key.lastIndexOf('_');
+      if (lastUs <= 0) return;
+      const k_city = key.slice(0, lastUs);
+      const k_day = parseInt(key.slice(lastUs + 1), 10);
+      if (k_city !== cityName || k_day === currentDay) return;
+      (acts || []).forEach((a) => {
+        if (a?.id) map[a.id] = k_day;
+      });
+    });
+    return map;
   };
 
   // Parse duration string to hours
@@ -1940,6 +1972,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
             dayNumber={activeActivityDay}
             startDate={data?.leaving_on}
             selectedActivities={getActivitiesForDay(activeActivityCity, activeActivityDay)}
+            otherDayActivityMap={getActivitiesOnOtherDaysInCity(activeActivityCity, activeActivityDay)}
             onSelectActivity={handleSelectActivity}
           />
         )}
