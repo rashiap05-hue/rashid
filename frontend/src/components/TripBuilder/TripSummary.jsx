@@ -95,9 +95,6 @@ export default function TripSummary({
                     {hotel.selectedRoom?.rate_plan && (
                       <div className="mt-1 text-xs">
                         <span className="text-purple-600">{hotel.selectedRoom.rate_plan.meal_plan}</span>
-                        {hotel.selectedRoom.rate_plan.supplier_name && (
-                          <span className="text-gray-400 ml-2">({hotel.selectedRoom.rate_plan.supplier_name})</span>
-                        )}
                       </div>
                     )}
                   </div>
