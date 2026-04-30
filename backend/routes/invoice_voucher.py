@@ -641,7 +641,36 @@ async def get_voucher_pdf(booking_id: str, current_user: dict = Depends(get_curr
     )
 
 
-def _build_hotel_voucher_html(booking, proposal, user, terms, hotel_key):
+async def _refresh_refund_deadline(hotel: dict, sel_room: dict) -> str:
+    """Pulls the latest `refund_deadline` from the master `hotels` collection so edits
+    to Hotel Management flow through to vouchers without resaving the proposal."""
+    hotel_id = hotel.get("id") or hotel.get("hotel_id")
+    if not hotel_id:
+        return ""
+    master = await db.hotels.find_one({"id": hotel_id}, {"_id": 0, "rooms": 1, "room_types": 1})
+    if not master:
+        return ""
+    # Find the matching room + rate plan in the master record
+    room_name = (sel_room.get("name") or "").strip()
+    rp_name = ((sel_room.get("rate_plan") or sel_room.get("ratePlan") or {}).get("name")
+               or sel_room.get("rate_plan_name") or "").strip()
+    rooms = master.get("rooms") or master.get("room_types") or []
+    for r in rooms:
+        if not isinstance(r, dict):
+            continue
+        if room_name and r.get("name", "").strip() != room_name:
+            continue
+        rate_plans = r.get("rate_plans") or r.get("ratePlans") or []
+        for rp in rate_plans:
+            if not isinstance(rp, dict):
+                continue
+            if rp_name and rp.get("name", "").strip() != rp_name:
+                continue
+            return (rp.get("refund_deadline") or rp.get("refundDeadline") or "").strip()
+    return ""
+
+
+def _build_hotel_voucher_html(booking, proposal, user, terms, hotel_key, fresh_refund_deadline=""):
     """Hotel-specific voucher (one-hotel Happihaus-style layout)."""
     from datetime import datetime as _dt, timedelta as _td
 
@@ -678,29 +707,45 @@ def _build_hotel_voucher_html(booking, proposal, user, terms, hotel_key):
         or hotel.get("meal_plan") or "Room Only"
     )
     refundable = rp.get("refundable") if "refundable" in rp else sel_room.get("refundable")
-    # Compute actual cancellation deadline date (check-in minus the offset phrase)
-    refund_phrase = (rp.get("refund_deadline") or sel_room.get("refundable_until") or rp.get("cancellation_deadline") or "").strip()
+    # Compute actual cancellation deadline date.
+    # Prefer the freshly-fetched value from master `hotels` (so Hotel-Management edits flow through).
+    # Fall back to the proposal's frozen snapshot.
+    refund_phrase = (
+        (fresh_refund_deadline or "").strip()
+        or rp.get("refund_deadline")
+        or sel_room.get("refundable_until")
+        or rp.get("cancellation_deadline")
+        or ""
+    ).strip()
     cancel_deadline_date = ""
-    if refund_phrase and check_in_date:
-        try:
-            ci_date = _dt.fromisoformat(check_in_date) if isinstance(check_in_date, str) else check_in_date
-            phrase_lower = refund_phrase.lower()
-            # Extract number + unit from phrases like "1 week before", "3 days before", "24 hours before"
-            import re as _re
-            m = _re.search(r"(\d+)\s*(hour|day|week|month)", phrase_lower)
-            if m:
-                n = int(m.group(1))
-                unit = m.group(2)
-                if unit == "hour":
-                    cancel_deadline_date = (ci_date - _td(hours=n)).date().isoformat()
-                elif unit == "day":
-                    cancel_deadline_date = (ci_date - _td(days=n)).date().isoformat()
-                elif unit == "week":
-                    cancel_deadline_date = (ci_date - _td(weeks=n)).date().isoformat()
-                elif unit == "month":
-                    cancel_deadline_date = (ci_date - _td(days=30 * n)).date().isoformat()
-        except Exception:
-            cancel_deadline_date = ""
+    if refund_phrase:
+        # 1) Try to parse as an absolute date
+        for fmt in ("%Y-%m-%d", "%d %b %Y", "%d %B %Y", "%d/%m/%Y", "%d-%m-%Y", "%m/%d/%Y"):
+            try:
+                cancel_deadline_date = _dt.strptime(refund_phrase, fmt).date().isoformat()
+                break
+            except ValueError:
+                continue
+        # 2) Fallback: relative phrase like "1 week before"
+        if not cancel_deadline_date and check_in_date:
+            try:
+                ci_date = _dt.fromisoformat(check_in_date) if isinstance(check_in_date, str) else check_in_date
+                phrase_lower = refund_phrase.lower()
+                import re as _re
+                m = _re.search(r"(\d+)\s*(hour|day|week|month)", phrase_lower)
+                if m:
+                    n = int(m.group(1))
+                    unit = m.group(2)
+                    if unit == "hour":
+                        cancel_deadline_date = (ci_date - _td(hours=n)).date().isoformat()
+                    elif unit == "day":
+                        cancel_deadline_date = (ci_date - _td(days=n)).date().isoformat()
+                    elif unit == "week":
+                        cancel_deadline_date = (ci_date - _td(weeks=n)).date().isoformat()
+                    elif unit == "month":
+                        cancel_deadline_date = (ci_date - _td(days=30 * n)).date().isoformat()
+            except Exception:
+                cancel_deadline_date = ""
 
     if refundable is False:
         cancel_policy_text = "Non-refundable"
@@ -950,13 +995,18 @@ async def get_hotel_voucher_pdf(
     current_user: dict = Depends(get_current_user),
 ):
     booking, proposal, user, terms = await _load_booking_context(booking_id, current_user)
-    html_content = _build_hotel_voucher_html(booking, proposal, user, terms, key)
+    # Refresh refund_deadline from the master hotels collection so the latest
+    # Hotel Management edit flows into the voucher without resaving the proposal.
+    selected_hotels = (proposal or {}).get("selected_hotels") or {}
+    hotel = selected_hotels.get(key) or {}
+    sel_room = hotel.get("selected_room") or hotel.get("selectedRoom") or {}
+    fresh_refund = await _refresh_refund_deadline(hotel, sel_room) if hotel else ""
+    html_content = _build_hotel_voucher_html(booking, proposal, user, terms, key, fresh_refund)
     try:
         pdf_bytes = HTML(string=html_content).write_pdf()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Hotel voucher PDF generation failed: {e}")
     ref = _short_ref(booking)
-    # Strip city idx suffix for filename
     safe_city = key.rsplit("_", 1)[0].replace(" ", "_")
     return Response(
         content=pdf_bytes,
