@@ -154,10 +154,12 @@ async def create_booking(booking: BookingCreate, current_user: dict = Depends(ge
 @router.get("/bookings")
 async def list_bookings(current_user: dict = Depends(get_current_user)):
     user_id = current_user.get("id") or current_user.get("email")
+    # Admins see ALL bookings so they can manage / delete from MyBookings
+    query = {} if current_user.get("role") == "admin" else {"user_id": user_id}
     bookings = await db.bookings.find(
-        {"user_id": user_id},
+        query,
         {"_id": 0}
-    ).sort("created_at", -1).to_list(100)
+    ).sort("created_at", -1).to_list(500)
     return bookings
 
 
