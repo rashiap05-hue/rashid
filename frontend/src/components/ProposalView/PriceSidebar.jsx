@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, Users, DollarSign, CreditCard, HelpCircle,
@@ -63,10 +63,35 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
 
   // Locked view — once the trip has been held or booked, the sidebar becomes
   // a simple, read-only summary matching the user-supplied reference design.
+  const [resolvedBookingRef, setResolvedBookingRef] = useState(null);
+
   const bookingRef = proposal.booking_ref
-    || (proposal.booking_number != null ? `TBM-${String(proposal.booking_number).padStart(6, '0')}` : null);
+    || (proposal.booking_number != null ? `TBM-${String(proposal.booking_number).padStart(6, '0')}` : null)
+    || resolvedBookingRef;
   const isLocked = Boolean(proposal.booking_id || bookingRef)
     || ['held', 'booked', 'confirmed', 'cancelled'].includes(proposal.status);
+
+  // Fallback: if the proposal came with a booking_id but no ref (stale cache /
+  // legacy row), fetch the booking to resolve its TBM ref. Runs once per id.
+  useEffect(() => {
+    if (!isLocked) return;
+    if (bookingRef) return;
+    const bid = proposal.booking_id;
+    if (!bid) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get(`/bookings/${bid}`);
+        const b = res.data || {};
+        const ref = b.booking_ref
+          || (b.booking_number != null ? `TBM-${String(b.booking_number).padStart(6, '0')}` : null);
+        if (!cancelled && ref) setResolvedBookingRef(ref);
+      } catch {
+        // silent — the sidebar will fall back to "TBM-—" placeholder
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [proposal.booking_id, isLocked, bookingRef]);
 
   if (isLocked) {
     return (
