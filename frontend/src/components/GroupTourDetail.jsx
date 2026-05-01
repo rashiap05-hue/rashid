@@ -4,6 +4,7 @@ import {
   ArrowLeft, ChevronRight, Star, MapPin, Calendar, Users,
   Coffee, Utensils, Moon, Bed, Plane, Check, X, Info, ChevronDown,
 } from 'lucide-react';
+import { api } from '@/App';
 
 /* ---------- Fallback-safe image ---------- */
 function DealImage({ src, alt, gradient, label, className }) {
@@ -376,42 +377,38 @@ export default function GroupTourDetail({ deal, onBack }) {
   const [quote, setQuote] = useState(null);
   const [calculating, setCalculating] = useState(false);
 
-  /* Price rules based on child age:
-     - Infants (<2 yrs): free (0%)
-     - Children 2-11 yrs: 75% of adult rate
-     - 12+ yrs: treated as adult (100%) */
-  const computeQuote = () => {
+  /* Ask the backend for a server-computed quote so the price/child-rules/tax
+     stay in sync with whatever the operations team set in the Admin panel. */
+  const computeQuote = async () => {
+    if (!deal?.id) return;
     setCalculating(true);
-    setTimeout(() => {
-      const adultRate = price;
-      let adults = 0, children = 0, infants = 0, adultsSub = 0, childSub = 0, infantSub = 0;
-      roomsOccupancy.forEach((room) => {
-        adults += room.adults || 0;
-        adultsSub += (room.adults || 0) * adultRate;
-        (room.children || []).forEach((ch) => {
-          if (ch.age === '<2 yrs') {
-            infants += 1;
-          } else {
-            const n = parseInt(ch.age, 10);
-            if (n >= 12) {
-              adults += 1; adultsSub += adultRate;
-            } else {
-              children += 1; childSub += adultRate * 0.75;
-            }
-          }
-        });
+    try {
+      const res = await api.post(`/group-tours/${deal.id}/quote`, {
+        rooms: roomsOccupancy.map(r => ({
+          adults: r.adults || 0,
+          children: (r.children || []).map(c => ({ age: c.age })),
+        })),
+        departure_date: selectedDate,
+        leaving_from: leavingFrom,
       });
-      const subtotal = adultsSub + childSub + infantSub;
-      const tax = Math.round(subtotal * 0.05);
-      const total = subtotal + tax;
-      setQuote({ adults, children, infants, adultRate, adultsSub, childSub, subtotal, tax, total, rooms: roomsOccupancy.length });
+      setQuote(res.data);
+    } catch (e) {
+      // Fall back to a minimal client-side quote so users still see something
+      setQuote({
+        rooms: roomsOccupancy.length,
+        adults: roomsOccupancy.reduce((s, r) => s + (r.adults || 0), 0),
+        children: 0, infants: 0, lines: [],
+        subtotal: 0, tax_pct: 0, tax_amount: 0, total: 0,
+        error: e?.response?.data?.detail || 'Failed to calculate quote',
+      });
+    } finally {
       setCalculating(false);
-    }, 350);
+    }
   };
 
   const galleryImages = [deal?.image, deal?.image, deal?.image];
   const title = deal?.title || `${pkg.destination} Package`;
-  const price = deal?.price || 3293;
+  const price = Number(deal?.price_per_adult ?? deal?.price ?? 3293);
 
   return (
     <div className="min-h-screen bg-gray-50" data-testid="group-tour-detail-page">
@@ -533,36 +530,30 @@ export default function GroupTourDetail({ deal, onBack }) {
                       <span className="font-black text-gray-900">Price Breakdown</span>
                       <span className="text-[11px] text-gray-500">{quote.rooms} room{quote.rooms > 1 ? 's' : ''} · {new Date(selectedDate).toLocaleDateString('en-GB')}</span>
                     </div>
-                    {quote.adults > 0 && (
-                      <div className="flex justify-between text-gray-700">
-                        <span>{quote.adults} Adult{quote.adults > 1 ? 's' : ''} × AED {quote.adultRate.toLocaleString()}</span>
-                        <span className="font-semibold">AED {quote.adultsSub.toLocaleString()}</span>
-                      </div>
+                    {quote.error ? (
+                      <div className="text-xs text-red-600 py-2">{quote.error}</div>
+                    ) : (
+                      <>
+                        {(quote.lines || []).map((ln, i) => (
+                          <div key={i} className={`flex justify-between ${ln.subtotal === 0 ? 'text-gray-500 italic' : 'text-gray-700'}`}>
+                            <span>{ln.count} × {ln.label}</span>
+                            <span className={ln.subtotal === 0 ? '' : 'font-semibold'}>AED {Number(ln.subtotal).toLocaleString()}</span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between text-gray-700 pt-2 border-t border-sky-200">
+                          <span>Subtotal</span>
+                          <span className="font-semibold">AED {Number(quote.subtotal).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-gray-700">
+                          <span>Taxes &amp; Fees ({quote.tax_pct}%)</span>
+                          <span className="font-semibold">AED {Number(quote.tax_amount).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-2 border-t-2 border-sky-300">
+                          <span className="font-black text-gray-900 text-base">Total Price</span>
+                          <span className="font-black text-[#002B5B] text-xl">AED {Number(quote.total).toLocaleString()}</span>
+                        </div>
+                      </>
                     )}
-                    {quote.children > 0 && (
-                      <div className="flex justify-between text-gray-700">
-                        <span>{quote.children} Child{quote.children > 1 ? 'ren' : ''} (75% of adult)</span>
-                        <span className="font-semibold">AED {quote.childSub.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {quote.infants > 0 && (
-                      <div className="flex justify-between text-gray-500 italic">
-                        <span>{quote.infants} Infant{quote.infants > 1 ? 's' : ''} (&lt;2 yrs) — complimentary</span>
-                        <span>AED 0</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-gray-700 pt-2 border-t border-sky-200">
-                      <span>Subtotal</span>
-                      <span className="font-semibold">AED {quote.subtotal.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-gray-700">
-                      <span>Taxes &amp; Fees (5%)</span>
-                      <span className="font-semibold">AED {quote.tax.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center pt-2 border-t-2 border-sky-300">
-                      <span className="font-black text-gray-900 text-base">Total Price</span>
-                      <span className="font-black text-[#002B5B] text-xl">AED {quote.total.toLocaleString()}</span>
-                    </div>
                   </div>
                 )}
               </div>

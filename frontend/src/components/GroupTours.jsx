@@ -1,50 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Star, Calendar } from 'lucide-react';
+import { api } from '@/App';
 
-const EID_DEALS = [
-  {
-    id: 'baku',
-    title: 'Baku Eid Break',
-    subtitle: 'Baku 4 nights',
-    dateRange: '24-31 May',
-    stars: 3,
-    price: 3293,
-    image: 'https://images.unsplash.com/photo-1601823984263-b87b59798b70?w=800&q=80&auto=format&fit=crop',
-    gradient: 'linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%)',
-  },
-  {
-    id: 'tbilisi',
-    title: 'Tbilisi Eid Break',
-    subtitle: 'Tbilisi 4 nights',
-    dateRange: '24-31 May',
-    stars: 5,
-    price: 3544,
-    image: 'https://images.unsplash.com/photo-1565008447742-97f6f38c985c?w=800&q=80&auto=format&fit=crop',
-    gradient: 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)',
-  },
-  {
-    id: 'almaty',
-    title: 'Almaty Eid Break',
-    subtitle: 'Almaty 5 nights',
-    dateRange: '24-31 May',
-    stars: 4,
-    price: 3738,
-    image: 'https://images.unsplash.com/photo-1588615419957-3f1bfe5f29d7?w=800&q=80&auto=format&fit=crop',
-    gradient: 'linear-gradient(135deg, #10b981 0%, #065f46 100%)',
-  },
-  {
-    id: 'armenia',
-    title: 'Armenia Eid Break',
-    subtitle: 'Yerevan 4 nights',
-    dateRange: '24-31 May',
-    stars: 3,
-    price: 3766,
-    image: 'https://images.unsplash.com/photo-1615460549969-36fa19521a4f?w=800&q=80&auto=format&fit=crop',
-    gradient: 'linear-gradient(135deg, #ef4444 0%, #991b1b 100%)',
-  },
-];
-
+// Monthly deals remain static — they're branded banners, not live inventory
 const MONTHLY_DEALS = [
   {
     id: 'dubai-visa',
@@ -105,6 +64,9 @@ function DealImage({ src, alt, gradient, className, label }) {
 }
 
 function EidDealCard({ deal, onClick }) {
+  const price = Number(deal.price_per_adult ?? deal.price ?? 0);
+  const dateRange = deal.date_range || deal.dateRange || '';
+  const subtitle = deal.subtitle || `${deal.destination || ''} ${deal.nights || ''} nights`.trim();
   return (
     <motion.div
       whileHover={{ y: -6, boxShadow: '0 12px 28px rgba(0,43,91,0.12)' }}
@@ -117,7 +79,7 @@ function EidDealCard({ deal, onClick }) {
           src={deal.image}
           alt={deal.title}
           gradient={deal.gradient}
-          label={deal.subtitle}
+          label={subtitle}
           className="w-full h-full object-cover"
         />
         {/* Eid Al Adha Holiday Deals badge */}
@@ -142,19 +104,19 @@ function EidDealCard({ deal, onClick }) {
         {/* Date range pill */}
         <div className="absolute bottom-3 right-3 bg-[#0994C4] text-white text-xs font-bold px-2.5 py-1 rounded flex items-center gap-1.5 shadow-md">
           <Calendar size={12} />
-          {deal.dateRange}
+          {dateRange}
         </div>
       </div>
 
       <div className="p-4">
         <h3 className="font-black text-gray-900 text-base mb-0.5">{deal.title}</h3>
-        <p className="text-gray-500 text-sm mb-6">{deal.subtitle}</p>
+        <p className="text-gray-500 text-sm mb-6">{subtitle}</p>
 
         <div className="flex items-end justify-between border-t border-gray-100 pt-3">
           <StarRating count={deal.stars} />
           <div className="text-right">
             <div className="text-[11px] text-gray-500">Starting From</div>
-            <div className="font-black text-gray-900 text-lg leading-none mt-0.5">AED {deal.price.toLocaleString()}</div>
+            <div className="font-black text-gray-900 text-lg leading-none mt-0.5">AED {price.toLocaleString()}</div>
           </div>
         </div>
       </div>
@@ -185,6 +147,23 @@ function MonthlyDealTile({ deal, onClick }) {
 }
 
 export default function GroupTours({ onBack, onOpenDeal }) {
+  const [eidDeals, setEidDeals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get('/group-tours');
+        setEidDeals(res.data || []);
+      } catch (e) {
+        setError(e?.response?.data?.detail || 'Failed to load packages');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#F8F9FA]" data-testid="group-tours-page">
       {/* Header */}
@@ -208,11 +187,23 @@ export default function GroupTours({ onBack, onOpenDeal }) {
         {/* Eid Holiday Deals */}
         <section className="mb-12 md:mb-16">
           <h2 className="font-black text-gray-900 text-xl md:text-2xl mb-5 md:mb-6">Eid Holiday Deals from UAE</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
-            {EID_DEALS.map(d => (
-              <EidDealCard key={d.id} deal={d} onClick={() => onOpenDeal?.(d)} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} className="bg-white rounded-xl h-80 animate-pulse" />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-4">{error}</div>
+          ) : eidDeals.length === 0 ? (
+            <div className="text-sm text-gray-500 italic">No Eid deals available at the moment.</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+              {eidDeals.map(d => (
+                <EidDealCard key={d.id} deal={d} onClick={() => onOpenDeal?.(d)} />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Deals of the Month */}

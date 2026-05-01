@@ -25,6 +25,7 @@ from routes.flight_api import flight_api_router
 from routes.bookings import router as bookings_router
 from routes.passport_scan import router as passport_scan_router
 from routes.experts import experts_router
+from routes.group_tours import router as group_tours_router
 from routes.wallets import wallets_router
 from routes.notifications import router as notifications_router
 from routes.pdf_generator import router as pdf_router
@@ -75,6 +76,7 @@ api_router.include_router(flight_api_router)
 api_router.include_router(bookings_router)
 api_router.include_router(passport_scan_router)
 api_router.include_router(experts_router)
+api_router.include_router(group_tours_router)
 api_router.include_router(wallets_router)
 api_router.include_router(notifications_router)
 api_router.include_router(pdf_router)
