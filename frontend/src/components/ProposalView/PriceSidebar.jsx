@@ -136,15 +136,26 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
               </div>
             </div>
 
-            {/* Booking Details CTA */}
-            <button
-              onClick={() => onViewBooking?.(proposal.booking_id)}
-              disabled={!proposal.booking_id}
-              className="w-full mt-5 py-3 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed tracking-wide"
-              data-testid="booking-details-btn"
-            >
-              {bookingRef || 'TBM-—'} — BOOKING DETAILS
-            </button>
+            {/* Booking Details CTA — flips to red CANCELLED state when the trip is cancelled */}
+            {proposal.status === 'cancelled' ? (
+              <button
+                onClick={() => onViewBooking?.(proposal.booking_id)}
+                disabled={!proposal.booking_id}
+                className="w-full mt-5 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed tracking-wide flex items-center justify-center gap-2"
+                data-testid="booking-details-btn"
+              >
+                <X size={16} /> {bookingRef || 'TBM-—'} — CANCELLED
+              </button>
+            ) : (
+              <button
+                onClick={() => onViewBooking?.(proposal.booking_id)}
+                disabled={!proposal.booking_id}
+                className="w-full mt-5 py-3 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed tracking-wide"
+                data-testid="booking-details-btn"
+              >
+                {bookingRef || 'TBM-—'} — BOOKING DETAILS
+              </button>
+            )}
           </div>
         </div>
       </div>
