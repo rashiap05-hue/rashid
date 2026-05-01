@@ -146,6 +146,23 @@ async def _rollup_booking_status(booking_id: str):
     fields = {"supplier_status": new_status, "service_confirmations": sc}
     if new_status == "confirmed":
         fields["supplier_confirmed_at"] = _now()
+        # Also auto-advance the top-level booking.status forward when the
+        # operational team has finished confirming all services. We only
+        # upgrade from `payment_received` (not from `held` / `ticketed` /
+        # `cancelled`), and we record the event in the status history so the
+        # Booking Progress tracker surfaces the "Confirmed" stamp timestamp.
+        current_status = booking.get("status")
+        if current_status == "payment_received":
+            fields["status"] = "confirmed"
+            fields["confirmed_at"] = _now()
+            history = list(booking.get("status_history") or [])
+            history.append({
+                "status": "confirmed",
+                "at": fields["confirmed_at"],
+                "by": "operations_rollup",
+                "note": "All services confirmed",
+            })
+            fields["status_history"] = history
     await db.bookings.update_one({"id": booking_id}, {"$set": fields})
     await db.held_bookings.update_one({"id": booking_id}, {"$set": fields})
 
