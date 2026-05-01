@@ -373,6 +373,41 @@ export default function GroupTourDetail({ deal, onBack }) {
   // Per-room occupancy — each room has its own adults & array of children (each with an age bracket)
   const [roomsOccupancy, setRoomsOccupancy] = useState([{ adults: 2, children: [] }]);
   const [leavingFrom, setLeavingFrom] = useState('Dubai');
+  const [quote, setQuote] = useState(null);
+  const [calculating, setCalculating] = useState(false);
+
+  /* Price rules based on child age:
+     - Infants (<2 yrs): free (0%)
+     - Children 2-11 yrs: 75% of adult rate
+     - 12+ yrs: treated as adult (100%) */
+  const computeQuote = () => {
+    setCalculating(true);
+    setTimeout(() => {
+      const adultRate = price;
+      let adults = 0, children = 0, infants = 0, adultsSub = 0, childSub = 0, infantSub = 0;
+      roomsOccupancy.forEach((room) => {
+        adults += room.adults || 0;
+        adultsSub += (room.adults || 0) * adultRate;
+        (room.children || []).forEach((ch) => {
+          if (ch.age === '<2 yrs') {
+            infants += 1;
+          } else {
+            const n = parseInt(ch.age, 10);
+            if (n >= 12) {
+              adults += 1; adultsSub += adultRate;
+            } else {
+              children += 1; childSub += adultRate * 0.75;
+            }
+          }
+        });
+      });
+      const subtotal = adultsSub + childSub + infantSub;
+      const tax = Math.round(subtotal * 0.05);
+      const total = subtotal + tax;
+      setQuote({ adults, children, infants, adultRate, adultsSub, childSub, subtotal, tax, total, rooms: roomsOccupancy.length });
+      setCalculating(false);
+    }, 350);
+  };
 
   const galleryImages = [deal?.image, deal?.image, deal?.image];
   const title = deal?.title || `${pkg.destination} Package`;
@@ -471,10 +506,12 @@ export default function GroupTourDetail({ deal, onBack }) {
 
                 <div className="grid grid-cols-3 gap-2 pt-2">
                   <button
-                    className="py-3 px-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-md text-xs md:text-sm tracking-wide"
+                    onClick={computeQuote}
+                    disabled={calculating}
+                    className="py-3 px-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-md text-xs md:text-sm tracking-wide disabled:opacity-70"
                     data-testid="pkg-check-availability"
                   >
-                    Check Availability
+                    {calculating ? 'Calculating...' : 'Check Availability'}
                   </button>
                   <button
                     className="py-3 px-3 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-md text-xs md:text-sm tracking-wide"
@@ -489,6 +526,45 @@ export default function GroupTourDetail({ deal, onBack }) {
                     Generate Leads
                   </button>
                 </div>
+
+                {quote && (
+                  <div className="mt-3 bg-gradient-to-br from-sky-50 to-blue-50 border border-sky-200 rounded-lg p-4 space-y-2 text-sm" data-testid="pkg-quote-breakdown">
+                    <div className="flex items-center justify-between pb-2 border-b border-sky-200">
+                      <span className="font-black text-gray-900">Price Breakdown</span>
+                      <span className="text-[11px] text-gray-500">{quote.rooms} room{quote.rooms > 1 ? 's' : ''} · {new Date(selectedDate).toLocaleDateString('en-GB')}</span>
+                    </div>
+                    {quote.adults > 0 && (
+                      <div className="flex justify-between text-gray-700">
+                        <span>{quote.adults} Adult{quote.adults > 1 ? 's' : ''} × AED {quote.adultRate.toLocaleString()}</span>
+                        <span className="font-semibold">AED {quote.adultsSub.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {quote.children > 0 && (
+                      <div className="flex justify-between text-gray-700">
+                        <span>{quote.children} Child{quote.children > 1 ? 'ren' : ''} (75% of adult)</span>
+                        <span className="font-semibold">AED {quote.childSub.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {quote.infants > 0 && (
+                      <div className="flex justify-between text-gray-500 italic">
+                        <span>{quote.infants} Infant{quote.infants > 1 ? 's' : ''} (&lt;2 yrs) — complimentary</span>
+                        <span>AED 0</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-gray-700 pt-2 border-t border-sky-200">
+                      <span>Subtotal</span>
+                      <span className="font-semibold">AED {quote.subtotal.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-700">
+                      <span>Taxes &amp; Fees (5%)</span>
+                      <span className="font-semibold">AED {quote.tax.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t-2 border-sky-300">
+                      <span className="font-black text-gray-900 text-base">Total Price</span>
+                      <span className="font-black text-[#002B5B] text-xl">AED {quote.total.toLocaleString()}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
