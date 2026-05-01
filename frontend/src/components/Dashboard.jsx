@@ -20,6 +20,7 @@ export default function Dashboard({
   onEditProposal,
   onAdminView,
   onViewBooking,
+  onOpenGroupTours,
   activeTab,
   setActiveTab
 }) {
@@ -126,7 +127,7 @@ export default function Dashboard({
                     {[
                       { title: 'Book FIT Package', icon: Users, color: 'bg-blue-50 text-blue-600', onClick: onNewProposal },
                       { title: 'AI Trip Recommendations', icon: Sparkles, color: 'bg-violet-50 text-violet-600', onClick: () => setAiOpen(true), testid: 'quick-ai-recommendations' },
-                      { title: 'Book Group Tours', icon: Globe, color: 'bg-green-50 text-green-600' },
+                      { title: 'Book Group Tours', icon: Globe, color: 'bg-green-50 text-green-600', onClick: onOpenGroupTours, testid: 'quick-link-group-tours' },
                       { title: 'Book Private Van Tours', icon: MapPin, color: 'bg-orange-50 text-orange-600' },
                     ].map((item, i) => (
                       <motion.div 

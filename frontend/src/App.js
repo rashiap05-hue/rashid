@@ -7,6 +7,7 @@ import { CurrencyProvider } from '@/CurrencyContext';
 // Components
 import AuthPage from '@/components/AuthPage';
 import Dashboard from '@/components/Dashboard';
+import GroupTours from '@/components/GroupTours';
 import Header from '@/components/Header';
 import FitPackageForm from '@/components/FitPackageForm';
 import TripBuilder from '@/components/TripBuilder';
@@ -248,11 +249,16 @@ function App() {
                       }
                     }}
                     onAdminView={() => setCurrentView('admin')}
+                    onOpenGroupTours={() => setCurrentView('group-tours')}
                     onViewBooking={(bookingId) => {
                       setSelectedBookingId(bookingId);
                       setCurrentView('booking-detail');
                     }}
                   />
+                )}
+
+                {currentView === 'group-tours' && (
+                  <GroupTours onBack={() => setCurrentView('dashboard')} />
                 )}
 
                 {currentView === 'form' && (
