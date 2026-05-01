@@ -185,8 +185,8 @@ export default function GroupTourDetail({ deal, onBack }) {
   const pkg = buildPackage(deal);
   const [activeTab, setActiveTab] = useState('itinerary');
   const [selectedDate, setSelectedDate] = useState('2026-07-10');
-  const [rooms, setRooms] = useState(1);
-  const [adults, setAdults] = useState(2);
+  const [roomsAdults, setRoomsAdults] = useState('1 room, 2 adults');
+  const [leavingFrom, setLeavingFrom] = useState('Dubai');
 
   const galleryImages = [deal?.image, deal?.image, deal?.image];
   const title = deal?.title || `${pkg.destination} Package`;
@@ -233,52 +233,88 @@ export default function GroupTourDetail({ deal, onBack }) {
             </div>
           </div>
 
-          {/* Booking panel */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 h-fit sticky top-20" data-testid="pkg-booking-card">
-            <div className="pb-4 border-b border-gray-200">
-              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Starting From</p>
+          {/* Booking panel — price card on top + form card below */}
+          <div className="h-fit sticky top-20 space-y-4" data-testid="pkg-booking-card">
+            {/* Price card */}
+            <div className="bg-white rounded-xl border border-gray-200 p-5 md:p-6">
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-gray-900">AED {price.toLocaleString()}</span>
-                <span className="text-xs text-gray-500">/ adult</span>
+                <span className="text-3xl md:text-4xl font-black text-[#002B5B]">AED {price.toLocaleString()}</span>
               </div>
+              <p className="text-sm text-gray-500 mt-2">per person · {new Date(selectedDate).toLocaleString('en-US', { month: 'long' })}</p>
             </div>
 
-            <div className="pt-4">
-              <h3 className="text-sm font-black text-gray-900 mb-3">Book your trip</h3>
-
-              <label className="block text-[11px] text-gray-500 font-semibold uppercase mb-1">Departure Date</label>
-              <div className="relative mb-3">
-                <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={e => setSelectedDate(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
-                  data-testid="pkg-date-input"
-                />
+            {/* Book your trip form card */}
+            <div className="bg-white rounded-xl border border-rose-200 shadow-sm">
+              <div className="px-5 md:px-6 pt-5 md:pt-6 pb-4 border-b border-gray-200">
+                <h3 className="font-black text-gray-900 text-xl md:text-2xl">Book your trip</h3>
               </div>
-
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div>
-                  <label className="block text-[11px] text-gray-500 font-semibold uppercase mb-1">Rooms</label>
-                  <select value={rooms} onChange={e => setRooms(+e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-sky-500" data-testid="pkg-rooms-input">
-                    {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n} Room{n > 1 ? 's' : ''}</option>)}
-                  </select>
+              <div className="px-5 md:px-6 py-5 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-500 mb-1.5">Leaving From</label>
+                    <select
+                      value={leavingFrom}
+                      onChange={e => setLeavingFrom(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm font-semibold text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      data-testid="pkg-leaving-from"
+                    >
+                      {['Dubai', 'Abu Dhabi', 'Sharjah', 'Bangalore', 'Mumbai', 'Delhi'].map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-500 mb-1.5">No. Of Rooms</label>
+                    <select
+                      value={roomsAdults}
+                      onChange={e => setRoomsAdults(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm font-semibold text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      data-testid="pkg-rooms-adults"
+                    >
+                      <option>1 room, 1 adult</option>
+                      <option>1 room, 2 adults</option>
+                      <option>2 rooms, 3 adults</option>
+                      <option>2 rooms, 4 adults</option>
+                      <option>3 rooms, 5 adults</option>
+                      <option>3 rooms, 6 adults</option>
+                    </select>
+                  </div>
                 </div>
+
                 <div>
-                  <label className="block text-[11px] text-gray-500 font-semibold uppercase mb-1">Adults</label>
-                  <select value={adults} onChange={e => setAdults(+e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-sky-500" data-testid="pkg-adults-input">
-                    {[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n} Adult{n > 1 ? 's' : ''}</option>)}
-                  </select>
+                  <label className="block text-sm text-gray-500 mb-1.5">Leaving On</label>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={e => setSelectedDate(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm font-semibold text-gray-900 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      data-testid="pkg-date-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 pt-2">
+                  <button
+                    className="py-3 px-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-md text-xs md:text-sm tracking-wide"
+                    data-testid="pkg-check-availability"
+                  >
+                    Check Availability
+                  </button>
+                  <button
+                    className="py-3 px-3 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-md text-xs md:text-sm tracking-wide"
+                    data-testid="pkg-download-brochure"
+                  >
+                    Download Brochure
+                  </button>
+                  <button
+                    className="py-3 px-3 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-md text-xs md:text-sm tracking-wide"
+                    data-testid="pkg-generate-leads"
+                  >
+                    Generate Leads
+                  </button>
                 </div>
               </div>
-
-              <button className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-md mb-2.5 text-sm tracking-wide" data-testid="pkg-check-availability">
-                Price & Availability
-              </button>
-              <button className="w-full py-3 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-md text-sm tracking-wide" data-testid="pkg-customize-leads">
-                Customize Leads
-              </button>
             </div>
           </div>
         </div>
