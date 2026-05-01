@@ -11,6 +11,8 @@ import {
 import TripChangeRequestModal from './BookingDetail/TripChangeRequestModal';
 import TripTasksCard from './BookingDetail/TripTasksCard';
 import TripTaskDetailsModal from './BookingDetail/TripTaskDetailsModal';
+import CancelRequestModal from './BookingDetail/CancelRequestModal';
+import { XCircle, Ban } from 'lucide-react';
 
 export default function BookingDetail({ bookingId, initialTaskId, onBack, onViewProposal, onClickPay, onViewItinerary }) {
   const [data, setData] = useState(null);
@@ -21,6 +23,9 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
   const [openDropdown, setOpenDropdown] = useState(null); // 'invoice' | 'voucher' | null
   const [emailToast, setEmailToast] = useState('');
   const [showChangeRequestModal, setShowChangeRequestModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReviewing, setCancelReviewing] = useState(false);
+  const [cancelReviewNote, setCancelReviewNote] = useState('');
   const [tripTasks, setTripTasks] = useState([]);
   const [activeTask, setActiveTask] = useState(null);
 
@@ -30,6 +35,7 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
     catch { return null; }
   })();
   const isAdmin = currentUser?.role === 'admin';
+  const canReviewCancel = ['admin', 'staff', 'supplier'].includes(currentUser?.role);
 
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const DAYS = Array.from({length: 31}, (_, i) => i + 1);
@@ -225,16 +231,26 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
       {/* Page Title */}
       <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 md:mb-6">
         <h1 className="text-xl md:text-2xl font-black text-[#002B5B]">Your Trip Confirmation</h1>
-        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
-          booking.status === 'held' ? 'bg-amber-100 text-amber-800' :
-          booking.status === 'payment_pending' ? 'bg-orange-100 text-orange-800' :
-          booking.status === 'payment_received' ? 'bg-teal-100 text-teal-800' :
-          booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-          booking.status === 'ticketed' ? 'bg-blue-100 text-blue-800' :
-          'bg-gray-100 text-gray-800'
-        }`} data-testid="booking-page-status">
-          {booking.status === 'confirmed' || booking.status === 'ticketed' ? '✓ Confirmed' : (STAGE_LABELS[booking.status] || booking.status)}
-        </span>
+        {booking.cancellation_status === 'requested' ? (
+          <span className="px-3 py-1 rounded-full text-xs font-bold uppercase bg-rose-100 text-rose-800 flex items-center gap-1" data-testid="booking-page-status">
+            <Ban size={12} /> Cancellation Requested
+          </span>
+        ) : booking.status === 'cancelled' ? (
+          <span className="px-3 py-1 rounded-full text-xs font-bold uppercase bg-red-100 text-red-800 flex items-center gap-1" data-testid="booking-page-status">
+            <XCircle size={12} /> Cancelled
+          </span>
+        ) : (
+          <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
+            booking.status === 'held' ? 'bg-amber-100 text-amber-800' :
+            booking.status === 'payment_pending' ? 'bg-orange-100 text-orange-800' :
+            booking.status === 'payment_received' ? 'bg-teal-100 text-teal-800' :
+            booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+            booking.status === 'ticketed' ? 'bg-blue-100 text-blue-800' :
+            'bg-gray-100 text-gray-800'
+          }`} data-testid="booking-page-status">
+            {booking.status === 'confirmed' || booking.status === 'ticketed' ? '✓ Confirmed' : (STAGE_LABELS[booking.status] || booking.status)}
+          </span>
+        )}
       </div>
 
       {/* Trip Reference Header */}
@@ -269,6 +285,120 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
         statusHistory={booking.status_history}
         heldAt={booking.held_at}
       />
+
+      {/* Cancellation banner: shows pending cancellation request + admin approve/reject OR final cancelled state */}
+      {(booking.cancellation_status === 'requested' || booking.status === 'cancelled') && (
+        <div
+          className={`mb-4 md:mb-6 rounded-xl border p-4 md:p-5 ${
+            booking.status === 'cancelled'
+              ? 'bg-red-50 border-red-200'
+              : 'bg-rose-50 border-rose-200'
+          }`}
+          data-testid="cancellation-banner"
+        >
+          <div className="flex items-start gap-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+              booking.status === 'cancelled' ? 'bg-red-100' : 'bg-rose-100'
+            }`}>
+              {booking.status === 'cancelled'
+                ? <XCircle size={20} className="text-red-600" />
+                : <Ban size={20} className="text-rose-600" />}
+            </div>
+            <div className="flex-1">
+              <h3 className={`font-black text-sm md:text-base ${
+                booking.status === 'cancelled' ? 'text-red-900' : 'text-rose-900'
+              }`}>
+                {booking.status === 'cancelled'
+                  ? 'Booking Cancelled'
+                  : 'Cancellation Requested — Awaiting Approval'}
+              </h3>
+              {booking.cancellation_reason && (
+                <p className="text-sm text-gray-700 mt-2">
+                  <span className="font-bold">Reason:</span> {booking.cancellation_reason}
+                </p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Requested by <span className="font-semibold">{booking.cancellation_requested_by_name || '—'}</span>
+                {booking.cancellation_requested_at ? <> on {formatDateTime(booking.cancellation_requested_at)}</> : null}
+              </p>
+              {booking.cancellation_review_note && (
+                <p className="text-xs text-gray-600 mt-2 italic">
+                  Reviewer note: {booking.cancellation_review_note}
+                </p>
+              )}
+              {booking.cancellation_reviewed_by_name && (
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Reviewed by <span className="font-semibold">{booking.cancellation_reviewed_by_name}</span>
+                  {booking.cancellation_reviewed_at ? <> at {formatDateTime(booking.cancellation_reviewed_at)}</> : null}
+                </p>
+              )}
+
+              {/* Admin / operational team review controls */}
+              {booking.cancellation_status === 'requested' && canReviewCancel && (
+                <div className="mt-4 space-y-2" data-testid="cancellation-review-controls">
+                  <textarea
+                    rows={2}
+                    value={cancelReviewNote}
+                    onChange={(e) => setCancelReviewNote(e.target.value)}
+                    placeholder="Optional note to the requester (shown on approval/rejection)..."
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-rose-500"
+                    data-testid="cancel-review-note"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      disabled={cancelReviewing}
+                      onClick={async () => {
+                        if (!window.confirm('Approve this cancellation request? The booking will be marked as Cancelled.')) return;
+                        setCancelReviewing(true);
+                        try {
+                          await api.post(`/bookings/${booking.id}/cancel-request/approve`, { note: cancelReviewNote });
+                          setEmailToast('Cancellation approved — booking is now cancelled ✓');
+                          setTimeout(() => setEmailToast(''), 3500);
+                          setCancelReviewNote('');
+                          fetchDetail();
+                        } catch (e) {
+                          const detail = e?.response?.data?.detail || 'Failed to approve cancellation';
+                          setEmailToast(detail);
+                          setTimeout(() => setEmailToast(''), 3500);
+                        } finally {
+                          setCancelReviewing(false);
+                        }
+                      }}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-md disabled:opacity-50"
+                      data-testid="approve-cancel-btn"
+                    >
+                      {cancelReviewing ? 'Processing...' : 'Approve Cancellation'}
+                    </button>
+                    <button
+                      disabled={cancelReviewing}
+                      onClick={async () => {
+                        setCancelReviewing(true);
+                        try {
+                          await api.post(`/bookings/${booking.id}/cancel-request/reject`, { note: cancelReviewNote });
+                          setEmailToast('Cancellation request rejected — booking remains active');
+                          setTimeout(() => setEmailToast(''), 3500);
+                          setCancelReviewNote('');
+                          fetchDetail();
+                        } catch (e) {
+                          const detail = e?.response?.data?.detail || 'Failed to reject cancellation';
+                          setEmailToast(detail);
+                          setTimeout(() => setEmailToast(''), 3500);
+                        } finally {
+                          setCancelReviewing(false);
+                        }
+                      }}
+                      className="px-4 py-2 border border-gray-400 text-gray-700 hover:bg-gray-100 text-xs font-bold rounded-md disabled:opacity-50"
+                      data-testid="reject-cancel-btn"
+                    >
+                      Reject Request
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Main Content */}
@@ -961,6 +1091,23 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
             <button onClick={() => setShowChangeRequestModal(true)} className="w-full mt-4 py-2.5 border-2 border-dashed border-[#002B5B] text-[#002B5B] font-bold text-xs rounded-lg hover:bg-[#002B5B]/5 transition-colors uppercase tracking-wider" data-testid="add-change-request-btn">
               Add Trip Change Request
             </button>
+            {(() => {
+              const travelDate = booking.leaving_on ? new Date(booking.leaving_on) : null;
+              travelDate?.setHours(23, 59, 59, 999);
+              const departureInFuture = travelDate && travelDate.getTime() > Date.now();
+              const alreadyCancelledOrRequested =
+                booking.status === 'cancelled' || booking.cancellation_status === 'requested';
+              if (!departureInFuture || alreadyCancelledOrRequested) return null;
+              return (
+                <button
+                  onClick={() => setShowCancelModal(true)}
+                  className="w-full mt-2 py-2.5 border-2 border-dashed border-red-500 text-red-600 font-bold text-xs rounded-lg hover:bg-red-50 transition-colors uppercase tracking-wider flex items-center justify-center gap-1.5"
+                  data-testid="cancel-request-btn"
+                >
+                  <Ban size={14} /> Cancel Request
+                </button>
+              );
+            })()}
           </div>
 
           {/* Trip Tasks (change requests list) */}
@@ -1021,6 +1168,18 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
             setTripTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
             setActiveTask(updated);
           }
+        }}
+      />
+
+      {/* Cancel Request Modal */}
+      <CancelRequestModal
+        open={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        booking={booking}
+        onSubmitted={() => {
+          setEmailToast('Cancellation request submitted — awaiting approval ✓');
+          setTimeout(() => setEmailToast(''), 3500);
+          fetchDetail();
         }}
       />
     </div>

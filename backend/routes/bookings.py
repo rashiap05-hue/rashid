@@ -344,3 +344,227 @@ async def delete_booking(booking_id: str, current_user: dict = Depends(get_curre
         "deleted_from_held_bookings": held_res.deleted_count,
         "deleted_from_bookings": main_res.deleted_count,
     }
+
+
+
+# ---------------------------------------------------------------------------
+# Cancel-Request flow
+# ---------------------------------------------------------------------------
+# Two-step: agent submits a cancel request (requires a reason and travel date
+# must still be in the future). Admin / operational team approves or rejects.
+# On approval the booking flips to `cancelled`.
+
+
+class CancelRequestBody(BaseModel):
+    reason: str
+
+
+class CancelReviewBody(BaseModel):
+    note: str = ""
+
+
+def _parse_iso_date(s: str):
+    """Best-effort parse of ISO-ish date strings (YYYY-MM-DD or full ISO). Returns a date or None."""
+    if not s:
+        return None
+    try:
+        # Strip trailing Z / timezone parts and keep the first 10 chars for date-only parse
+        return datetime.fromisoformat(s.split("T")[0].replace("Z", "")).date()
+    except Exception:
+        return None
+
+
+async def _load_booking_any(booking_id: str):
+    """Fetch a booking from either collection (held_bookings preferred for full record)."""
+    held = await db.held_bookings.find_one({"id": booking_id}, {"_id": 0})
+    main = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    return held or main, held, main
+
+
+async def _apply_update_to_both(booking_id: str, update_set: dict):
+    """Mirror the same $set into both held_bookings + bookings collections."""
+    if not update_set:
+        return
+    await db.held_bookings.update_one({"id": booking_id}, {"$set": update_set})
+    await db.bookings.update_one({"id": booking_id}, {"$set": update_set})
+
+
+def _can_review_cancellations(user: dict) -> bool:
+    return user.get("role") in ("admin", "staff", "supplier")
+
+
+@router.post("/bookings/{booking_id}/cancel-request")
+async def submit_cancel_request(
+    booking_id: str,
+    body: CancelRequestBody,
+    current_user: dict = Depends(get_current_user),
+):
+    reason = (body.reason or "").strip()
+    if not reason:
+        raise HTTPException(status_code=400, detail="A reason is required when requesting cancellation.")
+
+    booking, _held, _main = await _load_booking_any(booking_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    # Only the booking owner (or admin) can submit a cancel request
+    owner_id = booking.get("created_by") or booking.get("user_id")
+    requester_id = current_user.get("id") or current_user.get("email")
+    is_admin = current_user.get("role") == "admin"
+    if owner_id and requester_id and owner_id != requester_id and not is_admin:
+        raise HTTPException(status_code=403, detail="Only the booking owner or an admin can request cancellation.")
+
+    if booking.get("status") == "cancelled":
+        raise HTTPException(status_code=400, detail="Booking is already cancelled.")
+    if booking.get("cancellation_status") == "requested":
+        raise HTTPException(status_code=400, detail="A cancellation request is already pending for this booking.")
+
+    # Travel date guard — only before departure
+    travel_date = _parse_iso_date(booking.get("leaving_on", ""))
+    if travel_date and travel_date <= datetime.now(timezone.utc).date():
+        raise HTTPException(status_code=400, detail="Cancellation cannot be requested after the travel date.")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    update_set = {
+        "cancellation_status": "requested",
+        "cancellation_reason": reason,
+        "cancellation_requested_at": now_iso,
+        "cancellation_requested_by": requester_id,
+        "cancellation_requested_by_name": current_user.get("name") or current_user.get("full_name") or current_user.get("email", ""),
+        "updated_at": now_iso,
+    }
+    await _apply_update_to_both(booking_id, update_set)
+
+    # Notify all admins (and original requester gets a self-confirmation too)
+    from routes.notifications import create_notification
+    try:
+        admin_users = await db.users.find({"role": {"$in": ["admin", "staff"]}}, {"_id": 0, "id": 1, "email": 1}).to_list(100)
+        ref = booking.get("booking_ref") or f"TBM-{str(booking.get('booking_number', '')).zfill(6)}"
+        requester_name = update_set["cancellation_requested_by_name"] or "An agent"
+        for admin in admin_users:
+            admin_uid = admin.get("id") or admin.get("email")
+            if not admin_uid or admin_uid == requester_id:
+                continue
+            await create_notification(
+                user_id=admin_uid,
+                title=f"Cancellation Requested — {ref}",
+                message=f"{requester_name} requested to cancel this booking. Reason: {reason}",
+                booking_id=booking_id,
+                notif_type="cancel_request_new",
+            )
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("Failed to notify admins about cancel request")
+
+    return {
+        "success": True,
+        "booking_id": booking_id,
+        "cancellation_status": "requested",
+        "cancellation_reason": reason,
+        "cancellation_requested_at": now_iso,
+    }
+
+
+@router.post("/bookings/{booking_id}/cancel-request/approve")
+async def approve_cancel_request(
+    booking_id: str,
+    body: CancelReviewBody,
+    current_user: dict = Depends(get_current_user),
+):
+    if not _can_review_cancellations(current_user):
+        raise HTTPException(status_code=403, detail="Only admin / operational team can approve cancellations.")
+
+    booking, _held, _main = await _load_booking_any(booking_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if booking.get("cancellation_status") != "requested":
+        raise HTTPException(status_code=400, detail="No pending cancellation request on this booking.")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    reviewer_id = current_user.get("id") or current_user.get("email")
+    reviewer_name = current_user.get("name") or current_user.get("full_name") or current_user.get("email", "")
+
+    update_set = {
+        "status": "cancelled",
+        "cancellation_status": "approved",
+        "cancelled_at": now_iso,
+        "cancellation_reviewed_at": now_iso,
+        "cancellation_reviewed_by": reviewer_id,
+        "cancellation_reviewed_by_name": reviewer_name,
+        "cancellation_review_note": (body.note or "").strip(),
+        "updated_at": now_iso,
+    }
+    await _apply_update_to_both(booking_id, update_set)
+
+    # Also reflect cancellation on the linked proposal
+    if booking.get("proposal_id"):
+        await db.proposals.update_one(
+            {"id": booking["proposal_id"]},
+            {"$set": {"status": "cancelled"}},
+        )
+
+    # Notify the original requester
+    from routes.notifications import create_notification
+    requester_uid = booking.get("cancellation_requested_by") or booking.get("created_by") or booking.get("user_id")
+    if requester_uid:
+        ref = booking.get("booking_ref") or f"TBM-{str(booking.get('booking_number', '')).zfill(6)}"
+        msg = f"Your cancellation request for {ref} has been approved. The booking is now cancelled."
+        if update_set["cancellation_review_note"]:
+            msg += f" Note: {update_set['cancellation_review_note']}"
+        await create_notification(
+            user_id=requester_uid,
+            title=f"Cancellation Approved — {ref}",
+            message=msg,
+            booking_id=booking_id,
+            notif_type="cancel_request_approved",
+        )
+
+    return {"success": True, "booking_id": booking_id, "status": "cancelled", "cancellation_status": "approved"}
+
+
+@router.post("/bookings/{booking_id}/cancel-request/reject")
+async def reject_cancel_request(
+    booking_id: str,
+    body: CancelReviewBody,
+    current_user: dict = Depends(get_current_user),
+):
+    if not _can_review_cancellations(current_user):
+        raise HTTPException(status_code=403, detail="Only admin / operational team can reject cancellations.")
+
+    booking, _held, _main = await _load_booking_any(booking_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if booking.get("cancellation_status") != "requested":
+        raise HTTPException(status_code=400, detail="No pending cancellation request on this booking.")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    reviewer_id = current_user.get("id") or current_user.get("email")
+    reviewer_name = current_user.get("name") or current_user.get("full_name") or current_user.get("email", "")
+
+    update_set = {
+        "cancellation_status": "rejected",
+        "cancellation_reviewed_at": now_iso,
+        "cancellation_reviewed_by": reviewer_id,
+        "cancellation_reviewed_by_name": reviewer_name,
+        "cancellation_review_note": (body.note or "").strip(),
+        "updated_at": now_iso,
+    }
+    await _apply_update_to_both(booking_id, update_set)
+
+    # Notify the original requester
+    from routes.notifications import create_notification
+    requester_uid = booking.get("cancellation_requested_by") or booking.get("created_by") or booking.get("user_id")
+    if requester_uid:
+        ref = booking.get("booking_ref") or f"TBM-{str(booking.get('booking_number', '')).zfill(6)}"
+        msg = f"Your cancellation request for {ref} was rejected."
+        if update_set["cancellation_review_note"]:
+            msg += f" Reason: {update_set['cancellation_review_note']}"
+        await create_notification(
+            user_id=requester_uid,
+            title=f"Cancellation Rejected — {ref}",
+            message=msg,
+            booking_id=booking_id,
+            notif_type="cancel_request_rejected",
+        )
+
+    return {"success": True, "booking_id": booking_id, "cancellation_status": "rejected"}

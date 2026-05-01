@@ -64,8 +64,14 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
 
   // Apply all filters
   let filtered = bookings.filter(b => {
-    // Top-level filters
-    if (statusFilter !== 'all' && b.status !== statusFilter) return false;
+    // Top-level filters — treat `cancellation_requested` as a virtual status
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'cancellation_requested') {
+        if (b.cancellation_status !== 'requested' || b.status === 'cancelled') return false;
+      } else {
+        if (b.status !== statusFilter) return false;
+      }
+    }
     if (destination && !(b.cities || []).some(c => (c.name || c || '').toLowerCase().includes(destination.toLowerCase()))) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -87,7 +93,13 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
       const type = b.type || 'Package';
       if (colType !== type) return false;
     }
-    if (colStatus !== 'all' && b.status !== colStatus) return false;
+    if (colStatus !== 'all') {
+      if (colStatus === 'cancellation_requested') {
+        if (b.cancellation_status !== 'requested' || b.status === 'cancelled') return false;
+      } else {
+        if (b.status !== colStatus) return false;
+      }
+    }
     if (colBookedBy && !(b.booked_by_name || '').toLowerCase().includes(colBookedBy.toLowerCase())) return false;
     if (colName && !(b.customer_name || '').toLowerCase().includes(colName.toLowerCase())) return false;
     if (colDest && !(b.cities || []).some(c => (c.name || c || '').toLowerCase().includes(colDest.toLowerCase()))) return false;
@@ -115,11 +127,17 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
 
   const STAGE_LABELS = { held: 'Hold', payment_pending: 'Payment Pending', payment_received: 'Payment Received', confirmed: 'Confirmed', ticketed: 'Ticketed' };
 
-  // Derive a display status that reflects supplier response.
-  // - payment_received + supplier pending  -> "Under Process"
-  // - payment_received + supplier rejected -> "Rejected by Supplier"
-  // - payment_received + supplier confirmed -> "Confirmed"
+  // Derive a display status that reflects supplier response + cancellation requests.
+  // - cancellation_status=requested          -> "Cancellation Requested" (rose)
+  // - status=cancelled                       -> "Cancelled"
+  // - payment_received + supplier pending    -> "Under Process"
+  // - payment_received + supplier rejected   -> "Rejected by Supplier"
+  // - payment_received + supplier confirmed  -> "Confirmed"
   const getDisplayStatus = (b) => {
+    if (b.cancellation_status === 'requested' && b.status !== 'cancelled') {
+      return { label: 'Cancellation Requested', key: 'cancellation_requested' };
+    }
+    if (b.status === 'cancelled') return { label: 'Cancelled', key: 'cancelled' };
     const ss = b.supplier_status || 'pending';
     if (b.status === 'payment_received') {
       if (ss === 'pending') return { label: 'Under Process', key: 'under_process' };
@@ -139,6 +157,7 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
       confirmed: 'bg-green-100 text-green-800',
       ticketed: 'bg-blue-100 text-blue-800',
       cancelled: 'bg-red-100 text-red-700',
+      cancellation_requested: 'bg-rose-100 text-rose-800',
       pending: 'bg-blue-100 text-blue-700',
     };
     return styles[key] || 'bg-gray-100 text-gray-700';
@@ -266,6 +285,7 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
           <option value="held">Held</option>
           <option value="payment_received">Payment Received</option>
           <option value="confirmed">Confirmed</option>
+          <option value="cancellation_requested">Cancellation Requested</option>
           <option value="cancelled">Cancelled</option>
           <option value="pending">Pending</option>
         </select>
@@ -325,6 +345,7 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
                     <option value="all">All</option>
                     <option value="held">Held</option>
                     <option value="confirmed">Confirmed</option>
+                    <option value="cancellation_requested">Cancel Req</option>
                     <option value="cancelled">Cancelled</option>
                   </select>
                 </td>
