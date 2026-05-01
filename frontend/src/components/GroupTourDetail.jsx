@@ -181,6 +181,8 @@ function SimilarCard({ s, onClick }) {
 }
 
 /* ---------- Rooms / Adults / Children stepper popover ---------- */
+const CHILD_AGE_OPTIONS = ['Below 2 yrs', '2-5 yrs', '6-11 yrs', '12-14 yrs'];
+
 function Stepper({ value, onChange, min = 0, max = 99, testid }) {
   const dec = () => onChange(Math.max(min, value - 1));
   const inc = () => onChange(Math.min(max, value + 1));
@@ -206,17 +208,64 @@ function Stepper({ value, onChange, min = 0, max = 99, testid }) {
   );
 }
 
-function RoomsOccupancyPicker({ rooms, adults, children, onChange, testid = 'pkg-rooms-adults' }) {
+function RoomBlock({ roomIndex, room, onChange, testidBase, showDivider }) {
+  const setAdults = (n) => onChange({ ...room, adults: n });
+  const setChildrenCount = (n) => {
+    const cur = room.children || [];
+    if (n > cur.length) {
+      // Add default-age children
+      const add = Array.from({ length: n - cur.length }, () => ({ age: CHILD_AGE_OPTIONS[3] }));
+      onChange({ ...room, children: [...cur, ...add] });
+    } else {
+      onChange({ ...room, children: cur.slice(0, n) });
+    }
+  };
+  const setChildAge = (i, age) => {
+    const next = [...(room.children || [])];
+    next[i] = { ...next[i], age };
+    onChange({ ...room, children: next });
+  };
+
+  return (
+    <div data-testid={`${testidBase}-room-${roomIndex}`}>
+      <div className="grid grid-cols-2 gap-4 py-2">
+        <div>
+          <div className="font-bold text-gray-900 text-sm mb-2">Adults(12+)</div>
+          <Stepper value={room.adults} onChange={setAdults} min={1} max={10} testid={`${testidBase}-adults-${roomIndex}`} />
+        </div>
+        <div>
+          <div className="font-bold text-gray-900 text-sm mb-2">Children</div>
+          <Stepper value={(room.children || []).length} onChange={setChildrenCount} min={0} max={6} testid={`${testidBase}-children-${roomIndex}`} />
+        </div>
+      </div>
+      {(room.children || []).length > 0 && (
+        <div className="grid grid-cols-2 gap-4 pb-2">
+          {room.children.map((ch, ci) => (
+            <div key={ci} className={ci % 2 === 0 ? '' : ''}>
+              <select
+                value={ch.age}
+                onChange={e => setChildAge(ci, e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                data-testid={`${testidBase}-child-age-${roomIndex}-${ci}`}
+              >
+                {CHILD_AGE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          ))}
+        </div>
+      )}
+      {showDivider && <div className="border-t border-gray-200 my-1" />}
+    </div>
+  );
+}
+
+function RoomsOccupancyPicker({ rooms, onChange, testid = 'pkg-rooms-adults' }) {
   const [open, setOpen] = useState(false);
-  const [localRooms, setLocalRooms] = useState(rooms);
-  const [localAdults, setLocalAdults] = useState(adults);
-  const [localChildren, setLocalChildren] = useState(children);
+  const [local, setLocal] = useState(rooms);
   const ref = useRef(null);
 
-  // Sync local state when props change
-  useEffect(() => { setLocalRooms(rooms); setLocalAdults(adults); setLocalChildren(children); }, [rooms, adults, children]);
+  useEffect(() => { setLocal(rooms); }, [rooms]);
 
-  // Close on outside click
   useEffect(() => {
     function onDoc(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -225,15 +274,35 @@ function RoomsOccupancyPicker({ rooms, adults, children, onChange, testid = 'pkg
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
 
+  const totalAdults = local.reduce((s, r) => s + (r.adults || 0), 0);
+  const totalChildren = local.reduce((s, r) => s + (r.children || []).length, 0);
+
   const label = () => {
-    const r = rooms === 1 ? '1 room' : `${rooms} rooms`;
-    const a = adults === 1 ? '1 adult' : `${adults} adults`;
-    const c = children > 0 ? `, ${children === 1 ? '1 child' : `${children} children`}` : '';
+    const totalAdultsP = rooms.reduce((s, r) => s + (r.adults || 0), 0);
+    const totalChildrenP = rooms.reduce((s, r) => s + (r.children || []).length, 0);
+    const r = rooms.length === 1 ? '1 room' : `${rooms.length} rooms`;
+    const a = totalAdultsP === 1 ? '1 adult' : `${totalAdultsP} adults`;
+    const c = totalChildrenP > 0 ? `, ${totalChildrenP === 1 ? '1 child' : `${totalChildrenP} children`}` : '';
     return `${r}, ${a}${c}`;
   };
 
+  const setRoomCount = (n) => {
+    if (n > local.length) {
+      const add = Array.from({ length: n - local.length }, () => ({ adults: 1, children: [] }));
+      setLocal([...local, ...add]);
+    } else {
+      setLocal(local.slice(0, n));
+    }
+  };
+
+  const updateRoom = (i, next) => {
+    const arr = [...local];
+    arr[i] = next;
+    setLocal(arr);
+  };
+
   const done = () => {
-    onChange({ rooms: localRooms, adults: localAdults, children: localChildren });
+    onChange(local);
     setOpen(false);
   };
 
@@ -251,30 +320,32 @@ function RoomsOccupancyPicker({ rooms, adults, children, onChange, testid = 'pkg
 
       {open && (
         <div
-          className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-30 p-4"
+          className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-30 p-4 max-h-[28rem] overflow-y-auto"
           data-testid={`${testid}-popover`}
         >
-          {/* Rooms row */}
+          {/* Rooms master stepper */}
           <div className="flex items-center justify-between py-2">
             <span className="font-bold text-gray-900 text-base">Rooms</span>
-            <Stepper value={localRooms} onChange={setLocalRooms} min={1} max={9} testid={`${testid}-rooms-stepper`} />
+            <Stepper value={local.length} onChange={setRoomCount} min={1} max={9} testid={`${testid}-rooms-stepper`} />
           </div>
           <div className="border-t border-gray-200 my-2" />
 
-          {/* Adults & Children — two columns */}
-          <div className="grid grid-cols-2 gap-4 py-2">
-            <div>
-              <div className="font-bold text-gray-900 text-sm mb-2">Adults(12+)</div>
-              <Stepper value={localAdults} onChange={setLocalAdults} min={1} max={20} testid={`${testid}-adults-stepper`} />
-            </div>
-            <div>
-              <div className="font-bold text-gray-900 text-sm mb-2">Children</div>
-              <Stepper value={localChildren} onChange={setLocalChildren} min={0} max={10} testid={`${testid}-children-stepper`} />
-            </div>
-          </div>
+          {/* Per-room blocks — one Adults+Children pair per room, with individual child-age dropdowns */}
+          {local.map((room, i) => (
+            <RoomBlock
+              key={i}
+              roomIndex={i}
+              room={room}
+              onChange={(next) => updateRoom(i, next)}
+              testidBase={testid}
+              showDivider={i < local.length - 1}
+            />
+          ))}
 
-          {/* Done */}
-          <div className="flex justify-end mt-3 pt-2 border-t border-gray-200">
+          <div className="flex justify-between items-center mt-3 pt-2 border-t border-gray-200">
+            <div className="text-xs text-gray-500">
+              Total: <span className="font-semibold text-gray-700">{local.length} {local.length === 1 ? 'room' : 'rooms'}</span> · <span className="font-semibold text-gray-700">{totalAdults} adults</span>{totalChildren > 0 && <>, <span className="font-semibold text-gray-700">{totalChildren} children</span></>}
+            </div>
             <button
               type="button"
               onClick={done}
@@ -295,7 +366,8 @@ export default function GroupTourDetail({ deal, onBack }) {
   const pkg = buildPackage(deal);
   const [activeTab, setActiveTab] = useState('itinerary');
   const [selectedDate, setSelectedDate] = useState('2026-07-10');
-  const [occupancy, setOccupancy] = useState({ rooms: 1, adults: 2, children: 0 });
+  // Per-room occupancy — each room has its own adults & array of children (each with an age bracket)
+  const [roomsOccupancy, setRoomsOccupancy] = useState([{ adults: 2, children: [] }]);
   const [leavingFrom, setLeavingFrom] = useState('Dubai');
 
   const galleryImages = [deal?.image, deal?.image, deal?.image];
@@ -388,10 +460,8 @@ export default function GroupTourDetail({ deal, onBack }) {
                 <div>
                   <label className="block text-sm text-gray-500 mb-1.5">No. Of Rooms</label>
                   <RoomsOccupancyPicker
-                    rooms={occupancy.rooms}
-                    adults={occupancy.adults}
-                    children={occupancy.children}
-                    onChange={setOccupancy}
+                    rooms={roomsOccupancy}
+                    onChange={setRoomsOccupancy}
                   />
                 </div>
 
