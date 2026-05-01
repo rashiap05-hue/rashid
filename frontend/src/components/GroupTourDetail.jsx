@@ -181,7 +181,12 @@ function SimilarCard({ s, onClick }) {
 }
 
 /* ---------- Rooms / Adults / Children stepper popover ---------- */
-const CHILD_AGE_OPTIONS = ['Below 2 yrs', '2-5 yrs', '6-11 yrs', '12-14 yrs'];
+const CHILD_AGE_OPTIONS = [
+  '<2 yrs',
+  '2+ yrs', '3+ yrs', '4+ yrs', '5+ yrs', '6+ yrs', '7+ yrs',
+  '8+ yrs', '9+ yrs', '10+ yrs', '11+ yrs', '12+ yrs', '13+ yrs',
+  '14+ yrs', '15+ yrs', '16+ yrs', '17+ yrs',
+];
 
 function Stepper({ value, onChange, min = 0, max = 99, testid }) {
   const dec = () => onChange(Math.max(min, value - 1));
@@ -214,7 +219,7 @@ function RoomBlock({ roomIndex, room, onChange, testidBase, showDivider }) {
     const cur = room.children || [];
     if (n > cur.length) {
       // Add default-age children
-      const add = Array.from({ length: n - cur.length }, () => ({ age: CHILD_AGE_OPTIONS[3] }));
+      const add = Array.from({ length: n - cur.length }, () => ({ age: '<2 yrs' }));
       onChange({ ...room, children: [...cur, ...add] });
     } else {
       onChange({ ...room, children: cur.slice(0, n) });
