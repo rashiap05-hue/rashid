@@ -276,6 +276,15 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Frontend (`BookingDetail.jsx`): Wired the existing `data-testid="print-receipt-{i}"` button to download `Payment_Receipt_<ref>.pdf` via axios blob response.
   - Verified end-to-end: 54KB PDF with valid `%PDF-1.7` header generates on demand; Playwright download triggered with `Payment_Receipt_TBM-000003.pdf`; AI-vision analysis confirms every element from the Nexus reference is present.
 
+- **ORN → TBM branding migration (May 2026)**: Every user-visible legacy `ORN*` identifier is now replaced with the real TBM booking reference (`TBM-XXXXXX`).
+  - Receipt PDF **Payment Reference**: no longer falls back to `order_id` (which used to be `ORN<random>`). Now renders as `#TBM-000003-P1` (booking ref + `-P<txn_index+1>` suffix when a specific transaction is requested, bare ref otherwise).
+  - Invoice PDF **Confirmation/PNR**: switched from `booking.order_id` fallback to the booking's TBM ref — so instead of `ORNFI0W6OUQU` it now shows `TBM-000003`.
+  - `PaymentPage.jsx` order-id generator: new transactions now produce `TBM-P<8>` strings instead of `ORN<9>`.
+  - `routes/change_requests.py` → `_short_ref()` is now async and reads the booking's real `booking_ref` / `booking_number` from the DB (with a TBM fallback for legacy rows). All 3 call-sites updated to `await _short_ref(...)`. Notification messages like "Booking ORNXXXX" now show "Booking TBM-000003".
+  - `routes/email_service.py`: Both email builders (`build_booking_status_email_html`, `build_booking_confirmation_email_html`) stopped constructing `ORN + id[:8]` refs; they now use the persisted `booking_ref` with TBM fallback.
+  - Frontend chips (`AdminDashboard.jsx`, `SupplierDashboard.jsx`, `SupplierDashboard/ServiceViewModal.jsx`): replaced "Order: <order_id>" displays with "Ref: <TBM-XXXXXX>" via `booking.booking_ref || (booking.booking_number ? TBM-xxxxxx : id.slice(0,8))`.
+  - Verified end-to-end via curl: regenerated receipt PDF → Payment Reference shows `#TBM-000003-P1`; regenerated invoice PDF → Confirmation/PNR shows `TBM-000003` (AI-extraction confirms no ORN codes remain).
+
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
 - P2: AI-powered trip recommendations frontend
