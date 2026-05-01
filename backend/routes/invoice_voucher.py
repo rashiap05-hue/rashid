@@ -641,6 +641,341 @@ async def get_voucher_pdf(booking_id: str, current_user: dict = Depends(get_curr
     )
 
 
+# ---------------- PAYMENT RECEIPT ----------------
+
+def _build_transactions(booking):
+    """Build transaction rows (matches BookingDetail.jsx logic)."""
+    total_price = float(booking.get("total_price") or 0)
+    payments = booking.get("payments") or []
+    if payments:
+        rows = []
+        for p in payments:
+            rows.append({
+                "date": p.get("paid_at") or p.get("created_at"),
+                "amount": float(p.get("amount") or 0),
+                "status": p.get("status") or "Processed Successfully",
+                "ref": p.get("id") or p.get("order_id") or "",
+            })
+        return rows, total_price
+    if booking.get("paid_at"):
+        return [{
+            "date": booking.get("paid_at"),
+            "amount": float(booking.get("payment_amount") or total_price),
+            "status": "Processed Successfully",
+            "ref": booking.get("order_id") or "",
+        }], total_price
+    return [], total_price
+
+
+def _fmt_receipt_date(iso):
+    if not iso:
+        return "—"
+    try:
+        dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+        return dt.strftime("%d %b, %Y at %I:%M %p")
+    except Exception:
+        return str(iso)[:10]
+
+
+def _fmt_receipt_date_only(iso):
+    if not iso:
+        return "—"
+    try:
+        dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+        return dt.strftime("%d %b %Y")
+    except Exception:
+        return str(iso)[:10]
+
+
+def build_receipt_html(booking, proposal, user, txn_index=None):
+    """Payment Receipt PDF (Nexus-style layout).
+    If `txn_index` is given, only that single transaction is highlighted;
+    otherwise all transactions are listed.
+    """
+    company = _company_block(user)
+    ref = _short_ref(booking)
+    customer_name = booking.get("customer_name") or (proposal or {}).get("customer_name") or "—"
+    customer_email = booking.get("customer_email") or (proposal or {}).get("customer_email") or "—"
+    customer_phone = booking.get("customer_phone") or (booking.get("contact_info") or {}).get("phone") or (user or {}).get("mobile") or "—"
+
+    transactions, total_price = _build_transactions(booking)
+
+    # If a specific transaction index was requested, filter to that single row
+    if isinstance(txn_index, int) and 0 <= txn_index < len(transactions):
+        displayed_txns = [transactions[txn_index]]
+    else:
+        displayed_txns = transactions
+
+    paid_amount = sum(float(t.get("amount") or 0) for t in transactions)
+
+    booking_date = booking.get("created_at") or booking.get("held_at")
+
+    # Payment Reference — use the txn ref (preferred) else order_id
+    if displayed_txns and displayed_txns[0].get("ref"):
+        payment_ref = str(displayed_txns[0]["ref"])
+    else:
+        payment_ref = booking.get("order_id") or "—"
+
+    # Build the table rows HTML
+    if displayed_txns:
+        txn_rows = "".join(
+            f"""
+            <tr>
+                <td class="desc-col">Paid</td>
+                <td class="on-col">{_fmt_receipt_date(t.get('date'))}</td>
+                <td class="amt-col">{_format_money(t.get('amount'))}</td>
+            </tr>
+            """
+            for t in displayed_txns
+        )
+    else:
+        txn_rows = """
+        <tr><td colspan="3" class="no-txn">No payment transactions recorded yet.</td></tr>
+        """
+
+    logo_block = (
+        f'<img src="{_LOGO_DATA_URL}" class="brand-logo" alt="Travo by MedVentures" />'
+        if _LOGO_DATA_URL else f'<div class="brand-text">{company["name"].upper()}</div>'
+    )
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Payment Receipt — {ref}</title>
+        <style>
+            @page {{ size: A4; margin: 18mm 16mm; }}
+            * {{ box-sizing: border-box; }}
+            body {{
+                font-family: "Helvetica", "Arial", sans-serif;
+                color: #1f2937;
+                font-size: 11pt;
+                margin: 0;
+            }}
+            .hdr {{
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                padding-bottom: 18px;
+                border-bottom: 1px solid #e5e7eb;
+            }}
+            .brand-logo {{
+                max-height: 72px;
+                max-width: 230px;
+            }}
+            .brand-text {{
+                font-size: 20pt;
+                font-weight: 900;
+                letter-spacing: 0.5px;
+                color: #4a2b10;
+            }}
+            .doc-title {{
+                font-size: 20pt;
+                font-weight: 700;
+                color: #1f2937;
+                text-align: right;
+                letter-spacing: -0.5px;
+            }}
+            .doc-sub {{
+                font-size: 9pt;
+                color: #6b7280;
+                text-align: right;
+                margin-top: 3px;
+                letter-spacing: 0.5px;
+            }}
+            .info-grid {{
+                display: flex;
+                gap: 36px;
+                margin-top: 26px;
+            }}
+            .info-col {{ flex: 1; }}
+            .info-label {{
+                font-size: 9pt;
+                font-weight: 700;
+                color: #9ca3af;
+                letter-spacing: 1.2px;
+                margin-bottom: 10px;
+            }}
+            .info-name {{
+                font-size: 13pt;
+                font-weight: 700;
+                color: #111827;
+                margin-bottom: 6px;
+                text-transform: uppercase;
+            }}
+            .info-line {{
+                font-size: 10.5pt;
+                color: #4b5563;
+                margin-bottom: 3px;
+            }}
+            .kv-row {{
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 6px;
+                font-size: 10.5pt;
+            }}
+            .kv-label {{ color: #6b7280; }}
+            .kv-val {{ color: #111827; font-weight: 600; }}
+            .sep {{
+                border-top: 1px solid #e5e7eb;
+                margin: 30px 0 0;
+            }}
+            table.txn-table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 20px;
+            }}
+            table.txn-table thead th {{
+                text-align: left;
+                font-size: 9pt;
+                font-weight: 700;
+                color: #9ca3af;
+                letter-spacing: 1.2px;
+                padding: 10px 4px;
+                border-bottom: 1px solid #e5e7eb;
+                text-transform: uppercase;
+            }}
+            table.txn-table thead th.amt-col {{ text-align: right; }}
+            table.txn-table tbody td {{
+                padding: 14px 4px;
+                font-size: 10.5pt;
+                color: #1f2937;
+                border-bottom: 1px solid #f3f4f6;
+            }}
+            table.txn-table tbody td.amt-col {{
+                text-align: right;
+                font-weight: 700;
+                color: #059669;
+            }}
+            table.txn-table tbody td.no-txn {{
+                text-align: center;
+                color: #9ca3af;
+                font-style: italic;
+                padding: 20px;
+            }}
+            .summary {{
+                margin-top: 22px;
+                display: flex;
+                justify-content: flex-end;
+            }}
+            .summary-box {{
+                width: 300px;
+            }}
+            .summary-row {{
+                display: flex;
+                justify-content: space-between;
+                padding: 8px 0;
+                font-size: 11pt;
+            }}
+            .summary-row.total {{
+                border-top: 2px solid #111827;
+                font-weight: 800;
+                font-size: 12pt;
+                color: #111827;
+                margin-top: 6px;
+                padding-top: 12px;
+            }}
+            .footer {{
+                position: fixed;
+                bottom: 12mm;
+                left: 16mm;
+                right: 16mm;
+                text-align: center;
+                font-size: 9pt;
+                color: #6b7280;
+                border-top: 1px solid #e5e7eb;
+                padding-top: 10px;
+                line-height: 1.6;
+            }}
+            .footer .co-name {{ font-weight: 700; color: #374151; }}
+        </style>
+    </head>
+    <body>
+        <div class="hdr">
+            <div>{logo_block}</div>
+            <div>
+                <div class="doc-title">Payment Receipt</div>
+                <div class="doc-sub">REF {ref}</div>
+            </div>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-col">
+                <div class="info-label">ISSUED TO</div>
+                <div class="info-name">{customer_name}</div>
+                <div class="info-line">{customer_email}</div>
+                <div class="info-line">{customer_phone}</div>
+            </div>
+            <div class="info-col">
+                <div class="info-label">TRANSACTION DETAILS</div>
+                <div class="kv-row"><span class="kv-label">Booking Reference</span><span class="kv-val">{ref}</span></div>
+                <div class="kv-row"><span class="kv-label">Booking Date</span><span class="kv-val">{_fmt_receipt_date_only(booking_date)}</span></div>
+                <div class="kv-row"><span class="kv-label">Payment Reference</span><span class="kv-val">#{payment_ref}</span></div>
+            </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <table class="txn-table">
+            <thead>
+                <tr>
+                    <th class="desc-col">DESCRIPTION</th>
+                    <th class="on-col">ON</th>
+                    <th class="amt-col">AMOUNT</th>
+                </tr>
+            </thead>
+            <tbody>
+                {txn_rows}
+            </tbody>
+        </table>
+
+        <div class="summary">
+            <div class="summary-box">
+                <div class="summary-row">
+                    <span class="kv-label">Total Booking Amount</span>
+                    <span class="kv-val">{_format_money(total_price)}</span>
+                </div>
+                <div class="summary-row total">
+                    <span>Total Amount Paid</span>
+                    <span>{_format_money(paid_amount)}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="co-name">{company['name']}</div>
+            <div>Email: {company['email']}</div>
+        </div>
+    </body>
+    </html>
+    """
+    return html
+
+
+@router.get("/bookings/{booking_id}/receipt-pdf")
+async def get_receipt_pdf(
+    booking_id: str,
+    txn: int | None = None,
+    current_user: dict = Depends(get_current_user),
+):
+    """Generate a Payment Receipt PDF. Optional `?txn=<index>` pins the receipt to one
+    specific transaction row (matches the row on the BookingDetail 'Print Receipt' link)."""
+    booking, proposal, user, _ = await _load_booking_context(booking_id, current_user)
+    html_content = build_receipt_html(booking, proposal, user, txn_index=txn)
+    try:
+        pdf_bytes = HTML(string=html_content).write_pdf()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Receipt PDF generation failed: {e}")
+    ref = _short_ref(booking)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="Payment_Receipt_{ref}.pdf"'},
+    )
+
+
+
 async def _refresh_refund_deadline(hotel: dict, sel_room: dict) -> str:
     """Pulls the latest `refund_deadline` from the master `hotels` collection so edits
     to Hotel Management flow through to vouchers without resaving the proposal."""

@@ -472,7 +472,29 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
                       <div>
                         <span className="px-3 py-1 bg-green-100 text-green-700 rounded-md text-xs font-semibold inline-block">{t.status}</span>
                         <div className="flex gap-3 mt-2 text-xs">
-                          <button className="text-blue-600 hover:underline italic" data-testid={`print-receipt-${i}`}>Print Receipt</button>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await api.get(`/bookings/${booking.id}/receipt-pdf?txn=${i}`, { responseType: 'blob' });
+                                const blobUrl = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+                                const a = document.createElement('a');
+                                a.href = blobUrl;
+                                a.download = `Payment_Receipt_${shortRef}.pdf`;
+                                document.body.appendChild(a);
+                                a.click();
+                                a.remove();
+                                setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+                              } catch (err) {
+                                console.error('Receipt download failed:', err);
+                                setEmailToast('Failed to download receipt');
+                                setTimeout(() => setEmailToast(''), 3500);
+                              }
+                            }}
+                            className="text-blue-600 hover:underline italic"
+                            data-testid={`print-receipt-${i}`}
+                          >
+                            Print Receipt
+                          </button>
                           <button className="text-blue-600 hover:underline italic" data-testid={`refresh-status-${i}`}>Refresh Status</button>
                         </div>
                       </div>
