@@ -374,19 +374,7 @@ export default function GroupTourDetail({ deal, onBack }) {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-500 mb-1.5">No. Of Rooms</label>
-                    <RoomsOccupancyPicker
-                      rooms={occupancy.rooms}
-                      adults={occupancy.adults}
-                      children={occupancy.children}
-                      onChange={setOccupancy}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-500 mb-1.5">Leaving On</label>
-                  <div className="relative">
+                    <label className="block text-sm text-gray-500 mb-1.5">Leaving On</label>
                     <input
                       type="date"
                       value={selectedDate}
@@ -395,6 +383,16 @@ export default function GroupTourDetail({ deal, onBack }) {
                       data-testid="pkg-date-input"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-500 mb-1.5">No. Of Rooms</label>
+                  <RoomsOccupancyPicker
+                    rooms={occupancy.rooms}
+                    adults={occupancy.adults}
+                    children={occupancy.children}
+                    onChange={setOccupancy}
+                  />
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 pt-2">
