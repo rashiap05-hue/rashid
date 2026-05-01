@@ -96,7 +96,10 @@ def build_status_change_email_html(booking, new_status, note):
     status_label = stage_labels.get(new_status, new_status)
     status_color = stage_colors.get(new_status, "#6b7280")
     customer_name = booking.get("customer_name", "Valued Client")
-    ref = "ORN" + (booking.get("id", ""))[:8].upper()
+    ref = booking.get("booking_ref") or (
+        f"TBM-{str(booking['booking_number']).zfill(6)}" if booking.get("booking_number") is not None
+        else "TBM-" + ("".join(ch for ch in str(booking.get("id", "")) if ch.isdigit())[:6].zfill(6))
+    )
 
     return f'''
     <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;">
@@ -122,7 +125,10 @@ def build_status_change_email_html(booking, new_status, note):
 
 def build_booking_confirmation_email_html(booking):
     customer_name = booking.get("customer_name", "Valued Client")
-    ref = "ORN" + (booking.get("id", ""))[:8].upper()
+    ref = booking.get("booking_ref") or (
+        f"TBM-{str(booking['booking_number']).zfill(6)}" if booking.get("booking_number") is not None
+        else "TBM-" + ("".join(ch for ch in str(booking.get("id", "")) if ch.isdigit())[:6].zfill(6))
+    )
     total = booking.get("total_price", 0)
     leaving_on = booking.get("leaving_on", "")
     cities = booking.get("cities", [])

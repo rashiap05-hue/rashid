@@ -94,7 +94,8 @@ def build_invoice_html(booking, proposal, user):
 
     booking_date = booking.get("created_at") or booking.get("held_at")
     journey_date = booking.get("leaving_on") or proposal.get("leaving_on")
-    pnr = booking.get("confirmation_pnr") or booking.get("order_id") or ""
+    # PNR / Confirmation ref — always use our TBM code, never the legacy ORN order_id
+    pnr = booking.get("confirmation_pnr") or ref
     final_due = booking.get("final_payment_due_date") or ""
     if not final_due and journey_date:
         try:
@@ -710,11 +711,13 @@ def build_receipt_html(booking, proposal, user, txn_index=None):
 
     booking_date = booking.get("created_at") or booking.get("held_at")
 
-    # Payment Reference — use the txn ref (preferred) else order_id
-    if displayed_txns and displayed_txns[0].get("ref"):
-        payment_ref = str(displayed_txns[0]["ref"])
+    # Payment Reference — always TBM-branded. If a specific transaction index is
+    # shown, suffix the booking ref with `-P<n>` (P1, P2...); otherwise use the
+    # bare booking ref. We never expose legacy `ORN*` order_ids on receipts.
+    if isinstance(txn_index, int) and txn_index >= 0:
+        payment_ref = f"{ref}-P{txn_index + 1}"
     else:
-        payment_ref = booking.get("order_id") or "—"
+        payment_ref = ref
 
     # Build the table rows HTML
     if displayed_txns:

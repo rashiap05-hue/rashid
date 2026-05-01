@@ -211,7 +211,7 @@ function AdminSupplierBookingsTab() {
               <div>
                 <p className="font-medium text-gray-900">{b.proposal?.proposal_name || 'Booking'}</p>
                 <p className="text-sm text-gray-500">{b.proposal?.customer_name} • {b.proposal?.cities?.map(c => c.name).join(', ')} • {b.proposal?.leaving_on ? new Date(b.proposal.leaving_on).toLocaleDateString('en-GB') : ''}</p>
-                <p className="text-xs text-gray-400 mt-1">Order: {b.order_id || b.id?.slice(0, 8)} • Payment: {b.payment_method || 'N/A'} AED {(b.payment_amount || 0).toLocaleString()}</p>
+                <p className="text-xs text-gray-400 mt-1">Ref: {b.booking_ref || (b.booking_number != null ? `TBM-${String(b.booking_number).padStart(6, '0')}` : b.id?.slice(0, 8))} • Payment: {b.payment_method || 'N/A'} AED {(b.payment_amount || 0).toLocaleString()}</p>
               </div>
               <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${statusColors[b.supplier_status] || statusColors.pending}`}>
                 {b.supplier_status || 'pending'}

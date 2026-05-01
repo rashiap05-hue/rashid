@@ -267,8 +267,8 @@ export default function ServiceViewModal({
                   <p className="text-sm font-semibold text-gray-900">{(row?.confirmation && row.confirmation !== 'Pending' ? row.confirmation : null) || booking.supplier_confirmation_number || 'Pending'}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Order Ref</p>
-                  <p className="text-sm font-semibold text-gray-900">{booking.order_id || booking.id?.slice(0, 8)}</p>
+                  <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Booking Ref</p>
+                  <p className="text-sm font-semibold text-gray-900">{booking.booking_ref || (booking.booking_number != null ? `TBM-${String(booking.booking_number).padStart(6, '0')}` : booking.id?.slice(0, 8))}</p>
                 </div>
               </div>
             )}

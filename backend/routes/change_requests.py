@@ -19,8 +19,20 @@ CHANGE_REQUEST_FEE_AED = 100.0
 ALLOWED_STATUSES = {"open", "under_process", "closed", "rejected"}
 
 
-def _short_ref(booking_id: str) -> str:
-    return "ORN" + (booking_id or "").replace("-", "")[:8].upper()
+async def _short_ref(booking_id: str) -> str:
+    """Return the TBM-branded booking ref. Falls back gracefully for legacy bookings."""
+    if not booking_id:
+        return ""
+    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0, "booking_ref": 1, "booking_number": 1}) \
+        or await db.held_bookings.find_one({"id": booking_id}, {"_id": 0, "booking_ref": 1, "booking_number": 1})
+    if booking:
+        if booking.get("booking_ref"):
+            return booking["booking_ref"]
+        if booking.get("booking_number") is not None:
+            return f"TBM-{str(booking['booking_number']).zfill(6)}"
+    # Legacy fallback
+    digits = "".join(ch for ch in str(booking_id) if ch.isdigit())[:6] or "000000"
+    return f"TBM-{digits.zfill(6)}"
 
 
 async def _expert_user_ids(proposal_id: Optional[str]) -> List[str]:
@@ -140,7 +152,7 @@ async def create_change_request(
     advisor_ids = await _expert_user_ids(booking.get("proposal_id"))
     # Don't notify the requester themselves
     advisor_ids = [uid for uid in advisor_ids if uid != current_user.get("id")]
-    ref = _short_ref(booking_id)
+    ref = await _short_ref(booking_id)
     await _notify(
         advisor_ids,
         title="New Trip Change Request",
@@ -207,7 +219,7 @@ async def update_change_request(
 
     # Notify the OTHER party of the status change
     if new_status and new_status != _normalise_status(record.get("status")):
-        ref = _short_ref(record.get("booking_id", ""))
+        ref = await _short_ref(record.get("booking_id", ""))
         actor_role = current_user.get("role", "agent")
         if actor_role in ("admin", "supplier"):
             # Advisor changed status → notify the original agent
@@ -264,7 +276,7 @@ async def add_reply(
     refreshed = await db.trip_change_requests.find_one({"id": request_id}, {"_id": 0})
 
     # Notify the OTHER party of the new reply
-    ref = _short_ref(record.get("booking_id", ""))
+    ref = await _short_ref(record.get("booking_id", ""))
     actor_role = current_user.get("role", "agent")
     if actor_role in ("admin", "supplier"):
         target_ids = [record.get("requested_by")] if record.get("requested_by") and record.get("requested_by") != current_user.get("id") else []

@@ -377,7 +377,7 @@ export default function SupplierDashboard({ user, onBack }) {
                       </div>
                       {/* Payment info bar */}
                       <div className="bg-gray-50 px-5 py-2.5 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-                        <span>Order: {booking.order_id || booking.id?.slice(0, 8)}</span>
+                        <span>Ref: {booking.booking_ref || (booking.booking_number != null ? `TBM-${String(booking.booking_number).padStart(6, '0')}` : booking.id?.slice(0, 8))}</span>
                         <span>Payment: {booking.payment_method || 'N/A'} — AED {(booking.payment_amount || p.total_price || 0).toLocaleString()}</span>
                         <span>Booked: {booking.created_at ? new Date(booking.created_at).toLocaleDateString('en-GB') : 'N/A'}</span>
                       </div>
@@ -541,7 +541,7 @@ export default function SupplierDashboard({ user, onBack }) {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div><span className="text-gray-400">Method:</span> <span className="font-medium capitalize">{detailBooking.payment_method || 'N/A'}</span></div>
                     <div><span className="text-gray-400">Amount:</span> <span className="font-bold text-green-700">AED {(detailBooking.payment_amount || detailBooking.proposal?.total_price || 0).toLocaleString()}</span></div>
-                    <div><span className="text-gray-400">Order ID:</span> <span className="font-medium">{detailBooking.order_id || 'N/A'}</span></div>
+                    <div><span className="text-gray-400">Booking Ref:</span> <span className="font-medium">{detailBooking.booking_ref || (detailBooking.booking_number != null ? `TBM-${String(detailBooking.booking_number).padStart(6, '0')}` : 'N/A')}</span></div>
                     <div><span className="text-gray-400">Status:</span> <span className={cn("font-bold uppercase", detailBooking.supplier_status === 'confirmed' ? 'text-green-600' : detailBooking.supplier_status === 'rejected' ? 'text-red-600' : 'text-amber-600')}>{detailBooking.supplier_status || 'Pending'}</span></div>
                   </div>
                 </div>
