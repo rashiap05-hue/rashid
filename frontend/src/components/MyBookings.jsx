@@ -125,7 +125,7 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
   const totalAmount = filtered.reduce((s, b) => s + (Number(b.total_price) || 0), 0);
   const confirmedAmount = filtered.filter(b => b.status === 'confirmed').reduce((s, b) => s + (Number(b.total_price) || 0), 0);
 
-  const STAGE_LABELS = { held: 'Hold', payment_pending: 'Payment Pending', payment_received: 'Payment Received', confirmed: 'Confirmed', ticketed: 'Ticketed' };
+  const STAGE_LABELS = { held: 'Hold', payment_pending: 'Payment Pending', payment_received: 'Payment Received', confirmed: 'Confirmed', ticketed: 'Ticketed', completed: 'Completed' };
 
   // Derive a display status that reflects supplier response + cancellation requests.
   // - cancellation_status=requested          -> "Cancellation Requested" (rose)
@@ -138,6 +138,8 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
       return { label: 'Cancellation Requested', key: 'cancellation_requested' };
     }
     if (b.status === 'cancelled') return { label: 'Cancelled', key: 'cancelled' };
+    if (b.status === 'completed') return { label: 'Completed', key: 'completed' };
+    if (b.status === 'ticketed') return { label: 'Ticketed', key: 'ticketed' };
     const ss = b.supplier_status || 'pending';
     if (b.status === 'payment_received') {
       if (ss === 'pending') return { label: 'Under Process', key: 'under_process' };
@@ -156,6 +158,7 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
       under_process: 'bg-indigo-100 text-indigo-800',
       confirmed: 'bg-green-100 text-green-800',
       ticketed: 'bg-blue-100 text-blue-800',
+      completed: 'bg-emerald-100 text-emerald-800',
       cancelled: 'bg-red-100 text-red-700',
       cancellation_requested: 'bg-rose-100 text-rose-800',
       pending: 'bg-blue-100 text-blue-700',
@@ -285,6 +288,8 @@ export default function MyBookings({ onViewProposal, onViewBooking }) {
           <option value="held">Held</option>
           <option value="payment_received">Payment Received</option>
           <option value="confirmed">Confirmed</option>
+          <option value="ticketed">Ticketed</option>
+          <option value="completed">Completed</option>
           <option value="cancellation_requested">Cancellation Requested</option>
           <option value="cancelled">Cancelled</option>
           <option value="pending">Pending</option>

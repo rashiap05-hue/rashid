@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Clock, CreditCard, CircleDollarSign, ShieldCheck, Ticket } from 'lucide-react';
+import { Check, Clock, CreditCard, CircleDollarSign, ShieldCheck, Ticket, Plane } from 'lucide-react';
 
 const STAGES = [
   { key: 'held', label: 'Hold', icon: Clock },
@@ -7,6 +7,7 @@ const STAGES = [
   { key: 'payment_received', label: 'Payment Received', icon: CircleDollarSign },
   { key: 'confirmed', label: 'Confirmed', icon: ShieldCheck },
   { key: 'ticketed', label: 'Ticketed', icon: Ticket },
+  { key: 'completed', label: 'Completed', icon: Plane },
 ];
 
 function getStageIndex(status) {

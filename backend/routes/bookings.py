@@ -16,7 +16,51 @@ STAGE_LABELS = {
     "payment_received": "Payment Received",
     "confirmed": "Confirmed",
     "ticketed": "Ticketed",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
 }
+
+
+def _trip_end_date(booking: dict):
+    """Best-effort trip end date: leaving_on + total_nights (fallback: leaving_on itself).
+    Returns a `date` or None."""
+    leaving = booking.get("leaving_on") or ""
+    if not leaving:
+        return None
+    try:
+        d = datetime.fromisoformat(leaving.split("T")[0].replace("Z", "")).date()
+    except Exception:
+        return None
+    nights = booking.get("total_nights") or booking.get("nights") or 0
+    try:
+        nights = int(nights or 0)
+    except Exception:
+        nights = 0
+    if nights > 0:
+        from datetime import timedelta
+        d = d + timedelta(days=nights)
+    return d
+
+
+def _derive_completed(booking: dict) -> dict:
+    """If the booking has been ticketed AND the trip end date has passed, flip
+    status to `completed` in the returned dict (non-destructive). Terminal
+    states like `cancelled` / `completed` are left untouched."""
+    if not booking:
+        return booking
+    status = booking.get("status")
+    if status in ("completed", "cancelled"):
+        return booking
+    if status != "ticketed":
+        return booking
+    end = _trip_end_date(booking)
+    if end is None:
+        return booking
+    if end < datetime.now(timezone.utc).date():
+        booking["status"] = "completed"
+        if not booking.get("completed_at"):
+            booking["completed_at"] = datetime.now(timezone.utc).isoformat()
+    return booking
 
 
 class TravelerInfo(BaseModel):
@@ -165,7 +209,7 @@ async def list_bookings(current_user: dict = Depends(get_current_user)):
         query,
         {"_id": 0}
     ).sort("created_at", -1).to_list(500)
-    return bookings
+    return [_derive_completed(b) for b in bookings]
 
 
 @router.get("/bookings/{booking_id}")
@@ -173,7 +217,7 @@ async def get_booking(booking_id: str, current_user: dict = Depends(get_current_
     booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    return booking
+    return _derive_completed(booking)
 
 
 @router.get("/held-bookings")
@@ -185,7 +229,7 @@ async def get_held_bookings(current_user: dict = Depends(get_current_user)):
         query,
         {"_id": 0}
     ).sort("held_at", -1).to_list(200)
-    return bookings
+    return [_derive_completed(b) for b in bookings]
 
 
 @router.get("/held-bookings/{booking_id}")

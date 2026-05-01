@@ -205,7 +205,7 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
     </div>
   );
 
-  const STAGE_LABELS = { held: 'Blocked', payment_pending: 'Payment Pending', payment_received: 'Payment Received', confirmed: 'Confirmed', ticketed: 'Ticketed' };
+  const STAGE_LABELS = { held: 'Blocked', payment_pending: 'Payment Pending', payment_received: 'Payment Received', confirmed: 'Confirmed', ticketed: 'Ticketed', completed: 'Completed' };
 
   return (
     <div className="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-8" data-testid="booking-detail-page" onClick={() => openDropdown && setOpenDropdown(null)}>
@@ -246,9 +246,13 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
             booking.status === 'payment_received' ? 'bg-teal-100 text-teal-800' :
             booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
             booking.status === 'ticketed' ? 'bg-blue-100 text-blue-800' :
+            booking.status === 'completed' ? 'bg-emerald-100 text-emerald-800' :
             'bg-gray-100 text-gray-800'
           }`} data-testid="booking-page-status">
-            {booking.status === 'confirmed' || booking.status === 'ticketed' ? '✓ Confirmed' : (STAGE_LABELS[booking.status] || booking.status)}
+            {booking.status === 'completed' ? '✈ Completed' :
+             booking.status === 'ticketed' ? '✓ Ticketed' :
+             booking.status === 'confirmed' ? '✓ Confirmed' :
+             (STAGE_LABELS[booking.status] || booking.status)}
           </span>
         )}
       </div>

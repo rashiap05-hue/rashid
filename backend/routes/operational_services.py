@@ -146,21 +146,37 @@ async def _rollup_booking_status(booking_id: str):
     fields = {"supplier_status": new_status, "service_confirmations": sc}
     if new_status == "confirmed":
         fields["supplier_confirmed_at"] = _now()
-        # Also auto-advance the top-level booking.status forward when the
-        # operational team has finished confirming all services. We only
-        # upgrade from `payment_received` (not from `held` / `ticketed` /
-        # `cancelled`), and we record the event in the status history so the
-        # Booking Progress tracker surfaces the "Confirmed" stamp timestamp.
+        # Auto-advance the top-level booking.status all the way through the
+        # pipeline once operations has finished confirming every service with
+        # a confirmation number. We jump `payment_received` → `ticketed` in
+        # a single rollup (stamping both `confirmed_at` and `ticketed_at` so
+        # the Booking Progress tracker renders both checkmarks).  We do NOT
+        # overwrite terminal states like `cancelled`, `completed`, or a
+        # manually-set `ticketed`.
         current_status = booking.get("status")
-        if current_status == "payment_received":
-            fields["status"] = "confirmed"
-            fields["confirmed_at"] = _now()
+        if current_status in ("payment_received", "confirmed"):
+            now_iso = _now()
+            fields["status"] = "ticketed"
+            if not booking.get("confirmed_at"):
+                fields["confirmed_at"] = now_iso
+            fields["ticketed_at"] = now_iso
             history = list(booking.get("status_history") or [])
+            if not any(h.get("to_status") == "confirmed" or h.get("status") == "confirmed" for h in history):
+                history.append({
+                    "to_status": "confirmed",
+                    "status": "confirmed",
+                    "timestamp": fields.get("confirmed_at", now_iso),
+                    "at": fields.get("confirmed_at", now_iso),
+                    "by": "operations_rollup",
+                    "note": "All services confirmed",
+                })
             history.append({
-                "status": "confirmed",
-                "at": fields["confirmed_at"],
+                "to_status": "ticketed",
+                "status": "ticketed",
+                "timestamp": now_iso,
+                "at": now_iso,
                 "by": "operations_rollup",
-                "note": "All services confirmed",
+                "note": "All confirmation numbers issued",
             })
             fields["status_history"] = history
     await db.bookings.update_one({"id": booking_id}, {"$set": fields})
