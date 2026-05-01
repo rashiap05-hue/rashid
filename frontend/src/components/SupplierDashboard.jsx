@@ -4,7 +4,7 @@ import {
   Car, Hotel, Camera, DollarSign, Calendar, Clock, Users, CheckCircle, XCircle, 
   AlertCircle, Package, MapPin, Phone, Mail, User, RefreshCw, Search, Eye, X,
   ArrowLeft, Building2, Loader2, ChevronDown, Plane, FileText, MessageSquare,
-  Shield, Smartphone, BookOpen, Bed, Download, Star
+  Shield, Smartphone, BookOpen, Bed, Download, Star, Ban
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
@@ -130,16 +130,30 @@ export default function SupplierDashboard({ user, onBack }) {
   void handleConfirm; void handleReject;
 
   const filtered = bookings.filter(b => {
-    if (statusFilter !== 'all' && b.supplier_status !== statusFilter) return false;
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'cancellation_requested') {
+        if (b.cancellation_status !== 'requested' || b.status === 'cancelled') return false;
+      } else if (statusFilter === 'cancelled') {
+        if (b.status !== 'cancelled') return false;
+      } else if (b.supplier_status !== statusFilter) {
+        return false;
+      }
+    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const name = b.proposal?.customer_name?.toLowerCase() || '';
       const pname = b.proposal?.proposal_name?.toLowerCase() || '';
       const oid = (b.order_id || '').toLowerCase();
-      if (!name.includes(q) && !pname.includes(q) && !oid.includes(q)) return false;
+      const ref = (b.booking_ref || '').toLowerCase();
+      if (!name.includes(q) && !pname.includes(q) && !oid.includes(q) && !ref.includes(q)) return false;
     }
     return true;
   });
+
+  const cancellationPendingCount = bookings.filter(
+    b => b.cancellation_status === 'requested' && b.status !== 'cancelled'
+  ).length;
+  const cancelledCount = bookings.filter(b => b.status === 'cancelled').length;
 
   // Pending counts per tab — used to render at-a-glance badges next to tab names
   const pendingCounts = useMemo(() => {
@@ -161,6 +175,8 @@ export default function SupplierDashboard({ user, onBack }) {
     confirmed: 'bg-green-100 text-green-800',
     rejected: 'bg-red-100 text-red-800',
   };
+
+  // Also import Ban icon for the cancellation state — handled at top of file
 
   if (loading) {
     return (
@@ -192,11 +208,12 @@ export default function SupplierDashboard({ user, onBack }) {
 
       <div className="max-w-7xl mx-auto px-8 py-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           {[
             { label: 'Total Bookings', value: stats.total_bookings || 0, icon: Package, color: 'text-blue-600 bg-blue-50' },
             { label: 'Pending', value: stats.pending_bookings || 0, icon: AlertCircle, color: 'text-amber-600 bg-amber-50' },
             { label: 'Confirmed', value: stats.confirmed_bookings || 0, icon: CheckCircle, color: 'text-green-600 bg-green-50' },
+            { label: 'Cancel Requests', value: cancellationPendingCount, icon: Ban, color: 'text-rose-600 bg-rose-50' },
             { label: 'Rejected', value: stats.rejected_bookings || 0, icon: XCircle, color: 'text-red-600 bg-red-50' },
           ].map(({ label, value, icon: Icon, color }) => (
             <div key={label} className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
@@ -261,12 +278,20 @@ export default function SupplierDashboard({ user, onBack }) {
                   onChange={e => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm" />
               </div>
-              <div className="flex gap-2">
-                {['all', 'pending', 'confirmed', 'rejected'].map(s => (
-                  <button key={s} onClick={() => setStatusFilter(s)}
-                    className={cn("px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors",
-                      statusFilter === s ? 'bg-[#002B5B] text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-                    )}>{s}</button>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: 'all', label: 'All' },
+                  { key: 'pending', label: 'Pending' },
+                  { key: 'confirmed', label: 'Confirmed' },
+                  { key: 'cancellation_requested', label: `Cancel Req${cancellationPendingCount ? ` (${cancellationPendingCount})` : ''}` },
+                  { key: 'cancelled', label: `Cancelled${cancelledCount ? ` (${cancelledCount})` : ''}` },
+                  { key: 'rejected', label: 'Rejected' },
+                ].map(({ key, label }) => (
+                  <button key={key} onClick={() => setStatusFilter(key)}
+                    className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                      statusFilter === key ? 'bg-[#002B5B] text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                    )}
+                    data-testid={`filter-${key}`}>{label}</button>
                 ))}
               </div>
             </div>
@@ -288,11 +313,21 @@ export default function SupplierDashboard({ user, onBack }) {
                         <div className="flex items-start justify-between gap-4">
                           {/* Left: Booking Info */}
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3 mb-2">
+                            <div className="flex items-center gap-3 mb-2 flex-wrap">
                               <h3 className="font-bold text-gray-900">{p.proposal_name || 'Trip Booking'}</h3>
-                              <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-bold uppercase", statusColors[booking.supplier_status] || statusColors.pending)}>
-                                {booking.supplier_status || 'pending'}
-                              </span>
+                              {booking.cancellation_status === 'requested' && booking.status !== 'cancelled' ? (
+                                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase bg-rose-100 text-rose-800 flex items-center gap-1">
+                                  <Ban size={10} /> Cancel Req
+                                </span>
+                              ) : booking.status === 'cancelled' ? (
+                                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase bg-red-100 text-red-800 flex items-center gap-1">
+                                  <XCircle size={10} /> Cancelled
+                                </span>
+                              ) : (
+                                <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-bold uppercase", statusColors[booking.supplier_status] || statusColors.pending)}>
+                                  {booking.supplier_status || 'pending'}
+                                </span>
+                              )}
                             </div>
                             <div className="grid grid-cols-3 gap-4 text-sm">
                               <div className="flex items-center gap-2">
@@ -323,6 +358,22 @@ export default function SupplierDashboard({ user, onBack }) {
                                     {s.name}
                                   </span>
                                 ))}
+                              </div>
+                            )}
+
+                            {booking.cancellation_status === 'requested' && booking.status !== 'cancelled' && (
+                              <div className="mt-3 px-3 py-2 bg-rose-50 border border-rose-200 rounded-md" data-testid={`cancel-request-chip-${booking.id}`}>
+                                <p className="text-[11px] font-bold text-rose-800 uppercase tracking-wider">Cancellation Requested</p>
+                                {booking.cancellation_reason && (
+                                  <p className="text-xs text-rose-700 mt-0.5 line-clamp-2"><span className="font-semibold">Reason:</span> {booking.cancellation_reason}</p>
+                                )}
+                                {booking.cancellation_requested_by_name && (
+                                  <p className="text-[11px] text-rose-600 mt-0.5">
+                                    By {booking.cancellation_requested_by_name}
+                                    {booking.cancellation_requested_at ? ` · ${new Date(booking.cancellation_requested_at).toLocaleDateString('en-GB')}` : ''}
+                                  </p>
+                                )}
+                                <p className="text-[11px] text-rose-700 mt-1 italic">Click "Details" to approve or reject on the Trip Confirmation page.</p>
                               </div>
                             )}
 
