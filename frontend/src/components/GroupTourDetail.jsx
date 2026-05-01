@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, ChevronRight, Star, MapPin, Calendar, Users,
-  Coffee, Utensils, Moon, Bed, Plane, Check, X, Info,
+  Coffee, Utensils, Moon, Bed, Plane, Check, X, Info, ChevronDown,
 } from 'lucide-react';
 
 /* ---------- Fallback-safe image ---------- */
@@ -180,12 +180,122 @@ function SimilarCard({ s, onClick }) {
   );
 }
 
+/* ---------- Rooms / Adults / Children stepper popover ---------- */
+function Stepper({ value, onChange, min = 0, max = 99, testid }) {
+  const dec = () => onChange(Math.max(min, value - 1));
+  const inc = () => onChange(Math.min(max, value + 1));
+  const minusDisabled = value <= min;
+  return (
+    <div className="inline-flex items-center border border-gray-300 rounded-md overflow-hidden" data-testid={testid}>
+      <button
+        type="button"
+        onClick={dec}
+        disabled={minusDisabled}
+        className={`w-8 h-8 flex items-center justify-center text-gray-700 ${minusDisabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+        data-testid={`${testid}-minus`}
+      >−</button>
+      <span className="w-10 h-8 flex items-center justify-center font-bold text-gray-900 border-x border-gray-300">{value}</span>
+      <button
+        type="button"
+        onClick={inc}
+        disabled={value >= max}
+        className="w-8 h-8 flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-40"
+        data-testid={`${testid}-plus`}
+      >+</button>
+    </div>
+  );
+}
+
+function RoomsOccupancyPicker({ rooms, adults, children, onChange, testid = 'pkg-rooms-adults' }) {
+  const [open, setOpen] = useState(false);
+  const [localRooms, setLocalRooms] = useState(rooms);
+  const [localAdults, setLocalAdults] = useState(adults);
+  const [localChildren, setLocalChildren] = useState(children);
+  const ref = useRef(null);
+
+  // Sync local state when props change
+  useEffect(() => { setLocalRooms(rooms); setLocalAdults(adults); setLocalChildren(children); }, [rooms, adults, children]);
+
+  // Close on outside click
+  useEffect(() => {
+    function onDoc(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    if (open) document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  const label = () => {
+    const r = rooms === 1 ? '1 room' : `${rooms} rooms`;
+    const a = adults === 1 ? '1 adult' : `${adults} adults`;
+    const c = children > 0 ? `, ${children === 1 ? '1 child' : `${children} children`}` : '';
+    return `${r}, ${a}${c}`;
+  };
+
+  const done = () => {
+    onChange({ rooms: localRooms, adults: localAdults, children: localChildren });
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm font-semibold text-gray-900 bg-white text-left flex items-center justify-between focus:outline-none focus:ring-1 focus:ring-sky-500"
+        data-testid={testid}
+      >
+        <span>{label()}</span>
+        <ChevronDown size={14} className={`text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-30 p-4"
+          data-testid={`${testid}-popover`}
+        >
+          {/* Rooms row */}
+          <div className="flex items-center justify-between py-2">
+            <span className="font-bold text-gray-900 text-base">Rooms</span>
+            <Stepper value={localRooms} onChange={setLocalRooms} min={1} max={9} testid={`${testid}-rooms-stepper`} />
+          </div>
+          <div className="border-t border-gray-200 my-2" />
+
+          {/* Adults & Children — two columns */}
+          <div className="grid grid-cols-2 gap-4 py-2">
+            <div>
+              <div className="font-bold text-gray-900 text-sm mb-2">Adults(12+)</div>
+              <Stepper value={localAdults} onChange={setLocalAdults} min={1} max={20} testid={`${testid}-adults-stepper`} />
+            </div>
+            <div>
+              <div className="font-bold text-gray-900 text-sm mb-2">Children</div>
+              <Stepper value={localChildren} onChange={setLocalChildren} min={0} max={10} testid={`${testid}-children-stepper`} />
+            </div>
+          </div>
+
+          {/* Done */}
+          <div className="flex justify-end mt-3 pt-2 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={done}
+              className="px-5 py-1.5 border border-gray-300 rounded-md text-sm font-semibold text-gray-800 hover:bg-gray-50"
+              data-testid={`${testid}-done`}
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------- Main component ---------- */
 export default function GroupTourDetail({ deal, onBack }) {
   const pkg = buildPackage(deal);
   const [activeTab, setActiveTab] = useState('itinerary');
   const [selectedDate, setSelectedDate] = useState('2026-07-10');
-  const [roomsAdults, setRoomsAdults] = useState('1 room, 2 adults');
+  const [occupancy, setOccupancy] = useState({ rooms: 1, adults: 2, children: 0 });
   const [leavingFrom, setLeavingFrom] = useState('Dubai');
 
   const galleryImages = [deal?.image, deal?.image, deal?.image];
@@ -265,19 +375,12 @@ export default function GroupTourDetail({ deal, onBack }) {
                   </div>
                   <div>
                     <label className="block text-sm text-gray-500 mb-1.5">No. Of Rooms</label>
-                    <select
-                      value={roomsAdults}
-                      onChange={e => setRoomsAdults(e.target.value)}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm font-semibold text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                      data-testid="pkg-rooms-adults"
-                    >
-                      <option>1 room, 1 adult</option>
-                      <option>1 room, 2 adults</option>
-                      <option>2 rooms, 3 adults</option>
-                      <option>2 rooms, 4 adults</option>
-                      <option>3 rooms, 5 adults</option>
-                      <option>3 rooms, 6 adults</option>
-                    </select>
+                    <RoomsOccupancyPicker
+                      rooms={occupancy.rooms}
+                      adults={occupancy.adults}
+                      children={occupancy.children}
+                      onChange={setOccupancy}
+                    />
                   </div>
                 </div>
 
