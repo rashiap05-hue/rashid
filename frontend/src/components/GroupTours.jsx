@@ -184,7 +184,7 @@ function MonthlyDealTile({ deal, onClick }) {
   );
 }
 
-export default function GroupTours({ onBack }) {
+export default function GroupTours({ onBack, onOpenDeal }) {
   return (
     <div className="min-h-screen bg-[#F8F9FA]" data-testid="group-tours-page">
       {/* Header */}
@@ -210,7 +210,7 @@ export default function GroupTours({ onBack }) {
           <h2 className="font-black text-gray-900 text-xl md:text-2xl mb-5 md:mb-6">Eid Holiday Deals from UAE</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
             {EID_DEALS.map(d => (
-              <EidDealCard key={d.id} deal={d} onClick={() => {}} />
+              <EidDealCard key={d.id} deal={d} onClick={() => onOpenDeal?.(d)} />
             ))}
           </div>
         </section>

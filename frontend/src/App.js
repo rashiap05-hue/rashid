@@ -8,6 +8,7 @@ import { CurrencyProvider } from '@/CurrencyContext';
 import AuthPage from '@/components/AuthPage';
 import Dashboard from '@/components/Dashboard';
 import GroupTours from '@/components/GroupTours';
+import GroupTourDetail from '@/components/GroupTourDetail';
 import Header from '@/components/Header';
 import FitPackageForm from '@/components/FitPackageForm';
 import TripBuilder from '@/components/TripBuilder';
@@ -81,6 +82,7 @@ function App() {
   const [bookingData, setBookingData] = useState(null);
   const [selectedBookingId, setSelectedBookingId] = useState(null);
   const [openTaskId, setOpenTaskId] = useState(null);
+  const [selectedDeal, setSelectedDeal] = useState(null);
   // For the new Trip Itinerary view (Nexus-style read-only document)
   const [itineraryContext, setItineraryContext] = useState(null);  // {proposalId, bookingRef, customerName}
   // Tracks where the proposal-view was entered from so the Back button can return there.
@@ -258,7 +260,20 @@ function App() {
                 )}
 
                 {currentView === 'group-tours' && (
-                  <GroupTours onBack={() => setCurrentView('dashboard')} />
+                  <GroupTours
+                    onBack={() => setCurrentView('dashboard')}
+                    onOpenDeal={(deal) => {
+                      setSelectedDeal(deal);
+                      setCurrentView('group-tour-detail');
+                    }}
+                  />
+                )}
+
+                {currentView === 'group-tour-detail' && (
+                  <GroupTourDetail
+                    deal={selectedDeal}
+                    onBack={() => setCurrentView('group-tours')}
+                  />
                 )}
 
                 {currentView === 'form' && (
