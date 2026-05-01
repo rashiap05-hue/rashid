@@ -1095,9 +1095,9 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
               const travelDate = booking.leaving_on ? new Date(booking.leaving_on) : null;
               travelDate?.setHours(23, 59, 59, 999);
               const departureInFuture = travelDate && travelDate.getTime() > Date.now();
-              const alreadyCancelledOrRequested =
-                booking.status === 'cancelled' || booking.cancellation_status === 'requested';
-              if (!departureInFuture || alreadyCancelledOrRequested) return null;
+              const tripFinished = ['cancelled', 'completed'].includes(booking.status);
+              const alreadyRequested = booking.cancellation_status === 'requested';
+              if (!departureInFuture || tripFinished || alreadyRequested) return null;
               return (
                 <button
                   onClick={() => setShowCancelModal(true)}
