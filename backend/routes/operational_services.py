@@ -107,17 +107,31 @@ def _all_service_refs(proposal: dict) -> List[Tuple[str, str]]:
 
 
 async def _rollup_booking_status(booking_id: str):
-    booking = (
-        await db.held_bookings.find_one({"id": booking_id}, {"_id": 0})
-        or await db.bookings.find_one({"id": booking_id}, {"_id": 0})
-    )
+    """Roll up booking.supplier_status based on per-service confirmations.
+
+    Reads service_confirmations from BOTH `db.bookings` and `db.held_bookings`
+    and merges them (with `db.bookings` winning on conflicts) so an accidental
+    out-of-sync state between the two collections does not keep the booking
+    stuck on `pending` when operations have actually confirmed everything.
+    """
+    b_main = await db.bookings.find_one({"id": booking_id}, {"_id": 0}) or {}
+    b_held = await db.held_bookings.find_one({"id": booking_id}, {"_id": 0}) or {}
+    booking = b_main or b_held
     if not booking:
         return
     proposal = await db.proposals.find_one({"id": booking.get("proposal_id")}, {"_id": 0}) or {}
     refs = _all_service_refs(proposal)
     if not refs:
         return
-    sc = booking.get("service_confirmations") or {}
+
+    # Merge service_confirmations from both collections — union keys, and when
+    # a key exists in both prefer the entry from `db.bookings` (the live
+    # operational view). Then re-persist the merged map to BOTH collections so
+    # future reads are consistent.
+    sc_held = b_held.get("service_confirmations") or {}
+    sc_main = b_main.get("service_confirmations") or {}
+    sc = {**sc_held, **sc_main}
+
     statuses = [(sc.get(f"{t}:{k}") or {}).get("status", "pending") for t, k in refs]
 
     if all(s == "confirmed" for s in statuses):
@@ -129,7 +143,7 @@ async def _rollup_booking_status(booking_id: str):
     else:
         new_status = "pending"
 
-    fields = {"supplier_status": new_status}
+    fields = {"supplier_status": new_status, "service_confirmations": sc}
     if new_status == "confirmed":
         fields["supplier_confirmed_at"] = _now()
     await db.bookings.update_one({"id": booking_id}, {"$set": fields})
