@@ -206,7 +206,7 @@ async def hold_proposal(proposal_id: str, body: dict, current_user: dict = Depen
             }
             travelers = [seed] + (travelers[1:] if len(travelers) > 1 else [])
 
-    # Update proposal status to held
+    # Update proposal status to held (we'll stamp the booking_id/ref after booking is created)
     await db.proposals.update_one(
         {"id": proposal_id},
         {"$set": {
@@ -219,10 +219,11 @@ async def hold_proposal(proposal_id: str, body: dict, current_user: dict = Depen
     # Create a booking record
     booking_id = str(uuid.uuid4())
     booking_number = await next_booking_number()
+    booking_ref = format_booking_ref(booking_number)
     booking = {
         "id": booking_id,
         "booking_number": booking_number,
-        "booking_ref": format_booking_ref(booking_number),
+        "booking_ref": booking_ref,
         "proposal_id": proposal_id,
         "proposal_name": proposal.get("proposal_name", ""),
         "customer_name": proposal.get("customer_name", ""),
@@ -253,6 +254,17 @@ async def hold_proposal(proposal_id: str, body: dict, current_user: dict = Depen
     bookings_doc = {k: v for k, v in booking.items() if k != "_id"}
     await db.bookings.insert_one(bookings_doc)
     bookings_doc.pop("_id", None)
+
+    # Stamp the booking identifiers back onto the proposal so ProposalView can
+    # render the locked "<TBM-ref> - BOOKING DETAILS" sidebar without a round-trip.
+    await db.proposals.update_one(
+        {"id": proposal_id},
+        {"$set": {
+            "booking_id": booking_id,
+            "booking_number": booking_number,
+            "booking_ref": booking_ref,
+        }}
+    )
 
     return {"success": True, "booking": booking}
 

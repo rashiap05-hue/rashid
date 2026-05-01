@@ -122,6 +122,11 @@ class ProposalResponse(BaseModel):
     accepted_at: Optional[str] = None
     hold_until: Optional[str] = None
     assigned_expert_id: Optional[str] = None
+    # Booking linkage (stamped after hold / booking creation so ProposalView can
+    # render the locked "<TBM-ref> - BOOKING DETAILS" sidebar)
+    booking_id: Optional[str] = None
+    booking_ref: Optional[str] = None
+    booking_number: Optional[int] = None
 
 class FlightCreate(BaseModel):
     airline: str

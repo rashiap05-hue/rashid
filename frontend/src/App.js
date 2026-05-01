@@ -332,6 +332,12 @@ function App() {
                       setCurrentView('dashboard');
                       setActiveTab('My Bookings');
                     }}
+                    onViewBooking={(bookingId) => {
+                      if (!bookingId) return;
+                      setSelectedBookingId(bookingId);
+                      setSavedProposal(null);
+                      setCurrentView('booking-detail');
+                    }}
                   />
                 )}
 

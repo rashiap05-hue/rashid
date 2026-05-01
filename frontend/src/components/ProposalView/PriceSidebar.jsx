@@ -12,7 +12,7 @@ import SendEmailModal from './SendEmailModal';
 import WhatsAppShareModal from './WhatsAppShareModal';
 
 export default 
-function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, onAcceptProposal, acceptModal, onNeedHelp, onHoldBooking }) {
+function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, onAcceptProposal, acceptModal, onNeedHelp, onHoldBooking, onViewBooking }) {
   const [showMarkupModal, setShowMarkupModal] = useState(false);
   const [markupLandValue, setMarkupLandValue] = useState(proposal.markup_value || 0);
   const [discountValue, setDiscountValue] = useState(proposal.discount_amount || 0);
@@ -60,6 +60,71 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
   
   // Extract departure city from leaving_from
   const departureCity = proposal.leaving_from?.split(' ')[0] || 'Dubai';
+
+  // Locked view — once the trip has been held or booked, the sidebar becomes
+  // a simple, read-only summary matching the user-supplied reference design.
+  const bookingRef = proposal.booking_ref
+    || (proposal.booking_number != null ? `TBM-${String(proposal.booking_number).padStart(6, '0')}` : null);
+  const isLocked = Boolean(proposal.booking_id || bookingRef)
+    || ['held', 'booked', 'confirmed', 'cancelled'].includes(proposal.status);
+
+  if (isLocked) {
+    return (
+      <div className="bg-[#FFFBEB] rounded-lg border border-[#F5E6B3] sticky top-20" data-testid="price-sidebar-locked">
+        <div className="p-5">
+          {/* Estimated Date of Booking */}
+          <div className="flex items-center justify-between pb-4 border-b border-[#E8D9A0]">
+            <span className="text-gray-600 text-sm">Estimated Date of Booking</span>
+            <span className="font-bold text-gray-800">{formatDate(estimatedBookingDate, 'day')}</span>
+          </div>
+
+          {/* Price Breakdown — read-only */}
+          <div className="pt-4">
+            <h3 className="font-bold text-lg text-gray-800 mb-3">Price Breakdown</h3>
+
+            <div className="text-sm text-gray-600 space-y-0.5 mb-5">
+              <p>{roomsCount} room{roomsCount !== 1 ? 's' : ''}, {adultsCount} adult{adultsCount !== 1 ? 's' : ''}{childrenCount > 0 ? `, ${childrenCount} child${childrenCount !== 1 ? 'ren' : ''}` : ''}</p>
+              <p>Nationality: {proposal.nationality || 'India'}</p>
+              <p>Departure City: {departureCity}</p>
+            </div>
+
+            <div className="space-y-3 text-sm border-t border-[#E8D9A0] pt-4">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Price per adult</span>
+                <span className="text-gray-800 font-medium">AED {pricePerAdult.toLocaleString()}</span>
+              </div>
+
+              <div className="pt-3 border-t border-[#E8D9A0]">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <DollarSign size={16} className="text-[#0094D4]" />
+                    <span className="text-gray-700 font-medium">Total Price</span>
+                  </div>
+                  <span className="text-2xl font-black text-gray-900">AED {priceAfterDiscount.toLocaleString()}</span>
+                </div>
+                <p className="text-gray-400 text-[11px] uppercase tracking-wider text-right mt-1">INCLUDING ALL TAXES</p>
+              </div>
+
+              <div className="flex justify-between pt-3 border-t border-[#E8D9A0]">
+                <span className="text-gray-600">Net Price</span>
+                <span className="text-gray-800 font-medium">AED {netPrice.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Booking Details CTA */}
+            <button
+              onClick={() => onViewBooking?.(proposal.booking_id)}
+              disabled={!proposal.booking_id}
+              className="w-full mt-5 py-3 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed tracking-wide"
+              data-testid="booking-details-btn"
+            >
+              {bookingRef || 'TBM-—'} — BOOKING DETAILS
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[#FFFBEB] rounded-lg border border-[#F5E6B3] sticky top-20">

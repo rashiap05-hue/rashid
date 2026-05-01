@@ -20,7 +20,7 @@ import {
 import RequestChangesTab from './ProposalView/RequestChangesTab';
 
 // Main Proposal View Component
-export default function ProposalView({ proposal: initialProposal, onBack, onBookNow, onEditProposal, onHoldBooking }) {
+export default function ProposalView({ proposal: initialProposal, onBack, onBookNow, onEditProposal, onHoldBooking, onViewBooking }) {
   const [proposal, setProposal] = useState(initialProposal);
   
   const refreshProposal = async () => {
@@ -2240,6 +2240,7 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               onHoldBooking={handleHoldBooking}
+              onViewBooking={onViewBooking}
             />
           </div>
         </div>

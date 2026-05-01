@@ -285,6 +285,12 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Frontend chips (`AdminDashboard.jsx`, `SupplierDashboard.jsx`, `SupplierDashboard/ServiceViewModal.jsx`): replaced "Order: <order_id>" displays with "Ref: <TBM-XXXXXX>" via `booking.booking_ref || (booking.booking_number ? TBM-xxxxxx : id.slice(0,8))`.
   - Verified end-to-end via curl: regenerated receipt PDF → Payment Reference shows `#TBM-000003-P1`; regenerated invoice PDF → Confirmation/PNR shows `TBM-000003` (AI-extraction confirms no ORN codes remain).
 
+- **Locked Price Breakdown sidebar on View Quote (May 2026)**: Once a proposal has been held or booked, returning to the ProposalView "View Quote" page now renders a read-only, simplified **Price Breakdown** card that matches the user-supplied reference design — instead of the full editable sidebar.
+  - New branch in `ProposalView/PriceSidebar.jsx`: when `proposal.booking_id` is present OR status is held/booked/confirmed/cancelled, render a clean card with Estimated Date of Booking / Price Breakdown heading / rooms+adults+nationality+departure city / Price per adult / large "$ Total Price AED xxx INCLUDING ALL TAXES" / Net Price + a bold dark-blue **"TBM-000003 — BOOKING DETAILS"** CTA button that navigates to the Trip Confirmation page (`onViewBooking(booking_id)` → `booking-detail` view in App.js).
+  - Backend: Both booking-creation paths (`routes/proposals.py` hold + `routes/bookings.py` create) now stamp `booking_id`, `booking_number`, `booking_ref` back onto the proposal doc after the booking is created. Added matching `Optional[str]` fields to `ProposalResponse` in `models/schemas.py` so the GET `/api/proposals/{id}` endpoint actually returns them (previously Pydantic was stripping them).
+  - Ran a one-time backfill script that populated the three fields on 3 existing held/booked proposals from their matching bookings.
+  - Verified end-to-end via Playwright: navigating My Bookings → TBM-000003 → View Quote now shows the locked sidebar with the button text `"TBM-000003 — BOOKING DETAILS"`; clicking it lands on the Trip Confirmation page with `TBM-000003` heading.
+
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
 - P2: AI-powered trip recommendations frontend

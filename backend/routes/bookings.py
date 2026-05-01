@@ -135,10 +135,15 @@ async def create_booking(booking: BookingCreate, current_user: dict = Depends(ge
         upsert=True,
     )
 
-    # Update proposal status
+    # Update proposal status + stamp booking refs so ProposalView can render the locked sidebar
     await db.proposals.update_one(
         {"id": booking.proposal_id},
-        {"$set": {"status": "booked", "booking_id": booking_id}}
+        {"$set": {
+            "status": "booked",
+            "booking_id": booking_id,
+            "booking_number": booking_number,
+            "booking_ref": format_booking_ref(booking_number),
+        }}
     )
 
     return {
