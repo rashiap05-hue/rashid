@@ -309,6 +309,10 @@ function App() {
                   <AdminDashboard 
                     onBack={() => setCurrentView('dashboard')} 
                     onUsersView={() => setCurrentView('admin-users')}
+                    onViewBooking={(bookingId) => {
+                      setSelectedBookingId(bookingId);
+                      setCurrentView('booking-detail');
+                    }}
                   />
                 )}
 

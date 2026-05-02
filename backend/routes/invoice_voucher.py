@@ -1632,6 +1632,114 @@ async def admin_run_reminder_scheduler(current_user: dict = Depends(get_current_
     return {"status": "success", "stats": stats}
 
 
+@router.get("/admin/collections")
+async def admin_collections_dashboard(current_user: dict = Depends(get_current_user)):
+    """Admin/Staff only: returns every booking with an outstanding balance,
+    sorted by `final_payment_due_date` ascending. Powers the Collections
+    Dashboard (accounts-receivable aging) view."""
+    if current_user.get("role") not in ("admin", "staff"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    today = datetime.now(timezone.utc).date()
+    rows = []
+    seen = set()
+    cursor = db.bookings.find({}, {
+        "_id": 0, "id": 1, "booking_ref": 1, "order_id": 1,
+        "customer_name": 1, "customer_email": 1, "customer_phone": 1,
+        "destination": 1, "leaving_on": 1, "total_nights": 1,
+        "total_price": 1, "payment_amount": 1, "payment_fee": 1, "refund_amount": 1,
+        "final_payment_due_date": 1, "auto_reminder_milestones_sent": 1,
+        "payment_reminder_count": 1, "last_payment_reminder_at": 1,
+        "status": 1, "user_id": 1, "created_by": 1, "created_at": 1,
+    })
+    async for bk in cursor:
+        bid = bk.get("id")
+        if not bid or bid in seen:
+            continue
+        seen.add(bid)
+        total = float(bk.get("total_price") or 0)
+        paid = float(bk.get("payment_amount") or 0)
+        fee = float(bk.get("payment_fee") or 0)
+        refund = float(bk.get("refund_amount") or 0)
+        balance = round(max(total - paid + fee - refund, 0), 2)
+        if balance < 0.01:
+            continue
+
+        due_raw = str(bk.get("final_payment_due_date") or "")[:10]
+        days_to_due = None
+        if due_raw:
+            try:
+                days_to_due = (datetime.strptime(due_raw, "%Y-%m-%d").date() - today).days
+            except Exception:
+                days_to_due = None
+
+        # Compute next milestone (T-14 / T-7 / T-3) that hasn't been sent yet
+        sent_milestones = set(bk.get("auto_reminder_milestones_sent") or [])
+        next_milestone = None
+        if days_to_due is not None:
+            for m, d in [("T-14", 14), ("T-7", 7), ("T-3", 3)]:
+                if days_to_due >= d and m not in sent_milestones:
+                    next_milestone = m
+                    break
+
+        # Aging bucket
+        if days_to_due is None:
+            bucket = "no_due_date"
+        elif days_to_due < 0:
+            bucket = "overdue"
+        elif days_to_due <= 3:
+            bucket = "critical"          # T-3
+        elif days_to_due <= 7:
+            bucket = "warning"           # T-7
+        elif days_to_due <= 14:
+            bucket = "watch"             # T-14
+        else:
+            bucket = "future"
+
+        # Lookup the agent who owns this booking
+        owner_email = ""
+        owner_id = bk.get("user_id") or bk.get("created_by")
+        if owner_id:
+            user = await db.users.find_one({"id": owner_id}, {"_id": 0, "email": 1, "company_name": 1})
+            owner_email = (user or {}).get("email", "")
+
+        rows.append({
+            "id": bid,
+            "booking_ref": bk.get("booking_ref") or bk.get("order_id") or "",
+            "customer_name": bk.get("customer_name") or "",
+            "customer_email": bk.get("customer_email") or "",
+            "destination": bk.get("destination") or "",
+            "leaving_on": bk.get("leaving_on") or "",
+            "total_price": total,
+            "paid_amount": paid,
+            "balance_due": balance,
+            "final_payment_due_date": due_raw or None,
+            "days_to_due": days_to_due,
+            "bucket": bucket,
+            "next_milestone": next_milestone,
+            "milestones_sent": sorted(list(sent_milestones)),
+            "reminder_count": int(bk.get("payment_reminder_count") or 0),
+            "last_reminder_at": bk.get("last_payment_reminder_at") or None,
+            "status": bk.get("status") or "",
+            "owner_email": owner_email,
+        })
+
+    # Sort: overdue first, then by days_to_due ascending (None last)
+    def _sort_key(r):
+        d = r["days_to_due"]
+        return (0 if d is None else 1, d if d is not None else 9999, r["balance_due"] * -1)
+    rows.sort(key=_sort_key)
+
+    summary = {
+        "total_bookings": len(rows),
+        "total_outstanding": round(sum(r["balance_due"] for r in rows), 2),
+        "by_bucket": {b: 0 for b in ("overdue", "critical", "warning", "watch", "future", "no_due_date")},
+    }
+    for r in rows:
+        summary["by_bucket"][r["bucket"]] += 1
+    return {"summary": summary, "rows": rows}
+
+
 
 # ---------------- MARK AS PAID ----------------
 

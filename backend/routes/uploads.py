@@ -151,3 +151,28 @@ async def delete_uploaded_image(
         return {"success": True, "message": "Image deleted"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete image: {str(e)}")
+
+
+
+@uploads_router.post("/group-tour-image")
+async def upload_group_tour_image(
+    file: UploadFile = File(...),
+    package_id: str = Form(default=""),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Upload an image (cover or hotel) for a Group Tour package."""
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
+    unique_id = str(uuid.uuid4())[:8]
+    pkg = (package_id or "pkg").replace("/", "-")[:32]
+    filename = f"{pkg}_{unique_id}{file_ext}"
+    folder = UPLOADS_DIR / "group-tours"
+    folder.mkdir(parents=True, exist_ok=True)
+    file_path = folder / filename
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+    return {"success": True, "url": f"/api/static/group-tours/{filename}", "filename": filename}

@@ -120,7 +120,10 @@ function DayCard({ entry }) {
       </div>
       <div className="flex-1 min-w-0">
         <h3 className="font-black text-gray-900 text-base md:text-lg mb-2">{entry.title}</h3>
-        <p className="text-sm text-gray-600 leading-relaxed mb-3">{entry.desc}</p>
+        <div
+          className="text-sm text-gray-600 leading-relaxed mb-3 prose prose-sm max-w-none"
+          dangerouslySetInnerHTML={{ __html: entry.desc }}
+        />
 
         <div className="flex flex-wrap items-center gap-4 text-xs">
           {entry.meal?.length > 0 && (
@@ -442,9 +445,10 @@ export default function GroupTourDetail({ deal, onBack }) {
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">
         <h1 className="text-2xl md:text-3xl font-black text-gray-900 mb-1">{title}</h1>
-        <p className="text-sm text-gray-600 mb-6">
-          {pkg.intro_paragraph}
-        </p>
+        <div
+          className="text-sm text-gray-600 mb-6 prose prose-sm max-w-none"
+          dangerouslySetInnerHTML={{ __html: pkg.intro_paragraph }}
+        />
 
         {/* MAIN GRID: gallery + booking card */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">

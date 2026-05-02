@@ -4,6 +4,8 @@ import { api } from '@/App';
 import {
   Section, BulletListEditor, ItineraryEditor, HotelsEditor, InclusionsEditor, ParagraphListEditor,
 } from './GroupTourEditorSections';
+import ImageUploadField from './ImageUploadField';
+import RichTextEditor from './RichTextEditor';
 
 const BLANK_TIER = { supplier_cost: 0, display_price: 0 };
 
@@ -218,8 +220,13 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
               />
             </div>
             <div className="col-span-2">
-              <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Cover Image URL</label>
-              <input value={form.image} onChange={e => update('image', e.target.value)} placeholder="https://..." className="w-full border rounded px-3 py-2 text-sm" data-testid="gt-field-image" />
+              <ImageUploadField
+                label="Cover Image"
+                value={form.image || ''}
+                onChange={(url) => update('image', url)}
+                packageId={pkg?.id || form.title}
+                testidPrefix="gt-field-image"
+              />
             </div>
           </div>
 
@@ -315,13 +322,12 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
           >
             <div>
               <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Intro Paragraph</label>
-              <textarea
+              <RichTextEditor
                 value={form.intro_paragraph || ''}
-                onChange={e => update('intro_paragraph', e.target.value)}
+                onChange={(html) => update('intro_paragraph', html)}
                 placeholder="This trip by Travo Tours is a handpicked experience featuring..."
-                rows={3}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                data-testid="gt-field-intro"
+                minHeight={100}
+                testid="gt-field-intro"
               />
             </div>
             <div>
@@ -356,6 +362,7 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
             <HotelsEditor
               hotels={form.hotels || []}
               onChange={(hotels) => update('hotels', hotels)}
+              packageId={pkg?.id || form.title}
             />
           </Section>
 

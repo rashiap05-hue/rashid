@@ -1,5 +1,22 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, Trash2, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import RichTextEditor from './RichTextEditor';
 
 /* ---------- Generic collapsible section shell ---------- */
 export function Section({ title, subtitle, count, children, defaultOpen = false, testid }) {
@@ -73,91 +90,135 @@ export function BulletListEditor({ items, onChange, placeholder = 'Add bullet...
   );
 }
 
-/* ---------- Itinerary editor (per day: title, desc, meals, hotel_note) ---------- */
+/* ---------- Itinerary editor (drag-and-drop sortable days) ---------- */
 const MEAL_OPTIONS = [
   { v: 'B', label: 'Breakfast' },
   { v: 'L', label: 'Lunch' },
   { v: 'D', label: 'Dinner' },
 ];
 
+function SortableDay({ id, index, day, total, onUpdate, onRemove }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+  const toggleMeal = (meal) => {
+    const current = day.meals || [];
+    onUpdate({ meals: current.includes(meal) ? current.filter(m => m !== meal) : [...current, meal] });
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="border border-gray-200 rounded-lg p-3 bg-gray-50" data-testid={`itin-day-${index}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="p-1 text-gray-400 hover:text-gray-700 cursor-grab active:cursor-grabbing"
+          title="Drag to reorder"
+          data-testid={`itin-${index}-drag`}
+        >
+          <GripVertical size={14} />
+        </button>
+        <label className="text-xs font-bold text-gray-700">DAY</label>
+        <input
+          type="number"
+          min="1"
+          value={day.day}
+          onChange={e => onUpdate({ day: Number(e.target.value) || 1 })}
+          className="w-16 text-center border border-gray-300 rounded px-2 py-1 text-sm font-bold"
+          data-testid={`itin-${index}-day`}
+        />
+        <input
+          type="text"
+          value={day.title}
+          onChange={e => onUpdate({ title: e.target.value })}
+          placeholder="Day title (e.g. Arrival in Baku)"
+          className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm font-semibold"
+          data-testid={`itin-${index}-title`}
+        />
+        <button type="button" onClick={() => onRemove()} className="p-1 text-red-500 hover:bg-red-50 rounded" data-testid={`itin-${index}-remove`}><Trash2 size={12} /></button>
+      </div>
+      <div className="mb-2">
+        <RichTextEditor
+          value={day.desc || ''}
+          onChange={(html) => onUpdate({ desc: html })}
+          placeholder="Describe the day's activities..."
+          minHeight={80}
+          testid={`itin-${index}-desc`}
+        />
+      </div>
+      <div className="flex items-center gap-3 mb-2">
+        <span className="text-[10px] uppercase text-gray-500 font-bold">Meals:</span>
+        {MEAL_OPTIONS.map(m => (
+          <label key={m.v} className="flex items-center gap-1 text-xs cursor-pointer">
+            <input
+              type="checkbox"
+              checked={(day.meals || []).includes(m.v)}
+              onChange={() => toggleMeal(m.v)}
+              data-testid={`itin-${index}-meal-${m.v}`}
+            />
+            {m.label}
+          </label>
+        ))}
+      </div>
+      <input
+        type="text"
+        value={day.hotel_note || ''}
+        onChange={e => onUpdate({ hotel_note: e.target.value })}
+        placeholder="Hotel note (e.g. Overnight stay at hotel in Baku) — optional"
+        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+        data-testid={`itin-${index}-hotel-note`}
+      />
+      <div className="text-[10px] text-gray-400 mt-1">Position {index + 1} of {total}</div>
+    </div>
+  );
+}
+
 export function ItineraryEditor({ days, onChange }) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const handleDragEnd = (e) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIdx = days.findIndex((_, i) => `day-${i}` === active.id);
+    const newIdx = days.findIndex((_, i) => `day-${i}` === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+    onChange(arrayMove(days, oldIdx, newIdx));
+  };
+
   const update = (i, patch) => onChange(days.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
   const remove = (i) => onChange(days.filter((_, idx) => idx !== i));
   const add = () => {
     const nextDay = (days[days.length - 1]?.day || 0) + 1;
     onChange([...days, { day: nextDay, title: '', desc: '', meals: [], hotel_note: '' }]);
   };
-  const move = (i, dir) => {
-    const j = i + dir;
-    if (j < 0 || j >= days.length) return;
-    const arr = [...days];
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-    onChange(arr);
-  };
-  const toggleMeal = (i, meal) => {
-    const current = days[i].meals || [];
-    const next = current.includes(meal) ? current.filter(m => m !== meal) : [...current, meal];
-    update(i, { meals: next });
-  };
+
+  const ids = days.map((_, i) => `day-${i}`);
+
   return (
     <div className="space-y-3">
       {days.length === 0 && <p className="text-xs text-gray-400 italic">No itinerary days yet.</p>}
-      {days.map((d, i) => (
-        <div key={i} className="border border-gray-200 rounded-lg p-3 bg-gray-50" data-testid={`itin-day-${i}`}>
-          <div className="flex items-center gap-2 mb-2">
-            <label className="text-xs font-bold text-gray-700">DAY</label>
-            <input
-              type="number"
-              min="1"
-              value={d.day}
-              onChange={e => update(i, { day: Number(e.target.value) || 1 })}
-              className="w-16 text-center border border-gray-300 rounded px-2 py-1 text-sm font-bold"
-              data-testid={`itin-${i}-day`}
-            />
-            <input
-              type="text"
-              value={d.title}
-              onChange={e => update(i, { title: e.target.value })}
-              placeholder="Day title (e.g. Arrival in Baku)"
-              className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm font-semibold"
-              data-testid={`itin-${i}-title`}
-            />
-            <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="p-1 hover:bg-gray-200 disabled:opacity-30 rounded"><ArrowUp size={12} /></button>
-            <button type="button" onClick={() => move(i, +1)} disabled={i === days.length - 1} className="p-1 hover:bg-gray-200 disabled:opacity-30 rounded"><ArrowDown size={12} /></button>
-            <button type="button" onClick={() => remove(i)} className="p-1 text-red-500 hover:bg-red-50 rounded" data-testid={`itin-${i}-remove`}><Trash2 size={12} /></button>
-          </div>
-          <textarea
-            value={d.desc}
-            onChange={e => update(i, { desc: e.target.value })}
-            placeholder="Describe the day's activities..."
-            rows={3}
-            className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm mb-2"
-            data-testid={`itin-${i}-desc`}
-          />
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-[10px] uppercase text-gray-500 font-bold">Meals:</span>
-            {MEAL_OPTIONS.map(m => (
-              <label key={m.v} className="flex items-center gap-1 text-xs cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={(d.meals || []).includes(m.v)}
-                  onChange={() => toggleMeal(i, m.v)}
-                  data-testid={`itin-${i}-meal-${m.v}`}
-                />
-                {m.label}
-              </label>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+          <div className="space-y-3">
+            {days.map((d, i) => (
+              <SortableDay
+                key={`day-${i}`}
+                id={`day-${i}`}
+                index={i}
+                day={d}
+                total={days.length}
+                onUpdate={(patch) => update(i, patch)}
+                onRemove={() => remove(i)}
+              />
             ))}
           </div>
-          <input
-            type="text"
-            value={d.hotel_note || ''}
-            onChange={e => update(i, { hotel_note: e.target.value })}
-            placeholder="Hotel note (e.g. Overnight stay at hotel in Baku) — optional"
-            className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
-            data-testid={`itin-${i}-hotel-note`}
-          />
-        </div>
-      ))}
+        </SortableContext>
+      </DndContext>
       <button
         type="button"
         onClick={add}
@@ -166,12 +227,15 @@ export function ItineraryEditor({ days, onChange }) {
       >
         <Plus size={12} /> Add Day
       </button>
+      <p className="text-[11px] text-gray-500"><GripVertical size={11} className="inline" /> Drag the handle on the left of each day to reorder. The day numbers won't auto-renumber — edit them manually if needed.</p>
     </div>
   );
 }
 
 /* ---------- Hotels editor ---------- */
-export function HotelsEditor({ hotels, onChange }) {
+import ImageUploadField from './ImageUploadField';
+
+export function HotelsEditor({ hotels, onChange, packageId = '' }) {
   const update = (i, patch) => onChange(hotels.map((h, idx) => (idx === i ? { ...h, ...patch } : h)));
   const remove = (i) => onChange(hotels.filter((_, idx) => idx !== i));
   const add = () => onChange([...hotels, { name: '', stars: 3, nights: 1, room_type: 'Standard Room', meal_plan: 'Bed & Breakfast', image: '' }]);
@@ -208,9 +272,14 @@ export function HotelsEditor({ hotels, onChange }) {
               <label className="block text-[10px] uppercase text-gray-500 font-bold mb-0.5">Meal Plan</label>
               <input type="text" value={h.meal_plan} onChange={e => update(i, { meal_plan: e.target.value })} placeholder="Bed & Breakfast" className="w-full border border-gray-300 rounded px-2 py-1 text-sm" />
             </div>
-            <div className="col-span-2">
-              <label className="block text-[10px] uppercase text-gray-500 font-bold mb-0.5">Image URL</label>
-              <input type="text" value={h.image || ''} onChange={e => update(i, { image: e.target.value })} placeholder="https://..." className="w-full border border-gray-300 rounded px-2 py-1 text-sm" />
+            <div className="col-span-4">
+              <ImageUploadField
+                label="Hotel Image"
+                value={h.image || ''}
+                onChange={(url) => update(i, { image: url })}
+                packageId={packageId}
+                testidPrefix={`hotel-${i}-img`}
+              />
             </div>
           </div>
         </div>
