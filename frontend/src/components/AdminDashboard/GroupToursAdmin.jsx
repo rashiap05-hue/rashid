@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, X, Save, Loader2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Loader2, RefreshCw } from 'lucide-react';
 import { api } from '@/App';
 
 const BLANK_TIER = { supplier_cost: 0, display_price: 0 };
@@ -14,7 +14,7 @@ const EMPTY_PRICING = {
 
 const EMPTY_PKG = {
   title: '', destination: '', subtitle: '', nights: 4,
-  date_range: '', stars: 3, tax_pct: 5,
+  date_range: '', stars: 3, tax_pct: 5, target_margin_pct: 25,
   pricing: EMPTY_PRICING,
   image: '',
   gradient: 'linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%)',
@@ -28,6 +28,42 @@ const TIER_ROWS = [
   { key: 'child_no_bed',   label: 'Cost per child — without bed (2-5 yrs)' },
   { key: 'infant',         label: 'Cost per infant — (0-2 yrs)' },
 ];
+
+/* Markup % = (display - supplier) / supplier × 100. Returns null when supplier=0. */
+const computeMargin = (supplier, display) => {
+  const s = Number(supplier) || 0;
+  const d = Number(display) || 0;
+  if (s <= 0) return null;
+  return ((d - s) / s) * 100;
+};
+
+/* Suggested display price = supplier × (1 + target/100), rounded to 2 dp. */
+const suggestedDisplay = (supplier, targetPct) => {
+  const s = Number(supplier) || 0;
+  const t = Number(targetPct) || 0;
+  if (s <= 0) return 0;
+  return Math.round(s * (1 + t / 100) * 100) / 100;
+};
+
+/* Color-coded margin badge: red <10, amber 10-19.99, emerald 20-49.99, indigo >=50. */
+const MarginBadge = ({ margin, target }) => {
+  if (margin == null) return <span className="text-[10px] text-gray-400 italic">No supplier cost</span>;
+  let cls = 'bg-red-100 text-red-700 border-red-200';
+  if (margin >= 50) cls = 'bg-indigo-100 text-indigo-700 border-indigo-200';
+  else if (margin >= 20) cls = 'bg-emerald-100 text-emerald-700 border-emerald-200';
+  else if (margin >= 10) cls = 'bg-amber-100 text-amber-700 border-amber-200';
+  const sign = margin >= 0 ? '+' : '';
+  const tgt = Number(target) || 0;
+  const offTarget = tgt > 0 ? margin - tgt : null;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${cls}`}
+      title={offTarget != null ? `${offTarget >= 0 ? '+' : ''}${offTarget.toFixed(1)} pts vs target ${tgt}%` : 'Set a target margin to see deviation'}
+    >
+      {sign}{margin.toFixed(1)}%
+    </span>
+  );
+};
 
 function PackageEditorModal({ open, pkg, onClose, onSaved }) {
   const [form, setForm] = useState(EMPTY_PKG);
@@ -82,6 +118,7 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
         nights: Number(form.nights) || 0,
         stars: Number(form.stars) || 0,
         tax_pct: Number(form.tax_pct) || 0,
+        target_margin_pct: Number(form.target_margin_pct) || 0,
         pricing: cleanedTiers,
       };
       if (isEdit) {
@@ -138,6 +175,17 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
               <input type="number" step="0.01" value={form.tax_pct} onChange={e => update('tax_pct', e.target.value)} className="w-full border rounded px-3 py-2 text-sm" data-testid="gt-field-tax" />
             </div>
             <div>
+              <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Target Margin %</label>
+              <input
+                type="number" step="0.1" min="0"
+                value={form.target_margin_pct}
+                onChange={e => update('target_margin_pct', e.target.value)}
+                className="w-full border rounded px-3 py-2 text-sm"
+                data-testid="gt-field-target-margin"
+                placeholder="e.g. 25"
+              />
+            </div>
+            <div className="col-span-2">
               <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Cover Image URL</label>
               <input value={form.image} onChange={e => update('image', e.target.value)} placeholder="https://..." className="w-full border rounded px-3 py-2 text-sm" data-testid="gt-field-image" />
             </div>
@@ -148,7 +196,7 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
             <div className="bg-[#0F2A4A] text-white px-4 py-3 flex items-center justify-between">
               <div>
                 <h3 className="font-black text-sm uppercase tracking-wide">Price B2B / Display</h3>
-                <p className="text-xs text-white/70 mt-0.5">Supplier Cost = internal net rate · Display Price = customer-facing rate.</p>
+                <p className="text-xs text-white/70 mt-0.5">Supplier Cost = internal net rate · Display Price = customer-facing rate · Target margin {Number(form.target_margin_pct) || 0}%.</p>
               </div>
               <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded uppercase font-bold tracking-wider">Without emi</span>
             </div>
@@ -156,13 +204,18 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
               <thead className="bg-[#E8F0F7] text-[11px] uppercase text-gray-700 font-bold">
                 <tr>
                   <th className="px-4 py-2.5 text-left">Tier</th>
-                  <th className="px-4 py-2.5 text-right w-48">Supplier Cost (AED)</th>
-                  <th className="px-4 py-2.5 text-right w-48">Display Price (AED)</th>
+                  <th className="px-4 py-2.5 text-right w-44">Supplier Cost (AED)</th>
+                  <th className="px-4 py-2.5 text-right w-56">Display Price (AED)</th>
+                  <th className="px-4 py-2.5 text-center w-28">Markup</th>
                 </tr>
               </thead>
               <tbody>
                 {TIER_ROWS.map(({ key, label }, i) => {
                   const tier = form.pricing?.[key] || BLANK_TIER;
+                  const margin = computeMargin(tier.supplier_cost, tier.display_price);
+                  const suggested = suggestedDisplay(tier.supplier_cost, form.target_margin_pct);
+                  const canSuggest = Number(tier.supplier_cost) > 0 && Number(form.target_margin_pct) > 0;
+                  const isAtSuggestion = canSuggest && Math.abs((Number(tier.display_price) || 0) - suggested) < 0.5;
                   return (
                     <tr key={key} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} data-testid={`gt-tier-row-${key}`}>
                       <td className="px-4 py-2.5 text-gray-800 font-semibold">{label}</td>
@@ -173,20 +226,41 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
                           step="0.01"
                           value={tier.supplier_cost}
                           onChange={e => updateTier(key, 'supplier_cost', e.target.value)}
-                          className="w-40 text-right border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#0F2A4A] focus:ring-1 focus:ring-[#0F2A4A]"
+                          className="w-36 text-right border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#0F2A4A] focus:ring-1 focus:ring-[#0F2A4A]"
                           data-testid={`gt-tier-${key}-supplier`}
                         />
                       </td>
                       <td className="px-4 py-2 text-right">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={tier.display_price}
-                          onChange={e => updateTier(key, 'display_price', e.target.value)}
-                          className="w-40 text-right border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#0F2A4A] focus:ring-1 focus:ring-[#0F2A4A]"
-                          data-testid={`gt-tier-${key}-display`}
-                        />
+                        <div className="flex items-center justify-end gap-1.5">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={tier.display_price}
+                            onChange={e => updateTier(key, 'display_price', e.target.value)}
+                            className="w-36 text-right border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#0F2A4A] focus:ring-1 focus:ring-[#0F2A4A]"
+                            data-testid={`gt-tier-${key}-display`}
+                          />
+                          <button
+                            type="button"
+                            disabled={!canSuggest}
+                            onClick={() => updateTier(key, 'display_price', suggested)}
+                            className={`p-1.5 rounded border text-[10px] flex items-center gap-1 transition ${
+                              canSuggest
+                                ? (isAtSuggestion
+                                    ? 'border-emerald-300 text-emerald-700 bg-emerald-50'
+                                    : 'border-[#0F2A4A] text-[#0F2A4A] hover:bg-[#0F2A4A] hover:text-white')
+                                : 'border-gray-200 text-gray-300 cursor-not-allowed'
+                            }`}
+                            title={canSuggest ? `Suggested: AED ${suggested.toLocaleString()} (supplier × ${1 + (Number(form.target_margin_pct) || 0) / 100})` : 'Set Supplier Cost & Target Margin to enable'}
+                            data-testid={`gt-tier-${key}-suggest`}
+                          >
+                            <RefreshCw size={11} />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 text-center" data-testid={`gt-tier-${key}-margin`}>
+                        <MarginBadge margin={margin} target={form.target_margin_pct} />
                       </td>
                     </tr>
                   );
@@ -195,6 +269,7 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
             </table>
             <div className="px-4 py-2 text-[11px] text-gray-500 bg-gray-50 border-t border-gray-200">
               Note: Customers see the <strong>Display Price</strong>. Supplier Cost is internal-only (admin + accounting).
+              Click <RefreshCw size={10} className="inline" /> to apply the Suggested Price (Supplier × Target Margin).
               Children 6-11 yrs are billed at the Twin/Double Display Price (they require a bed).
             </div>
           </div>
@@ -275,6 +350,7 @@ export default function GroupToursAdmin() {
                 <th className="px-4 py-3 text-center">Stars</th>
                 <th className="px-4 py-3 text-right">Twin Supplier (AED)</th>
                 <th className="px-4 py-3 text-right">Twin Display (AED)</th>
+                <th className="px-4 py-3 text-center">Markup (Twin)</th>
                 <th className="px-4 py-3 text-right">Tax %</th>
                 <th className="px-4 py-3 text-center">Active</th>
                 <th className="px-4 py-3 text-right">Actions</th>
@@ -283,6 +359,7 @@ export default function GroupToursAdmin() {
             <tbody>
               {list.map(p => {
                 const twin = p.pricing?.twin_double || {};
+                const margin = computeMargin(twin.supplier_cost, twin.display_price);
                 return (
                   <tr key={p.id} className="border-t border-gray-200 hover:bg-gray-50" data-testid={`gt-row-${p.id}`}>
                     <td className="px-4 py-3 font-semibold text-gray-900">{p.title}</td>
@@ -294,6 +371,9 @@ export default function GroupToursAdmin() {
                     </td>
                     <td className="px-4 py-3 text-right text-emerald-700 font-mono text-sm font-semibold" data-testid={`gt-row-${p.id}-display`}>
                       {fmt(twin.display_price)}
+                    </td>
+                    <td className="px-4 py-3 text-center" data-testid={`gt-row-${p.id}-markup`}>
+                      <MarginBadge margin={margin} target={p.target_margin_pct} />
                     </td>
                     <td className="px-4 py-3 text-right text-gray-700">{p.tax_pct}%</td>
                     <td className="px-4 py-3 text-center">
@@ -315,7 +395,7 @@ export default function GroupToursAdmin() {
             </tbody>
           </table>
           <div className="px-4 py-2 bg-amber-50 border-t border-amber-200 text-xs text-amber-800">
-            <strong>Twin Supplier</strong> = B2B net cost (operations / accounting). <strong>Twin Display</strong> = headline rate shown on the public Group Tours card. Open the editor to see all 5 pricing tiers.
+            <strong>Twin Supplier</strong> = B2B net cost · <strong>Twin Display</strong> = headline rate shown publicly · <strong>Markup</strong> badge: <span className="font-bold text-red-700">red &lt;10%</span>, <span className="font-bold text-amber-700">amber 10-19%</span>, <span className="font-bold text-emerald-700">emerald 20-49%</span>, <span className="font-bold text-indigo-700">indigo 50%+</span>. Open the editor to set the per-package Target Margin and click <RefreshCw size={10} className="inline" /> to apply suggested prices.
           </div>
         </div>
       )}

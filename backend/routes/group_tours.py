@@ -76,6 +76,7 @@ class GroupTourPackageBase(BaseModel):
     stars: int = 3
     pricing: PricingTiers = Field(default_factory=PricingTiers)
     tax_pct: float = 5.0
+    target_margin_pct: float = 25.0  # used to compute "Suggested Display Price" hints
     image: str = ""
     gradient: str = "linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%)"
     active: bool = True
@@ -94,6 +95,7 @@ class GroupTourPackageUpdate(BaseModel):
     stars: Optional[int] = None
     pricing: Optional[PricingTiers] = None
     tax_pct: Optional[float] = None
+    target_margin_pct: Optional[float] = None
     image: Optional[str] = None
     gradient: Optional[str] = None
     active: Optional[bool] = None
