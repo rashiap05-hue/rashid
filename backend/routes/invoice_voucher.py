@@ -198,6 +198,8 @@ def build_invoice_html(booking, proposal, user):
     paid_amount = float(booking.get("payment_amount") or 0)
     payment_fee = float(booking.get("payment_fee") or 0)
     refund_amount = float(booking.get("refund_amount") or 0)
+    balance_due = max(total_amount - paid_amount + payment_fee - refund_amount, 0)
+    has_balance = balance_due > 0.01
 
     return f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><style>
@@ -228,6 +230,9 @@ body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 
 .totals {{ margin-top: 18px; margin-left: auto; width: 50%; }}
 .totals-row {{ display: flex; justify-content: space-between; padding: 4px 0; font-size: 11.5px; }}
 .totals-row.grand {{ border-top: 2px solid #002B5B; margin-top: 6px; padding-top: 8px; font-weight: 800; color: #002B5B; font-size: 13px; }}
+.totals-row.grand.unpaid {{ color: #B91C1C; border-top-color: #B91C1C; }}
+.txn-row.due-highlight .l {{ color: #B91C1C; font-weight: 700; }}
+.txn-row.due-highlight .v {{ color: #B91C1C; font-weight: 800; background: #FEF2F2; padding: 2px 8px; border-radius: 4px; border: 1px solid #FECACA; }}
 .footer {{ margin-top: 28px; padding-top: 12px; border-top: 1px solid #E5E7EB; text-align: center; font-size: 9.5px; color: #6B7280; line-height: 1.7; }}
 </style></head><body>
 
@@ -249,7 +254,7 @@ body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 
         <div class="txn-row"><span class="l">Booking Reference:</span><span class="v">{ref}</span></div>
         <div class="txn-row"><span class="l">Booking Date:</span><span class="v">{fmt_date(booking_date)}</span></div>
         <div class="txn-row"><span class="l">Date of Journey:</span><span class="v">{fmt_date(journey_date)}</span></div>
-        <div class="txn-row"><span class="l">Final Payment Due:</span><span class="v">{fmt_date(final_due) if final_due else '—'}</span></div>
+        <div class="txn-row{' due-highlight' if has_balance else ''}"><span class="l">Final Payment Due:</span><span class="v">{fmt_date(final_due) if final_due else '—'}</span></div>
     </div>
 </div>
 
@@ -286,7 +291,7 @@ body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 
     <div class="totals-row"><span>Amount Paid</span><span>{_format_money(paid_amount)}</span></div>
     <div class="totals-row"><span>Payment Fee</span><span>{_format_money(payment_fee)}</span></div>
     <div class="totals-row"><span>Amount Refunded</span><span>{_format_money(refund_amount)}</span></div>
-    <div class="totals-row grand"><span>Balance Due</span><span>{_format_money(max(total_amount - paid_amount + payment_fee - refund_amount, 0))}</span></div>
+    <div class="totals-row grand{' unpaid' if has_balance else ''}"><span>Balance Due</span><span>{_format_money(balance_due)}</span></div>
 </div>
 
 <div class="footer">

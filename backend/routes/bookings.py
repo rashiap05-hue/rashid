@@ -294,6 +294,47 @@ class StatusUpdateRequest(BaseModel):
     note: str = ""
 
 
+class InvoiceFieldsUpdate(BaseModel):
+    """Operational override for the invoice fields shown on the Proforma Invoice PDF."""
+    total_price: Optional[float] = None
+    payment_amount: Optional[float] = None
+    final_payment_due_date: Optional[str] = None  # ISO YYYY-MM-DD
+    payment_fee: Optional[float] = None
+    refund_amount: Optional[float] = None
+    invoice_notes: Optional[str] = None
+
+
+@router.patch("/bookings/{booking_id}/invoice-fields")
+async def update_invoice_fields(booking_id: str, body: InvoiceFieldsUpdate, current_user: dict = Depends(get_current_user)):
+    """Admin/Staff-only endpoint to override the invoice's financial fields.
+
+    Updates both `bookings` and `held_bookings` collections so MyBookings,
+    BookingDetail and the invoice PDF stay in sync.
+    """
+    if current_user.get("role") not in ("admin", "staff"):
+        raise HTTPException(status_code=403, detail="Only admin/staff can edit invoice fields")
+
+    # Confirm at least one collection has the row
+    bk = await db.bookings.find_one({"id": booking_id}, {"id": 1})
+    hk = await db.held_bookings.find_one({"id": booking_id}, {"id": 1})
+    if not bk and not hk:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    update = {k: v for k, v in body.dict(exclude_unset=True).items() if v is not None}
+    if not update:
+        raise HTTPException(status_code=400, detail="No invoice fields provided")
+    update["invoice_fields_updated_at"] = datetime.now(timezone.utc).isoformat()
+    update["invoice_fields_updated_by"] = current_user.get("email", "")
+
+    if bk:
+        await db.bookings.update_one({"id": booking_id}, {"$set": update})
+    if hk:
+        await db.held_bookings.update_one({"id": booking_id}, {"$set": update})
+
+    fresh = await db.bookings.find_one({"id": booking_id}, {"_id": 0}) or await db.held_bookings.find_one({"id": booking_id}, {"_id": 0})
+    return {"success": True, "booking": fresh}
+
+
 @router.put("/bookings/{booking_id}/status/advance")
 async def advance_booking_status(booking_id: str, body: StatusUpdateRequest, current_user: dict = Depends(get_current_user)):
     if current_user.get("role") not in ("admin", "staff"):

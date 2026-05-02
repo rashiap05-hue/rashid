@@ -12,7 +12,8 @@ import TripChangeRequestModal from './BookingDetail/TripChangeRequestModal';
 import TripTasksCard from './BookingDetail/TripTasksCard';
 import TripTaskDetailsModal from './BookingDetail/TripTaskDetailsModal';
 import CancelRequestModal from './BookingDetail/CancelRequestModal';
-import { XCircle, Ban } from 'lucide-react';
+import EditInvoiceModal from './BookingDetail/EditInvoiceModal';
+import { XCircle, Ban, Pencil } from 'lucide-react';
 
 export default function BookingDetail({ bookingId, initialTaskId, onBack, onViewProposal, onClickPay, onViewItinerary }) {
   const [data, setData] = useState(null);
@@ -28,6 +29,7 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
   const [cancelReviewNote, setCancelReviewNote] = useState('');
   const [tripTasks, setTripTasks] = useState([]);
   const [activeTask, setActiveTask] = useState(null);
+  const [showEditInvoice, setShowEditInvoice] = useState(false);
 
   // Read current logged-in user from localStorage (App.js writes 'travo_user')
   const currentUser = (() => {
@@ -35,6 +37,7 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
     catch { return null; }
   })();
   const isAdmin = currentUser?.role === 'admin';
+  const isAdminOrStaff = ['admin', 'staff'].includes(currentUser?.role);
   const canReviewCancel = ['admin', 'staff', 'supplier'].includes(currentUser?.role);
 
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -412,7 +415,18 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid="payment-details">
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
               <h2 className="font-bold text-gray-800 flex items-center gap-2"><CreditCard size={18} /> Payment Details</h2>
-              <div className="relative" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2">
+                {isAdminOrStaff && (
+                  <button
+                    onClick={() => setShowEditInvoice(true)}
+                    className="px-3 py-1.5 border border-gray-300 rounded-md text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-1"
+                    title="Edit invoice fields (Total / Paid / Balance / Due Date)"
+                    data-testid="edit-invoice-btn"
+                  >
+                    <Pencil size={12} /> Edit
+                  </button>
+                )}
+                <div className="relative" onClick={(e) => e.stopPropagation()}>
                 <button
                   onClick={() => setOpenDropdown(openDropdown === 'invoice' ? null : 'invoice')}
                   className="px-3 py-1.5 border border-gray-300 rounded-md text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-1"
@@ -427,6 +441,7 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
                     <button onClick={() => handleDocAction('invoice', 'email')} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" data-testid="invoice-email"><Mail size={14} className="text-gray-500" /> Email</button>
                   </div>
                 )}
+                </div>
               </div>
             </div>
             <div className="px-6 py-5">
@@ -1205,6 +1220,17 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
         onSubmitted={() => {
           setEmailToast('Cancellation request submitted — awaiting approval ✓');
           setTimeout(() => setEmailToast(''), 3500);
+          fetchDetail();
+        }}
+      />
+
+      <EditInvoiceModal
+        open={showEditInvoice}
+        booking={booking}
+        onClose={() => setShowEditInvoice(false)}
+        onSaved={() => {
+          setEmailToast('Invoice fields updated ✓');
+          setTimeout(() => setEmailToast(''), 2500);
           fetchDetail();
         }}
       />

@@ -309,6 +309,11 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - **Editor pricing table** got a 4th "Markup" column showing live computed margin per tier + a small ↻ "Suggest" button next to each Display Price input that auto-fills `Display = Supplier × (1 + Target Margin / 100)`. Button highlights emerald when the current display matches the suggestion. Verified: clicking Suggest on twin_double with supplier=2,700 + target=25% jumped display to 3,375 (= 2,700 × 1.25) instantly.
   - Verified target_margin_pct persists via PUT and quote engine totals unchanged.
 
+- **Editable Invoice Fields + Highlighted Final Payment Due (May 2026)**: Operations can now override the Total / Paid / Balance / Due Date directly on the Proforma Invoice.
+  - Backend: New `PATCH /api/bookings/{id}/invoice-fields` endpoint (admin/staff only) that whitelists `total_price`, `payment_amount`, `payment_fee`, `refund_amount`, `final_payment_due_date`, `invoice_notes` and mirrors the change to both `bookings` and `held_bookings` collections.
+  - Frontend: New `BookingDetail/EditInvoiceModal.jsx` opened via a small "Edit" pencil button next to the Invoice dropdown on the Payment Details card (visible only to admin/staff). Shows live Balance Due preview (red when > 0, emerald when paid in full) and a date picker for the Final Payment Due Date.
+  - Invoice PDF: When `Balance Due > 0`, the "Final Payment Due" row in TRANSACTION DETAILS is rendered with a red background + bold red label, and the "Balance Due" totals row uses a red border + red text instead of the default navy. Verified end-to-end via curl PATCH (paid=2150 on a 2650 booking, due=2026-05-04) → Gemini Vision analysis confirms `Balance Due: AED 500.00`, red Balance Due styling, `Final Payment Due: 04 May 2026` with red highlight in the top-right transaction block.
+
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
 - P2: AI-powered trip recommendations frontend
