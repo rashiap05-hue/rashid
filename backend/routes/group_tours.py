@@ -38,7 +38,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -67,6 +67,23 @@ class PricingTiers(BaseModel):
     infant: PriceTier = Field(default_factory=PriceTier)
 
 
+class ItineraryDay(BaseModel):
+    day: int = 1
+    title: str = ""
+    desc: str = ""
+    meals: List[str] = Field(default_factory=list)   # subset of ["B", "L", "D"]
+    hotel_note: str = ""
+
+
+class HotelRow(BaseModel):
+    name: str = ""
+    stars: int = 3
+    nights: int = 1
+    room_type: str = "Standard Room"
+    meal_plan: str = "Bed & Breakfast"
+    image: str = ""
+
+
 class GroupTourPackageBase(BaseModel):
     title: str
     destination: str
@@ -80,6 +97,15 @@ class GroupTourPackageBase(BaseModel):
     image: str = ""
     gradient: str = "linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%)"
     active: bool = True
+
+    # Rich itinerary content (editable from Admin → Group Tours)
+    intro_paragraph: str = ""
+    highlights: List[str] = Field(default_factory=list)
+    itinerary: List[ItineraryDay] = Field(default_factory=list)
+    hotels: List[HotelRow] = Field(default_factory=list)
+    inclusions: Dict[str, List[str]] = Field(default_factory=dict)
+    exclusions: List[str] = Field(default_factory=list)
+    what_to_expect: List[str] = Field(default_factory=list)
 
 
 class GroupTourPackageCreate(GroupTourPackageBase):
@@ -99,6 +125,13 @@ class GroupTourPackageUpdate(BaseModel):
     image: Optional[str] = None
     gradient: Optional[str] = None
     active: Optional[bool] = None
+    intro_paragraph: Optional[str] = None
+    highlights: Optional[List[str]] = None
+    itinerary: Optional[List[ItineraryDay]] = None
+    hotels: Optional[List[HotelRow]] = None
+    inclusions: Optional[Dict[str, List[str]]] = None
+    exclusions: Optional[List[str]] = None
+    what_to_expect: Optional[List[str]] = None
 
 
 class GroupTourPackageResponse(GroupTourPackageBase):
@@ -167,6 +200,68 @@ def _parse_age_years(label: str) -> int:
     return int(digits) if digits else 0
 
 
+def _default_rich_content(destination: str, nights: int, image: str) -> dict:
+    """Generate sensible default content for a Group Tour package so that
+    newly created/seeded packages are never blank. Ops can later override any
+    section from the Admin editor."""
+    dest = destination or "your destination"
+    return {
+        "intro_paragraph": f"This trip by Travo Tours is a handpicked experience featuring {dest}. Enjoy panoramic landscapes, cultural landmarks, and comfortable stays in boutique hotels.",
+        "highlights": [
+            f"Discover the Top Attractions of {dest} with a Licensed Tour Guide",
+            "Dive into Local Culture — Traditional Food, Arts & Architecture",
+            "Enjoy Comfortable Stays at 3–5 Star Hotels with Daily Breakfast",
+            "Seamless Private Arrival & Departure Airport Transfers",
+            "Scenic Day Tours Including Local Landmarks and Hidden Gems",
+            "Shopping & Leisure Time at the Most Famous Bazaars & Malls",
+        ],
+        "itinerary": [
+            {"day": 1, "title": f"Arrival in {dest}", "desc": f"On arrival at {dest} International Airport, our representative will welcome you and transfer you to the hotel for check-in. Relax and spend the evening at leisure. Enjoy dinner at your leisure before retiring for the night.", "meals": ["D"], "hotel_note": "Check-in to the hotel"},
+            {"day": 2, "title": f"Full Day {dest} City Tour", "desc": f"After breakfast, embark on a guided {dest} city tour covering the Old City, cultural landmarks, religious monuments and viewpoints with panoramic city vistas. Enjoy lunch at a traditional restaurant before heading back to the hotel.", "meals": ["B", "L"], "hotel_note": f"Overnight stay at hotel in {dest}"},
+            {"day": 3, "title": "Day Trip to Mountains & Countryside", "desc": f"Full-day excursion to the countryside. Visit UNESCO-listed heritage sites, natural reservoirs, tea gardens and enjoy cable-car rides with stunning mountain views. Return to {dest} for a relaxed evening.", "meals": ["B", "L"], "hotel_note": f"Overnight stay at hotel in {dest}"},
+            {"day": 4, "title": "Shopping & Leisure Day", "desc": "Morning is at leisure for personal activities. In the afternoon, a guided shopping tour at the most popular malls, handicraft streets and bazaars. Evening dinner at a traditional restaurant with live music & cultural performance.", "meals": ["B", "D"], "hotel_note": f"Overnight stay at hotel in {dest}"},
+            *([{"day": 5, "title": f"Optional Tour - {dest} Night Experience", "desc": "Optional evening tour including rooftop city viewpoints, night cruise and dinner at a signature local restaurant. Overnight back at hotel.", "meals": ["B"], "hotel_note": f"Overnight stay at hotel in {dest}"}] if nights >= 5 else []),
+            {"day": nights + 1, "title": f"Departure from {dest}", "desc": f"After breakfast at the hotel, check-out at the scheduled time. Our representative will transfer you to {dest} International Airport for your return flight home.", "meals": ["B"], "hotel_note": ""},
+        ],
+        "hotels": [
+            {"name": f"Park Inn by Radisson {dest} or similar", "stars": 4, "nights": nights, "room_type": "Standard Twin Room", "meal_plan": "Bed & Breakfast", "image": image or ""},
+        ],
+        "inclusions": {
+            "Accommodation": [
+                f"{nights} nights' accommodation at selected hotels",
+                "Daily buffet breakfast at the hotel",
+                "Check-in from 14:00 hrs & Check-out until 12:00 hrs",
+            ],
+            "Transfers": [
+                "Private airport pick-up on arrival",
+                "Private airport drop-off on departure",
+                "All inter-city transfers by A/C private vehicle",
+            ],
+            "Sightseeing": [
+                f"Full Day {dest} City Tour with guide",
+                "Day trip with entrance fees as per itinerary",
+                "Professional English-speaking tour guide",
+            ],
+            "Miscellaneous": [
+                "All applicable taxes and service charges",
+                "Tourist tax included in hotel rate",
+            ],
+        },
+        "exclusions": [
+            "International airfare (Tickets can be booked separately)",
+            "Visa fees and travel insurance",
+            "Lunches and dinners unless specified",
+            "Any optional tours, personal expenses, tips and gratuities",
+        ],
+        "what_to_expect": [
+            f"Travelers will be met by our airport representative at the arrival terminal of {dest}'s International Airport. Please allow some time after immigration before proceeding to the airport meet & greet point. Our representative will carry a Travo Tours name sign for easy identification.",
+            "Timings for arrival and departure will be confirmed by our local partner. Travelers are requested to check the itinerary carefully and revert to us with any concerns within 48 hours of receiving the document.",
+            "All hotels are subject to availability at the time of booking. In the event a specific hotel is unavailable, we will book a similar category hotel. You will be notified of any change prior to booking confirmation.",
+            "Please note that during special events, festivals or local holidays some attractions may be closed. Your guide will offer suitable alternative activities if such a situation arises during your trip.",
+        ],
+    }
+
+
 def _migrate_legacy(pkg: dict) -> dict:
     """Ensure a package doc has a `pricing` block.
 
@@ -175,6 +270,11 @@ def _migrate_legacy(pkg: dict) -> dict:
     `pricing` always being present.
     """
     if isinstance(pkg.get("pricing"), dict) and pkg["pricing"]:
+        # Pricing already migrated — now make sure rich content fields exist
+        if not pkg.get("highlights") and not pkg.get("itinerary"):
+            defaults = _default_rich_content(pkg.get("destination") or pkg.get("title", ""), int(pkg.get("nights") or 4), pkg.get("image") or "")
+            for k, v in defaults.items():
+                pkg.setdefault(k, v)
         return pkg
     legacy_price = float(pkg.get("price_per_adult") or 0)
     pkg["pricing"] = {
@@ -184,6 +284,10 @@ def _migrate_legacy(pkg: dict) -> dict:
         "child_no_bed":   {"supplier_cost": 0.0, "display_price": round(legacy_price * 0.75, 2)},
         "infant":         {"supplier_cost": 0.0, "display_price": 0.0},
     }
+    # Also backfill rich content for fully-legacy docs
+    defaults = _default_rich_content(pkg.get("destination") or pkg.get("title", ""), int(pkg.get("nights") or 4), pkg.get("image") or "")
+    for k, v in defaults.items():
+        pkg.setdefault(k, v)
     return pkg
 
 
@@ -209,18 +313,30 @@ async def _seed_defaults_if_empty() -> None:
     existing = await db.group_tour_packages.count_documents({})
     if existing:
         # Backfill any legacy doc that's missing the new pricing block.
-        async for doc in db.group_tour_packages.find({"pricing": {"$exists": False}}, {"_id": 0, "id": 1, "price_per_adult": 1}):
+        async for doc in db.group_tour_packages.find({"pricing": {"$exists": False}}, {"_id": 0, "id": 1, "price_per_adult": 1, "destination": 1, "nights": 1, "image": 1}):
             legacy = float(doc.get("price_per_adult") or 0)
+            rich = _default_rich_content(doc.get("destination") or "", int(doc.get("nights") or 4), doc.get("image") or "")
             await db.group_tour_packages.update_one(
                 {"id": doc["id"]},
-                {"$set": {"pricing": {
-                    "single_sharing": {"supplier_cost": 0.0, "display_price": round(legacy * 1.30, 2)},
-                    "twin_double":    {"supplier_cost": 0.0, "display_price": legacy},
-                    "triple":         {"supplier_cost": 0.0, "display_price": round(legacy * 0.95, 2)},
-                    "child_no_bed":   {"supplier_cost": 0.0, "display_price": round(legacy * 0.75, 2)},
-                    "infant":         {"supplier_cost": 0.0, "display_price": 0.0},
-                }, "updated_at": _now()}, "$unset": {"child_age_rules": "", "price_per_adult": ""}},
+                {"$set": {
+                    "pricing": {
+                        "single_sharing": {"supplier_cost": 0.0, "display_price": round(legacy * 1.30, 2)},
+                        "twin_double":    {"supplier_cost": 0.0, "display_price": legacy},
+                        "triple":         {"supplier_cost": 0.0, "display_price": round(legacy * 0.95, 2)},
+                        "child_no_bed":   {"supplier_cost": 0.0, "display_price": round(legacy * 0.75, 2)},
+                        "infant":         {"supplier_cost": 0.0, "display_price": 0.0},
+                    },
+                    "updated_at": _now(),
+                    **rich,
+                }, "$unset": {"child_age_rules": "", "price_per_adult": ""}},
             )
+        # Second pass: packages that have pricing but still missing rich content
+        async for doc in db.group_tour_packages.find(
+            {"$or": [{"itinerary": {"$exists": False}}, {"itinerary": {"$size": 0}}]},
+            {"_id": 0, "id": 1, "destination": 1, "nights": 1, "image": 1},
+        ):
+            rich = _default_rich_content(doc.get("destination") or "", int(doc.get("nights") or 4), doc.get("image") or "")
+            await db.group_tour_packages.update_one({"id": doc["id"]}, {"$set": {**rich, "updated_at": _now()}})
         return
     now = _now()
 
@@ -233,7 +349,7 @@ async def _seed_defaults_if_empty() -> None:
             "infant":         {"supplier_cost": 0.0,                    "display_price": 0.0},
         }
 
-    seed = [
+    raw_seed = [
         {"id": "baku-eid",    "title": "Baku Eid Break",    "destination": "Baku",
          "subtitle": "Baku 4 nights",    "nights": 4, "date_range": "24-31 May", "stars": 3,
          "pricing": _tiers(3293.0), "tax_pct": 5.0,
@@ -255,10 +371,10 @@ async def _seed_defaults_if_empty() -> None:
          "image": "https://images.unsplash.com/photo-1615460549969-36fa19521a4f?w=800&q=80&auto=format&fit=crop",
          "gradient": "linear-gradient(135deg, #ef4444 0%, #991b1b 100%)"},
     ]
-    for doc in seed:
-        doc["active"] = True
-        doc["created_at"] = now
-        doc["updated_at"] = now
+    seed = []
+    for doc in raw_seed:
+        rich = _default_rich_content(doc["destination"], doc["nights"], doc.get("image") or "")
+        seed.append({**doc, **rich, "active": True, "created_at": now, "updated_at": now})
     await db.group_tour_packages.insert_many(seed)
 
 

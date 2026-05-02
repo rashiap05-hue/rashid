@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, X, Save, Loader2, RefreshCw } from 'lucide-react';
 import { api } from '@/App';
+import {
+  Section, BulletListEditor, ItineraryEditor, HotelsEditor, InclusionsEditor, ParagraphListEditor,
+} from './GroupTourEditorSections';
 
 const BLANK_TIER = { supplier_cost: 0, display_price: 0 };
 
@@ -19,6 +22,13 @@ const EMPTY_PKG = {
   image: '',
   gradient: 'linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%)',
   active: true,
+  intro_paragraph: '',
+  highlights: [],
+  itinerary: [],
+  hotels: [],
+  inclusions: {},
+  exclusions: [],
+  what_to_expect: [],
 };
 
 const TIER_ROWS = [
@@ -120,6 +130,28 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
         tax_pct: Number(form.tax_pct) || 0,
         target_margin_pct: Number(form.target_margin_pct) || 0,
         pricing: cleanedTiers,
+        intro_paragraph: form.intro_paragraph || '',
+        highlights: (form.highlights || []).filter(x => (x || '').trim()),
+        itinerary: (form.itinerary || []).map(d => ({
+          day: Number(d.day) || 1,
+          title: d.title || '',
+          desc: d.desc || '',
+          meals: d.meals || [],
+          hotel_note: d.hotel_note || '',
+        })),
+        hotels: (form.hotels || []).map(h => ({
+          name: h.name || '',
+          stars: Number(h.stars) || 3,
+          nights: Number(h.nights) || 1,
+          room_type: h.room_type || '',
+          meal_plan: h.meal_plan || '',
+          image: h.image || '',
+        })),
+        inclusions: Object.fromEntries(
+          Object.entries(form.inclusions || {}).map(([cat, items]) => [cat, (items || []).filter(x => (x || '').trim())])
+        ),
+        exclusions: (form.exclusions || []).filter(x => (x || '').trim()),
+        what_to_expect: (form.what_to_expect || []).filter(x => (x || '').trim()),
       };
       if (isEdit) {
         await api.put(`/group-tours/${pkg.id}`, payload);
@@ -273,6 +305,99 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
               Children 6-11 yrs are billed at the Twin/Double Display Price (they require a bed).
             </div>
           </div>
+
+          {/* ---------- Rich itinerary content (collapsible) ---------- */}
+          <Section
+            title="Intro Paragraph & Trip Highlights"
+            subtitle="The opening blurb and the green-check bullets on the Group Tour Detail page."
+            count={(form.highlights || []).length}
+            testid="gt-section-highlights"
+          >
+            <div>
+              <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Intro Paragraph</label>
+              <textarea
+                value={form.intro_paragraph || ''}
+                onChange={e => update('intro_paragraph', e.target.value)}
+                placeholder="This trip by Travo Tours is a handpicked experience featuring..."
+                rows={3}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                data-testid="gt-field-intro"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Highlights</label>
+              <BulletListEditor
+                items={form.highlights || []}
+                onChange={(items) => update('highlights', items)}
+                placeholder="Highlight bullet (e.g. Visit UNESCO heritage sites)"
+                testidPrefix="gt-hl"
+              />
+            </div>
+          </Section>
+
+          <Section
+            title="Itinerary (Day-by-day)"
+            subtitle="Renders as the 'Itinerary' tab on the Detail page."
+            count={(form.itinerary || []).length}
+            testid="gt-section-itinerary"
+          >
+            <ItineraryEditor
+              days={form.itinerary || []}
+              onChange={(days) => update('itinerary', days)}
+            />
+          </Section>
+
+          <Section
+            title="Hotels"
+            subtitle="Renders as the 'Hotels' tab on the Detail page."
+            count={(form.hotels || []).length}
+            testid="gt-section-hotels"
+          >
+            <HotelsEditor
+              hotels={form.hotels || []}
+              onChange={(hotels) => update('hotels', hotels)}
+            />
+          </Section>
+
+          <Section
+            title="Inclusions"
+            subtitle="Grouped by category (Accommodation / Transfers / Sightseeing / Miscellaneous)."
+            count={Object.values(form.inclusions || {}).reduce((s, arr) => s + (arr || []).length, 0)}
+            testid="gt-section-inclusions"
+          >
+            <InclusionsEditor
+              inclusions={form.inclusions || {}}
+              onChange={(inc) => update('inclusions', inc)}
+            />
+          </Section>
+
+          <Section
+            title="Exclusions"
+            subtitle="Shown as red × bullets on the Detail page."
+            count={(form.exclusions || []).length}
+            testid="gt-section-exclusions"
+          >
+            <BulletListEditor
+              items={form.exclusions || []}
+              onChange={(items) => update('exclusions', items)}
+              placeholder="Exclusion bullet (e.g. International airfare)"
+              testidPrefix="gt-exc"
+            />
+          </Section>
+
+          <Section
+            title="What to Expect"
+            subtitle="Free-form notes shown in the 'What to Expect' section."
+            count={(form.what_to_expect || []).length}
+            testid="gt-section-expect"
+          >
+            <ParagraphListEditor
+              paragraphs={form.what_to_expect || []}
+              onChange={(p) => update('what_to_expect', p)}
+              placeholder="A paragraph of guest-facing notes..."
+              testidPrefix="gt-exp"
+            />
+          </Section>
 
           <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
             <input type="checkbox" id="pkg-active" checked={form.active} onChange={e => update('active', e.target.checked)} />

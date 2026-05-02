@@ -21,12 +21,14 @@ function DealImage({ src, alt, gradient, label, className }) {
   return <img src={src} alt={alt} className={className} onError={() => setFailed(true)} loading="lazy" />;
 }
 
-/* ---------- Demo package data derived from the deal passed in ---------- */
+/* ---------- Package content: prefer backend data, fall back to template ---------- */
 function buildPackage(deal) {
-  const destination = (deal?.subtitle || '').split(' ')[0] || 'Baku';
-  const nights = parseInt((deal?.subtitle || '').match(/(\d+)\s*night/i)?.[1] || '4', 10);
+  const destination = deal?.destination || (deal?.subtitle || '').split(' ')[0] || 'Baku';
+  const nights = Number(deal?.nights) || parseInt((deal?.subtitle || '').match(/(\d+)\s*night/i)?.[1] || '4', 10);
 
-  const highlights = [
+  // Prefer backend-provided itinerary/hotels/etc when present. Fall back to
+  // the previous destination-based template for older packages.
+  const highlights = (deal?.highlights && deal.highlights.length) ? deal.highlights : [
     `Discover the Top Attractions of ${destination} with a Licensed Tour Guide`,
     `Dive into Local Culture — Traditional Food, Arts & Architecture`,
     'Enjoy Comfortable Stays at 3–5 Star Hotels with Daily Breakfast',
@@ -35,22 +37,28 @@ function buildPackage(deal) {
     'Shopping & Leisure Time at the Most Famous Bazaars & Malls',
   ];
 
-  const itinerary = [
-    { day: 1, title: `Arrival in ${destination}`, desc: `On arrival at ${destination} International Airport, our representative will welcome you and transfer you to the hotel for check-in. Relax and spend the evening at leisure. Enjoy dinner at your leisure before retiring for the night.`, meal: ['D'], hotel: 'Check-in to the hotel' },
-    { day: 2, title: `Full Day ${destination} City Tour`, desc: `After breakfast, embark on a guided ${destination} city tour covering the Old City, cultural landmarks, religious monuments and viewpoints with panoramic city vistas. Enjoy lunch at a traditional restaurant before heading back to the hotel.`, meal: ['B', 'L'], hotel: `Overnight stay at hotel in ${destination}` },
-    { day: 3, title: 'Day Trip to Mountains & Countryside', desc: `Full-day excursion to the countryside. Visit UNESCO-listed heritage sites, natural reservoirs, tea gardens and enjoy cable-car rides with stunning mountain views. Return to ${destination} for a relaxed evening.`, meal: ['B', 'L'], hotel: `Overnight stay at hotel in ${destination}` },
-    { day: 4, title: 'Shopping & Leisure Day', desc: `Morning is at leisure for personal activities. In the afternoon, a guided shopping tour at the most popular malls, handicraft streets and bazaars. Evening dinner at a traditional restaurant with live music & cultural performance.`, meal: ['B', 'D'], hotel: `Overnight stay at hotel in ${destination}` },
-    ...(nights >= 5 ? [{ day: 5, title: `Optional Tour - ${destination} Night Experience`, desc: `Optional evening tour including rooftop city viewpoints, night cruise and dinner at a signature local restaurant. Overnight back at hotel.`, meal: ['B'], hotel: `Overnight stay at hotel in ${destination}` }] : []),
-    { day: nights + 1, title: `Departure from ${destination}`, desc: `After breakfast at the hotel, check-out at the scheduled time. Our representative will transfer you to ${destination} International Airport for your return flight home.`, meal: ['B'], hotel: null },
-  ];
+  // Backend now returns itinerary as { day, title, desc, meals, hotel_note }.
+  // Detail page expects { day, title, desc, meal, hotel } — map keys.
+  const itinerary = (deal?.itinerary && deal.itinerary.length)
+    ? deal.itinerary.map(d => ({ day: d.day, title: d.title, desc: d.desc, meal: d.meals || [], hotel: d.hotel_note || null }))
+    : [
+        { day: 1, title: `Arrival in ${destination}`, desc: `On arrival at ${destination} International Airport, our representative will welcome you and transfer you to the hotel for check-in. Relax and spend the evening at leisure. Enjoy dinner at your leisure before retiring for the night.`, meal: ['D'], hotel: 'Check-in to the hotel' },
+        { day: 2, title: `Full Day ${destination} City Tour`, desc: `After breakfast, embark on a guided ${destination} city tour covering the Old City, cultural landmarks, religious monuments and viewpoints with panoramic city vistas. Enjoy lunch at a traditional restaurant before heading back to the hotel.`, meal: ['B', 'L'], hotel: `Overnight stay at hotel in ${destination}` },
+        { day: 3, title: 'Day Trip to Mountains & Countryside', desc: `Full-day excursion to the countryside. Visit UNESCO-listed heritage sites, natural reservoirs, tea gardens and enjoy cable-car rides with stunning mountain views. Return to ${destination} for a relaxed evening.`, meal: ['B', 'L'], hotel: `Overnight stay at hotel in ${destination}` },
+        { day: 4, title: 'Shopping & Leisure Day', desc: `Morning is at leisure for personal activities. In the afternoon, a guided shopping tour at the most popular malls, handicraft streets and bazaars. Evening dinner at a traditional restaurant with live music & cultural performance.`, meal: ['B', 'D'], hotel: `Overnight stay at hotel in ${destination}` },
+        ...(nights >= 5 ? [{ day: 5, title: `Optional Tour - ${destination} Night Experience`, desc: `Optional evening tour including rooftop city viewpoints, night cruise and dinner at a signature local restaurant. Overnight back at hotel.`, meal: ['B'], hotel: `Overnight stay at hotel in ${destination}` }] : []),
+        { day: nights + 1, title: `Departure from ${destination}`, desc: `After breakfast at the hotel, check-out at the scheduled time. Our representative will transfer you to ${destination} International Airport for your return flight home.`, meal: ['B'], hotel: null },
+      ];
 
-  const hotels = [
-    { name: `Park Inn by Radisson ${destination} or similar`, stars: 4, nights, image: deal?.image, roomType: 'Standard Twin Room', meal: 'Bed & Breakfast' },
-    { name: `Holiday Inn ${destination} or similar`, stars: 4, nights: Math.max(1, nights - 2), image: deal?.image, roomType: 'Superior Room', meal: 'Bed & Breakfast' },
-    { name: `Hilton Garden Inn ${destination} or similar`, stars: 4, nights: 2, image: deal?.image, roomType: 'Guest Room', meal: 'Bed & Breakfast' },
-  ];
+  const hotels = (deal?.hotels && deal.hotels.length)
+    ? deal.hotels.map(h => ({ name: h.name, stars: h.stars, nights: h.nights, image: h.image || deal?.image, roomType: h.room_type || 'Standard Room', meal: h.meal_plan || 'Bed & Breakfast' }))
+    : [
+        { name: `Park Inn by Radisson ${destination} or similar`, stars: 4, nights, image: deal?.image, roomType: 'Standard Twin Room', meal: 'Bed & Breakfast' },
+        { name: `Holiday Inn ${destination} or similar`, stars: 4, nights: Math.max(1, nights - 2), image: deal?.image, roomType: 'Superior Room', meal: 'Bed & Breakfast' },
+        { name: `Hilton Garden Inn ${destination} or similar`, stars: 4, nights: 2, image: deal?.image, roomType: 'Guest Room', meal: 'Bed & Breakfast' },
+      ];
 
-  const inclusions = {
+  const inclusions = (deal?.inclusions && Object.keys(deal.inclusions).length) ? deal.inclusions : {
     Accommodation: [
       `${nights} nights' accommodation at selected hotels`,
       'Daily buffet breakfast at the hotel',
@@ -72,12 +80,15 @@ function buildPackage(deal) {
     ],
   };
 
-  const exclusions = [
+  const exclusions = (deal?.exclusions && deal.exclusions.length) ? deal.exclusions : [
     'International airfare (Tickets can be booked separately)',
     'Visa fees and travel insurance',
     'Lunches and dinners unless specified',
     'Any optional tours, personal expenses, tips and gratuities',
   ];
+
+  const what_to_expect = (deal?.what_to_expect && deal.what_to_expect.length) ? deal.what_to_expect : null;
+  const intro_paragraph = deal?.intro_paragraph || `This trip by Travo Tours is a handpicked experience featuring ${destination}. Enjoy panoramic landscapes, cultural landmarks, and comfortable stays in boutique hotels.`;
 
   const similar = [
     { id: 'baku', title: 'Baku Eid Break', city: 'Baku', nights: 4, price: 3293, gradient: 'linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%)' },
@@ -88,7 +99,7 @@ function buildPackage(deal) {
     { id: 'dubai', title: 'Dubai Explorer', city: 'Dubai', nights: 3, price: 1980, gradient: 'linear-gradient(135deg, #fbbf24 0%, #92400e 100%)' },
   ];
 
-  return { destination, nights, highlights, itinerary, hotels, inclusions, exclusions, similar };
+  return { destination, nights, highlights, itinerary, hotels, inclusions, exclusions, similar, intro_paragraph, what_to_expect };
 }
 
 const MEAL_META = {
@@ -432,7 +443,7 @@ export default function GroupTourDetail({ deal, onBack }) {
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">
         <h1 className="text-2xl md:text-3xl font-black text-gray-900 mb-1">{title}</h1>
         <p className="text-sm text-gray-600 mb-6">
-          This trip by Travo Tours is a handpicked experience featuring {pkg.destination}. Enjoy panoramic landscapes, cultural landmarks, and comfortable stays in boutique hotels.
+          {pkg.intro_paragraph}
         </p>
 
         {/* MAIN GRID: gallery + booking card */}
@@ -677,10 +688,16 @@ export default function GroupTourDetail({ deal, onBack }) {
             <span className="w-1.5 h-6 bg-sky-500 rounded-full" /> What to Expect
           </h2>
           <div className="text-sm text-gray-600 leading-relaxed space-y-3">
-            <p>Travelers will be met by our airport representative at the arrival terminal of {pkg.destination}'s International Airport. Please allow some time after immigration before proceeding to the airport meet & greet point. Our representative will carry a Travo Tours name sign for easy identification.</p>
-            <p>Timings for arrival and departure will be confirmed by our local partner. Travelers are requested to check the itinerary carefully and revert to us with any concerns within 48 hours of receiving the document.</p>
-            <p>All hotels are subject to availability at the time of booking. In the event a specific hotel is unavailable, we will book a similar category hotel. You will be notified of any change prior to booking confirmation.</p>
-            <p>Please note that during special events, festivals or local holidays some attractions may be closed. Your guide will offer suitable alternative activities if such a situation arises during your trip.</p>
+            {pkg.what_to_expect ? (
+              pkg.what_to_expect.map((p, i) => <p key={i}>{p}</p>)
+            ) : (
+              <>
+                <p>Travelers will be met by our airport representative at the arrival terminal of {pkg.destination}'s International Airport. Please allow some time after immigration before proceeding to the airport meet & greet point. Our representative will carry a Travo Tours name sign for easy identification.</p>
+                <p>Timings for arrival and departure will be confirmed by our local partner. Travelers are requested to check the itinerary carefully and revert to us with any concerns within 48 hours of receiving the document.</p>
+                <p>All hotels are subject to availability at the time of booking. In the event a specific hotel is unavailable, we will book a similar category hotel. You will be notified of any change prior to booking confirmation.</p>
+                <p>Please note that during special events, festivals or local holidays some attractions may be closed. Your guide will offer suitable alternative activities if such a situation arises during your trip.</p>
+              </>
+            )}
           </div>
         </section>
       </div>
