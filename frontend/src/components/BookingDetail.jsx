@@ -13,6 +13,8 @@ import TripTasksCard from './BookingDetail/TripTasksCard';
 import TripTaskDetailsModal from './BookingDetail/TripTaskDetailsModal';
 import CancelRequestModal from './BookingDetail/CancelRequestModal';
 import EditInvoiceModal from './BookingDetail/EditInvoiceModal';
+import MarkPaidModal from './BookingDetail/MarkPaidModal';
+import ReminderHistorySection from './BookingDetail/ReminderHistorySection';
 import { XCircle, Ban, Pencil } from 'lucide-react';
 
 export default function BookingDetail({ bookingId, initialTaskId, onBack, onViewProposal, onClickPay, onViewItinerary }) {
@@ -30,6 +32,8 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
   const [tripTasks, setTripTasks] = useState([]);
   const [activeTask, setActiveTask] = useState(null);
   const [showEditInvoice, setShowEditInvoice] = useState(false);
+  const [showMarkPaid, setShowMarkPaid] = useState(false);
+  const [reminderRefreshKey, setReminderRefreshKey] = useState(0);
 
   // Read current logged-in user from localStorage (App.js writes 'travo_user')
   const currentUser = (() => {
@@ -467,6 +471,16 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
               <h2 className="font-bold text-gray-800 flex items-center gap-2"><CreditCard size={18} /> Payment Details</h2>
               <div className="flex items-center gap-2">
+                {isAdminOrStaff && outstanding > 0.01 && (
+                  <button
+                    onClick={() => setShowMarkPaid(true)}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-bold flex items-center gap-1"
+                    title="Register a payment received from the customer"
+                    data-testid="mark-paid-btn"
+                  >
+                    <CheckCircle size={12} /> Mark as Paid
+                  </button>
+                )}
                 {isAdminOrStaff && (
                   <button
                     onClick={() => setShowEditInvoice(true)}
@@ -602,6 +616,20 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
               )}
             </div>
           </div>
+
+          {/* Reminder History — payment reminders sent to the customer */}
+          {(isAdminOrStaff || booking.payment_reminder_count > 0) && (
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid="reminder-history-card">
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                <h2 className="font-bold text-gray-800 flex items-center gap-2">
+                  <AlertTriangle size={18} className="text-amber-500" /> Payment Reminder History
+                </h2>
+              </div>
+              <div className="px-6 py-4">
+                <ReminderHistorySection bookingId={booking.id} refreshKey={reminderRefreshKey} />
+              </div>
+            </div>
+          )}
 
           {/* Attached Trips */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid="attached-trips">
@@ -1282,6 +1310,22 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
         onSaved={() => {
           setEmailToast('Invoice fields updated ✓');
           setTimeout(() => setEmailToast(''), 2500);
+          setReminderRefreshKey(k => k + 1);
+          fetchDetail();
+        }}
+        onReminderSent={() => setReminderRefreshKey(k => k + 1)}
+      />
+
+      <MarkPaidModal
+        open={showMarkPaid}
+        booking={booking}
+        balanceDue={outstanding}
+        onClose={() => setShowMarkPaid(false)}
+        onSaved={(data) => {
+          const fully = data?.fully_paid;
+          setEmailToast(fully ? 'Payment recorded · Fully paid ✓' : `Payment of AED ${Number(data?.transaction?.amount || 0).toLocaleString()} recorded ✓`);
+          setTimeout(() => setEmailToast(''), 3000);
+          setReminderRefreshKey(k => k + 1);
           fetchDetail();
         }}
       />

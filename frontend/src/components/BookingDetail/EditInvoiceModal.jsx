@@ -12,7 +12,7 @@ const isoDate = (v) => {
 /* Admin/Staff modal to override the invoice's financial fields shown on the
  * Proforma Invoice PDF — Total Price, Amount Paid, Final Payment Due Date.
  */
-export default function EditInvoiceModal({ open, booking, onClose, onSaved }) {
+export default function EditInvoiceModal({ open, booking, onClose, onSaved, onReminderSent }) {
   const [form, setForm] = useState({
     total_price: 0,
     payment_amount: 0,
@@ -60,6 +60,7 @@ export default function EditInvoiceModal({ open, booking, onClose, onSaved }) {
         type: 'success',
         text: `Reminder sent to ${res.data.recipient} · Balance AED ${Number(res.data.balance_due).toLocaleString(undefined, { minimumFractionDigits: 2 })} · Reminder #${res.data.reminder_count}`,
       });
+      onReminderSent?.(res.data);
     } catch (e) {
       setReminderResult({
         type: 'error',

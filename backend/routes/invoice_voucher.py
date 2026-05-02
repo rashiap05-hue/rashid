@@ -4,6 +4,8 @@ Layouts mirror the Nexus DMC reference PDFs provided by the user.
 import base64
 import logging
 import os
+import uuid
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import Response
 from datetime import datetime, timezone, timedelta
@@ -1500,17 +1502,12 @@ def _build_reminder_email_html(customer_name, ref, company_name, balance_due, du
     '''
 
 
-@router.post("/bookings/{booking_id}/send-payment-reminder")
-async def send_payment_reminder(booking_id: str, current_user: dict = Depends(get_current_user)):
-    """Admin/Staff-only endpoint that emails the customer a friendly payment
-    reminder with the latest Proforma Invoice attached.
+async def _send_payment_reminder_core(booking_id: str, current_user: dict, *, source: str = "manual", milestone: str = "manual") -> dict:
+    """Shared helper — sends a payment reminder email and logs it. Used by both
+    the admin manual endpoint and the APScheduler auto-reminder job.
 
-    Refuses to send when there's no outstanding balance, no customer email,
-    or when called by a non-admin/staff user.
+    Raises HTTPException for caller to translate; scheduler catches those.
     """
-    if current_user.get("role") not in ("admin", "staff"):
-        raise HTTPException(status_code=403, detail="Only admin/staff can send payment reminders")
-
     booking, proposal, user, _ = await _load_booking_context(booking_id, current_user)
 
     to_email = booking.get("customer_email") or proposal.get("customer_email")
@@ -1525,7 +1522,6 @@ async def send_payment_reminder(booking_id: str, current_user: dict = Depends(ge
     if balance_due < 0.01:
         raise HTTPException(status_code=400, detail="No outstanding balance — nothing to remind")
 
-    # Use the explicit due date if set, else default to journey - 15 days
     final_due = booking.get("final_payment_due_date") or ""
     journey_date = booking.get("leaving_on") or proposal.get("leaving_on")
     if not final_due and journey_date:
@@ -1553,18 +1549,250 @@ async def send_payment_reminder(booking_id: str, current_user: dict = Depends(ge
         raise HTTPException(status_code=500, detail="Failed to send payment reminder email")
 
     now = datetime.now(timezone.utc).isoformat()
-    update = {
-        "last_payment_reminder_at": now,
-        "payment_reminder_count": int(booking.get("payment_reminder_count") or 0) + 1,
+    new_count = int(booking.get("payment_reminder_count") or 0) + 1
+    log_entry = {
+        "sent_at": now,
+        "recipient": to_email,
+        "balance_due": round(balance_due, 2),
+        "due_date": final_due or None,
+        "source": source,       # "manual" or "auto"
+        "milestone": milestone,  # "T-14" / "T-7" / "T-3" / "manual"
+        "reminder_no": new_count,
+        "email_sent": bool(result) if RESEND_API_KEY else False,
     }
-    await db.bookings.update_one({"id": booking_id}, {"$set": update})
-    await db.held_bookings.update_one({"id": booking_id}, {"$set": update})
+    update_set = {
+        "last_payment_reminder_at": now,
+        "payment_reminder_count": new_count,
+    }
+    if milestone in ("T-14", "T-7", "T-3"):
+        milestones_sent = list(booking.get("auto_reminder_milestones_sent") or [])
+        if milestone not in milestones_sent:
+            milestones_sent.append(milestone)
+        update_set["auto_reminder_milestones_sent"] = milestones_sent
+
+    await db.bookings.update_one(
+        {"id": booking_id},
+        {"$set": update_set, "$push": {"reminder_log": log_entry}},
+    )
+    await db.held_bookings.update_one(
+        {"id": booking_id},
+        {"$set": update_set, "$push": {"reminder_log": log_entry}},
+    )
     return {
         "status": "success",
         "recipient": to_email,
         "balance_due": round(balance_due, 2),
         "final_payment_due_date": final_due,
         "sent_at": now,
-        "reminder_count": update["payment_reminder_count"],
+        "reminder_count": new_count,
         "email_sent": bool(result) if RESEND_API_KEY else False,
+        "source": source,
+        "milestone": milestone,
+    }
+
+
+@router.post("/bookings/{booking_id}/send-payment-reminder")
+async def send_payment_reminder(booking_id: str, current_user: dict = Depends(get_current_user)):
+    """Admin/Staff-only endpoint that emails the customer a friendly payment
+    reminder with the latest Proforma Invoice attached.
+    """
+    if current_user.get("role") not in ("admin", "staff"):
+        raise HTTPException(status_code=403, detail="Only admin/staff can send payment reminders")
+    return await _send_payment_reminder_core(booking_id, current_user, source="manual", milestone="manual")
+
+
+@router.get("/bookings/{booking_id}/reminder-history")
+async def reminder_history(booking_id: str, current_user: dict = Depends(get_current_user)):
+    """Return the timeline of reminder emails sent for this booking."""
+    booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0}) or await db.held_bookings.find_one({"id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    # Owner or admin/staff only
+    owner_id = booking.get("user_id") or booking.get("created_by")
+    if current_user.get("role") not in ("admin", "staff") and current_user.get("id") != owner_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    entries = list(booking.get("reminder_log") or [])
+    entries.sort(key=lambda e: e.get("sent_at", ""), reverse=True)
+    return {
+        "booking_id": booking_id,
+        "count": len(entries),
+        "entries": entries,
+        "milestones_sent": list(booking.get("auto_reminder_milestones_sent") or []),
+    }
+
+
+@router.post("/admin/run-reminder-scheduler")
+async def admin_run_reminder_scheduler(current_user: dict = Depends(get_current_user)):
+    """Admin-only: manually trigger the daily payment-reminder-milestones job
+    (useful for QA + one-off catch-up runs)."""
+    if current_user.get("role") not in ("admin", "staff"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    from scheduler import run_due_date_reminders
+    stats = await run_due_date_reminders()
+    return {"status": "success", "stats": stats}
+
+
+
+# ---------------- MARK AS PAID ----------------
+
+from pydantic import BaseModel as _BaseModel  # local alias to avoid touching top imports
+
+
+class MarkPaymentRequest(_BaseModel):
+    amount: float
+    method: str = "bank_transfer"           # cash / bank_transfer / card / wallet / cheque / other
+    reference: Optional[str] = None          # e.g. "NEFT-2345"
+    note: Optional[str] = None
+    paid_at: Optional[str] = None            # ISO; defaults to now
+    send_receipt: bool = True                # email the receipt PDF on success
+
+
+def _build_receipt_email_html(customer_name, ref, company_name, amount, method, new_balance, currency="AED"):
+    safe_name = customer_name or "Valued Client"
+    method_label = (method or "").replace("_", " ").title()
+    is_fully_paid = new_balance < 0.01
+    return f'''
+    <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;">
+        <div style="background:#002B5B;padding:28px 24px;text-align:center;">
+            <div style="color:rgba(255,255,255,0.6);font-size:11px;letter-spacing:2px;text-transform:uppercase;">{company_name}</div>
+            <h1 style="color:white;font-size:22px;margin:10px 0 4px;font-weight:800;">Payment Receipt</h1>
+            <div style="color:rgba(255,255,255,0.75);font-size:13px;">Reference: {ref}</div>
+        </div>
+        <div style="padding:24px;">
+            <p style="font-size:14px;color:#374151;">Dear {safe_name},</p>
+            <p style="font-size:14px;color:#374151;line-height:1.6;">
+                Thank you! We have received your payment. A copy of the official Payment Receipt is attached to this email.
+            </p>
+            <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;padding:18px;margin:20px 0;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <tr>
+                        <td style="padding:6px 0;font-size:12px;color:#065F46;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Amount Received</td>
+                        <td style="padding:6px 0;text-align:right;font-size:24px;color:#047857;font-weight:800;">{currency} {amount:,.2f}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:6px 0;font-size:12px;color:#065F46;font-weight:700;letter-spacing:1px;text-transform:uppercase;border-top:1px solid #A7F3D0;">Method</td>
+                        <td style="padding:6px 0;text-align:right;font-size:14px;color:#065F46;font-weight:700;border-top:1px solid #A7F3D0;">{method_label}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:6px 0;font-size:12px;color:#065F46;font-weight:700;letter-spacing:1px;text-transform:uppercase;border-top:1px solid #A7F3D0;">Remaining Balance</td>
+                        <td style="padding:6px 0;text-align:right;font-size:16px;color:{'#047857' if is_fully_paid else '#B45309'};font-weight:800;border-top:1px solid #A7F3D0;">{currency} {new_balance:,.2f}{'  (Paid in Full)' if is_fully_paid else ''}</td>
+                    </tr>
+                </table>
+            </div>
+            <p style="font-size:13px;color:#6b7280;margin-top:16px;">Warm regards,<br><strong>{company_name}</strong></p>
+        </div>
+        <div style="background:#f8fafc;padding:16px 24px;text-align:center;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb;">
+            {company_name} | care@travotours.ae
+        </div>
+    </div>
+    '''
+
+
+@router.post("/bookings/{booking_id}/mark-paid")
+async def mark_paid(
+    booking_id: str,
+    body: MarkPaymentRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Register a partial (or full) payment against a booking.
+
+    - Admin/Staff can mark any booking. Agents may only mark their own.
+    - Appends a payment record to `payments[]` and re-computes `payment_amount` as the sum.
+    - Automatically emails the Payment Receipt PDF to the customer (when send_receipt=True).
+    """
+    if body.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than 0")
+
+    booking, proposal, user, _ = await _load_booking_context(booking_id, current_user)
+
+    # Agent/supplier owner check
+    owner_id = booking.get("user_id") or booking.get("created_by")
+    if current_user.get("role") not in ("admin", "staff") and current_user.get("id") != owner_id:
+        raise HTTPException(status_code=403, detail="Not authorized to mark this booking as paid")
+
+    now = body.paid_at or datetime.now(timezone.utc).isoformat()
+    txn_id = str(uuid.uuid4())
+    payment_entry = {
+        "id": txn_id,
+        "amount": round(float(body.amount), 2),
+        "method": body.method,
+        "reference": body.reference or "",
+        "note": body.note or "",
+        "paid_at": now,
+        "status": "Processed Successfully",
+        "recorded_by": current_user.get("email", ""),
+    }
+
+    existing_payments = list(booking.get("payments") or [])
+    # If there are no prior `payments[]` but there's a top-level paid_at from
+    # the initial booking payment, preserve that legacy payment as entry #1
+    # BEFORE appending the new one.
+    if not existing_payments and booking.get("paid_at"):
+        legacy_amount = float(booking.get("payment_amount") or 0)
+        if legacy_amount > 0.01:
+            existing_payments.append({
+                "id": booking.get("order_id") or str(uuid.uuid4()),
+                "amount": round(legacy_amount, 2),
+                "method": booking.get("payment_method") or "card",
+                "reference": booking.get("order_id") or "",
+                "paid_at": booking.get("paid_at"),
+                "status": "Processed Successfully",
+                "recorded_by": "system",
+            })
+
+    existing_payments.append(payment_entry)
+    new_total_paid = round(sum(float(p.get("amount") or 0) for p in existing_payments), 2)
+
+    update = {
+        "payments": existing_payments,
+        "payment_amount": new_total_paid,
+        "last_payment_at": now,
+    }
+    if not booking.get("paid_at"):
+        update["paid_at"] = now
+
+    await db.bookings.update_one({"id": booking_id}, {"$set": update})
+    await db.held_bookings.update_one({"id": booking_id}, {"$set": update})
+
+    # Re-load booking for receipt PDF generation
+    fresh = await db.bookings.find_one({"id": booking_id}, {"_id": 0}) or await db.held_bookings.find_one({"id": booking_id}, {"_id": 0})
+
+    total_amount = float(fresh.get("total_price") or proposal.get("total_price") or 0)
+    payment_fee = float(fresh.get("payment_fee") or 0)
+    refund_amount = float(fresh.get("refund_amount") or 0)
+    new_balance = max(total_amount - new_total_paid + payment_fee - refund_amount, 0)
+
+    receipt_result = None
+    if body.send_receipt:
+        to_email = fresh.get("customer_email") or proposal.get("customer_email")
+        if to_email:
+            try:
+                txn_index = len(existing_payments) - 1
+                html_pdf = build_receipt_html(fresh, proposal, user, txn_index=txn_index)
+                pdf_bytes = HTML(string=html_pdf).write_pdf()
+                ref = _short_ref(fresh)
+                company = _company_block(user)
+                subject = f"Payment Receipt — {ref} | AED {float(body.amount):,.2f} Received"
+                html_body = _build_receipt_email_html(
+                    fresh.get("customer_name") or proposal.get("customer_name"),
+                    ref,
+                    company["name"],
+                    float(body.amount),
+                    body.method,
+                    new_balance,
+                )
+                res = _send_pdf_email(to_email, subject, html_body, f"Payment_Receipt_{ref}.pdf", pdf_bytes)
+                receipt_result = {"sent": bool(res) if RESEND_API_KEY else False, "recipient": to_email}
+            except Exception as e:
+                receipt_result = {"sent": False, "error": str(e)}
+        else:
+            receipt_result = {"sent": False, "error": "No customer email"}
+
+    return {
+        "status": "success",
+        "transaction": payment_entry,
+        "total_paid": new_total_paid,
+        "balance_due": round(new_balance, 2),
+        "fully_paid": new_balance < 0.01,
+        "receipt": receipt_result,
     }

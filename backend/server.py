@@ -112,8 +112,12 @@ async def startup_event():
     await migrate_activities_fields()
     await seed_terms_policies()
     await seed_destination_experts()
+    from scheduler import start_scheduler
+    start_scheduler()
 
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    from scheduler import shutdown_scheduler
+    shutdown_scheduler()
     client.close()
