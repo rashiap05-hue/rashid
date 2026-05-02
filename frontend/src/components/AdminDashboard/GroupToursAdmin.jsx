@@ -2,20 +2,32 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, X, Save, Loader2 } from 'lucide-react';
 import { api } from '@/App';
 
-const DEFAULT_RULES = [
-  { label: '<2 yrs', min_age: 0, max_age: 2, multiplier: 0 },
-  { label: '2-11 yrs', min_age: 2, max_age: 12, multiplier: 0.75 },
-  { label: '12+ yrs', min_age: 12, max_age: null, multiplier: 1.0 },
-];
+const BLANK_TIER = { supplier_cost: 0, display_price: 0 };
+
+const EMPTY_PRICING = {
+  single_sharing: { ...BLANK_TIER },
+  twin_double:    { ...BLANK_TIER },
+  triple:         { ...BLANK_TIER },
+  child_no_bed:   { ...BLANK_TIER },
+  infant:         { ...BLANK_TIER },
+};
 
 const EMPTY_PKG = {
   title: '', destination: '', subtitle: '', nights: 4,
-  date_range: '', stars: 3, price_per_adult: 0, tax_pct: 5,
+  date_range: '', stars: 3, tax_pct: 5,
+  pricing: EMPTY_PRICING,
   image: '',
   gradient: 'linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%)',
-  child_age_rules: DEFAULT_RULES,
   active: true,
 };
+
+const TIER_ROWS = [
+  { key: 'single_sharing', label: 'Cost per adult — Single sharing' },
+  { key: 'twin_double',    label: 'Cost per adult — Twin / Double' },
+  { key: 'triple',         label: 'Cost per adult — Triple' },
+  { key: 'child_no_bed',   label: 'Cost per child — without bed (2-5 yrs)' },
+  { key: 'infant',         label: 'Cost per infant — (0-2 yrs)' },
+];
 
 function PackageEditorModal({ open, pkg, onClose, onSaved }) {
   const [form, setForm] = useState(EMPTY_PKG);
@@ -24,7 +36,11 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
 
   useEffect(() => {
     if (pkg) {
-      setForm({ ...EMPTY_PKG, ...pkg, child_age_rules: pkg.child_age_rules || DEFAULT_RULES });
+      setForm({
+        ...EMPTY_PKG,
+        ...pkg,
+        pricing: { ...EMPTY_PRICING, ...(pkg.pricing || {}) },
+      });
     } else {
       setForm(EMPTY_PKG);
     }
@@ -35,36 +51,38 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
 
   const isEdit = Boolean(pkg?.id);
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const updateRule = (i, k, v) => setForm(f => {
-    const rules = [...f.child_age_rules];
-    rules[i] = { ...rules[i], [k]: v };
-    return { ...f, child_age_rules: rules };
-  });
-  const addRule = () => setForm(f => ({
+  const updateTier = (tierKey, field, val) => setForm(f => ({
     ...f,
-    child_age_rules: [...f.child_age_rules, { label: 'New bracket', min_age: 0, max_age: null, multiplier: 0.5 }],
-  }));
-  const removeRule = (i) => setForm(f => ({
-    ...f,
-    child_age_rules: f.child_age_rules.filter((_, j) => j !== i),
+    pricing: {
+      ...f.pricing,
+      [tierKey]: { ...(f.pricing?.[tierKey] || BLANK_TIER), [field]: val },
+    },
   }));
 
   const save = async () => {
     setSaving(true);
     setErr('');
     try {
+      const cleanedTiers = {};
+      TIER_ROWS.forEach(({ key }) => {
+        const t = form.pricing?.[key] || BLANK_TIER;
+        cleanedTiers[key] = {
+          supplier_cost: Number(t.supplier_cost) || 0,
+          display_price: Number(t.display_price) || 0,
+        };
+      });
       const payload = {
-        ...form,
+        title: form.title,
+        destination: form.destination,
+        subtitle: form.subtitle,
+        date_range: form.date_range,
+        image: form.image,
+        gradient: form.gradient,
+        active: form.active,
         nights: Number(form.nights) || 0,
         stars: Number(form.stars) || 0,
-        price_per_adult: Number(form.price_per_adult) || 0,
         tax_pct: Number(form.tax_pct) || 0,
-        child_age_rules: form.child_age_rules.map(r => ({
-          ...r,
-          min_age: Number(r.min_age) || 0,
-          max_age: r.max_age === '' || r.max_age === null ? null : Number(r.max_age),
-          multiplier: Number(r.multiplier) || 0,
-        })),
+        pricing: cleanedTiers,
       };
       if (isEdit) {
         await api.put(`/group-tours/${pkg.id}`, payload);
@@ -82,13 +100,14 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()} data-testid="group-tour-editor">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()} data-testid="group-tour-editor">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="font-black text-gray-900 text-lg">{isEdit ? 'Edit' : 'Add'} Group Tour Package</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X size={20} /></button>
         </div>
 
-        <div className="overflow-y-auto px-6 py-5 space-y-4">
+        <div className="overflow-y-auto px-6 py-5 space-y-5">
+          {/* Basic info */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Title</label>
@@ -115,40 +134,68 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
               <input type="number" min="1" max="5" value={form.stars} onChange={e => update('stars', e.target.value)} className="w-full border rounded px-3 py-2 text-sm" data-testid="gt-field-stars" />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Price per Adult (AED)</label>
-              <input type="number" value={form.price_per_adult} onChange={e => update('price_per_adult', e.target.value)} className="w-full border rounded px-3 py-2 text-sm" data-testid="gt-field-price" />
-            </div>
-            <div>
               <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Tax %</label>
               <input type="number" step="0.01" value={form.tax_pct} onChange={e => update('tax_pct', e.target.value)} className="w-full border rounded px-3 py-2 text-sm" data-testid="gt-field-tax" />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Cover Image URL</label>
-            <input value={form.image} onChange={e => update('image', e.target.value)} placeholder="https://..." className="w-full border rounded px-3 py-2 text-sm" data-testid="gt-field-image" />
-          </div>
-
-          <div className="pt-3 border-t border-gray-200">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-bold text-sm text-gray-800">Child Age Pricing Rules</h3>
-              <button onClick={addRule} className="text-xs text-sky-600 hover:underline flex items-center gap-1" data-testid="gt-add-rule">
-                <Plus size={12} /> Add bracket
-              </button>
+            <div>
+              <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Cover Image URL</label>
+              <input value={form.image} onChange={e => update('image', e.target.value)} placeholder="https://..." className="w-full border rounded px-3 py-2 text-sm" data-testid="gt-field-image" />
             </div>
-            <p className="text-xs text-gray-500 mb-3">Multiplier: 0 = free (infant), 0.75 = 75% of adult rate, 1.0 = full adult rate.</p>
-            <div className="space-y-2">
-              {form.child_age_rules.map((r, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 items-center p-2 bg-gray-50 rounded" data-testid={`gt-rule-${i}`}>
-                  <input value={r.label} onChange={e => updateRule(i, 'label', e.target.value)} placeholder="Label" className="col-span-3 border rounded px-2 py-1.5 text-xs" />
-                  <input type="number" value={r.min_age} onChange={e => updateRule(i, 'min_age', e.target.value)} placeholder="Min age" className="col-span-2 border rounded px-2 py-1.5 text-xs" />
-                  <input type="number" value={r.max_age == null ? '' : r.max_age} onChange={e => updateRule(i, 'max_age', e.target.value)} placeholder="Max age (blank = ∞)" className="col-span-3 border rounded px-2 py-1.5 text-xs" />
-                  <input type="number" step="0.01" min="0" max="1.5" value={r.multiplier} onChange={e => updateRule(i, 'multiplier', e.target.value)} placeholder="0..1" className="col-span-3 border rounded px-2 py-1.5 text-xs" />
-                  <button onClick={() => removeRule(i)} className="col-span-1 text-red-600 hover:bg-red-50 rounded p-1" data-testid={`gt-remove-rule-${i}`}>
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
+          </div>
+
+          {/* Pricing — B2B + Display */}
+          <div className="border border-gray-200 rounded-lg overflow-hidden" data-testid="gt-pricing-table">
+            <div className="bg-[#0F2A4A] text-white px-4 py-3 flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-sm uppercase tracking-wide">Price B2B / Display</h3>
+                <p className="text-xs text-white/70 mt-0.5">Supplier Cost = internal net rate · Display Price = customer-facing rate.</p>
+              </div>
+              <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded uppercase font-bold tracking-wider">Without emi</span>
+            </div>
+            <table className="w-full text-sm">
+              <thead className="bg-[#E8F0F7] text-[11px] uppercase text-gray-700 font-bold">
+                <tr>
+                  <th className="px-4 py-2.5 text-left">Tier</th>
+                  <th className="px-4 py-2.5 text-right w-48">Supplier Cost (AED)</th>
+                  <th className="px-4 py-2.5 text-right w-48">Display Price (AED)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {TIER_ROWS.map(({ key, label }, i) => {
+                  const tier = form.pricing?.[key] || BLANK_TIER;
+                  return (
+                    <tr key={key} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} data-testid={`gt-tier-row-${key}`}>
+                      <td className="px-4 py-2.5 text-gray-800 font-semibold">{label}</td>
+                      <td className="px-4 py-2 text-right">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={tier.supplier_cost}
+                          onChange={e => updateTier(key, 'supplier_cost', e.target.value)}
+                          className="w-40 text-right border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#0F2A4A] focus:ring-1 focus:ring-[#0F2A4A]"
+                          data-testid={`gt-tier-${key}-supplier`}
+                        />
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={tier.display_price}
+                          onChange={e => updateTier(key, 'display_price', e.target.value)}
+                          className="w-40 text-right border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#0F2A4A] focus:ring-1 focus:ring-[#0F2A4A]"
+                          data-testid={`gt-tier-${key}-display`}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="px-4 py-2 text-[11px] text-gray-500 bg-gray-50 border-t border-gray-200">
+              Note: Customers see the <strong>Display Price</strong>. Supplier Cost is internal-only (admin + accounting).
+              Children 6-11 yrs are billed at the Twin/Double Display Price (they require a bed).
             </div>
           </div>
 
@@ -171,6 +218,8 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
     </div>
   );
 }
+
+const fmt = (v) => Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 export default function GroupToursAdmin() {
   const [list, setList] = useState([]);
@@ -200,7 +249,7 @@ export default function GroupToursAdmin() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-lg font-black text-gray-900">Group Tours (Eid Holiday Deals)</h3>
-          <p className="text-xs text-gray-500 mt-1">Prices, child-age rules &amp; packages shown on the public Group Tours page.</p>
+          <p className="text-xs text-gray-500 mt-1">Prices, B2B supplier cost &amp; display price for the public Group Tours page.</p>
         </div>
         <button
           onClick={() => { setEditing(null); setModalOpen(true); }}
@@ -222,40 +271,52 @@ export default function GroupToursAdmin() {
               <tr>
                 <th className="px-4 py-3 text-left">Title</th>
                 <th className="px-4 py-3 text-left">Destination</th>
-                <th className="px-4 py-3 text-left">Nights</th>
-                <th className="px-4 py-3 text-left">Stars</th>
-                <th className="px-4 py-3 text-right">Price (AED)</th>
+                <th className="px-4 py-3 text-center">Nights</th>
+                <th className="px-4 py-3 text-center">Stars</th>
+                <th className="px-4 py-3 text-right">Twin Supplier (AED)</th>
+                <th className="px-4 py-3 text-right">Twin Display (AED)</th>
                 <th className="px-4 py-3 text-right">Tax %</th>
-                <th className="px-4 py-3 text-left">Active</th>
+                <th className="px-4 py-3 text-center">Active</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {list.map(p => (
-                <tr key={p.id} className="border-t border-gray-200 hover:bg-gray-50" data-testid={`gt-row-${p.id}`}>
-                  <td className="px-4 py-3 font-semibold text-gray-900">{p.title}</td>
-                  <td className="px-4 py-3 text-gray-700">{p.destination}</td>
-                  <td className="px-4 py-3 text-gray-700">{p.nights}</td>
-                  <td className="px-4 py-3 text-gray-700">{p.stars}★</td>
-                  <td className="px-4 py-3 text-right font-semibold text-gray-900">{Number(p.price_per_adult).toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right text-gray-700">{p.tax_pct}%</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${p.active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
-                      {p.active ? 'ACTIVE' : 'HIDDEN'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={() => { setEditing(p); setModalOpen(true); }} className="text-sky-600 hover:bg-sky-50 p-1.5 rounded" data-testid={`gt-edit-${p.id}`}>
-                      <Edit2 size={14} />
-                    </button>
-                    <button onClick={() => remove(p.id)} className="text-red-600 hover:bg-red-50 p-1.5 rounded ml-1" data-testid={`gt-delete-${p.id}`}>
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {list.map(p => {
+                const twin = p.pricing?.twin_double || {};
+                return (
+                  <tr key={p.id} className="border-t border-gray-200 hover:bg-gray-50" data-testid={`gt-row-${p.id}`}>
+                    <td className="px-4 py-3 font-semibold text-gray-900">{p.title}</td>
+                    <td className="px-4 py-3 text-gray-700">{p.destination}</td>
+                    <td className="px-4 py-3 text-center text-gray-700">{p.nights}</td>
+                    <td className="px-4 py-3 text-center text-gray-700">{p.stars}★</td>
+                    <td className="px-4 py-3 text-right text-amber-700 font-mono text-xs" data-testid={`gt-row-${p.id}-supplier`}>
+                      {fmt(twin.supplier_cost)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-emerald-700 font-mono text-sm font-semibold" data-testid={`gt-row-${p.id}-display`}>
+                      {fmt(twin.display_price)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-gray-700">{p.tax_pct}%</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${p.active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
+                        {p.active ? 'ACTIVE' : 'HIDDEN'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button onClick={() => { setEditing(p); setModalOpen(true); }} className="text-sky-600 hover:bg-sky-50 p-1.5 rounded" data-testid={`gt-edit-${p.id}`}>
+                        <Edit2 size={14} />
+                      </button>
+                      <button onClick={() => remove(p.id)} className="text-red-600 hover:bg-red-50 p-1.5 rounded ml-1" data-testid={`gt-delete-${p.id}`}>
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+          <div className="px-4 py-2 bg-amber-50 border-t border-amber-200 text-xs text-amber-800">
+            <strong>Twin Supplier</strong> = B2B net cost (operations / accounting). <strong>Twin Display</strong> = headline rate shown on the public Group Tours card. Open the editor to see all 5 pricing tiers.
+          </div>
         </div>
       )}
 

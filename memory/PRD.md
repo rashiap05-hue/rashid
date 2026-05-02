@@ -293,6 +293,17 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - Ran a one-time backfill script that populated the three fields on 3 existing held/booked proposals from their matching bookings.
   - Verified end-to-end via Playwright: navigating My Bookings → TBM-000003 → View Quote now shows the locked sidebar with the button text `"TBM-000003 — BOOKING DETAILS"`; clicking it lands on the Trip Confirmation page with `TBM-000003` heading.
 
+- **Group Tours pricing redesigned to B2B + Display tier model (May 2026)**:
+  - Backend `routes/group_tours.py` schema replaced single `price_per_adult` + multiplier-based `child_age_rules` with structured `pricing` block containing 5 fixed tiers, each with `supplier_cost` (B2B net, internal/accounting) and `display_price` (customer-facing rate):
+    1. `single_sharing` — Cost per adult on single sharing
+    2. `twin_double` — Cost per adult on twin/double sharing (default headline)
+    3. `triple` — Cost per adult on triple sharing
+    4. `child_no_bed` — Cost per child 2-5 yrs without bed
+    5. `infant` — Cost per infant 0-2 yrs
+  - Legacy `price_per_adult` retained as a read-only computed projection (= `pricing.twin_double.display_price`) so the public `GroupTours.jsx` deal cards + `GroupTourDetail.jsx` price card keep working without a frontend migration. `_seed_defaults_if_empty()` auto-backfills `pricing` for any pre-migration doc.
+  - Quote engine rewritten: per-room adult occupancy picks the matching tier (1→single, 2→twin, 3+→triple). Children are billed by age band — `<2` → infant rate, `2-5` → child_no_bed, `6+` → twin/double rate (treated as adult, requires a bed). Verified 3 scenarios via curl (twin+child5 → AED 9,508.54; mixed single+triple+infant; twin+child8 → 6+ billed at twin rate).
+  - Admin editor (`AdminDashboard/GroupToursAdmin.jsx`) replaces the old single-price + child-rules UI with a "Price B2B / Display" table matching the user reference image — 5 tier rows × 2 columns (Supplier Cost / Display Price). Admin list table now shows two columns per package: amber `Twin Supplier (AED)` (B2B accounting view) + emerald `Twin Display (AED)` (headline rate); footer note clarifies the meaning. Verified round-trip via Playwright (changed twin supplier 2,799→2,700 and persisted).
+
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
 - P2: AI-powered trip recommendations frontend
