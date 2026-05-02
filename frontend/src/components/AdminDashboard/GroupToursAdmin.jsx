@@ -140,6 +140,8 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
           desc: d.desc || '',
           meals: d.meals || [],
           hotel_note: d.hotel_note || '',
+          activity_id: d.activity_id || null,
+          activity_name: d.activity_name || null,
         })),
         hotels: (form.hotels || []).map(h => ({
           name: h.name || '',
@@ -148,6 +150,7 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
           room_type: h.room_type || '',
           meal_plan: h.meal_plan || '',
           image: h.image || '',
+          hotel_id: h.hotel_id || null,
         })),
         inclusions: Object.fromEntries(
           Object.entries(form.inclusions || {}).map(([cat, items]) => [cat, (items || []).filter(x => (x || '').trim())])

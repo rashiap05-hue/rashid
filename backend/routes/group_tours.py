@@ -73,6 +73,8 @@ class ItineraryDay(BaseModel):
     desc: str = ""
     meals: List[str] = Field(default_factory=list)   # subset of ["B", "L", "D"]
     hotel_note: str = ""
+    activity_id: Optional[str] = None                # optional reference to /activities catalog
+    activity_name: Optional[str] = None              # denormalized for quick display
 
 
 class HotelRow(BaseModel):
@@ -82,6 +84,7 @@ class HotelRow(BaseModel):
     room_type: str = "Standard Room"
     meal_plan: str = "Bed & Breakfast"
     image: str = ""
+    hotel_id: Optional[str] = None                   # optional reference to /hotels catalog
 
 
 class GroupTourPackageBase(BaseModel):
