@@ -20,9 +20,10 @@ import RichTextEditor from './RichTextEditor';
 import CatalogPicker from './CatalogPicker';
 import { api } from '@/App';
 
-/* Lazy loaders for the Activities + Hotels catalogs (cached per-mount). */
+/* Lazy loaders for the Activities + Hotels + Cities catalogs (cached per-mount). */
 let _activitiesCache = null;
 let _hotelsCache = null;
+let _citiesCache = null;
 const stripHtml = (html) => (html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 async function loadActivities() {
   if (_activitiesCache) return _activitiesCache;
@@ -48,6 +49,19 @@ async function loadHotels() {
     raw: h,
   }));
   _hotelsCache = list;
+  return list;
+}
+export async function loadCities() {
+  if (_citiesCache) return _citiesCache;
+  const r = await api.get('/cities');
+  const list = (r.data?.cities || r.data || []).map((c) => ({
+    id: c.id || c.name,
+    label: c.name,
+    sub: c.country || '',
+    image: c.image || '',
+    raw: c,
+  }));
+  _citiesCache = list;
   return list;
 }
 

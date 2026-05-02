@@ -3,9 +3,11 @@ import { Plus, Edit2, Trash2, X, Save, Loader2, RefreshCw } from 'lucide-react';
 import { api } from '@/App';
 import {
   Section, BulletListEditor, ItineraryEditor, HotelsEditor, InclusionsEditor, ParagraphListEditor,
+  loadCities,
 } from './GroupTourEditorSections';
 import ImageUploadField from './ImageUploadField';
 import RichTextEditor from './RichTextEditor';
+import CatalogPicker from './CatalogPicker';
 
 const BLANK_TIER = { supplier_cost: 0, display_price: 0 };
 
@@ -189,7 +191,14 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Destination</label>
-              <input value={form.destination} onChange={e => update('destination', e.target.value)} className="w-full border rounded px-3 py-2 text-sm" data-testid="gt-field-destination" />
+              <CatalogPicker
+                selected={form.destination ? { id: form.destination, label: form.destination, sub: '', image: '' } : null}
+                onSelect={(item) => update('destination', item ? item.label : '')}
+                loadItems={loadCities}
+                placeholder="Pick a city from the Cities catalog…"
+                emptyText="No cities found in the catalog yet."
+                testid="gt-field-destination"
+              />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Subtitle</label>
