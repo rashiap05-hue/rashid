@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, Save, Loader2, Calendar } from 'lucide-react';
+import { X, Save, Loader2, Calendar, Mail } from 'lucide-react';
 import { api } from '@/App';
 
 const fmtAmount = (v) => Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -21,6 +21,8 @@ export default function EditInvoiceModal({ open, booking, onClose, onSaved }) {
     final_payment_due_date: '',
   });
   const [saving, setSaving] = useState(false);
+  const [sendingReminder, setSendingReminder] = useState(false);
+  const [reminderResult, setReminderResult] = useState(null);
   const [err, setErr] = useState('');
 
   useEffect(() => {
@@ -33,6 +35,7 @@ export default function EditInvoiceModal({ open, booking, onClose, onSaved }) {
       final_payment_due_date: isoDate(booking.final_payment_due_date),
     });
     setErr('');
+    setReminderResult(null);
   }, [open, booking]);
 
   if (!open) return null;
@@ -45,6 +48,27 @@ export default function EditInvoiceModal({ open, booking, onClose, onSaved }) {
   const refund = Number(form.refund_amount) || 0;
   const balance = Math.max(total - paid + fee - refund, 0);
   const hasBalance = balance > 0.01;
+
+  const sendReminder = async () => {
+    if (!hasBalance) return;
+    setSendingReminder(true);
+    setReminderResult(null);
+    setErr('');
+    try {
+      const res = await api.post(`/bookings/${booking.id}/send-payment-reminder`);
+      setReminderResult({
+        type: 'success',
+        text: `Reminder sent to ${res.data.recipient} · Balance AED ${Number(res.data.balance_due).toLocaleString(undefined, { minimumFractionDigits: 2 })} · Reminder #${res.data.reminder_count}`,
+      });
+    } catch (e) {
+      setReminderResult({
+        type: 'error',
+        text: e?.response?.data?.detail || 'Failed to send reminder email',
+      });
+    } finally {
+      setSendingReminder(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -140,16 +164,50 @@ export default function EditInvoiceModal({ open, booking, onClose, onSaved }) {
             <label className="block text-xs font-bold text-gray-600 uppercase mb-1 flex items-center gap-1">
               <Calendar size={12} /> Final Payment Due Date
             </label>
-            <input
-              type="date"
-              value={form.final_payment_due_date || ''}
-              onChange={e => update('final_payment_due_date', e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-[#002B5B]"
-              data-testid="ei-due-date"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={form.final_payment_due_date || ''}
+                onChange={e => update('final_payment_due_date', e.target.value)}
+                className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-[#002B5B]"
+                data-testid="ei-due-date"
+              />
+              <button
+                type="button"
+                onClick={sendReminder}
+                disabled={!hasBalance || sendingReminder || !booking?.id}
+                className={`px-3 py-2 text-xs font-bold rounded flex items-center gap-1.5 transition border ${
+                  hasBalance
+                    ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500 disabled:opacity-60'
+                    : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                }`}
+                title={hasBalance ? 'Email the customer the latest Proforma Invoice with balance + due date' : 'No outstanding balance — nothing to remind'}
+                data-testid="ei-send-reminder"
+              >
+                {sendingReminder ? <Loader2 size={12} className="animate-spin" /> : <Mail size={12} />}
+                {sendingReminder ? 'Sending...' : 'Send Reminder'}
+              </button>
+            </div>
             <p className="text-[11px] text-gray-500 mt-1">
               Customer will see this date as the deadline to settle the outstanding balance.
             </p>
+            {reminderResult && (
+              <div
+                className={`mt-2 text-xs rounded px-3 py-2 border ${
+                  reminderResult.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-red-50 text-red-700 border-red-200'
+                }`}
+                data-testid="ei-reminder-result"
+              >
+                {reminderResult.type === 'success' ? '✓ ' : '⚠ '}{reminderResult.text}
+              </div>
+            )}
+            {!reminderResult && booking?.last_payment_reminder_at && (
+              <p className="text-[11px] text-gray-400 mt-1 italic" data-testid="ei-last-reminder">
+                Last reminder sent on {new Date(booking.last_payment_reminder_at).toLocaleString()} · {booking.payment_reminder_count || 1}× total.
+              </p>
+            )}
           </div>
 
           {/* Live balance preview */}

@@ -145,6 +145,24 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
   const outstanding = Math.max(totalPrice - paidAmount, 0);
   const isPaid = paidAmount >= totalPrice && totalPrice > 0;
 
+  // Payment-pending banner logic — show when there's an outstanding balance and travel is within 14 days
+  const journeyDate = booking.leaving_on || proposal?.leaving_on;
+  let daysUntilTravel = null;
+  if (journeyDate) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const trip = new Date(String(journeyDate).slice(0,10));
+    daysUntilTravel = Math.round((trip - today) / 86400000);
+  }
+  const finalDueDateRaw = booking.final_payment_due_date || (journeyDate
+    ? new Date(new Date(String(journeyDate).slice(0,10)).getTime() - 15 * 86400000).toISOString().slice(0,10)
+    : null);
+  const showPaymentPendingBanner = outstanding > 0.01 && daysUntilTravel != null && daysUntilTravel <= 14 && daysUntilTravel >= 0;
+  const formatDueDate = (iso) => {
+    if (!iso) return '';
+    const d = new Date(String(iso).slice(0,10));
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
   const handleDocAction = async (kind, action) => {
     setOpenDropdown(null);
     const docName = kind === 'invoice' ? 'Invoice' : 'Voucher';
@@ -410,6 +428,39 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
+
+          {/* Payment Pending Banner — shows when balance > 0 and travel is within 14 days */}
+          {showPaymentPendingBanner && (
+            <div
+              className="bg-gradient-to-r from-red-50 to-amber-50 border-2 border-red-300 rounded-xl p-4 flex items-start gap-3 shadow-sm"
+              data-testid="payment-pending-banner"
+            >
+              <div className="bg-red-100 p-2 rounded-full flex-shrink-0">
+                <AlertTriangle size={20} className="text-red-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-black text-red-800 uppercase tracking-wide" data-testid="payment-pending-title">
+                  Payment Pending — {formatPrice(outstanding)}
+                </p>
+                <p className="text-xs text-red-700 mt-1" data-testid="payment-pending-detail">
+                  Final payment is due by <strong>{formatDueDate(finalDueDateRaw) || 'the end of this week'}</strong>
+                  {' · '}
+                  <span className="font-semibold">
+                    {daysUntilTravel === 0 ? 'Travel is today' : daysUntilTravel === 1 ? 'Only 1 day until travel' : `Only ${daysUntilTravel} days until travel`}
+                  </span>.
+                </p>
+              </div>
+              {isAdminOrStaff && (
+                <button
+                  onClick={() => setShowEditInvoice(true)}
+                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-md flex items-center gap-1.5 self-center"
+                  data-testid="payment-pending-remind-btn"
+                >
+                  <Mail size={12} /> Send Reminder
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Payment Details */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden" data-testid="payment-details">

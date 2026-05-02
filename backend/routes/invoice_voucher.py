@@ -1452,3 +1452,119 @@ async def send_voucher_email(booking_id: str, current_user: dict = Depends(get_c
     await db.bookings.update_one({"id": booking_id}, {"$set": {"last_voucher_sent_at": now}})
     await db.held_bookings.update_one({"id": booking_id}, {"$set": {"last_voucher_sent_at": now}})
     return {"status": "success", "recipient": to_email, "sent_at": now}
+
+
+
+# ---------------- PAYMENT REMINDER (with PDF attachment) ----------------
+
+def _build_reminder_email_html(customer_name, ref, company_name, balance_due, due_date_str, currency="AED"):
+    """Customer-facing payment reminder email body — friendly tone, prominent
+    Balance Due + Due Date callout, branded header bar."""
+    safe_name = customer_name or "Valued Client"
+    return f'''
+    <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;">
+        <div style="background:#002B5B;padding:28px 24px;text-align:center;">
+            <div style="color:rgba(255,255,255,0.6);font-size:11px;letter-spacing:2px;text-transform:uppercase;">{company_name}</div>
+            <h1 style="color:white;font-size:22px;margin:10px 0 4px;font-weight:800;">Payment Reminder</h1>
+            <div style="color:rgba(255,255,255,0.75);font-size:13px;">Reference: {ref}</div>
+        </div>
+        <div style="padding:24px;">
+            <p style="font-size:14px;color:#374151;">Dear {safe_name},</p>
+            <p style="font-size:14px;color:#374151;line-height:1.6;">
+                We hope you're looking forward to your upcoming trip! This is a friendly reminder that there is an
+                outstanding balance on your booking which needs to be settled before your travel date.
+            </p>
+            <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:18px;margin:20px 0;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <tr>
+                        <td style="padding:6px 0;font-size:12px;color:#991B1B;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Balance Due</td>
+                        <td style="padding:6px 0;text-align:right;font-size:24px;color:#B91C1C;font-weight:800;">{currency} {balance_due:,.2f}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:6px 0;font-size:12px;color:#991B1B;font-weight:700;letter-spacing:1px;text-transform:uppercase;border-top:1px solid #FECACA;">Final Payment Due</td>
+                        <td style="padding:6px 0;text-align:right;font-size:16px;color:#B91C1C;font-weight:700;border-top:1px solid #FECACA;">{due_date_str or 'On request'}</td>
+                    </tr>
+                </table>
+            </div>
+            <p style="font-size:13px;color:#374151;line-height:1.6;">
+                The latest <strong>Proforma Invoice</strong> is attached to this email for your records. To complete payment,
+                please reply to this message or contact your travel advisor — we'll guide you through the secure payment process.
+            </p>
+            <p style="font-size:13px;color:#6b7280;margin-top:16px;">If payment has already been made, please ignore this reminder.</p>
+            <p style="font-size:13px;color:#6b7280;margin-top:16px;">Warm regards,<br><strong>{company_name}</strong></p>
+        </div>
+        <div style="background:#f8fafc;padding:16px 24px;text-align:center;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb;">
+            {company_name} | care@travotours.ae
+        </div>
+    </div>
+    '''
+
+
+@router.post("/bookings/{booking_id}/send-payment-reminder")
+async def send_payment_reminder(booking_id: str, current_user: dict = Depends(get_current_user)):
+    """Admin/Staff-only endpoint that emails the customer a friendly payment
+    reminder with the latest Proforma Invoice attached.
+
+    Refuses to send when there's no outstanding balance, no customer email,
+    or when called by a non-admin/staff user.
+    """
+    if current_user.get("role") not in ("admin", "staff"):
+        raise HTTPException(status_code=403, detail="Only admin/staff can send payment reminders")
+
+    booking, proposal, user, _ = await _load_booking_context(booking_id, current_user)
+
+    to_email = booking.get("customer_email") or proposal.get("customer_email")
+    if not to_email:
+        raise HTTPException(status_code=400, detail="No customer email on booking")
+
+    total_amount = float(booking.get("total_price") or proposal.get("total_price") or 0)
+    paid_amount = float(booking.get("payment_amount") or 0)
+    payment_fee = float(booking.get("payment_fee") or 0)
+    refund_amount = float(booking.get("refund_amount") or 0)
+    balance_due = max(total_amount - paid_amount + payment_fee - refund_amount, 0)
+    if balance_due < 0.01:
+        raise HTTPException(status_code=400, detail="No outstanding balance — nothing to remind")
+
+    # Use the explicit due date if set, else default to journey - 15 days
+    final_due = booking.get("final_payment_due_date") or ""
+    journey_date = booking.get("leaving_on") or proposal.get("leaving_on")
+    if not final_due and journey_date:
+        try:
+            d = datetime.strptime(str(journey_date)[:10], "%Y-%m-%d") - timedelta(days=15)
+            final_due = d.strftime("%Y-%m-%d")
+        except Exception:
+            final_due = ""
+
+    html_pdf = build_invoice_html(booking, proposal, user)
+    pdf_bytes = HTML(string=html_pdf).write_pdf()
+    ref = _short_ref(booking)
+    company = _company_block(user)
+    subject = f"Payment Reminder — {ref} | Balance Due AED {balance_due:,.2f}"
+    body = _build_reminder_email_html(
+        booking.get("customer_name") or proposal.get("customer_name"),
+        ref,
+        company["name"],
+        balance_due,
+        fmt_date(final_due) if final_due else "",
+    )
+    result = _send_pdf_email(to_email, subject, body, f"Payment_Reminder_{ref}.pdf", pdf_bytes)
+
+    if RESEND_API_KEY and result is None:
+        raise HTTPException(status_code=500, detail="Failed to send payment reminder email")
+
+    now = datetime.now(timezone.utc).isoformat()
+    update = {
+        "last_payment_reminder_at": now,
+        "payment_reminder_count": int(booking.get("payment_reminder_count") or 0) + 1,
+    }
+    await db.bookings.update_one({"id": booking_id}, {"$set": update})
+    await db.held_bookings.update_one({"id": booking_id}, {"$set": update})
+    return {
+        "status": "success",
+        "recipient": to_email,
+        "balance_due": round(balance_due, 2),
+        "final_payment_due_date": final_due,
+        "sent_at": now,
+        "reminder_count": update["payment_reminder_count"],
+        "email_sent": bool(result) if RESEND_API_KEY else False,
+    }
