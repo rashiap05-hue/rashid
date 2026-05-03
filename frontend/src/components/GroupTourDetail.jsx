@@ -110,7 +110,7 @@ function buildPackage(deal) {
     { id: 'dubai', title: 'Dubai Explorer', city: 'Dubai', nights: 3, price: 1980, gradient: 'linear-gradient(135deg, #fbbf24 0%, #92400e 100%)' },
   ];
 
-  return { destination, nights, highlights, itinerary, hotels, inclusions, exclusions, similar, intro_paragraph, what_to_expect };
+  return { destination, nights, highlights, itinerary, hotels, inclusions, exclusions, similar, intro_paragraph, what_to_expect, terms_and_conditions: deal?.terms_and_conditions || '' };
 }
 
 const MEAL_META = {
@@ -689,6 +689,7 @@ export default function GroupTourDetail({ deal, onBack }) {
               { k: 'itinerary', label: 'Itinerary' },
               { k: 'flights', label: 'Flights' },
               { k: 'hotels', label: 'Hotels' },
+              ...((pkg.terms_and_conditions || '').trim() ? [{ k: 'terms', label: 'Terms' }] : []),
             ].map(t => (
               <button
                 key={t.k}
@@ -726,6 +727,14 @@ export default function GroupTourDetail({ deal, onBack }) {
               <div>
                 {pkg.hotels.map((h, i) => <HotelRow key={i} h={h} i={i} />)}
               </div>
+            )}
+
+            {activeTab === 'terms' && (
+              <div
+                className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: pkg.terms_and_conditions }}
+                data-testid="pkg-tab-terms-content"
+              />
             )}
           </div>
         </div>

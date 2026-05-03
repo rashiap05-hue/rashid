@@ -135,6 +135,7 @@ class GroupTourPackageBase(BaseModel):
     inclusions: Dict[str, List[str]] = Field(default_factory=dict)
     exclusions: List[str] = Field(default_factory=list)
     what_to_expect: List[str] = Field(default_factory=list)
+    terms_and_conditions: str = ""   # rich-text HTML shown on the public "Terms" tab
 
 
 class GroupTourPackageCreate(GroupTourPackageBase):
@@ -163,6 +164,7 @@ class GroupTourPackageUpdate(BaseModel):
     inclusions: Optional[Dict[str, List[str]]] = None
     exclusions: Optional[List[str]] = None
     what_to_expect: Optional[List[str]] = None
+    terms_and_conditions: Optional[str] = None
 
 
 class GroupTourPackageResponse(GroupTourPackageBase):

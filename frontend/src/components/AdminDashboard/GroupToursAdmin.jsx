@@ -35,6 +35,7 @@ const EMPTY_PKG = {
   inclusions: {},
   exclusions: [],
   what_to_expect: [],
+  terms_and_conditions: '',
 };
 
 const TIER_ROWS = [
@@ -199,6 +200,7 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
         ),
         exclusions: (form.exclusions || []).filter(x => (x || '').trim()),
         what_to_expect: (form.what_to_expect || []).filter(x => (x || '').trim()),
+        terms_and_conditions: form.terms_and_conditions || '',
       };
       if (isEdit) {
         await api.put(`/group-tours/${pkg.id}`, payload);
@@ -459,6 +461,20 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
               onChange={(p) => update('what_to_expect', p)}
               placeholder="A paragraph of guest-facing notes..."
               testidPrefix="gt-exp"
+            />
+          </Section>
+
+          <Section
+            title="Terms & Conditions"
+            subtitle="Rich-text block rendered on the public 'Terms' tab of the Group Tour Detail page."
+            count={(form.terms_and_conditions || '').trim() ? 1 : 0}
+            testid="gt-section-terms"
+          >
+            <RichTextEditor
+              value={form.terms_and_conditions || ''}
+              onChange={(html) => update('terms_and_conditions', html)}
+              placeholder="e.g. Booking is non-refundable within 14 days of departure..."
+              testid="gt-terms-editor"
             />
           </Section>
 
