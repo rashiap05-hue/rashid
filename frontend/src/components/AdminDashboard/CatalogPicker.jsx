@@ -23,17 +23,20 @@ export default function CatalogPicker({
   testid = 'catalog-picker',
   allowManual = false,
   onManualEdit,
+  scopeFilter = null,             // {label: "Almaty", predicate: (rawItem) => bool}
 }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
+  const [showAll, setShowAll] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
     let cancel = false;
     setLoading(true);
+    setShowAll(false);
     Promise.resolve(loadItems()).then((arr) => {
       if (!cancel) {
         setItems(Array.isArray(arr) ? arr : []);
@@ -44,9 +47,13 @@ export default function CatalogPicker({
     return () => { cancel = true; };
   }, [open, loadItems]);
 
+  // Apply scope filter first (unless user toggled "Show all"), then apply search query
+  const scoped = scopeFilter && !showAll
+    ? items.filter(i => scopeFilter.predicate(i.raw || {}))
+    : items;
   const filtered = !query
-    ? items
-    : items.filter(i => {
+    ? scoped
+    : scoped.filter(i => {
         const q = query.toLowerCase();
         return (i.label || '').toLowerCase().includes(q)
           || (i.sub || '').toLowerCase().includes(q);
@@ -121,9 +128,26 @@ export default function CatalogPicker({
             onClick={(e) => e.stopPropagation()}
             data-testid={`${testid}-modal`}
           >
-            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between gap-3">
               <h3 className="font-black text-sm text-gray-900">{placeholder}</h3>
-              <button onClick={() => setOpen(false)} className="p-1 hover:bg-gray-100 rounded"><X size={16} /></button>
+              <div className="flex items-center gap-2">
+                {scopeFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAll(v => !v)}
+                    className={`text-[10px] font-bold px-2 py-1 rounded-full border ${
+                      showAll
+                        ? 'bg-gray-100 text-gray-600 border-gray-300'
+                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    }`}
+                    title={showAll ? 'Re-apply the destination filter' : 'Show items from every destination'}
+                    data-testid={`${testid}-toggle-scope`}
+                  >
+                    {showAll ? 'Filtered: All destinations' : `Filtered: ${scopeFilter.label} only`}
+                  </button>
+                )}
+                <button onClick={() => setOpen(false)} className="p-1 hover:bg-gray-100 rounded"><X size={16} /></button>
+              </div>
             </div>
             <div className="px-4 py-3 border-b border-gray-200">
               <div className="relative">
@@ -173,8 +197,21 @@ export default function CatalogPicker({
                 </ul>
               )}
             </div>
-            <div className="px-4 py-2 border-t border-gray-200 bg-gray-50 text-[11px] text-gray-500 text-right">
-              {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
+            <div className="px-4 py-2 border-t border-gray-200 bg-gray-50 text-[11px] text-gray-500 flex items-center justify-between">
+              <span>
+                {scopeFilter && !showAll && <span className="text-emerald-700 font-semibold">Scoped to {scopeFilter.label} · </span>}
+                {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
+              </span>
+              {scopeFilter && !showAll && filtered.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAll(true)}
+                  className="text-[10px] font-bold text-[#002B5B] hover:underline"
+                  data-testid={`${testid}-show-all`}
+                >
+                  Show all destinations →
+                </button>
+              )}
             </div>
           </div>
         </div>

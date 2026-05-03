@@ -51,6 +51,21 @@ async function loadHotels() {
   _hotelsCache = list;
   return list;
 }
+/* Build a predicate that matches items whose `city` / `name` equals the given
+ * destination (case-insensitive). Shared by Activities + Hotels pickers. */
+function _cityScopeFilter(destination) {
+  if (!destination) return null;
+  const needle = String(destination).trim().toLowerCase();
+  if (!needle) return null;
+  return {
+    label: destination,
+    predicate: (raw) => {
+      const city = String(raw?.city || raw?.name || '').trim().toLowerCase();
+      return city === needle;
+    },
+  };
+}
+
 export async function loadCities() {
   if (_citiesCache) return _citiesCache;
   const r = await api.get('/cities');
@@ -144,7 +159,7 @@ const MEAL_OPTIONS = [
   { v: 'D', label: 'Dinner' },
 ];
 
-function SortableDay({ id, index, day, total, onUpdate, onRemove }) {
+function SortableDay({ id, index, day, total, onUpdate, onRemove, destination }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -218,6 +233,7 @@ function SortableDay({ id, index, day, total, onUpdate, onRemove }) {
           loadItems={loadActivities}
           placeholder="Pick activity from catalog…"
           emptyText="No activities found in the catalog yet."
+          scopeFilter={_cityScopeFilter(destination)}
           testid={`itin-${index}-activity`}
         />
       </div>
@@ -258,7 +274,7 @@ function SortableDay({ id, index, day, total, onUpdate, onRemove }) {
   );
 }
 
-export function ItineraryEditor({ days, onChange }) {
+export function ItineraryEditor({ days, onChange, destination }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -294,6 +310,7 @@ export function ItineraryEditor({ days, onChange }) {
                 index={i}
                 day={d}
                 total={days.length}
+                destination={destination}
                 onUpdate={(patch) => update(i, patch)}
                 onRemove={() => remove(i)}
               />
@@ -317,7 +334,7 @@ export function ItineraryEditor({ days, onChange }) {
 /* ---------- Hotels editor ---------- */
 import ImageUploadField from './ImageUploadField';
 
-export function HotelsEditor({ hotels, onChange, packageId = '' }) {
+export function HotelsEditor({ hotels, onChange, packageId = '', destination }) {
   const update = (i, patch) => onChange(hotels.map((h, idx) => (idx === i ? { ...h, ...patch } : h)));
   const remove = (i) => onChange(hotels.filter((_, idx) => idx !== i));
   const add = () => onChange([...hotels, { name: '', stars: 3, nights: 1, room_type: 'Standard Room', meal_plan: 'Bed & Breakfast', image: '', hotel_id: null }]);
@@ -357,6 +374,7 @@ export function HotelsEditor({ hotels, onChange, packageId = '' }) {
                 loadItems={loadHotels}
                 placeholder="Pick hotel from catalog…"
                 emptyText="No hotels found in the catalog yet."
+                scopeFilter={_cityScopeFilter(destination)}
                 testid={`hotel-${i}-picker`}
               />
             </div>

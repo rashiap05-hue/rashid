@@ -362,6 +362,7 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
             <ItineraryEditor
               days={form.itinerary || []}
               onChange={(days) => update('itinerary', days)}
+              destination={form.destination}
             />
           </Section>
 
@@ -375,6 +376,7 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
               hotels={form.hotels || []}
               onChange={(hotels) => update('hotels', hotels)}
               packageId={pkg?.id || form.title}
+              destination={form.destination}
             />
           </Section>
 
