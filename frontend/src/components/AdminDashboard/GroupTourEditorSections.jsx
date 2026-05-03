@@ -445,6 +445,92 @@ export function HotelsEditor({ hotels, onChange, packageId = '', destination }) 
   );
 }
 
+/* ---------- Transfers editor (scoped to destination) ---------- */
+export function TransfersEditor({ transfers, onChange, destination }) {
+  const update = (i, patch) => onChange(transfers.map((t, idx) => (idx === i ? { ...t, ...patch } : t)));
+  const remove = (i) => onChange(transfers.filter((_, idx) => idx !== i));
+  const add = () => onChange([
+    ...transfers,
+    { transfer_id: null, label: '', from_location: '', to_location: '', vehicle_type: '', note: '' },
+  ]);
+
+  const onPickTransfer = (i, item) => {
+    if (!item) {
+      update(i, { transfer_id: null });
+      return;
+    }
+    const raw = item.raw || {};
+    update(i, {
+      transfer_id: item.id,
+      label: item.label,
+      from_location: raw.from_location || '',
+      to_location: raw.to_location || '',
+      vehicle_type: raw.vehicle_type || '',
+    });
+  };
+
+  return (
+    <div className="space-y-3">
+      {transfers.length === 0 && <p className="text-xs text-gray-400 italic">No transfers yet.</p>}
+      {transfers.map((t, i) => {
+        const selected = t.transfer_id
+          ? { id: t.transfer_id, label: t.label || `${t.from_location || '—'} → ${t.to_location || '—'}`, sub: t.vehicle_type || '', image: '' }
+          : null;
+        return (
+          <div key={i} className="border border-gray-200 rounded-lg p-3 bg-gray-50 space-y-2" data-testid={`transfer-${i}`}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] uppercase text-gray-500 font-bold">Transfer #{i + 1}</span>
+              <button type="button" onClick={() => remove(i)} className="p-1 text-red-500 hover:bg-red-50 rounded" data-testid={`transfer-${i}-remove`}><Trash2 size={14} /></button>
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Linked Transfer (from Transfers catalog)</label>
+              <CatalogPicker
+                selected={selected}
+                onSelect={(item) => onPickTransfer(i, item)}
+                loadItems={loadTransfers}
+                placeholder="Pick transfer from catalog…"
+                emptyText="No transfers found in the catalog yet."
+                scopeFilter={_cityScopeFilter(destination)}
+                testid={`transfer-${i}-picker`}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-0.5">From</label>
+                <input type="text" value={t.from_location || ''} onChange={e => update(i, { from_location: e.target.value })} placeholder="Airport" className="w-full border border-gray-300 rounded px-2 py-1 text-sm" data-testid={`transfer-${i}-from`} />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-0.5">To</label>
+                <input type="text" value={t.to_location || ''} onChange={e => update(i, { to_location: e.target.value })} placeholder="Hotel" className="w-full border border-gray-300 rounded px-2 py-1 text-sm" data-testid={`transfer-${i}-to`} />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-0.5">Vehicle Type</label>
+                <input type="text" value={t.vehicle_type || ''} onChange={e => update(i, { vehicle_type: e.target.value })} placeholder="Sedan / SUV / Van" className="w-full border border-gray-300 rounded px-2 py-1 text-sm" data-testid={`transfer-${i}-vehicle`} />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-0.5">Display Label (override)</label>
+                <input type="text" value={t.label || ''} onChange={e => update(i, { label: e.target.value })} placeholder="Airport → Hotel (Sedan)" className="w-full border border-gray-300 rounded px-2 py-1 text-sm" data-testid={`transfer-${i}-label`} />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-0.5">Note (optional)</label>
+                <input type="text" value={t.note || ''} onChange={e => update(i, { note: e.target.value })} placeholder="Private transfer, meet-and-greet..." className="w-full border border-gray-300 rounded px-2 py-1 text-sm" data-testid={`transfer-${i}-note`} />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      <button
+        type="button"
+        onClick={add}
+        className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#002B5B] hover:bg-[#003d82] text-white text-xs font-semibold rounded"
+        data-testid="transfer-add"
+      >
+        <Plus size={12} /> Add Transfer
+      </button>
+    </div>
+  );
+}
+
 /* ---------- Inclusions editor (grouped by category) ---------- */
 export function InclusionsEditor({ inclusions, onChange }) {
   const categories = Object.keys(inclusions || {});

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, X, Save, Loader2, RefreshCw } from 'lucide-react';
 import { api } from '@/App';
 import {
-  Section, BulletListEditor, ItineraryEditor, HotelsEditor, InclusionsEditor, ParagraphListEditor,
+  Section, BulletListEditor, ItineraryEditor, HotelsEditor, TransfersEditor, InclusionsEditor, ParagraphListEditor,
   loadCities,
 } from './GroupTourEditorSections';
 import ImageUploadField from './ImageUploadField';
@@ -30,6 +30,7 @@ const EMPTY_PKG = {
   highlights: [],
   itinerary: [],
   hotels: [],
+  transfers: [],
   inclusions: {},
   exclusions: [],
   what_to_expect: [],
@@ -153,6 +154,14 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
           meal_plan: h.meal_plan || '',
           image: h.image || '',
           hotel_id: h.hotel_id || null,
+        })),
+        transfers: (form.transfers || []).map(t => ({
+          transfer_id: t.transfer_id || null,
+          label: t.label || '',
+          from_location: t.from_location || '',
+          to_location: t.to_location || '',
+          vehicle_type: t.vehicle_type || '',
+          note: t.note || '',
         })),
         inclusions: Object.fromEntries(
           Object.entries(form.inclusions || {}).map(([cat, items]) => [cat, (items || []).filter(x => (x || '').trim())])
@@ -376,6 +385,19 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
               hotels={form.hotels || []}
               onChange={(hotels) => update('hotels', hotels)}
               packageId={pkg?.id || form.title}
+              destination={form.destination}
+            />
+          </Section>
+
+          <Section
+            title="Transfers"
+            subtitle="Linked transfers scoped to the selected Destination (from the Transfers catalog)."
+            count={(form.transfers || []).length}
+            testid="gt-section-transfers"
+          >
+            <TransfersEditor
+              transfers={form.transfers || []}
+              onChange={(transfers) => update('transfers', transfers)}
               destination={form.destination}
             />
           </Section>
