@@ -477,6 +477,30 @@ export default function GroupTourDetail({ deal, onBack }) {
   const [leavingFrom, setLeavingFrom] = useState(allowedDepartureCities[0] || 'Dubai');
   const [quote, setQuote] = useState(null);
   const [calculating, setCalculating] = useState(false);
+  const [downloadingBrochure, setDownloadingBrochure] = useState(false);
+
+  /* Download the WeasyPrint brochure PDF for this package. */
+  const downloadBrochure = async () => {
+    if (!deal?.id || downloadingBrochure) return;
+    setDownloadingBrochure(true);
+    try {
+      const res = await api.get(`/group-tours/${deal.id}/brochure-pdf`, { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Brochure_${(deal.title || deal.id).replace(/\s+/g, '_')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Brochure download failed:', e);
+      alert(e?.response?.data?.detail || 'Failed to download brochure. Please try again.');
+    } finally {
+      setDownloadingBrochure(false);
+    }
+  };
 
   /* Ask the backend for a server-computed quote so the price/child-rules/tax
      stay in sync with whatever the operations team set in the Admin panel. */
@@ -625,10 +649,12 @@ export default function GroupTourDetail({ deal, onBack }) {
                     {calculating ? 'Calculating...' : 'Check Availability'}
                   </button>
                   <button
-                    className="py-3 px-3 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-md text-xs md:text-sm tracking-wide"
+                    onClick={downloadBrochure}
+                    disabled={downloadingBrochure}
+                    className="py-3 px-3 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-md text-xs md:text-sm tracking-wide disabled:opacity-70"
                     data-testid="pkg-download-brochure"
                   >
-                    Download Brochure
+                    {downloadingBrochure ? 'Preparing...' : 'Download Brochure'}
                   </button>
                   <button
                     className="py-3 px-3 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-md text-xs md:text-sm tracking-wide"

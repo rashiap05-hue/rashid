@@ -430,3 +430,8 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - Admin: testadmin@example.com / password123
 - Agent: rashid@travotours.ae / password123
 - Supplier: supplier@georgiancars.ge / password123 (company: Travo Georgia)
+- **Group Tours — Download Brochure PDF (Feb 2026)**: The "Download Brochure" button on the public Group Tour detail page is now wired to a real WeasyPrint-generated brochure.
+  - **Backend** (`routes/group_tours.py`): New public endpoint `GET /api/group-tours/{pkg_id}/brochure-pdf` renders an 8-page A4 brochure — Cover (Travo logo, hero image, title, destination, nights/days, date range, stars, "starting from AED X"), At-a-glance (highlights + exclusions two-column + departure cities + travel window), Day-wise Itinerary cards (day # badge + title + date + description + meal pills + activity chips + transfer line + hotel-note pill), Hotels block, categorised Inclusions, Pricing table (5 tiers), Terms & Conditions (rich-HTML passthrough). Pulls the Travo brand logo from `static/travo_logo.png` and embeds it as a base64 data URL so WeasyPrint renders offline.
+  - **Frontend** (`GroupTourDetail.jsx`): The previously-dead "Download Brochure" button now calls `api.get('/group-tours/{id}/brochure-pdf', { responseType: 'blob' })` and triggers a file download (`Brochure_<Title>.pdf`) with a loading state ("Preparing...") and basic error alert on failure.
+  - Verified end-to-end via curl (`HTTP 200`, `Content-Type: application/pdf`, `Content-Disposition: attachment; filename="Brochure_Almaty_Eid_Break.pdf"`, 240KB, `%PDF-1.7` header) + Gemini Vision content analysis (8 pages, all sections rendered correctly, pricing table with 5 tiers) + Playwright browser download (file captured, 245,793 bytes).
+

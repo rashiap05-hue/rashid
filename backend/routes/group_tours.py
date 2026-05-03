@@ -36,16 +36,34 @@ Admin-only:
 """
 from __future__ import annotations
 
+import base64
+import html as html_lib
+import logging
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Dict
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
+from weasyprint import HTML
 
 from db import db, get_current_user
+from routes.pdf_generator import resolve_image
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["group-tours"])
+
+# Travo brand logo — embedded as base64 data URL so WeasyPrint renders it offline.
+_LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "travo_logo.png")
+try:
+    with open(_LOGO_PATH, "rb") as _lf:
+        _LOGO_DATA_URL = "data:image/png;base64," + base64.b64encode(_lf.read()).decode("ascii")
+except Exception as _e:  # pragma: no cover
+    logger.warning("Travo logo not loaded from %s: %s", _LOGO_PATH, _e)
+    _LOGO_DATA_URL = ""
 
 
 # ---------------------------------------------------------------------------
@@ -656,3 +674,305 @@ async def delete_group_tour(pkg_id: str, current_user: dict = Depends(get_curren
     if not res.deleted_count:
         raise HTTPException(status_code=404, detail="Package not found")
     return {"success": True, "deleted": pkg_id}
+
+
+
+# ---------------------------------------------------------------------------
+# Brochure PDF (WeasyPrint)
+# ---------------------------------------------------------------------------
+_MEAL_LABELS = {"B": "Breakfast", "L": "Lunch", "D": "Dinner"}
+
+
+def _esc(v) -> str:
+    """HTML-escape, safely handle None."""
+    return html_lib.escape(str(v or ""), quote=True)
+
+
+def _star_html(n: int) -> str:
+    n = max(0, min(5, int(n or 0)))
+    return "★" * n + "<span style='color:#cbd5e1;'>" + ("★" * (5 - n)) + "</span>"
+
+
+def _build_brochure_html(pkg: dict) -> str:
+    title = pkg.get("title") or pkg.get("destination") or "Holiday Package"
+    dest = pkg.get("destination") or ""
+    subtitle = pkg.get("subtitle") or ""
+    nights = int(pkg.get("nights") or 0)
+    days = nights + 1 if nights else 0
+    date_range = pkg.get("date_range") or ""
+    stars = int(pkg.get("stars") or 0)
+
+    hero_img = resolve_image((pkg.get("images") or [None])[0] or pkg.get("image") or "")
+    pricing = pkg.get("pricing") or {}
+    twin = (pricing.get("twin_double") or {})
+    starting_price = float(twin.get("display_price") or pkg.get("price_per_adult") or 0)
+
+    window = ""
+    if pkg.get("travel_window_start") or pkg.get("travel_window_end"):
+        window = f"{_esc(pkg.get('travel_window_start') or '—')} to {_esc(pkg.get('travel_window_end') or '—')}"
+
+    departure_cities = pkg.get("departure_cities") or []
+    dep_cities_html = ", ".join(_esc(c) for c in departure_cities) if departure_cities else "Any city on request"
+
+    # --- Highlights ---
+    highlights = pkg.get("highlights") or []
+    highlights_html = "".join(f"<li>{_esc(h)}</li>" for h in highlights) or "<li>Curated by Travo travel experts</li>"
+
+    # --- Itinerary ---
+    itinerary = pkg.get("itinerary") or []
+    itin_rows = []
+    for d in itinerary:
+        meals = [_MEAL_LABELS.get(m, m) for m in (d.get("meals") or [])]
+        meal_pills = "".join(
+            f"<span class='pill pill-meal'>{_esc(m)}</span>" for m in meals
+        )
+        activities = d.get("activities") or []
+        act_html = ""
+        if activities:
+            act_html = "<div class='day-acts'>" + "".join(
+                f"<span class='pill pill-act'>{_esc(a.get('name') or '')}</span>" for a in activities if a
+            ) + "</div>"
+        transfer_html = ""
+        if d.get("transfer_label"):
+            transfer_html = f"<div class='day-transfer'>🚗 {_esc(d['transfer_label'])}</div>"
+        hotel_note = d.get("hotel_note") or ""
+        desc = d.get("desc") or ""
+        # `desc` may already be rich HTML from the RichTextEditor — render as-is but strip scripts.
+        safe_desc = desc.replace("<script", "&lt;script").replace("</script", "&lt;/script")
+        date_tag = ""
+        if d.get("date"):
+            date_tag = f"<span class='day-date'>{_esc(d['date'])}</span>"
+        itin_rows.append(f"""
+          <div class='day-card'>
+            <div class='day-head'>
+              <div class='day-num'>Day {int(d.get('day') or 0)}</div>
+              <div class='day-title'>{_esc(d.get('title') or '')} {date_tag}</div>
+            </div>
+            <div class='day-body'>{safe_desc}</div>
+            {act_html}
+            {transfer_html}
+            <div class='day-foot'>
+              {meal_pills}
+              {f"<span class='pill pill-hotel'>🏨 {_esc(hotel_note)}</span>" if hotel_note else ""}
+            </div>
+          </div>
+        """)
+    itinerary_html = "\n".join(itin_rows) or "<p class='muted'>Itinerary will be shared upon booking.</p>"
+
+    # --- Hotels ---
+    hotels = pkg.get("hotels") or []
+    hotel_rows = []
+    for h in hotels:
+        hotel_img = resolve_image((h.get("images") or [None])[0] or h.get("image") or hero_img)
+        hotel_rows.append(f"""
+          <div class='hotel-card'>
+            <div class='hotel-img' style="background-image:url('{_esc(hotel_img)}')"></div>
+            <div class='hotel-body'>
+              <div class='hotel-name'>{_esc(h.get('name') or '')}</div>
+              <div class='hotel-meta'>
+                <span>{_star_html(h.get('stars'))}</span>
+                <span>{int(h.get('nights') or 0)} Night{'s' if int(h.get('nights') or 0) != 1 else ''}</span>
+                <span>{_esc(h.get('room_type') or 'Standard Room')}</span>
+                <span>{_esc(h.get('meal_plan') or 'Bed & Breakfast')}</span>
+              </div>
+            </div>
+          </div>
+        """)
+    hotels_html = "\n".join(hotel_rows) or "<p class='muted'>Accommodation will be confirmed upon booking.</p>"
+
+    # --- Inclusions / Exclusions ---
+    inclusions_dict = pkg.get("inclusions") or {}
+    inc_sections = []
+    for cat, items in inclusions_dict.items():
+        lis = "".join(f"<li>{_esc(x)}</li>" for x in (items or []) if x)
+        if lis:
+            inc_sections.append(f"<div class='inc-cat'><h4>{_esc(cat)}</h4><ul>{lis}</ul></div>")
+    inclusions_html = "\n".join(inc_sections) or "<p class='muted'>Details available on request.</p>"
+
+    exclusions = pkg.get("exclusions") or []
+    exc_html = "".join(f"<li>{_esc(e)}</li>" for e in exclusions if e)
+    exc_html = f"<ul>{exc_html}</ul>" if exc_html else "<p class='muted'>None specified.</p>"
+
+    # --- Pricing table ---
+    tier_labels = [
+        ("single_sharing", "Adult — Single sharing"),
+        ("twin_double",    "Adult — Twin / Double"),
+        ("triple",         "Adult — Triple"),
+        ("child_no_bed",   "Child 2–5 yrs (No bed)"),
+        ("infant",         "Infant 0–2 yrs"),
+    ]
+    price_rows = "".join(
+        f"<tr><td>{_esc(label)}</td><td class='r'>AED {float((pricing.get(k) or {}).get('display_price') or 0):,.0f}</td></tr>"
+        for k, label in tier_labels
+    )
+
+    # --- Terms & Conditions (rich HTML from admin) ---
+    terms_html = pkg.get("terms_and_conditions") or ""
+    terms_block = f"<div class='terms-body'>{terms_html}</div>" if terms_html.strip() else "<p class='muted'>Standard Travo Tours terms apply.</p>"
+
+    logo_img = f"<img src='{_LOGO_DATA_URL}' class='brand-logo' />" if _LOGO_DATA_URL else "<span class='brand-text'>TRAVO</span>"
+
+    return f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>{_esc(title)} — Brochure</title>
+<style>
+  @page {{ size: A4; margin: 14mm 12mm; @bottom-center {{ content: "Travo Tours · Brochure · Page " counter(page) " of " counter(pages); font-size: 9px; color:#64748b; }} }}
+  * {{ box-sizing: border-box; }}
+  body {{ font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11px; color: #1e293b; margin: 0; line-height: 1.45; }}
+  h1,h2,h3,h4 {{ margin: 0; color: #0f2a4a; }}
+  .muted {{ color: #94a3b8; font-style: italic; }}
+  .cover {{ page-break-after: always; position: relative; height: 270mm; border-radius: 10px; overflow: hidden; background:#0f2a4a; }}
+  .cover-hero {{ position: absolute; inset: 0; background-size: cover; background-position: center; }}
+  .cover-overlay {{ position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,25,55,0.15) 0%, rgba(10,25,55,0.75) 70%, rgba(10,25,55,0.95) 100%); }}
+  .cover-inner {{ position: absolute; inset: 0; padding: 18mm 14mm; display: flex; flex-direction: column; justify-content: space-between; color: white; }}
+  .brand-logo {{ max-height: 60px; max-width: 220px; background:#ffffffdd; padding:6px 10px; border-radius:6px; }}
+  .brand-text {{ font-weight:900; font-size: 22px; letter-spacing: 2px; color:white; }}
+  .cover-title {{ font-family: Georgia, 'Times New Roman', serif; font-size: 44px; font-weight: 900; line-height: 1.05; color: white; margin-bottom: 6mm; }}
+  .cover-sub {{ font-size: 16px; opacity: 0.95; margin-bottom: 10mm; }}
+  .cover-meta {{ display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; opacity: 0.95; }}
+  .cover-meta .chip {{ background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); padding: 5px 12px; border-radius: 999px; }}
+  .cover-price {{ margin-top: 10mm; display:flex; align-items:baseline; gap: 10px; }}
+  .cover-price .from {{ font-size: 12px; opacity: 0.8; }}
+  .cover-price .val  {{ font-size: 28px; font-weight: 900; }}
+  .section {{ padding: 4mm 0 6mm; }}
+  .section h2 {{ font-size: 18px; margin-bottom: 4mm; border-bottom: 3px solid #0F2A4A; padding-bottom: 3mm; display:flex; align-items:center; gap:6px; }}
+  .section h2::before {{ content: ''; width: 4px; height: 18px; background:#EF4444; display:inline-block; margin-right: 6px; }}
+  ul {{ margin: 0 0 4px 16px; padding: 0; }}
+  li {{ margin: 2px 0; }}
+  .grid-2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; }}
+  .day-card {{ border: 1px solid #e2e8f0; border-radius: 8px; padding: 4mm 5mm; margin-bottom: 4mm; page-break-inside: avoid; }}
+  .day-head {{ display:flex; align-items: baseline; gap: 8px; margin-bottom: 2mm; }}
+  .day-num  {{ background: #0F2A4A; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; }}
+  .day-title {{ font-weight: 800; color:#0f2a4a; font-size: 13px; }}
+  .day-date {{ font-size:10px; color:#64748b; font-weight: 600; margin-left: 4px; }}
+  .day-body {{ font-size: 11px; color: #334155; }}
+  .day-body p {{ margin: 2px 0; }}
+  .day-acts, .day-transfer {{ margin-top: 2mm; font-size: 10.5px; color:#0f2a4a; }}
+  .day-foot {{ margin-top: 3mm; display: flex; flex-wrap: wrap; gap: 4px; }}
+  .pill {{ display:inline-block; padding: 2px 8px; border-radius: 999px; font-size: 9.5px; font-weight: 700; }}
+  .pill-meal {{ background:#d1fae5; color:#065f46; border:1px solid #6ee7b7; }}
+  .pill-hotel {{ background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }}
+  .pill-act {{ background:#e0f2fe; color:#075985; border:1px solid #7dd3fc; }}
+  .hotel-card {{ display:flex; gap: 10px; border: 1px solid #e2e8f0; border-radius:8px; padding:3mm 4mm; margin-bottom: 3mm; align-items: center; page-break-inside: avoid; }}
+  .hotel-img  {{ width: 38mm; height: 28mm; background-size: cover; background-position: center; background-color:#e2e8f0; border-radius:6px; flex-shrink: 0; }}
+  .hotel-body {{ flex: 1; }}
+  .hotel-name {{ font-weight: 800; font-size: 13px; color:#0f2a4a; margin-bottom: 2px; }}
+  .hotel-meta {{ display: flex; gap: 10px; font-size: 10.5px; color:#475569; flex-wrap: wrap; }}
+  .inc-cat {{ margin-bottom: 3mm; }}
+  .inc-cat h4 {{ font-size: 12px; color:#0F2A4A; border-left: 3px solid #EF4444; padding-left: 6px; margin-bottom: 2mm; }}
+  table.price {{ width: 100%; border-collapse: collapse; margin-top: 2mm; font-size: 11px; }}
+  table.price thead th {{ background:#0F2A4A; color: white; padding: 4mm; text-align: left; font-size: 10px; letter-spacing: 0.5px; text-transform: uppercase; }}
+  table.price tbody td {{ padding: 3mm 4mm; border-bottom: 1px solid #e2e8f0; }}
+  table.price tbody tr:nth-child(even) td {{ background:#f8fafc; }}
+  table.price td.r {{ text-align: right; font-weight: 700; color:#0F2A4A; font-family: 'Helvetica', sans-serif; }}
+  .info-row {{ display: flex; gap: 14px; font-size: 10.5px; color:#475569; margin-top: 2mm; margin-bottom: 4mm; flex-wrap: wrap; }}
+  .info-row .kv {{ border:1px solid #e2e8f0; padding: 3px 8px; border-radius: 6px; background:#f8fafc; }}
+  .info-row .kv b {{ color:#0f2a4a; }}
+  .terms-body {{ font-size: 10.5px; color:#475569; line-height: 1.55; }}
+  .terms-body h1, .terms-body h2, .terms-body h3, .terms-body h4 {{ font-size: 12px; margin-top:4mm; margin-bottom:2mm; color:#0f2a4a; }}
+  .terms-body ul {{ margin-left: 18px; }}
+  .page-break {{ page-break-before: always; }}
+</style></head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-hero" style="background-image:url('{_esc(hero_img)}');"></div>
+  <div class="cover-overlay"></div>
+  <div class="cover-inner">
+    <div>{logo_img}</div>
+    <div>
+      <div class="cover-title">{_esc(title)}</div>
+      <div class="cover-sub">{_esc(subtitle or f'{nights} nights · {days} days in {dest}')}</div>
+      <div class="cover-meta">
+        {f'<span class="chip">📍 {_esc(dest)}</span>' if dest else ''}
+        {f'<span class="chip">📅 {_esc(date_range)}</span>' if date_range else ''}
+        <span class="chip">🌙 {nights} Nights · {days} Days</span>
+        {f'<span class="chip">{_star_html(stars)}</span>' if stars else ''}
+      </div>
+      <div class="cover-price">
+        <span class="from">Starting from</span>
+        <span class="val">AED {starting_price:,.0f}</span>
+        <span class="from">per adult · Twin / Double</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AT A GLANCE -->
+<div class="section">
+  <h2>At a glance</h2>
+  <div class="info-row">
+    <span class="kv"><b>Destination:</b> {_esc(dest or '—')}</span>
+    <span class="kv"><b>Nights:</b> {nights}</span>
+    <span class="kv"><b>Departure Cities:</b> {dep_cities_html}</span>
+    {f'<span class="kv"><b>Travel Window:</b> {window}</span>' if window else ''}
+  </div>
+  <div class="grid-2">
+    <div>
+      <h3 style="font-size:13px;margin-bottom:2mm;">Trip Highlights</h3>
+      <ul>{highlights_html}</ul>
+    </div>
+    <div>
+      <h3 style="font-size:13px;margin-bottom:2mm;">What's Excluded</h3>
+      {exc_html}
+    </div>
+  </div>
+</div>
+
+<!-- ITINERARY -->
+<div class="section page-break">
+  <h2>Day-wise Itinerary</h2>
+  {itinerary_html}
+</div>
+
+<!-- HOTELS -->
+<div class="section">
+  <h2>Hotels</h2>
+  {hotels_html}
+</div>
+
+<!-- INCLUSIONS -->
+<div class="section">
+  <h2>Inclusions</h2>
+  {inclusions_html}
+</div>
+
+<!-- PRICING -->
+<div class="section">
+  <h2>Pricing (per person · AED)</h2>
+  <table class="price">
+    <thead><tr><th>Occupancy</th><th class="r">Rate</th></tr></thead>
+    <tbody>{price_rows}</tbody>
+  </table>
+  <p class="muted" style="margin-top:3mm;">Prices are indicative and subject to availability at the time of booking.</p>
+</div>
+
+<!-- TERMS -->
+<div class="section page-break">
+  <h2>Terms &amp; Conditions</h2>
+  {terms_block}
+</div>
+
+</body></html>
+"""
+
+
+@router.get("/group-tours/{pkg_id}/brochure-pdf")
+async def download_group_tour_brochure(pkg_id: str):
+    """Generate + stream a WeasyPrint brochure PDF for the given package."""
+    pkg = await db.group_tour_packages.find_one({"id": pkg_id}, {"_id": 0})
+    if not pkg:
+        raise HTTPException(status_code=404, detail="Package not found")
+    _migrate_legacy(pkg)
+    try:
+        html = _build_brochure_html(pkg)
+        pdf_bytes = HTML(string=html).write_pdf()
+    except Exception as e:
+        logger.exception("brochure PDF generation failed for %s: %s", pkg_id, e)
+        raise HTTPException(status_code=500, detail=f"Failed to generate brochure: {e}")
+    filename = f"Brochure_{(pkg.get('title') or pkg_id).replace(' ', '_')}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
