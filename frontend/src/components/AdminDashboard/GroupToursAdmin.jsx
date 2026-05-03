@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, X, Save, Loader2, RefreshCw } from 'lucide-react';
 import { api } from '@/App';
 import {
-  Section, BulletListEditor, ItineraryEditor, HotelsEditor, TransfersEditor, InclusionsEditor, ParagraphListEditor,
+  Section, BulletListEditor, ItineraryEditor, HotelsEditor, InclusionsEditor, ParagraphListEditor,
   loadCities,
 } from './GroupTourEditorSections';
 import MultiImageUploadField from './MultiImageUploadField';
@@ -418,19 +418,6 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
               hotels={form.hotels || []}
               onChange={(hotels) => update('hotels', hotels)}
               packageId={pkg?.id || form.title}
-              destination={form.destination}
-            />
-          </Section>
-
-          <Section
-            title="Transfers"
-            subtitle="Linked transfers scoped to the selected Destination (from the Transfers catalog)."
-            count={(form.transfers || []).length}
-            testid="gt-section-transfers"
-          >
-            <TransfersEditor
-              transfers={form.transfers || []}
-              onChange={(transfers) => update('transfers', transfers)}
               destination={form.destination}
             />
           </Section>
