@@ -273,6 +273,16 @@ function App() {
                   <GroupTourDetail
                     deal={selectedDeal}
                     onBack={() => setCurrentView('group-tours')}
+                    onBookFromGroupTour={(proposal) => {
+                      setSavedProposal(proposal);
+                      setBookingData(null);
+                      setCurrentView('booking-confirmation');
+                    }}
+                    onProposalSaved={(proposal) => {
+                      setSavedProposal(proposal);
+                      setCurrentView('dashboard');
+                      setActiveTab('My Proposals');
+                    }}
                   />
                 )}
 

@@ -541,7 +541,11 @@ async def quote_group_tour(pkg_id: str, req: QuoteRequest):
     if not pkg:
         raise HTTPException(status_code=404, detail="Package not found")
     _migrate_legacy(pkg)
+    return _compute_quote(pkg, req)
 
+
+def _compute_quote(pkg: dict, req: "QuoteRequest") -> "QuoteResponse":
+    """Shared quote computation used by both /quote and /save-as-proposal."""
     pricing = pkg.get("pricing") or {}
     tax_pct = float(pkg.get("tax_pct") or 0)
 
@@ -674,6 +678,123 @@ async def delete_group_tour(pkg_id: str, current_user: dict = Depends(get_curren
     if not res.deleted_count:
         raise HTTPException(status_code=404, detail="Package not found")
     return {"success": True, "deleted": pkg_id}
+
+
+
+# ---------------------------------------------------------------------------
+# Save as Proposal (convert group tour → proposal doc + book flow)
+# ---------------------------------------------------------------------------
+class SaveAsProposalRequest(BaseModel):
+    customer_name: str
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
+    leaving_from: str = "Dubai"
+    leaving_on: str  # ISO YYYY-MM-DD
+    nationality: str = "United Arab Emirates"
+    rooms: List[QuoteRoom]
+
+
+@router.post("/group-tours/{pkg_id}/save-as-proposal")
+async def save_group_tour_as_proposal(
+    pkg_id: str,
+    body: SaveAsProposalRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Convert a group tour package (+ its live quote) into a proposal doc.
+
+    The returned proposal is the same shape as a normal proposal so the public
+    BookingConfirmation + MyLeads + ProposalView pages can render it without
+    any group-tour-specific branches.
+    """
+    pkg = await db.group_tour_packages.find_one({"id": pkg_id}, {"_id": 0})
+    if not pkg:
+        raise HTTPException(status_code=404, detail="Package not found")
+    _migrate_legacy(pkg)
+
+    # 1) Compute the quote using the same helper as /quote
+    quote = _compute_quote(pkg, QuoteRequest(rooms=body.rooms))
+
+    # 2) Build city stops + selected_hotels from the package snapshot
+    destination = pkg.get("destination") or pkg.get("title") or ""
+    nights = int(pkg.get("nights") or 0)
+    cities = [{"name": destination, "nights": nights}]
+
+    selected_hotels = {}
+    pkg_hotels = pkg.get("hotels") or []
+    for idx, h in enumerate(pkg_hotels):
+        key = f"{destination}_{idx}"
+        selected_hotels[key] = {
+            "id": h.get("hotel_id") or f"gt_hotel_{idx}",
+            "name": h.get("name", ""),
+            "star_rating": int(h.get("stars") or 3),
+            "nights": int(h.get("nights") or nights),
+            "room_type": h.get("room_type") or "Standard Room",
+            "meal_plan": h.get("meal_plan") or "Bed & Breakfast",
+            "images": (h.get("images") or ([h.get("image")] if h.get("image") else [])),
+            "image": h.get("image") or "",
+            "city": destination,
+        }
+
+    # 3) Build selected_activities from itinerary days
+    selected_activities = {}
+    for d in (pkg.get("itinerary") or []):
+        acts = d.get("activities") or []
+        if not acts:
+            continue
+        dkey = f"{destination}_{int(d.get('day') or 1)}"
+        selected_activities[dkey] = [
+            {
+                "id": a.get("id") or f"gt_act_{i}",
+                "name": a.get("name", ""),
+                "image": a.get("image", ""),
+                "duration": a.get("duration", ""),
+            }
+            for i, a in enumerate(acts) if a
+        ]
+
+    # 4) Assemble proposal doc (matches models.schemas.ProposalResponse)
+    proposal_id = str(uuid.uuid4())
+    now_iso = datetime.now(timezone.utc).isoformat()
+    room_data = [r.dict() for r in (body.rooms or [])]
+    total_pax = quote.adults + quote.children + quote.infants
+
+    doc = {
+        "id": proposal_id,
+        "user_id": current_user.get("id") if current_user else None,
+        "leaving_from": body.leaving_from,
+        "leaving_from_code": None,
+        "nationality": body.nationality,
+        "leaving_on": body.leaving_on,
+        "star_rating": str(pkg.get("stars") or 3),
+        "add_transfers": True,
+        "room_data": room_data,
+        "cities": cities,
+        "status": "pending",
+        "total_price": float(quote.total),
+        "created_at": now_iso,
+        "selected_hotels": selected_hotels,
+        "selected_activities": selected_activities,
+        "pricing_breakdown": {
+            "total": float(quote.total),
+            "subtotal": float(quote.subtotal),
+            "lines": [ln.dict() for ln in quote.lines],
+        },
+        "total_pax": total_pax,
+        "total_nights": nights,
+        "start_date": body.leaving_on,
+        "customer_name": body.customer_name,
+        "customer_email": body.customer_email or "",
+        "customer_phone": body.customer_phone or "",
+        "proposal_name": pkg.get("title") or "Group Tour",
+        # Back-reference so we know this proposal was spawned from a group tour.
+        "group_tour_id": pkg_id,
+        "group_tour_title": pkg.get("title") or "",
+    }
+
+    await db.proposals.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
 
 
 

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { api } from '@/App';
 import ActivityDetailModal from './ActivityDetailModal';
+import GroupTourCustomerModal from './GroupTourDetail/GroupTourCustomerModal';
 
 /* ---------- Fallback-safe image ---------- */
 function DealImage({ src, alt, gradient, label, className }) {
@@ -457,7 +458,7 @@ function RoomsOccupancyPicker({ rooms, onChange, testid = 'pkg-rooms-adults' }) 
 }
 
 /* ---------- Main component ---------- */
-export default function GroupTourDetail({ deal, onBack }) {
+export default function GroupTourDetail({ deal, onBack, onBookFromGroupTour, onProposalSaved }) {
   const pkg = buildPackage(deal);
   const [activeTab, setActiveTab] = useState('itinerary');
 
@@ -478,6 +479,9 @@ export default function GroupTourDetail({ deal, onBack }) {
   const [quote, setQuote] = useState(null);
   const [calculating, setCalculating] = useState(false);
   const [downloadingBrochure, setDownloadingBrochure] = useState(false);
+  // null | 'book' | 'save'  — controls the customer-info modal
+  const [customerModalMode, setCustomerModalMode] = useState(null);
+  const [savedToast, setSavedToast] = useState('');
 
   /* Download the WeasyPrint brochure PDF for this package. */
   const downloadBrochure = async () => {
@@ -688,6 +692,32 @@ export default function GroupTourDetail({ deal, onBack }) {
                     )}
                   </div>
                 )}
+
+                {/* Book Now / Save As Proposal — shown only after a quote is computed (matches reference video) */}
+                {quote && !quote.error && (
+                  <div className="grid grid-cols-2 gap-2 pt-1" data-testid="pkg-quote-actions">
+                    <button
+                      onClick={() => setCustomerModalMode('book')}
+                      className="py-3 px-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-md text-xs md:text-sm tracking-wide"
+                      data-testid="pkg-book-now"
+                    >
+                      Book Now
+                    </button>
+                    <button
+                      onClick={() => setCustomerModalMode('save')}
+                      className="py-3 px-3 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-md text-xs md:text-sm tracking-wide"
+                      data-testid="pkg-save-as-proposal"
+                    >
+                      Save As Proposal
+                    </button>
+                  </div>
+                )}
+
+                {savedToast && (
+                  <div className="mt-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-3 py-2" data-testid="pkg-save-toast">
+                    {savedToast}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -831,6 +861,29 @@ export default function GroupTourDetail({ deal, onBack }) {
           </div>
         </section>
       </div>
+
+      {/* Customer details modal for Book Now / Save As Proposal */}
+      <GroupTourCustomerModal
+        open={customerModalMode !== null}
+        mode={customerModalMode || 'save'}
+        dealId={deal?.id}
+        leavingFrom={leavingFrom}
+        leavingOn={selectedDate}
+        rooms={roomsOccupancy}
+        onClose={() => setCustomerModalMode(null)}
+        onSaved={(proposal, mode) => {
+          setCustomerModalMode(null);
+          if (mode === 'book' && onBookFromGroupTour) {
+            onBookFromGroupTour(proposal);
+          } else if (onProposalSaved) {
+            onProposalSaved(proposal);
+          } else {
+            // Fallback — show inline success confirmation.
+            setSavedToast(`Proposal saved for ${proposal?.customer_name || 'customer'}.`);
+            setTimeout(() => setSavedToast(''), 4000);
+          }
+        }}
+      />
     </div>
   );
 }
