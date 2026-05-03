@@ -143,19 +143,25 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
         pricing: cleanedTiers,
         intro_paragraph: form.intro_paragraph || '',
         highlights: (form.highlights || []).filter(x => (x || '').trim()),
-        itinerary: (form.itinerary || []).map(d => ({
-          day: Number(d.day) || 1,
-          title: d.title || '',
-          desc: d.desc || '',
-          meals: d.meals || [],
-          hotel_note: d.hotel_note || '',
-          activity_id: d.activity_id || null,
-          activity_name: d.activity_name || null,
-          transfer_id: d.transfer_id || null,
-          transfer_label: d.transfer_label || null,
-          date: d.date || null,
-          images: Array.isArray(d.images) ? d.images.filter(Boolean).slice(0, 5) : [],
-        })),
+        itinerary: (form.itinerary || []).map(d => {
+          const activities = Array.isArray(d.activities) && d.activities.length > 0
+            ? d.activities.filter(a => a && a.id).map(a => ({ id: a.id, name: a.name || '' })).slice(0, 5)
+            : (d.activity_id ? [{ id: d.activity_id, name: d.activity_name || '' }] : []);
+          return {
+            day: Number(d.day) || 1,
+            title: d.title || '',
+            desc: d.desc || '',
+            meals: d.meals || [],
+            hotel_note: d.hotel_note || '',
+            activity_id: activities[0]?.id || null,
+            activity_name: activities[0]?.name || null,
+            activities,
+            transfer_id: d.transfer_id || null,
+            transfer_label: d.transfer_label || null,
+            date: d.date || null,
+            images: Array.isArray(d.images) ? d.images.filter(Boolean).slice(0, 5) : [],
+          };
+        }),
         hotels: (form.hotels || []).map(h => {
           const hotelImages = Array.isArray(h.images) && h.images.length > 0
             ? h.images.filter(Boolean).slice(0, 5)

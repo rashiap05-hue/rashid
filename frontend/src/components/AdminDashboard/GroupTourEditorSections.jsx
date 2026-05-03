@@ -185,25 +185,52 @@ function SortableDay({ id, index, day, total, onUpdate, onRemove, destination, p
     onUpdate({ meals: current.includes(meal) ? current.filter(m => m !== meal) : [...current, meal] });
   };
 
-  // Linked activity (read from day.activity_id + denormalised label)
-  const selectedActivity = day.activity_id
-    ? { id: day.activity_id, label: day.activity_name || day.title || 'Linked activity', sub: '', image: '' }
-    : null;
+  // Linked activities (multi — read from day.activities[]; legacy single
+  // activity_id/activity_name auto-promoted into the array if present).
+  const linkedActivities = (() => {
+    if (Array.isArray(day.activities) && day.activities.length > 0) {
+      return day.activities.slice(0, 5);
+    }
+    if (day.activity_id) {
+      return [{ id: day.activity_id, name: day.activity_name || day.title || 'Linked activity' }];
+    }
+    return [];
+  })();
 
-  const onPickActivity = useCallback((item) => {
+  const writeActivities = (next) => {
+    const trimmed = next.filter(a => a && a.id).slice(0, 5);
+    onUpdate({
+      activities: trimmed,
+      activity_id: trimmed[0]?.id || null,
+      activity_name: trimmed[0]?.name || null,
+    });
+  };
+
+  // Pick at slot `slotIndex` (or append when slotIndex === linkedActivities.length).
+  const onPickActivityAt = (slotIndex, isFirstSlot) => (item) => {
+    const next = [...linkedActivities];
     if (!item) {
-      onUpdate({ activity_id: null, activity_name: null });
+      next.splice(slotIndex, 1);
+      writeActivities(next);
       return;
     }
-    const a = item.raw || {};
-    onUpdate({
-      activity_id: item.id,
-      activity_name: item.label,
-      title: item.label || day.title,
-      desc: a.description ? `<p>${a.description.replace(/\n+/g, '</p><p>')}</p>` : day.desc,
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    next[slotIndex] = { id: item.id, name: item.label };
+    if (isFirstSlot && slotIndex === 0) {
+      // Seed day's title/desc from the very first activity (only when the
+      // first slot itself is being set).
+      const a = item.raw || {};
+      const trimmed = next.filter(x => x && x.id).slice(0, 5);
+      onUpdate({
+        activities: trimmed,
+        activity_id: trimmed[0]?.id || null,
+        activity_name: trimmed[0]?.name || null,
+        title: item.label || day.title,
+        desc: a.description ? `<p>${a.description.replace(/\n+/g, '</p><p>')}</p>` : day.desc,
+      });
+    } else {
+      writeActivities(next);
+    }
+  };
 
   // Linked transfer (read from day.transfer_id + denormalised label)
   const selectedTransfer = day.transfer_id
@@ -260,18 +287,40 @@ function SortableDay({ id, index, day, total, onUpdate, onRemove, destination, p
         <button type="button" onClick={() => onRemove()} className="p-1 text-red-500 hover:bg-red-50 rounded" data-testid={`itin-${index}-remove`}><Trash2 size={12} /></button>
       </div>
 
-      {/* Catalog activity picker (optional — falls back to free-text title/desc) */}
+      {/* Catalog activity pickers (multi — up to 5 per day) */}
       <div className="mb-2">
-        <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Linked Activity (from Activities catalog)</label>
-        <CatalogPicker
-          selected={selectedActivity}
-          onSelect={onPickActivity}
-          loadItems={loadActivities}
-          placeholder="Pick activity from catalog…"
-          emptyText="No activities found in the catalog yet."
-          scopeFilter={_cityScopeFilter(destination)}
-          testid={`itin-${index}-activity`}
-        />
+        <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">
+          Linked Activities (from Activities catalog)
+          <span className="ml-1.5 text-[9px] text-gray-400 font-medium normal-case">
+            ({linkedActivities.length}/5)
+          </span>
+        </label>
+        <div className="space-y-1.5">
+          {linkedActivities.map((act, slotIdx) => (
+            <CatalogPicker
+              key={`act-${slotIdx}-${act.id || 'empty'}`}
+              selected={act.id ? { id: act.id, label: act.name || 'Linked activity', sub: '', image: '' } : null}
+              onSelect={onPickActivityAt(slotIdx, slotIdx === 0)}
+              loadItems={loadActivities}
+              placeholder="Pick activity from catalog…"
+              emptyText="No activities found in the catalog yet."
+              scopeFilter={_cityScopeFilter(destination)}
+              testid={`itin-${index}-activity-${slotIdx}`}
+            />
+          ))}
+          {linkedActivities.length < 5 && (
+            <CatalogPicker
+              key={`act-add-${linkedActivities.length}`}
+              selected={null}
+              onSelect={onPickActivityAt(linkedActivities.length, linkedActivities.length === 0)}
+              loadItems={loadActivities}
+              placeholder={linkedActivities.length === 0 ? 'Pick activity from catalog…' : '+ Add another activity for this day…'}
+              emptyText="No activities found in the catalog yet."
+              scopeFilter={_cityScopeFilter(destination)}
+              testid={`itin-${index}-activity-add`}
+            />
+          )}
+        </div>
       </div>
 
       {/* Catalog transfer picker (optional, scoped to destination) */}

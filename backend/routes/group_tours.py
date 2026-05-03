@@ -67,14 +67,21 @@ class PricingTiers(BaseModel):
     infant: PriceTier = Field(default_factory=PriceTier)
 
 
+class ActivityRef(BaseModel):
+    """Lightweight reference to an activity, denormalised for quick display."""
+    id: str
+    name: str = ""
+
+
 class ItineraryDay(BaseModel):
     day: int = 1
     title: str = ""
     desc: str = ""
     meals: List[str] = Field(default_factory=list)   # subset of ["B", "L", "D"]
     hotel_note: str = ""
-    activity_id: Optional[str] = None                # optional reference to /activities catalog
-    activity_name: Optional[str] = None              # denormalized for quick display
+    activity_id: Optional[str] = None                # legacy single-activity (mirrored from activities[0])
+    activity_name: Optional[str] = None              # legacy denormalised name
+    activities: List[ActivityRef] = Field(default_factory=list)  # up to 5 linked activities per day
     transfer_id: Optional[str] = None                # optional reference to /transfers catalog
     transfer_label: Optional[str] = None             # denormalized e.g. "Airport → Hotel (Sedan)"
     date: Optional[str] = None                       # ISO date "YYYY-MM-DD" (optional manual override)
@@ -353,6 +360,27 @@ def _sync_image_fields(pkg: dict) -> None:
                 imgs = []
             d["images"] = imgs
 
+            # Sync activities[] <-> legacy single activity_id/activity_name (max 5)
+            acts = d.get("activities")
+            if isinstance(acts, list):
+                cleaned = []
+                for a in acts:
+                    if isinstance(a, dict) and a.get("id"):
+                        cleaned.append({"id": str(a["id"]), "name": str(a.get("name") or "")})
+                acts = cleaned[:5]
+            else:
+                acts = []
+            legacy_id = d.get("activity_id")
+            legacy_name = d.get("activity_name") or ""
+            if acts:
+                d["activities"] = acts
+                d["activity_id"] = acts[0]["id"]
+                d["activity_name"] = acts[0]["name"] or legacy_name
+            elif legacy_id:
+                d["activities"] = [{"id": str(legacy_id), "name": legacy_name}]
+            else:
+                d["activities"] = []
+
 
 def _project_for_response(pkg: dict) -> dict:
     """Add the legacy `price_per_adult` derived field for the public response."""
@@ -579,7 +607,8 @@ async def update_group_tour(pkg_id: str, body: GroupTourPackageUpdate, current_u
         raise HTTPException(status_code=404, detail="Package not found")
     update = {k: v for k, v in body.dict(exclude_unset=True).items() if v is not None}
     update["updated_at"] = _now()
-    # If images/image/hotels/itinerary are being updated, mirror the legacy single-image field.
+    # If images/image/hotels/itinerary are being updated, mirror legacy fields
+    # (single image[0] → image, activities[0] → activity_id/name).
     if any(k in update for k in ("image", "images", "hotels", "itinerary")):
         merged = {**existing, **update}
         _sync_image_fields(merged)

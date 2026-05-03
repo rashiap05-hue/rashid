@@ -364,6 +364,12 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - **Payload** (`GroupToursAdmin.jsx`): Itinerary serializer now passes `date`, `transfer_id`, `transfer_label` through on both POST and PUT.
   - Verified end-to-end via curl (`PUT almaty-eid` with 3 days + dates + 2 linked transfers → re-GET returns all fields correctly) and Playwright screenshot (date input shows `2026-05-26`, transfer picker opens with "Filtered: Almaty only" pill listing the 2 Almaty transfers).
 
+- **Group Tours — Multi-activity per day (Feb 2026)**: Each itinerary day can now link **up to 5 activities** (was 1). The first activity stays "denormalised" into the legacy `activity_id` / `activity_name` fields so all existing public renderers (`GroupTourDetail.jsx`, `GroupTours.jsx`) keep working untouched.
+  - **Backend** (`routes/group_tours.py`): New `ActivityRef = { id, name }` Pydantic model. `ItineraryDay.activities: List[ActivityRef]` added. `_sync_image_fields` extended (renamed in spirit but kept for back-compat) to also normalise `activities[]` ↔ `activity_id`/`activity_name` on every read AND write — and to auto-promote any legacy single-activity day into a 1-element `activities[]` array on first read. Server enforces a hard cap of 5 entries per day.
+  - **Frontend** (`SortableDay`): Single picker replaced with a stack of one `CatalogPicker` per linked activity (each renders the emerald-pill selected state with its own Change/Unlink controls) plus an extra empty `+ Add another activity for this day…` picker that's only visible when the day has < 5 entries. Each picker carries the same destination-scoped `_cityScopeFilter`. Activity #1 still seeds the day's `title`/`desc` (so existing UX remains unchanged); subsequent activities don't overwrite the day's copy.
+  - **Payload** (`GroupToursAdmin.jsx`): Itinerary serializer now passes `activities[]` through (with first item mirrored back into legacy `activity_id`/`activity_name`).
+  - Verified end-to-end via curl (3 activities sent → re-GET returns 3, legacy fields = first item) and Playwright screenshot (3 emerald pill rows visible on Day 1 + the "+ Add another activity" empty picker opens with "Filtered: Almaty only" → 8 Almaty activities listed).
+
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
 - P2: AI-powered trip recommendations frontend
