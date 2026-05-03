@@ -5,6 +5,7 @@ import {
   Coffee, Utensils, Moon, Bed, Plane, Check, X, Info, ChevronDown,
 } from 'lucide-react';
 import { api } from '@/App';
+import ActivityDetailModal from './ActivityDetailModal';
 
 /* ---------- Fallback-safe image ---------- */
 function DealImage({ src, alt, gradient, label, className }) {
@@ -132,6 +133,7 @@ const _formatDayDate = (iso) => {
 
 function DayCard({ entry }) {
   const acts = (entry.activities || []).filter(a => a && a.id);
+  const [openAct, setOpenAct] = useState(null); // { id, fallback }
   return (
     <div className="flex gap-4 pb-6 border-b border-gray-200 last:border-b-0" data-testid={`itinerary-day-${entry.day}`}>
       <div className="flex-shrink-0">
@@ -168,6 +170,14 @@ function DayCard({ entry }) {
                   <div className="text-sm font-bold text-emerald-900 truncate">{a.name}</div>
                   {a.sub && <div className="text-[11px] text-emerald-700 truncate">{a.sub}</div>}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setOpenAct({ id: a.id, fallback: a })}
+                  className="px-2.5 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[10px] font-bold rounded uppercase tracking-wider flex-shrink-0"
+                  data-testid={`itinerary-day-${entry.day}-activity-${i}-view`}
+                >
+                  View
+                </button>
               </div>
             ))}
           </div>
@@ -208,6 +218,14 @@ function DayCard({ entry }) {
           )}
         </div>
       </div>
+
+      {openAct && (
+        <ActivityDetailModal
+          activityId={openAct.id}
+          fallback={openAct.fallback}
+          onClose={() => setOpenAct(null)}
+        />
+      )}
     </div>
   );
 }

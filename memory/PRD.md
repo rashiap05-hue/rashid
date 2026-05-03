@@ -370,6 +370,15 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - **Transfer line**: When `day.transfer_label` is set, an inline plane-icon row ("Almaty Airport → Hotel (Sedan)") is shown next to meal/hotel chips.
   - **Backwards compatible**: Days without `date` / `activities` / `transfer_label` render exactly as before, so legacy packages are unaffected.
 
+- **Group Tours — Activity Detail Modal on public page (Feb 2026)**: Added a per-activity "View" button on every linked-activity card on the public detail page. Clicking it opens a polished `ActivityDetailModal` that fetches the full activity record from `GET /api/activities/{id}` and renders:
+  - **Hero gallery**: the activity's full `images[]` with prev/next arrows, thumbnail strip, and image counter (e.g., "1 / 3").
+  - **Meta row**: City · Country, Duration, ★ Rating + review count, and a Category pill.
+  - **Description**: full free-text body from the catalog.
+  - **What's Included / Not Included**: side-by-side green/red cards with bulleted check/X lists.
+  - **Operational meta-grid**: Meeting Point, Languages, Group Size (min–max), Start Times, Transfer Type, and Cancellation Policy.
+  - **Loading + error states** + lock-body-scroll while open.
+  - Bug fix: the singular `GET /api/activities/{id}` endpoint wraps its payload as `{success, activity}` while the list endpoint returns objects directly — modal handles both shapes via `r.data?.activity || r.data`.
+
 - **Group Tours — Admin description auto-regenerates from linked activities (Feb 2026)**: Previously, only the FIRST activity pick seeded the day's `desc`; adding a 2nd or 3rd activity left the description out of sync. Now every pick at every slot rebuilds the day's `desc` by concatenating each linked activity's catalog `description` (looked up from the cached `loadActivities()` list) into a `<p>…</p>` paragraph stack. Slot 0 still seeds the day's `title`. Verified end-to-end via curl + Playwright: 3 Almaty activities linked → 3 paragraphs in `desc`, public page shows the 3 activity cards above the combined description.
 
 ## Upcoming Tasks
