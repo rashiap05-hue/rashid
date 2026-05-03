@@ -379,6 +379,8 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - **Loading + error states** + lock-body-scroll while open.
   - Bug fix: the singular `GET /api/activities/{id}` endpoint wraps its payload as `{success, activity}` while the list endpoint returns objects directly — modal handles both shapes via `r.data?.activity || r.data`.
 
+- **Group Tours — Per-day transfer picker removed from admin form (Feb 2026)**: Removed the "Linked Transfer (from Transfers catalog)" section from inside each itinerary day in the `Edit Group Tour Package` form (on user request — the dedicated package-level Transfers section at the bottom of the form is the canonical place to manage transfers). The per-day `transfer_id` / `transfer_label` backend fields are retained for backward compatibility so any previously-saved day transfers still render on the public Group Tour Detail page (as "Airport → Hotel (Sedan)" plane-icon pills). Date input, Linked Activities picker, and Day Images widget all remain untouched inside each day card.
+
 - **Group Tours — Admin description auto-regenerates from linked activities (Feb 2026)**: Previously, only the FIRST activity pick seeded the day's `desc`; adding a 2nd or 3rd activity left the description out of sync. Now every pick at every slot rebuilds the day's `desc` by concatenating each linked activity's catalog `description` (looked up from the cached `loadActivities()` list) into a `<p>…</p>` paragraph stack. Slot 0 still seeds the day's `title`. Verified end-to-end via curl + Playwright: 3 Almaty activities linked → 3 paragraphs in `desc`, public page shows the 3 activity cards above the combined description.
 
 ## Upcoming Tasks

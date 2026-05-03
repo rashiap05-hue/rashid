@@ -323,18 +323,10 @@ function SortableDay({ id, index, day, total, onUpdate, onRemove, destination, p
   };
 
   // Linked transfer (read from day.transfer_id + denormalised label)
-  const selectedTransfer = day.transfer_id
-    ? { id: day.transfer_id, label: day.transfer_label || 'Linked transfer', sub: '', image: '' }
-    : null;
-
-  const onPickTransfer = useCallback((item) => {
-    if (!item) {
-      onUpdate({ transfer_id: null, transfer_label: null });
-      return;
-    }
-    onUpdate({ transfer_id: item.id, transfer_label: item.label });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // NOTE: Per-day transfer picker removed from the admin UI on user request —
+  // existing per-day `transfer_id`/`transfer_label` data is still round-tripped
+  // by the backend and rendered on the public Group Tour Detail page for any
+  // previously-saved days.
 
   return (
     <div ref={setNodeRef} style={style} className="border border-gray-200 rounded-lg p-3 bg-gray-50" data-testid={`itin-day-${index}`}>
@@ -411,20 +403,6 @@ function SortableDay({ id, index, day, total, onUpdate, onRemove, destination, p
             />
           )}
         </div>
-      </div>
-
-      {/* Catalog transfer picker (optional, scoped to destination) */}
-      <div className="mb-2">
-        <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Linked Transfer (from Transfers catalog)</label>
-        <CatalogPicker
-          selected={selectedTransfer}
-          onSelect={onPickTransfer}
-          loadItems={loadTransfers}
-          placeholder="Pick transfer from catalog…"
-          emptyText="No transfers found in the catalog yet."
-          scopeFilter={_cityScopeFilter(destination)}
-          testid={`itin-${index}-transfer`}
-        />
       </div>
 
       <div className="mb-2">
