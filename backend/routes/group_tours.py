@@ -119,7 +119,7 @@ class GroupTourPackageBase(BaseModel):
     date_range: str = ""
     stars: int = 3
     pricing: PricingTiers = Field(default_factory=PricingTiers)
-    tax_pct: float = 5.0
+    tax_pct: float = 0.0
     target_margin_pct: float = 25.0  # used to compute "Suggested Display Price" hints
     image: str = ""                                  # legacy single-image (kept in sync with images[0])
     images: List[str] = Field(default_factory=list)  # up to 5 cover images; index 0 = primary
@@ -455,22 +455,22 @@ async def _seed_defaults_if_empty() -> None:
     raw_seed = [
         {"id": "baku-eid",    "title": "Baku Eid Break",    "destination": "Baku",
          "subtitle": "Baku 4 nights",    "nights": 4, "date_range": "24-31 May", "stars": 3,
-         "pricing": _tiers(3293.0), "tax_pct": 5.0,
+         "pricing": _tiers(3293.0), "tax_pct": 0.0,
          "image": "https://images.unsplash.com/photo-1601823984263-b87b59798b70?w=800&q=80&auto=format&fit=crop",
          "gradient": "linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%)"},
         {"id": "tbilisi-eid", "title": "Tbilisi Eid Break", "destination": "Tbilisi",
          "subtitle": "Tbilisi 4 nights", "nights": 4, "date_range": "24-31 May", "stars": 5,
-         "pricing": _tiers(3544.0), "tax_pct": 5.0,
+         "pricing": _tiers(3544.0), "tax_pct": 0.0,
          "image": "https://images.unsplash.com/photo-1565008447742-97f6f38c985c?w=800&q=80&auto=format&fit=crop",
          "gradient": "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)"},
         {"id": "almaty-eid",  "title": "Almaty Eid Break",  "destination": "Almaty",
          "subtitle": "Almaty 5 nights",  "nights": 5, "date_range": "24-31 May", "stars": 4,
-         "pricing": _tiers(3738.0), "tax_pct": 5.0,
+         "pricing": _tiers(3738.0), "tax_pct": 0.0,
          "image": "https://images.unsplash.com/photo-1588615419957-3f1bfe5f29d7?w=800&q=80&auto=format&fit=crop",
          "gradient": "linear-gradient(135deg, #10b981 0%, #065f46 100%)"},
         {"id": "armenia-eid", "title": "Armenia Eid Break", "destination": "Yerevan",
          "subtitle": "Yerevan 4 nights", "nights": 4, "date_range": "24-31 May", "stars": 3,
-         "pricing": _tiers(3766.0), "tax_pct": 5.0,
+         "pricing": _tiers(3766.0), "tax_pct": 0.0,
          "image": "https://images.unsplash.com/photo-1615460549969-36fa19521a4f?w=800&q=80&auto=format&fit=crop",
          "gradient": "linear-gradient(135deg, #ef4444 0%, #991b1b 100%)"},
     ]

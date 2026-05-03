@@ -22,7 +22,7 @@ const EMPTY_PRICING = {
 
 const EMPTY_PKG = {
   title: '', destination: '', subtitle: '', nights: 4,
-  date_range: '', stars: 3, tax_pct: 5, target_margin_pct: 25,
+  date_range: '', stars: 3, target_margin_pct: 25,
   pricing: EMPTY_PRICING,
   image: '',
   images: [],
@@ -140,7 +140,6 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
         active: form.active,
         nights: Number(form.nights) || 0,
         stars: Number(form.stars) || 0,
-        tax_pct: Number(form.tax_pct) || 0,
         target_margin_pct: Number(form.target_margin_pct) || 0,
         pricing: cleanedTiers,
         intro_paragraph: form.intro_paragraph || '',
@@ -258,10 +257,6 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
             <div>
               <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Stars (1-5)</label>
               <input type="number" min="1" max="5" value={form.stars} onChange={e => update('stars', e.target.value)} className="w-full border rounded px-3 py-2 text-sm" data-testid="gt-field-stars" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Tax %</label>
-              <input type="number" step="0.01" value={form.tax_pct} onChange={e => update('tax_pct', e.target.value)} className="w-full border rounded px-3 py-2 text-sm" data-testid="gt-field-tax" />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Target Margin %</label>
@@ -576,7 +571,6 @@ export default function GroupToursAdmin() {
                 <th className="px-4 py-3 text-right">Twin Supplier (AED)</th>
                 <th className="px-4 py-3 text-right">Twin Display (AED)</th>
                 <th className="px-4 py-3 text-center">Markup (Twin)</th>
-                <th className="px-4 py-3 text-right">Tax %</th>
                 <th className="px-4 py-3 text-center">Active</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
@@ -600,7 +594,6 @@ export default function GroupToursAdmin() {
                     <td className="px-4 py-3 text-center" data-testid={`gt-row-${p.id}-markup`}>
                       <MarginBadge margin={margin} target={p.target_margin_pct} />
                     </td>
-                    <td className="px-4 py-3 text-right text-gray-700">{p.tax_pct}%</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${p.active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
                         {p.active ? 'ACTIVE' : 'HIDDEN'}

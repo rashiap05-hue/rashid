@@ -636,14 +636,6 @@ export default function GroupTourDetail({ deal, onBack }) {
                             <span className={ln.subtotal === 0 ? '' : 'font-semibold'}>AED {Number(ln.subtotal).toLocaleString()}</span>
                           </div>
                         ))}
-                        <div className="flex justify-between text-gray-700 pt-2 border-t border-sky-200">
-                          <span>Subtotal</span>
-                          <span className="font-semibold">AED {Number(quote.subtotal).toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between text-gray-700">
-                          <span>Taxes &amp; Fees ({quote.tax_pct}%)</span>
-                          <span className="font-semibold">AED {Number(quote.tax_amount).toLocaleString()}</span>
-                        </div>
                         <div className="flex justify-between items-center pt-2 border-t-2 border-sky-300">
                           <span className="font-black text-gray-900 text-base">Total Price</span>
                           <span className="font-black text-[#002B5B] text-xl">AED {Number(quote.total).toLocaleString()}</span>

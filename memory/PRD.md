@@ -409,6 +409,14 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - Refactoring: ~~ProposalView.jsx (~3,500 lines) component extraction~~ DONE (2,320 lines, 10 sub-components)
 - Refactoring: ~~TripBuilder.jsx (~2,300 lines) component extraction~~ DONE (1,934 lines, 14 sub-components)
 
+
+### Session 10 (Feb 2026)
+- **Removed Taxes & Fees from Group Tours pricing (Feb 2026)**: Per user request, the 5% tax line was removed from both the public detail-page quote breakdown and the Admin Group Tours editor.
+  - Backend (`routes/group_tours.py`): `GroupTourPackageBase.tax_pct` default changed from `5.0` → `0.0`; all 4 seed packages (Baku / Tbilisi / Almaty / Armenia Eid Break) now seed with `tax_pct=0.0`. Existing package in DB migrated via one-time `update_many({}, {'$set':{'tax_pct':0.0}})` — 1 doc updated. Quote endpoint math unchanged (still multiplies subtotal × tax_pct/100); now always yields `tax_amount=0` and `total=subtotal`.
+  - Frontend (`GroupTourDetail.jsx`): Removed the "Subtotal" and "Taxes & Fees ({pct}%)" rows from the Price Breakdown sidebar. Total Price is now the only summary line and equals subtotal.
+  - Admin editor (`AdminDashboard/GroupToursAdmin.jsx`): Dropped the "Tax %" input from the editor form and the "Tax %" column from the admin package list. `EMPTY_PKG` seed + PUT/POST payload serializer no longer carry `tax_pct`.
+  - Verified end-to-end via curl (Almaty Eid quote returns `tax_pct:0.0, tax_amount:0.0, total:6498.0`) and Playwright screenshot (Price Breakdown shows `2 × Adults — Twin/Double sharing AED 6,498` and `Total Price AED 6,498` with no tax row).
+
 ## MOCKED
 - Google Sheets sync, PayPal checkout, Aviationstack, Credit Card/EMI/Tabby payments (wallet payment is LIVE)
 
