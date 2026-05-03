@@ -87,6 +87,15 @@ class HotelRow(BaseModel):
     hotel_id: Optional[str] = None                   # optional reference to /hotels catalog
 
 
+class TransferRow(BaseModel):
+    transfer_id: Optional[str] = None                # optional reference to /transfers catalog
+    label: str = ""                                  # display label e.g. "Airport → Hotel (Sedan)"
+    from_location: str = ""
+    to_location: str = ""
+    vehicle_type: str = ""
+    note: str = ""
+
+
 class GroupTourPackageBase(BaseModel):
     title: str
     destination: str
@@ -106,6 +115,7 @@ class GroupTourPackageBase(BaseModel):
     highlights: List[str] = Field(default_factory=list)
     itinerary: List[ItineraryDay] = Field(default_factory=list)
     hotels: List[HotelRow] = Field(default_factory=list)
+    transfers: List[TransferRow] = Field(default_factory=list)
     inclusions: Dict[str, List[str]] = Field(default_factory=dict)
     exclusions: List[str] = Field(default_factory=list)
     what_to_expect: List[str] = Field(default_factory=list)
@@ -132,6 +142,7 @@ class GroupTourPackageUpdate(BaseModel):
     highlights: Optional[List[str]] = None
     itinerary: Optional[List[ItineraryDay]] = None
     hotels: Optional[List[HotelRow]] = None
+    transfers: Optional[List[TransferRow]] = None
     inclusions: Optional[Dict[str, List[str]]] = None
     exclusions: Optional[List[str]] = None
     what_to_expect: Optional[List[str]] = None

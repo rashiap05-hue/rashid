@@ -20,9 +20,10 @@ import RichTextEditor from './RichTextEditor';
 import CatalogPicker from './CatalogPicker';
 import { api } from '@/App';
 
-/* Lazy loaders for the Activities + Hotels + Cities catalogs (cached per-mount). */
+/* Lazy loaders for the Activities + Hotels + Transfers + Cities catalogs (cached per-mount). */
 let _activitiesCache = null;
 let _hotelsCache = null;
+let _transfersCache = null;
 let _citiesCache = null;
 const stripHtml = (html) => (html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 async function loadActivities() {
@@ -49,6 +50,19 @@ async function loadHotels() {
     raw: h,
   }));
   _hotelsCache = list;
+  return list;
+}
+async function loadTransfers() {
+  if (_transfersCache) return _transfersCache;
+  const r = await api.get('/transfers');
+  const list = (r.data?.transfers || r.data || []).map((t) => ({
+    id: t.id,
+    label: `${t.from_location || '—'} → ${t.to_location || '—'}`,
+    sub: [t.city, t.country, t.vehicle_type].filter(Boolean).join(' · '),
+    image: (t.images || [])[0] || t.image || '',
+    raw: t,
+  }));
+  _transfersCache = list;
   return list;
 }
 /* Build a predicate that matches items whose `city` / `name` equals the given
