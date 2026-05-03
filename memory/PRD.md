@@ -349,6 +349,8 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - `GroupToursAdmin.jsx` form state + PUT/POST payload extended to carry `transfers: [{transfer_id, label, from_location, to_location, vehicle_type, note}]`. Collapsible "Transfers" section added to the modal between Hotels and Inclusions.
   - Verified end-to-end: PUT `almaty-eid` with 2 Almaty transfers → GET returns them exactly; Playwright-via-screenshot-tool confirms the picker modal shows the "Filtered: Almaty only" pill with the 2 Almaty transfers + "Scoped to Almaty · 2 items" footer when the Almaty package is being edited.
 
+- **Group Tours Editor — Accidental-close bug fixed (Feb 2026)**: Removed click-outside-to-close on the `Edit Group Tour Package` modal so in-progress edits (itinerary, hotels, transfers, pricing, etc.) are no longer lost when users accidentally click the dark backdrop area while interacting with nested catalog pickers. The editor now only closes via the explicit X icon, the Cancel button, or a successful Save. Verified across 7 click scenarios (outer-backdrop, side-backdrop, picker-backdrop, picker X, picker item-select, Cancel button, Save) — editor correctly stays open for all backdrop clicks and only dismisses when the user explicitly chooses to.
+
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
 - P2: AI-powered trip recommendations frontend

@@ -184,8 +184,8 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()} data-testid="group-tour-editor">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col" data-testid="group-tour-editor">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="font-black text-gray-900 text-lg">{isEdit ? 'Edit' : 'Add'} Group Tour Package</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X size={20} /></button>
