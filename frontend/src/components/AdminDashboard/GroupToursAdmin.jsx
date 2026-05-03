@@ -5,7 +5,7 @@ import {
   Section, BulletListEditor, ItineraryEditor, HotelsEditor, TransfersEditor, InclusionsEditor, ParagraphListEditor,
   loadCities,
 } from './GroupTourEditorSections';
-import ImageUploadField from './ImageUploadField';
+import MultiImageUploadField from './MultiImageUploadField';
 import RichTextEditor from './RichTextEditor';
 import CatalogPicker from './CatalogPicker';
 
@@ -24,6 +24,7 @@ const EMPTY_PKG = {
   date_range: '', stars: 3, tax_pct: 5, target_margin_pct: 25,
   pricing: EMPTY_PRICING,
   image: '',
+  images: [],
   gradient: 'linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%)',
   active: true,
   intro_paragraph: '',
@@ -87,9 +88,13 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
 
   useEffect(() => {
     if (pkg) {
+      const incomingImages = Array.isArray(pkg.images) && pkg.images.length > 0
+        ? pkg.images
+        : (pkg.image ? [pkg.image] : []);
       setForm({
         ...EMPTY_PKG,
         ...pkg,
+        images: incomingImages,
         pricing: { ...EMPTY_PRICING, ...(pkg.pricing || {}) },
       });
     } else {
@@ -127,7 +132,8 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
         destination: form.destination,
         subtitle: form.subtitle,
         date_range: form.date_range,
-        image: form.image,
+        image: (form.images && form.images[0]) || form.image || '',
+        images: Array.isArray(form.images) ? form.images.filter(Boolean).slice(0, 5) : [],
         gradient: form.gradient,
         active: form.active,
         nights: Number(form.nights) || 0,
@@ -145,16 +151,23 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
           hotel_note: d.hotel_note || '',
           activity_id: d.activity_id || null,
           activity_name: d.activity_name || null,
+          images: Array.isArray(d.images) ? d.images.filter(Boolean).slice(0, 5) : [],
         })),
-        hotels: (form.hotels || []).map(h => ({
-          name: h.name || '',
-          stars: Number(h.stars) || 3,
-          nights: Number(h.nights) || 1,
-          room_type: h.room_type || '',
-          meal_plan: h.meal_plan || '',
-          image: h.image || '',
-          hotel_id: h.hotel_id || null,
-        })),
+        hotels: (form.hotels || []).map(h => {
+          const hotelImages = Array.isArray(h.images) && h.images.length > 0
+            ? h.images.filter(Boolean).slice(0, 5)
+            : (h.image ? [h.image] : []);
+          return {
+            name: h.name || '',
+            stars: Number(h.stars) || 3,
+            nights: Number(h.nights) || 1,
+            room_type: h.room_type || '',
+            meal_plan: h.meal_plan || '',
+            image: hotelImages[0] || h.image || '',
+            images: hotelImages,
+            hotel_id: h.hotel_id || null,
+          };
+        }),
         transfers: (form.transfers || []).map(t => ({
           transfer_id: t.transfer_id || null,
           label: t.label || '',
@@ -241,12 +254,13 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
               />
             </div>
             <div className="col-span-2">
-              <ImageUploadField
-                label="Cover Image"
-                value={form.image || ''}
-                onChange={(url) => update('image', url)}
+              <MultiImageUploadField
+                label="Cover Images"
+                images={form.images || []}
+                onChange={(imgs) => setForm(f => ({ ...f, images: imgs, image: imgs[0] || '' }))}
                 packageId={pkg?.id || form.title}
-                testidPrefix="gt-field-image"
+                maxImages={5}
+                testidPrefix="gt-field-cover-images"
               />
             </div>
           </div>
@@ -372,6 +386,7 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
               days={form.itinerary || []}
               onChange={(days) => update('itinerary', days)}
               destination={form.destination}
+              packageId={pkg?.id || form.title}
             />
           </Section>
 

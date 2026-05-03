@@ -420,7 +420,12 @@ export default function GroupTourDetail({ deal, onBack }) {
     }
   };
 
-  const galleryImages = [deal?.image, deal?.image, deal?.image];
+  // Use up to 5 admin-uploaded cover images; fall back to the legacy single-image
+  // (repeated to fill the 3-up gallery layout) when only one is available.
+  const adminImages = (Array.isArray(deal?.images) ? deal.images.filter(Boolean) : []).slice(0, 5);
+  const galleryImages = adminImages.length >= 2
+    ? adminImages
+    : [deal?.image, deal?.image, deal?.image].filter(Boolean);
   const title = deal?.title || `${pkg.destination} Package`;
   const price = Number(deal?.price_per_adult ?? deal?.price ?? 3293);
 

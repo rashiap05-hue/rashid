@@ -75,6 +75,7 @@ class ItineraryDay(BaseModel):
     hotel_note: str = ""
     activity_id: Optional[str] = None                # optional reference to /activities catalog
     activity_name: Optional[str] = None              # denormalized for quick display
+    images: List[str] = Field(default_factory=list)  # up to 5 images; index 0 = primary
 
 
 class HotelRow(BaseModel):
@@ -83,7 +84,8 @@ class HotelRow(BaseModel):
     nights: int = 1
     room_type: str = "Standard Room"
     meal_plan: str = "Bed & Breakfast"
-    image: str = ""
+    image: str = ""                                  # legacy single-image field (kept in sync with images[0])
+    images: List[str] = Field(default_factory=list)  # up to 5 images; index 0 = primary
     hotel_id: Optional[str] = None                   # optional reference to /hotels catalog
 
 
@@ -106,7 +108,8 @@ class GroupTourPackageBase(BaseModel):
     pricing: PricingTiers = Field(default_factory=PricingTiers)
     tax_pct: float = 5.0
     target_margin_pct: float = 25.0  # used to compute "Suggested Display Price" hints
-    image: str = ""
+    image: str = ""                                  # legacy single-image (kept in sync with images[0])
+    images: List[str] = Field(default_factory=list)  # up to 5 cover images; index 0 = primary
     gradient: str = "linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%)"
     active: bool = True
 
@@ -136,6 +139,7 @@ class GroupTourPackageUpdate(BaseModel):
     tax_pct: Optional[float] = None
     target_margin_pct: Optional[float] = None
     image: Optional[str] = None
+    images: Optional[List[str]] = None
     gradient: Optional[str] = None
     active: Optional[bool] = None
     intro_paragraph: Optional[str] = None
@@ -305,9 +309,52 @@ def _migrate_legacy(pkg: dict) -> dict:
     return pkg
 
 
+def _sync_image_fields(pkg: dict) -> None:
+    """Keep the legacy `image: str` field in sync with `images: List[str]` across
+    the top-level package, every hotel row, and every itinerary day.
+
+    Rules:
+    - If `images` is a non-empty list, set `image = images[0]`.
+    - If `images` is empty/missing but `image` is set, backfill `images = [image]`.
+    - Otherwise leave both empty.
+    This runs on both writes (before insert/update) and reads (after fetch) so
+    old docs without `images` automatically surface as a 1-image list to the UI.
+    """
+    def _sync_one(obj: dict) -> None:
+        imgs = obj.get("images")
+        if isinstance(imgs, list):
+            imgs = [str(x).strip() for x in imgs if x and str(x).strip()]
+        else:
+            imgs = []
+        legacy = (obj.get("image") or "").strip()
+        if imgs:
+            obj["images"] = imgs[:5]  # enforce max 5
+            obj["image"] = obj["images"][0]
+        elif legacy:
+            obj["images"] = [legacy]
+            obj["image"] = legacy
+        else:
+            obj["images"] = []
+            obj["image"] = ""
+
+    _sync_one(pkg)
+    for h in (pkg.get("hotels") or []):
+        if isinstance(h, dict):
+            _sync_one(h)
+    for d in (pkg.get("itinerary") or []):
+        if isinstance(d, dict):
+            imgs = d.get("images")
+            if isinstance(imgs, list):
+                imgs = [str(x).strip() for x in imgs if x and str(x).strip()][:5]
+            else:
+                imgs = []
+            d["images"] = imgs
+
+
 def _project_for_response(pkg: dict) -> dict:
     """Add the legacy `price_per_adult` derived field for the public response."""
     _migrate_legacy(pkg)
+    _sync_image_fields(pkg)
     pkg["price_per_adult"] = float(pkg["pricing"].get("twin_double", {}).get("display_price") or 0)
     pkg.pop("child_age_rules", None)  # no longer surfaced
     return pkg
@@ -514,6 +561,7 @@ async def create_group_tour(body: GroupTourPackageCreate, current_user: dict = D
     doc["id"] = str(uuid.uuid4())
     doc["created_at"] = now
     doc["updated_at"] = now
+    _sync_image_fields(doc)
     await db.group_tour_packages.insert_one(doc)
     doc.pop("_id", None)
     return _project_for_response(doc)
@@ -528,6 +576,13 @@ async def update_group_tour(pkg_id: str, body: GroupTourPackageUpdate, current_u
         raise HTTPException(status_code=404, detail="Package not found")
     update = {k: v for k, v in body.dict(exclude_unset=True).items() if v is not None}
     update["updated_at"] = _now()
+    # If images/image/hotels/itinerary are being updated, mirror the legacy single-image field.
+    if any(k in update for k in ("image", "images", "hotels", "itinerary")):
+        merged = {**existing, **update}
+        _sync_image_fields(merged)
+        for k in ("image", "images", "hotels", "itinerary"):
+            if k in update:
+                update[k] = merged[k]
     await db.group_tour_packages.update_one({"id": pkg_id}, {"$set": update})
     fresh = await db.group_tour_packages.find_one({"id": pkg_id}, {"_id": 0})
     return _project_for_response(fresh)

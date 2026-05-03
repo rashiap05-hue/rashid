@@ -173,7 +173,7 @@ const MEAL_OPTIONS = [
   { v: 'D', label: 'Dinner' },
 ];
 
-function SortableDay({ id, index, day, total, onUpdate, onRemove, destination }) {
+function SortableDay({ id, index, day, total, onUpdate, onRemove, destination, packageId }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -283,12 +283,22 @@ function SortableDay({ id, index, day, total, onUpdate, onRemove, destination })
         className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
         data-testid={`itin-${index}-hotel-note`}
       />
+      <div className="mt-2">
+        <MultiImageUploadField
+          label={`Day ${day.day || index + 1} Images`}
+          images={Array.isArray(day.images) ? day.images : []}
+          onChange={(imgs) => onUpdate({ images: imgs })}
+          packageId={packageId}
+          maxImages={5}
+          testidPrefix={`itin-${index}-images`}
+        />
+      </div>
       <div className="text-[10px] text-gray-400 mt-1">Position {index + 1} of {total}</div>
     </div>
   );
 }
 
-export function ItineraryEditor({ days, onChange, destination }) {
+export function ItineraryEditor({ days, onChange, destination, packageId }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -325,6 +335,7 @@ export function ItineraryEditor({ days, onChange, destination }) {
                 day={d}
                 total={days.length}
                 destination={destination}
+                packageId={packageId}
                 onUpdate={(patch) => update(i, patch)}
                 onRemove={() => remove(i)}
               />
@@ -346,12 +357,16 @@ export function ItineraryEditor({ days, onChange, destination }) {
 }
 
 /* ---------- Hotels editor ---------- */
-import ImageUploadField from './ImageUploadField';
+import MultiImageUploadField from './MultiImageUploadField';
 
 export function HotelsEditor({ hotels, onChange, packageId = '', destination }) {
   const update = (i, patch) => onChange(hotels.map((h, idx) => (idx === i ? { ...h, ...patch } : h)));
   const remove = (i) => onChange(hotels.filter((_, idx) => idx !== i));
-  const add = () => onChange([...hotels, { name: '', stars: 3, nights: 1, room_type: 'Standard Room', meal_plan: 'Bed & Breakfast', image: '', hotel_id: null }]);
+  const add = () => onChange([...hotels, {
+    name: '', stars: 3, nights: 1,
+    room_type: 'Standard Room', meal_plan: 'Bed & Breakfast',
+    image: '', images: [], hotel_id: null,
+  }]);
 
   const onPickHotel = (i, item) => {
     if (!item) {
@@ -359,11 +374,14 @@ export function HotelsEditor({ hotels, onChange, packageId = '', destination }) 
       return;
     }
     const raw = item.raw || {};
+    const catalogImages = Array.isArray(raw.images) ? raw.images.filter(Boolean).slice(0, 5) : [];
+    const fallbackImg = raw.image || '';
     update(i, {
       hotel_id: item.id,
       name: item.label,
       stars: Number(raw.star_rating || raw.stars || 3),
-      image: (raw.images && raw.images[0]) || raw.image || '',
+      image: catalogImages[0] || fallbackImg || '',
+      images: catalogImages.length ? catalogImages : (fallbackImg ? [fallbackImg] : []),
     });
   };
 
@@ -372,8 +390,11 @@ export function HotelsEditor({ hotels, onChange, packageId = '', destination }) 
       {hotels.length === 0 && <p className="text-xs text-gray-400 italic">No hotels yet.</p>}
       {hotels.map((h, i) => {
         const selectedHotel = h.hotel_id
-          ? { id: h.hotel_id, label: h.name || 'Linked hotel', sub: h.stars ? `${h.stars}★` : '', image: h.image || '' }
+          ? { id: h.hotel_id, label: h.name || 'Linked hotel', sub: h.stars ? `${h.stars}★` : '', image: (h.images && h.images[0]) || h.image || '' }
           : null;
+        const hotelImages = Array.isArray(h.images) && h.images.length > 0
+          ? h.images
+          : (h.image ? [h.image] : []);
         return (
           <div key={i} className="border border-gray-200 rounded-lg p-3 bg-gray-50 space-y-2" data-testid={`hotel-${i}`}>
             <div className="flex items-center justify-between gap-2">
@@ -421,12 +442,13 @@ export function HotelsEditor({ hotels, onChange, packageId = '', destination }) 
                 <input type="text" value={h.meal_plan} onChange={e => update(i, { meal_plan: e.target.value })} placeholder="Bed & Breakfast" className="w-full border border-gray-300 rounded px-2 py-1 text-sm" />
               </div>
               <div className="col-span-4">
-                <ImageUploadField
-                  label="Hotel Image (override)"
-                  value={h.image || ''}
-                  onChange={(url) => update(i, { image: url })}
+                <MultiImageUploadField
+                  label="Hotel Images (override)"
+                  images={hotelImages}
+                  onChange={(imgs) => update(i, { images: imgs, image: imgs[0] || '' })}
                   packageId={packageId}
-                  testidPrefix={`hotel-${i}-img`}
+                  maxImages={5}
+                  testidPrefix={`hotel-${i}-images`}
                 />
               </div>
             </div>
