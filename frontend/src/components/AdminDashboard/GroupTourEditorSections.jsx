@@ -268,36 +268,58 @@ function SortableDay({ id, index, day, total, onUpdate, onRemove, destination, p
   };
 
   // Pick at slot `slotIndex` (or append when slotIndex === linkedActivities.length).
-  const onPickActivityAt = (slotIndex, isFirstSlot) => (item) => {
+  // Each pick regenerates the day's `desc` from ALL currently-linked activity
+  // descriptions so that adding a 2nd or 3rd activity keeps the rich-text body
+  // in sync. Slot 0 (or the very first pick) additionally seeds the day title.
+  const onPickActivityAt = (slotIndex, isFirstSlot) => async (item) => {
     const next = [...linkedActivities];
     if (!item) {
       next.splice(slotIndex, 1);
-      writeActivities(next);
-      return;
-    }
-    const a = item.raw || {};
-    const img = (Array.isArray(a.images) && a.images[0]) || a.image || item.image || '';
-    next[slotIndex] = {
-      id: item.id,
-      name: item.label,
-      image: img,
-      sub: item.sub || '',
-      duration: a.duration || '',
-    };
-    if (isFirstSlot && slotIndex === 0) {
-      // Seed day's title/desc from the very first activity (only when the
-      // first slot itself is being set).
-      const trimmed = next.filter(x => x && x.id).slice(0, 5);
-      onUpdate({
-        activities: trimmed,
-        activity_id: trimmed[0]?.id || null,
-        activity_name: trimmed[0]?.name || null,
-        title: item.label || day.title,
-        desc: a.description ? `<p>${a.description.replace(/\n+/g, '</p><p>')}</p>` : day.desc,
-      });
     } else {
-      writeActivities(next);
+      const a = item.raw || {};
+      const img = (Array.isArray(a.images) && a.images[0]) || a.image || item.image || '';
+      next[slotIndex] = {
+        id: item.id,
+        name: item.label,
+        image: img,
+        sub: item.sub || '',
+        duration: a.duration || '',
+      };
     }
+    const trimmed = next.filter(x => x && x.id).slice(0, 5);
+
+    // Build a fresh description by joining each linked activity's catalog
+    // description (looked up from the cached `loadActivities()` list). This
+    // overwrites any previously-auto-generated copy so the text always
+    // reflects the current activity selection.
+    let regeneratedDesc = day.desc;
+    try {
+      const catalog = await Promise.resolve(loadActivities());
+      const byId = new Map((catalog || []).map(it => [it.id, it]));
+      const paragraphs = trimmed
+        .map(a => {
+          const hit = byId.get(a.id);
+          const raw = (hit && hit.raw) || {};
+          return (raw.description || '').trim();
+        })
+        .filter(Boolean);
+      if (paragraphs.length > 0) {
+        regeneratedDesc = paragraphs
+          .map(p => `<p>${p.replace(/\n+/g, '</p><p>')}</p>`)
+          .join('');
+      }
+    } catch {/* leave desc unchanged on lookup failure */}
+
+    const patch = {
+      activities: trimmed,
+      activity_id: trimmed[0]?.id || null,
+      activity_name: trimmed[0]?.name || null,
+      desc: regeneratedDesc,
+    };
+    if (isFirstSlot && slotIndex === 0 && item) {
+      patch.title = item.label || day.title;
+    }
+    onUpdate(patch);
   };
 
   // Linked transfer (read from day.transfer_id + denormalised label)

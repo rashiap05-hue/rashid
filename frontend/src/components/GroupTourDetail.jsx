@@ -37,10 +37,20 @@ function buildPackage(deal) {
     'Shopping & Leisure Time at the Most Famous Bazaars & Malls',
   ];
 
-  // Backend now returns itinerary as { day, title, desc, meals, hotel_note }.
-  // Detail page expects { day, title, desc, meal, hotel } — map keys.
+  // Backend now returns itinerary as { day, title, desc, meals, hotel_note,
+  // date, activities[{id,name,image,sub,duration}], transfer_label }.
+  // Detail page expects { day, title, desc, meal, hotel, date, activities, transfer } — map keys.
   const itinerary = (deal?.itinerary && deal.itinerary.length)
-    ? deal.itinerary.map(d => ({ day: d.day, title: d.title, desc: d.desc, meal: d.meals || [], hotel: d.hotel_note || null }))
+    ? deal.itinerary.map(d => ({
+        day: d.day,
+        title: d.title,
+        desc: d.desc,
+        meal: d.meals || [],
+        hotel: d.hotel_note || null,
+        date: d.date || null,
+        activities: Array.isArray(d.activities) ? d.activities : [],
+        transfer: d.transfer_label || null,
+      }))
     : [
         { day: 1, title: `Arrival in ${destination}`, desc: `On arrival at ${destination} International Airport, our representative will welcome you and transfer you to the hotel for check-in. Relax and spend the evening at leisure. Enjoy dinner at your leisure before retiring for the night.`, meal: ['D'], hotel: 'Check-in to the hotel' },
         { day: 2, title: `Full Day ${destination} City Tour`, desc: `After breakfast, embark on a guided ${destination} city tour covering the Old City, cultural landmarks, religious monuments and viewpoints with panoramic city vistas. Enjoy lunch at a traditional restaurant before heading back to the hotel.`, meal: ['B', 'L'], hotel: `Overnight stay at hotel in ${destination}` },
@@ -109,7 +119,19 @@ const MEAL_META = {
 };
 
 /* ---------- Sub-components ---------- */
+const _resolveActImg = (src) =>
+  !src ? '' : (src.startsWith('http') ? src : (process.env.REACT_APP_BACKEND_URL + src));
+
+const _formatDayDate = (iso) => {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
+  } catch { return iso; }
+};
+
 function DayCard({ entry }) {
+  const acts = (entry.activities || []).filter(a => a && a.id);
   return (
     <div className="flex gap-4 pb-6 border-b border-gray-200 last:border-b-0" data-testid={`itinerary-day-${entry.day}`}>
       <div className="flex-shrink-0">
@@ -117,9 +139,40 @@ function DayCard({ entry }) {
           <div className="text-[10px] font-bold uppercase tracking-wider opacity-90">Day</div>
           <div className="text-lg font-black leading-none">{String(entry.day).padStart(2, '0')}</div>
         </div>
+        {entry.date && (
+          <div className="mt-1.5 text-[10px] text-center text-gray-500 font-semibold uppercase tracking-wider min-w-[78px]" data-testid={`itinerary-day-${entry.day}-date`}>
+            {_formatDayDate(entry.date)}
+          </div>
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <h3 className="font-black text-gray-900 text-base md:text-lg mb-2">{entry.title}</h3>
+
+        {/* Linked activities — rich cards (image + name + sub) */}
+        {acts.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3" data-testid={`itinerary-day-${entry.day}-activities`}>
+            {acts.map((a, i) => (
+              <div
+                key={a.id || i}
+                className="flex items-center gap-2 p-2 bg-emerald-50/60 border border-emerald-100 rounded-lg"
+                data-testid={`itinerary-day-${entry.day}-activity-${i}`}
+              >
+                {a.image && (
+                  <img
+                    src={_resolveActImg(a.image)}
+                    alt=""
+                    className="w-12 h-12 object-cover rounded-md flex-shrink-0"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-emerald-900 truncate">{a.name}</div>
+                  {a.sub && <div className="text-[11px] text-emerald-700 truncate">{a.sub}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div
           className="text-sm text-gray-600 leading-relaxed mb-3 prose prose-sm max-w-none"
           dangerouslySetInnerHTML={{ __html: entry.desc }}
@@ -137,6 +190,11 @@ function DayCard({ entry }) {
                 ) : null;
               })}
             </div>
+          )}
+          {entry.transfer && (
+            <span className="inline-flex items-center gap-1 text-gray-600" data-testid={`itinerary-day-${entry.day}-transfer`}>
+              <Plane size={14} className="text-blue-600" /> {entry.transfer}
+            </span>
           )}
           {entry.hotel && (
             <span className="inline-flex items-center gap-1 text-gray-600">
