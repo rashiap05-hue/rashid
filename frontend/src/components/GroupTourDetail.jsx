@@ -7,6 +7,7 @@ import {
 import { api } from '@/App';
 import ActivityDetailModal from './ActivityDetailModal';
 import GroupTourCustomerModal from './GroupTourDetail/GroupTourCustomerModal';
+import SaveProposalModal from './TripBuilder/SaveProposalModal';
 
 /* ---------- Fallback-safe image ---------- */
 function DealImage({ src, alt, gradient, label, className }) {
@@ -872,24 +873,57 @@ export default function GroupTourDetail({ deal, onBack, onBookFromGroupTour, onP
         </section>
       </div>
 
-      {/* Customer details modal for Book Now / Save As Proposal */}
+      {/* Book Now modal — small form (customer name/email/phone only) */}
       <GroupTourCustomerModal
-        open={customerModalMode !== null}
-        mode={customerModalMode || 'save'}
+        open={customerModalMode === 'book'}
+        mode="book"
         dealId={deal?.id}
         leavingFrom={leavingFrom}
         leavingOn={selectedDate}
         rooms={roomsOccupancy}
         onClose={() => setCustomerModalMode(null)}
-        onSaved={(proposal, mode) => {
+        onSaved={(proposal) => {
           setCustomerModalMode(null);
-          if (mode === 'book' && onBookFromGroupTour) {
-            onBookFromGroupTour(proposal);
-          } else if (onProposalSaved) {
-            onProposalSaved(proposal);
+          if (onBookFromGroupTour) onBookFromGroupTour(proposal);
+        }}
+      />
+
+      {/* Save As Proposal — reuse the full TripBuilder Save Proposal form for consistency */}
+      <SaveProposalModal
+        isOpen={customerModalMode === 'save'}
+        onClose={() => setCustomerModalMode(null)}
+        tripData={{
+          cities: [{ name: deal?.destination || '', nights: deal?.nights || 0 }],
+          leaving_from: leavingFrom,
+          leaving_on: selectedDate,
+          isEditing: false,
+        }}
+        selectedHotels={{}}
+        cities={[{ name: deal?.destination || '', nights: deal?.nights || 0 }]}
+        pricing={quote}
+        onSave={async (data) => {
+          const payload = {
+            customer_name: data.customer_name,
+            customer_email: data.customer_email || '',
+            customer_phone: data.customer_phone || '',
+            leaving_from: leavingFrom,
+            leaving_on: selectedDate,
+            rooms: (roomsOccupancy || []).map(r => ({
+              adults: r.adults || 0,
+              children: (r.children || []).map(c => ({ age: c.age })),
+            })),
+            proposal_name: data.proposal_name,
+            expected_booking_date: data.expected_booking_date,
+            flights_booked: data.flights_booked,
+            markup_value: data.markup_value || 0,
+            markup_type: data.markup_type || 'percentage',
+            discount_amount: data.discount_amount || 0,
+          };
+          const res = await api.post(`/group-tours/${deal.id}/save-as-proposal`, payload);
+          if (onProposalSaved) {
+            onProposalSaved(res.data);
           } else {
-            // Fallback — show inline success confirmation.
-            setSavedToast(`Proposal saved for ${proposal?.customer_name || 'customer'}.`);
+            setSavedToast(`Proposal saved for ${res.data?.customer_name || 'customer'}.`);
             setTimeout(() => setSavedToast(''), 4000);
           }
         }}

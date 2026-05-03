@@ -692,6 +692,13 @@ class SaveAsProposalRequest(BaseModel):
     leaving_on: str  # ISO YYYY-MM-DD
     nationality: str = "United Arab Emirates"
     rooms: List[QuoteRoom]
+    # Optional Save-Proposal extras (match TripBuilder's SaveProposalModal payload)
+    proposal_name: Optional[str] = None
+    expected_booking_date: Optional[str] = None
+    flights_booked: Optional[bool] = None
+    markup_value: float = 0.0
+    markup_type: str = "percentage"   # 'percentage' | 'fixed'
+    discount_amount: float = 0.0
 
 
 @router.post("/group-tours/{pkg_id}/save-as-proposal")
@@ -752,7 +759,19 @@ async def save_group_tour_as_proposal(
             for i, a in enumerate(acts) if a
         ]
 
-    # 4) Assemble proposal doc (matches models.schemas.ProposalResponse)
+    # 4) Apply optional markup + discount to the base quote total
+    base_total = float(quote.total)
+    markup_amount = 0.0
+    if body.markup_value and body.markup_value > 0:
+        if (body.markup_type or "percentage").lower() == "fixed":
+            markup_amount = float(body.markup_value)
+        else:
+            markup_amount = round(base_total * float(body.markup_value) / 100.0, 2)
+    # Discount is capped at the markup (mirrors TripBuilder's SaveProposalModal help text).
+    discount = min(float(body.discount_amount or 0), markup_amount) if markup_amount else 0.0
+    final_total = round(base_total + markup_amount - discount, 2)
+
+    # 5) Assemble proposal doc (matches models.schemas.ProposalResponse)
     proposal_id = str(uuid.uuid4())
     now_iso = datetime.now(timezone.utc).isoformat()
     room_data = [r.dict() for r in (body.rooms or [])]
@@ -770,14 +789,17 @@ async def save_group_tour_as_proposal(
         "room_data": room_data,
         "cities": cities,
         "status": "pending",
-        "total_price": float(quote.total),
+        "total_price": final_total,
         "created_at": now_iso,
         "selected_hotels": selected_hotels,
         "selected_activities": selected_activities,
         "pricing_breakdown": {
-            "total": float(quote.total),
+            "total": final_total,
             "subtotal": float(quote.subtotal),
             "lines": [ln.dict() for ln in quote.lines],
+            "markup_amount": markup_amount,
+            "discount_amount": discount,
+            "base_total": base_total,
         },
         "total_pax": total_pax,
         "total_nights": nights,
@@ -785,7 +807,13 @@ async def save_group_tour_as_proposal(
         "customer_name": body.customer_name,
         "customer_email": body.customer_email or "",
         "customer_phone": body.customer_phone or "",
-        "proposal_name": pkg.get("title") or "Group Tour",
+        "proposal_name": (body.proposal_name or pkg.get("title") or "Group Tour"),
+        "expected_booking_date": body.expected_booking_date or None,
+        "flights_booked": body.flights_booked,
+        "markup_value": float(body.markup_value or 0),
+        "markup_type": body.markup_type or "percentage",
+        "markup_land": markup_amount,
+        "discount_amount": discount,
         # Back-reference so we know this proposal was spawned from a group tour.
         "group_tour_id": pkg_id,
         "group_tour_title": pkg.get("title") or "",
