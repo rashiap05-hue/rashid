@@ -145,8 +145,17 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
         highlights: (form.highlights || []).filter(x => (x || '').trim()),
         itinerary: (form.itinerary || []).map(d => {
           const activities = Array.isArray(d.activities) && d.activities.length > 0
-            ? d.activities.filter(a => a && a.id).map(a => ({ id: a.id, name: a.name || '' })).slice(0, 5)
-            : (d.activity_id ? [{ id: d.activity_id, name: d.activity_name || '' }] : []);
+            ? d.activities
+                .filter(a => a && a.id)
+                .map(a => ({
+                  id: a.id,
+                  name: a.name || '',
+                  image: a.image || '',
+                  sub: a.sub || '',
+                  duration: a.duration || '',
+                }))
+                .slice(0, 5)
+            : (d.activity_id ? [{ id: d.activity_id, name: d.activity_name || '', image: '', sub: '', duration: '' }] : []);
           return {
             day: Number(d.day) || 1,
             title: d.title || '',

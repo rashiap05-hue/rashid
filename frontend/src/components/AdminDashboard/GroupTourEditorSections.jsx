@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, Trash2, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
 import {
   DndContext,
@@ -189,16 +189,77 @@ function SortableDay({ id, index, day, total, onUpdate, onRemove, destination, p
   // activity_id/activity_name auto-promoted into the array if present).
   const linkedActivities = (() => {
     if (Array.isArray(day.activities) && day.activities.length > 0) {
-      return day.activities.slice(0, 5);
+      return day.activities.slice(0, 5).map(a => ({
+        id: a.id,
+        name: a.name || '',
+        image: a.image || '',
+        sub: a.sub || '',
+        duration: a.duration || '',
+      }));
     }
     if (day.activity_id) {
-      return [{ id: day.activity_id, name: day.activity_name || day.title || 'Linked activity' }];
+      return [{
+        id: day.activity_id,
+        name: day.activity_name || day.title || 'Linked activity',
+        image: '',
+        sub: '',
+        duration: '',
+      }];
     }
     return [];
   })();
 
+  // Hydrate any linked activity that's missing `image` or `sub` from the
+  // Activities catalog (one lookup per editor mount, then re-uses the cached
+  // list). This is purely visual — saving the package will naturally persist
+  // the enriched values.
+  useEffect(() => {
+    if (linkedActivities.length === 0) return;
+    const needsHydrate = linkedActivities.some(a => a && a.id && (!a.image || !a.sub));
+    if (!needsHydrate) return;
+    let cancelled = false;
+    Promise.resolve(loadActivities()).then((catalog) => {
+      if (cancelled) return;
+      const byId = new Map((catalog || []).map(it => [it.id, it]));
+      const enriched = linkedActivities.map(a => {
+        if (!a.id || (a.image && a.sub)) return a;
+        const hit = byId.get(a.id);
+        if (!hit) return a;
+        const raw = hit.raw || {};
+        const img = (Array.isArray(raw.images) && raw.images[0]) || raw.image || hit.image || '';
+        return {
+          ...a,
+          name: a.name || hit.label,
+          image: a.image || img,
+          sub: a.sub || hit.sub || '',
+          duration: a.duration || raw.duration || '',
+        };
+      });
+      const changed = enriched.some((a, i) => a !== linkedActivities[i]);
+      if (changed) {
+        onUpdate({
+          activities: enriched,
+          activity_id: enriched[0]?.id || null,
+          activity_name: enriched[0]?.name || null,
+        });
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  // Re-run only when the linked-activity ids change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedActivities.map(a => a.id).join('|')]);
+
   const writeActivities = (next) => {
-    const trimmed = next.filter(a => a && a.id).slice(0, 5);
+    const trimmed = next
+      .filter(a => a && a.id)
+      .map(a => ({
+        id: a.id,
+        name: a.name || '',
+        image: a.image || '',
+        sub: a.sub || '',
+        duration: a.duration || '',
+      }))
+      .slice(0, 5);
     onUpdate({
       activities: trimmed,
       activity_id: trimmed[0]?.id || null,
@@ -214,11 +275,18 @@ function SortableDay({ id, index, day, total, onUpdate, onRemove, destination, p
       writeActivities(next);
       return;
     }
-    next[slotIndex] = { id: item.id, name: item.label };
+    const a = item.raw || {};
+    const img = (Array.isArray(a.images) && a.images[0]) || a.image || item.image || '';
+    next[slotIndex] = {
+      id: item.id,
+      name: item.label,
+      image: img,
+      sub: item.sub || '',
+      duration: a.duration || '',
+    };
     if (isFirstSlot && slotIndex === 0) {
       // Seed day's title/desc from the very first activity (only when the
       // first slot itself is being set).
-      const a = item.raw || {};
       const trimmed = next.filter(x => x && x.id).slice(0, 5);
       onUpdate({
         activities: trimmed,
@@ -299,7 +367,7 @@ function SortableDay({ id, index, day, total, onUpdate, onRemove, destination, p
           {linkedActivities.map((act, slotIdx) => (
             <CatalogPicker
               key={`act-${slotIdx}-${act.id || 'empty'}`}
-              selected={act.id ? { id: act.id, label: act.name || 'Linked activity', sub: '', image: '' } : null}
+              selected={act.id ? { id: act.id, label: act.name || 'Linked activity', sub: act.sub || '', image: act.image || '' } : null}
               onSelect={onPickActivityAt(slotIdx, slotIdx === 0)}
               loadItems={loadActivities}
               placeholder="Pick activity from catalog…"

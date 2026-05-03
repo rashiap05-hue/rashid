@@ -71,6 +71,9 @@ class ActivityRef(BaseModel):
     """Lightweight reference to an activity, denormalised for quick display."""
     id: str
     name: str = ""
+    image: str = ""               # primary thumbnail URL (denormalised from the activity catalog)
+    sub: str = ""                 # display sub-line e.g. "Almaty · Kazakhstan · 5 hrs"
+    duration: str = ""            # raw duration e.g. "5 hrs" (when available)
 
 
 class ItineraryDay(BaseModel):
@@ -366,7 +369,13 @@ def _sync_image_fields(pkg: dict) -> None:
                 cleaned = []
                 for a in acts:
                     if isinstance(a, dict) and a.get("id"):
-                        cleaned.append({"id": str(a["id"]), "name": str(a.get("name") or "")})
+                        cleaned.append({
+                            "id": str(a["id"]),
+                            "name": str(a.get("name") or ""),
+                            "image": str(a.get("image") or ""),
+                            "sub": str(a.get("sub") or ""),
+                            "duration": str(a.get("duration") or ""),
+                        })
                 acts = cleaned[:5]
             else:
                 acts = []
@@ -377,7 +386,7 @@ def _sync_image_fields(pkg: dict) -> None:
                 d["activity_id"] = acts[0]["id"]
                 d["activity_name"] = acts[0]["name"] or legacy_name
             elif legacy_id:
-                d["activities"] = [{"id": str(legacy_id), "name": legacy_name}]
+                d["activities"] = [{"id": str(legacy_id), "name": legacy_name, "image": "", "sub": "", "duration": ""}]
             else:
                 d["activities"] = []
 
