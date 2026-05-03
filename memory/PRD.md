@@ -391,6 +391,12 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - **Public detail page** (`GroupTourDetail.jsx`): New "Terms" tab appears dynamically next to Itinerary / Flights / Hotels **only when** the package has non-empty T&C content. Tab body renders the stored HTML via `dangerouslySetInnerHTML` inside a Tailwind `prose` container for clean typography, so bold headings, bullet lists, and paragraph breaks all surface correctly to customers.
   - Verified end-to-end via curl (437-char HTML round-trip with `<strong>` tags intact) and Playwright (admin `gt-section-terms` mounts + expands; public `pkg-tab-terms` visible + `pkg-tab-terms-content` renders the full three-clause sample T&C text).
 
+- **Group Tours — Default T&C template shipped (Feb 2026)**: Per ops request, pre-loaded the full company-standard Refund & Cancellation Policy (transcribed from the PDF reference) as the default `terms_and_conditions` for every new Group Tour package. Lives in `AdminDashboard/defaultTerms.js` and is imported by `GroupToursAdmin.jsx`.
+  - Template content: H2 main heading "Refund & Cancellation Policy"; 5 bold sub-sections (Cancellation by Customer / Cancellation by Travo Tours / Travel Insurance / Force Majeure / Flight Cancellations); Visa Requirements - Kazakhstan bullet list (8 clauses); General Terms & Conditions bullet list (35 clauses). ≈7,950 chars total.
+  - `EMPTY_PKG.terms_and_conditions = DEFAULT_TERMS_HTML` so new packages auto-carry the template.
+  - Existing packages can adopt the template at any time via the new "↻ Load Default Template" button inside the T&C section — button asks for a JS `window.confirm` when the current T&C has content, so ops can't accidentally wipe custom edits.
+  - Verified end-to-end: PUT 7,953-char HTML round-trips intact · public Terms tab renders 1 H2, 14 paragraphs, 2 ULs, 42 bullets matching the ops reference document.
+
 - **Group Tours — Admin description auto-regenerates from linked activities (Feb 2026)**: Previously, only the FIRST activity pick seeded the day's `desc`; adding a 2nd or 3rd activity left the description out of sync. Now every pick at every slot rebuilds the day's `desc` by concatenating each linked activity's catalog `description` (looked up from the cached `loadActivities()` list) into a `<p>…</p>` paragraph stack. Slot 0 still seeds the day's `title`. Verified end-to-end via curl + Playwright: 3 Almaty activities linked → 3 paragraphs in `desc`, public page shows the 3 activity cards above the combined description.
 
 ## Upcoming Tasks

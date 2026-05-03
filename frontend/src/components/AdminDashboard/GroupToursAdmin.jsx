@@ -8,6 +8,7 @@ import {
 import MultiImageUploadField from './MultiImageUploadField';
 import RichTextEditor from './RichTextEditor';
 import CatalogPicker from './CatalogPicker';
+import { DEFAULT_TERMS_HTML } from './defaultTerms';
 
 const BLANK_TIER = { supplier_cost: 0, display_price: 0 };
 
@@ -35,7 +36,7 @@ const EMPTY_PKG = {
   inclusions: {},
   exclusions: [],
   what_to_expect: [],
-  terms_and_conditions: '',
+  terms_and_conditions: DEFAULT_TERMS_HTML,
 };
 
 const TIER_ROWS = [
@@ -470,6 +471,26 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
             count={(form.terms_and_conditions || '').trim() ? 1 : 0}
             testid="gt-section-terms"
           >
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-[11px] text-gray-500">
+                Tip: the default template is auto-loaded for new packages. Edit any clause or use the button to restore the full default.
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    !(form.terms_and_conditions || '').trim() ||
+                    window.confirm('Replace the current Terms & Conditions with the default template? Any custom edits will be lost.')
+                  ) {
+                    update('terms_and_conditions', DEFAULT_TERMS_HTML);
+                  }
+                }}
+                className="px-3 py-1.5 bg-[#002B5B] hover:bg-[#003d82] text-white text-xs font-bold rounded whitespace-nowrap"
+                data-testid="gt-terms-load-default"
+              >
+                ↻ Load Default Template
+              </button>
+            </div>
             <RichTextEditor
               value={form.terms_and_conditions || ''}
               onChange={(html) => update('terms_and_conditions', html)}
