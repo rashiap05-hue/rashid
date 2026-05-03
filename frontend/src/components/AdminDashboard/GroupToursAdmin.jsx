@@ -493,7 +493,7 @@ export default function GroupToursAdmin() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/group-tours');
+      const res = await api.get('/group-tours', { params: { include_inactive: true } });
       setList(res.data || []);
     } finally {
       setLoading(false);

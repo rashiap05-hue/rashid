@@ -483,9 +483,18 @@ async def _seed_defaults_if_empty() -> None:
 # Public endpoints
 # ---------------------------------------------------------------------------
 @router.get("/group-tours", response_model=List[GroupTourPackageResponse])
-async def list_group_tours():
+async def list_group_tours(include_inactive: bool = False):
+    """
+    By default returns only packages marked `active=True` (used by the public
+    Group Tours listing page).
+    Pass `?include_inactive=true` to fetch *all* packages — used by the admin
+    dashboard so ops can see and re-enable packages that were accidentally
+    deactivated (otherwise a hidden package would disappear from the admin list
+    too and become unreachable via the UI).
+    """
     await _seed_defaults_if_empty()
-    docs = await db.group_tour_packages.find({"active": True}, {"_id": 0}).to_list(500)
+    query = {} if include_inactive else {"active": True}
+    docs = await db.group_tour_packages.find(query, {"_id": 0}).to_list(500)
     return [_project_for_response(d) for d in docs]
 
 
