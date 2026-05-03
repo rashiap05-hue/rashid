@@ -151,6 +151,9 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
           hotel_note: d.hotel_note || '',
           activity_id: d.activity_id || null,
           activity_name: d.activity_name || null,
+          transfer_id: d.transfer_id || null,
+          transfer_label: d.transfer_label || null,
+          date: d.date || null,
           images: Array.isArray(d.images) ? d.images.filter(Boolean).slice(0, 5) : [],
         })),
         hotels: (form.hotels || []).map(h => {

@@ -75,6 +75,9 @@ class ItineraryDay(BaseModel):
     hotel_note: str = ""
     activity_id: Optional[str] = None                # optional reference to /activities catalog
     activity_name: Optional[str] = None              # denormalized for quick display
+    transfer_id: Optional[str] = None                # optional reference to /transfers catalog
+    transfer_label: Optional[str] = None             # denormalized e.g. "Airport → Hotel (Sedan)"
+    date: Optional[str] = None                       # ISO date "YYYY-MM-DD" (optional manual override)
     images: List[str] = Field(default_factory=list)  # up to 5 images; index 0 = primary
 
 

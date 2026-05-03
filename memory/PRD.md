@@ -358,6 +358,12 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - **Public detail page** (`GroupTourDetail.jsx`): The 3-up hero gallery now reads from `deal.images[]` when ≥2 admin-uploaded images exist (graceful fallback to the repeated legacy `image` for older packages).
   - Verified end-to-end via curl (PUT 7 images → 5 stored, hotels[0].images round-trips, itinerary[0/1].images round-trips, legacy `image` stays mirrored to `images[0]`) and Playwright screenshot (cover widget shows "(3/5) · First image = primary" header with PRIMARY badge on slot 1, 4th slot is the dashed-border "Add image" tile, URL-paste + Add adds new images on the fly, hotel and itinerary widgets mount inside their respective editors).
 
+- **Group Tours — Per-day Date + Linked Transfer (Feb 2026)**: Each itinerary day now carries an explicit `date` (ISO `YYYY-MM-DD`) and an optional `transfer_id` + `transfer_label` link to the Transfers catalog (scoped to the package's destination, mirroring the Activity picker pattern).
+  - **Backend** (`routes/group_tours.py`): `ItineraryDay` schema extended with `date`, `transfer_id`, `transfer_label` (all `Optional[str]`). Round-trips cleanly; legacy days that don't carry these fields default to `null` and continue to render fine.
+  - **Frontend** (`SortableDay` inside `GroupTourEditorSections.jsx`): Day header row now hosts a compact native `<input type="date">` next to the title field. A new "Linked Transfer (from Transfers catalog)" picker sits directly below the Activity picker and uses the same destination-scoped `_cityScopeFilter`. Selected transfers persist as a green emerald pill identical to the Activity / Hotel pickers.
+  - **Payload** (`GroupToursAdmin.jsx`): Itinerary serializer now passes `date`, `transfer_id`, `transfer_label` through on both POST and PUT.
+  - Verified end-to-end via curl (`PUT almaty-eid` with 3 days + dates + 2 linked transfers → re-GET returns all fields correctly) and Playwright screenshot (date input shows `2026-05-26`, transfer picker opens with "Filtered: Almaty only" pill listing the 2 Almaty transfers).
+
 ## Upcoming Tasks
 - P1: Integrate Stripe on Pay Now button (test key in pod)
 - P2: AI-powered trip recommendations frontend
