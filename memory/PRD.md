@@ -421,6 +421,12 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
 - Google Sheets sync, PayPal checkout, Aviationstack, Credit Card/EMI/Tabby payments (wallet payment is LIVE)
 
 ## Credentials
+- **Group Tours — Per-package Departure Cities + Travel Window (Feb 2026)**: Ops can now configure the public "Book your trip" form per-package.
+  - **Backend** (`routes/group_tours.py`): `GroupTourPackageBase` extended with `departure_cities: List[str]` (allowed "Leaving From" options), `travel_window_start: Optional[str]` and `travel_window_end: Optional[str]` (ISO `YYYY-MM-DD`). Same fields added to `GroupTourPackageUpdate` — all Optional so legacy packages round-trip as `[]` / `null` without issue.
+  - **Admin editor** (`AdminDashboard/GroupToursAdmin.jsx`): New **Booking Settings** card (sky-tinted section) between Basic Info and Pricing. Includes a tags-style "Allowed Departure Cities" input (Enter/Add button → chip, X to remove) with inline hint that falls back to the 6 defaults when empty, plus two date inputs for Travel Window Start / End (End clamped ≥ Start via native `min`). `EMPTY_PKG` + PUT/POST payload serializer extended with all 3 fields; empty strings sent as `null` so the backend treats them as "no restriction".
+  - **Public detail page** (`GroupTourDetail.jsx`): The `Leaving From` dropdown now reads from `deal.departure_cities` (falls back to the 6 defaults when unset). The `Leaving On` date input picks up `min={travel_window_start}` / `max={travel_window_end}`, `selectedDate` auto-defaults to `travel_window_start` when set, and a small "Travel window: start → end" hint appears under the picker when either bound exists.
+  - Verified end-to-end via curl (PUT almaty-eid with `{departure_cities:["Dubai","Sharjah"], travel_window_start:"2026-05-24", travel_window_end:"2026-05-31"}` round-trips cleanly) and Playwright (`Leaving From` options = `["Dubai","Sharjah"]`, date input `min=2026-05-24, max=2026-05-31, value=2026-05-24`, hint text present).
+
 - Admin: testadmin@example.com / password123
 - Agent: rashid@travotours.ae / password123
 - Supplier: supplier@georgiancars.ge / password123 (company: Travo Georgia)

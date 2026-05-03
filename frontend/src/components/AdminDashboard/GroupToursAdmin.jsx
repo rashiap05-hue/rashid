@@ -37,6 +37,9 @@ const EMPTY_PKG = {
   exclusions: [],
   what_to_expect: [],
   terms_and_conditions: DEFAULT_TERMS_HTML,
+  departure_cities: [],
+  travel_window_start: '',
+  travel_window_end: '',
 };
 
 const TIER_ROWS = [
@@ -82,6 +85,109 @@ const MarginBadge = ({ margin, target }) => {
     </span>
   );
 };
+
+function DepartureCitiesEditor({ cities, onChange, windowStart, windowEnd, onWindowStart, onWindowEnd }) {
+  const [input, setInput] = useState('');
+  const list = Array.isArray(cities) ? cities : [];
+
+  const addCity = () => {
+    const v = (input || '').trim();
+    if (!v) return;
+    if (list.some(c => c.toLowerCase() === v.toLowerCase())) {
+      setInput('');
+      return;
+    }
+    onChange([...list, v]);
+    setInput('');
+  };
+
+  const removeCity = (idx) => {
+    onChange(list.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <div className="border border-sky-200 bg-sky-50/40 rounded-lg p-4 space-y-4" data-testid="gt-booking-settings">
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="font-black text-sm text-gray-800 uppercase tracking-wide">Booking Settings</h3>
+          <span className="text-[10px] text-gray-500">Controls the public "Book your trip" form</span>
+        </div>
+        <p className="text-xs text-gray-600">Leave a field empty to use the platform defaults.</p>
+      </div>
+
+      <div>
+        <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Allowed Departure Cities</label>
+        <div className="flex gap-2 mb-2">
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { e.preventDefault(); addCity(); }
+            }}
+            placeholder="Type a city (e.g. Dubai) and press Enter"
+            className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+            data-testid="gt-field-departure-city-input"
+          />
+          <button
+            type="button"
+            onClick={addCity}
+            className="px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded"
+            data-testid="gt-field-departure-city-add"
+          >
+            Add
+          </button>
+        </div>
+        {list.length === 0 ? (
+          <p className="text-xs text-gray-500 italic">No cities set — agents will see the platform default list (Dubai, Abu Dhabi, Sharjah, Bangalore, Mumbai, Delhi).</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5" data-testid="gt-field-departure-cities">
+            {list.map((c, idx) => (
+              <span key={`${c}-${idx}`} className="inline-flex items-center gap-1 bg-white border border-sky-300 text-sky-800 px-2.5 py-1 rounded-full text-xs font-semibold">
+                {c}
+                <button
+                  type="button"
+                  onClick={() => removeCity(idx)}
+                  className="ml-0.5 text-sky-500 hover:text-red-600"
+                  title="Remove"
+                  data-testid={`gt-field-departure-city-remove-${idx}`}
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Travel Window — Start</label>
+          <input
+            type="date"
+            value={windowStart || ''}
+            onChange={e => onWindowStart(e.target.value)}
+            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+            data-testid="gt-field-travel-window-start"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Travel Window — End</label>
+          <input
+            type="date"
+            value={windowEnd || ''}
+            onChange={e => onWindowEnd(e.target.value)}
+            min={windowStart || undefined}
+            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+            data-testid="gt-field-travel-window-end"
+          />
+        </div>
+      </div>
+      <p className="text-[11px] text-gray-500">
+        Leaving On date picker on the public page is restricted to this window. Leave both empty to allow any future date.
+      </p>
+    </div>
+  );
+}
 
 function PackageEditorModal({ open, pkg, onClose, onSaved }) {
   const [form, setForm] = useState(EMPTY_PKG);
@@ -201,6 +307,11 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
         exclusions: (form.exclusions || []).filter(x => (x || '').trim()),
         what_to_expect: (form.what_to_expect || []).filter(x => (x || '').trim()),
         terms_and_conditions: form.terms_and_conditions || '',
+        departure_cities: (form.departure_cities || [])
+          .map(c => (c || '').trim())
+          .filter(Boolean),
+        travel_window_start: form.travel_window_start || null,
+        travel_window_end: form.travel_window_end || null,
       };
       if (isEdit) {
         await api.put(`/group-tours/${pkg.id}`, payload);
@@ -280,6 +391,16 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
               />
             </div>
           </div>
+
+          {/* Booking Settings — controls the public "Book your trip" form */}
+          <DepartureCitiesEditor
+            cities={form.departure_cities || []}
+            onChange={(list) => update('departure_cities', list)}
+            windowStart={form.travel_window_start || ''}
+            windowEnd={form.travel_window_end || ''}
+            onWindowStart={(v) => update('travel_window_start', v)}
+            onWindowEnd={(v) => update('travel_window_end', v)}
+          />
 
           {/* Pricing — B2B + Display */}
           <div className="border border-gray-200 rounded-lg overflow-hidden" data-testid="gt-pricing-table">

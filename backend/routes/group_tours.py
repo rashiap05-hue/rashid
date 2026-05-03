@@ -126,6 +126,11 @@ class GroupTourPackageBase(BaseModel):
     gradient: str = "linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%)"
     active: bool = True
 
+    # Booking-card settings (control the public "Book your trip" form)
+    departure_cities: List[str] = Field(default_factory=list)  # allowed "Leaving From" options; empty → default list
+    travel_window_start: Optional[str] = None  # ISO "YYYY-MM-DD" — min date for the picker
+    travel_window_end: Optional[str] = None    # ISO "YYYY-MM-DD" — max date for the picker
+
     # Rich itinerary content (editable from Admin → Group Tours)
     intro_paragraph: str = ""
     highlights: List[str] = Field(default_factory=list)
@@ -165,6 +170,9 @@ class GroupTourPackageUpdate(BaseModel):
     exclusions: Optional[List[str]] = None
     what_to_expect: Optional[List[str]] = None
     terms_and_conditions: Optional[str] = None
+    departure_cities: Optional[List[str]] = None
+    travel_window_start: Optional[str] = None
+    travel_window_end: Optional[str] = None
 
 
 class GroupTourPackageResponse(GroupTourPackageBase):

@@ -460,10 +460,21 @@ function RoomsOccupancyPicker({ rooms, onChange, testid = 'pkg-rooms-adults' }) 
 export default function GroupTourDetail({ deal, onBack }) {
   const pkg = buildPackage(deal);
   const [activeTab, setActiveTab] = useState('itinerary');
-  const [selectedDate, setSelectedDate] = useState('2026-07-10');
+
+  // Allowed "Leaving From" cities — admin-managed per-package; fall back to platform default.
+  const DEFAULT_DEPARTURE_CITIES = ['Dubai', 'Abu Dhabi', 'Sharjah', 'Bangalore', 'Mumbai', 'Delhi'];
+  const allowedDepartureCities = (Array.isArray(deal?.departure_cities) && deal.departure_cities.length > 0)
+    ? deal.departure_cities
+    : DEFAULT_DEPARTURE_CITIES;
+
+  // Travel window — used to clamp the "Leaving On" date picker.
+  const travelWindowStart = deal?.travel_window_start || '';
+  const travelWindowEnd = deal?.travel_window_end || '';
+
+  const [selectedDate, setSelectedDate] = useState(travelWindowStart || '2026-07-10');
   // Per-room occupancy — each room has its own adults & array of children (each with an age bracket)
   const [roomsOccupancy, setRoomsOccupancy] = useState([{ adults: 2, children: [] }]);
-  const [leavingFrom, setLeavingFrom] = useState('Dubai');
+  const [leavingFrom, setLeavingFrom] = useState(allowedDepartureCities[0] || 'Dubai');
   const [quote, setQuote] = useState(null);
   const [calculating, setCalculating] = useState(false);
 
@@ -572,7 +583,7 @@ export default function GroupTourDetail({ deal, onBack }) {
                       className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm font-semibold text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
                       data-testid="pkg-leaving-from"
                     >
-                      {['Dubai', 'Abu Dhabi', 'Sharjah', 'Bangalore', 'Mumbai', 'Delhi'].map(c => (
+                      {allowedDepartureCities.map(c => (
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </select>
@@ -583,9 +594,16 @@ export default function GroupTourDetail({ deal, onBack }) {
                       type="date"
                       value={selectedDate}
                       onChange={e => setSelectedDate(e.target.value)}
+                      min={travelWindowStart || undefined}
+                      max={travelWindowEnd || undefined}
                       className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-sm font-semibold text-gray-900 focus:outline-none focus:ring-1 focus:ring-sky-500"
                       data-testid="pkg-date-input"
                     />
+                    {(travelWindowStart || travelWindowEnd) && (
+                      <p className="mt-1 text-[11px] text-gray-500" data-testid="pkg-travel-window-hint">
+                        Travel window: {travelWindowStart || '—'} to {travelWindowEnd || '—'}
+                      </p>
+                    )}
                   </div>
                 </div>
 
