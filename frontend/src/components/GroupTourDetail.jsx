@@ -483,6 +483,14 @@ export default function GroupTourDetail({ deal, onBack, onBookFromGroupTour, onP
   const [customerModalMode, setCustomerModalMode] = useState(null);
   const [savedToast, setSavedToast] = useState('');
 
+  // If the agent changes date / rooms / leaving from after getting a quote,
+  // clear the stale breakdown so they re-run Check Availability — this also
+  // restores the 3-button top row (Check Availability / Download Brochure / Generate Leads).
+  useEffect(() => {
+    setQuote(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, leavingFrom, JSON.stringify(roomsOccupancy)]);
+
   /* Download the WeasyPrint brochure PDF for this package. */
   const downloadBrochure = async () => {
     if (!deal?.id || downloadingBrochure) return;
@@ -643,30 +651,32 @@ export default function GroupTourDetail({ deal, onBack, onBookFromGroupTour, onP
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 pt-2">
-                  <button
-                    onClick={computeQuote}
-                    disabled={calculating}
-                    className="py-3 px-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-md text-xs md:text-sm tracking-wide disabled:opacity-70"
-                    data-testid="pkg-check-availability"
-                  >
-                    {calculating ? 'Calculating...' : 'Check Availability'}
-                  </button>
-                  <button
-                    onClick={downloadBrochure}
-                    disabled={downloadingBrochure}
-                    className="py-3 px-3 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-md text-xs md:text-sm tracking-wide disabled:opacity-70"
-                    data-testid="pkg-download-brochure"
-                  >
-                    {downloadingBrochure ? 'Preparing...' : 'Download Brochure'}
-                  </button>
-                  <button
-                    className="py-3 px-3 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-md text-xs md:text-sm tracking-wide"
-                    data-testid="pkg-generate-leads"
-                  >
-                    Generate Leads
-                  </button>
-                </div>
+                {!quote && (
+                  <div className="grid grid-cols-3 gap-2 pt-2">
+                    <button
+                      onClick={computeQuote}
+                      disabled={calculating}
+                      className="py-3 px-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-md text-xs md:text-sm tracking-wide disabled:opacity-70"
+                      data-testid="pkg-check-availability"
+                    >
+                      {calculating ? 'Calculating...' : 'Check Availability'}
+                    </button>
+                    <button
+                      onClick={downloadBrochure}
+                      disabled={downloadingBrochure}
+                      className="py-3 px-3 bg-[#002B5B] hover:bg-[#003d82] text-white font-bold rounded-md text-xs md:text-sm tracking-wide disabled:opacity-70"
+                      data-testid="pkg-download-brochure"
+                    >
+                      {downloadingBrochure ? 'Preparing...' : 'Download Brochure'}
+                    </button>
+                    <button
+                      className="py-3 px-3 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-md text-xs md:text-sm tracking-wide"
+                      data-testid="pkg-generate-leads"
+                    >
+                      Generate Leads
+                    </button>
+                  </div>
+                )}
 
                 {quote && (
                   <div className="mt-3 bg-gradient-to-br from-sky-50 to-blue-50 border border-sky-200 rounded-lg p-4 space-y-2 text-sm" data-testid="pkg-quote-breakdown">
