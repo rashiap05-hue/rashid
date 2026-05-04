@@ -873,6 +873,49 @@ async def save_group_tour_as_proposal(
         if len(pkg_flights) > 1:
             departure_flight_info = _to_pv(pkg_flights[-1])
 
+    # 5) Resolve arrival / departure transfers from the first / last itinerary
+    # day's `transfer_id`. Looked up against the /transfers catalog so the saved
+    # proposal carries the same shape ProposalView expects (id, title, from/to,
+    # max_bags, notes, vehicle_type, image).
+    arrival_transfer = None
+    departure_transfer = None
+    itin_days = pkg.get("itinerary") or []
+    transfer_ids = []
+    if itin_days:
+        first_id = (itin_days[0] or {}).get("transfer_id")
+        if first_id:
+            transfer_ids.append(("arrival", first_id, (itin_days[0] or {}).get("transfer_label", "")))
+        if len(itin_days) > 1:
+            last_id = (itin_days[-1] or {}).get("transfer_id")
+            if last_id:
+                transfer_ids.append(("departure", last_id, (itin_days[-1] or {}).get("transfer_label", "")))
+    if transfer_ids:
+        ids_only = list({tid for _, tid, _ in transfer_ids})
+        cursor = db.transfers.find(
+            {"id": {"$in": ids_only}},
+            {"_id": 0, "id": 1, "title": 1, "from_location": 1, "to_location": 1,
+             "vehicle_type": 1, "max_bags": 1, "notes": 1, "images": 1, "image": 1},
+        )
+        catalog = {t["id"]: t async for t in cursor}
+        for kind, tid, label_override in transfer_ids:
+            t = catalog.get(tid)
+            if not t:
+                continue
+            obj = {
+                "id": t["id"],
+                "title": label_override or t.get("title", ""),
+                "from_location": t.get("from_location", ""),
+                "to_location": t.get("to_location", ""),
+                "vehicle_type": t.get("vehicle_type", ""),
+                "max_bags": t.get("max_bags"),
+                "notes": t.get("notes", ""),
+                "image": (t.get("images") or [None])[0] or t.get("image", ""),
+            }
+            if kind == "arrival":
+                arrival_transfer = obj
+            else:
+                departure_transfer = obj
+
     # 4) Apply optional markup + discount to the base quote total
     base_total = float(quote.total)
     markup_amount = 0.0
@@ -926,6 +969,8 @@ async def save_group_tour_as_proposal(
         "flights_booked": body.flights_booked,
         "arrival_flight_info": arrival_flight_info,
         "departure_flight_info": departure_flight_info,
+        "arrival_transfer": arrival_transfer,
+        "departure_transfer": departure_transfer,
         # Full structured flight cards — group-tour proposals only.
         # ProposalView renders the rich FlightsBlock when this array is set.
         "flights": pkg_flights,
