@@ -759,14 +759,13 @@ export default function GroupTourDetail({ deal, onBack, onBookFromGroupTour, onP
           </div>
         </section>
 
-        {/* TABS */}
+        {/* TABS — Terms moved out to a dedicated full-width section below */}
         <div className="bg-white rounded-xl border border-gray-200">
           <div className="flex gap-1 border-b border-gray-200 px-5 md:px-6 overflow-x-auto">
             {[
               { k: 'flights', label: 'Flights' },
               { k: 'hotels', label: 'Hotels' },
               { k: 'itinerary', label: 'Itinerary' },
-              ...((pkg.terms_and_conditions || '').trim() ? [{ k: 'terms', label: 'Terms' }] : []),
             ].map(t => (
               <button
                 key={t.k}
@@ -804,14 +803,6 @@ export default function GroupTourDetail({ deal, onBack, onBookFromGroupTour, onP
               <div>
                 {pkg.hotels.map((h, i) => <HotelRow key={i} h={h} i={i} />)}
               </div>
-            )}
-
-            {activeTab === 'terms' && (
-              <div
-                className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: pkg.terms_and_conditions }}
-                data-testid="pkg-tab-terms-content"
-              />
             )}
           </div>
         </div>
@@ -871,6 +862,19 @@ export default function GroupTourDetail({ deal, onBack, onBookFromGroupTour, onP
             )}
           </div>
         </section>
+
+        {/* TERMS — full-width section, only rendered when terms_and_conditions is set */}
+        {(pkg.terms_and_conditions || '').trim() && (
+          <section className="bg-white rounded-xl border border-gray-200 p-5 md:p-6 mt-6" data-testid="pkg-terms-section">
+            <h2 className="text-lg font-black text-gray-900 mb-4 flex items-center gap-2">
+              <span className="w-1.5 h-6 bg-gray-700 rounded-full" /> Terms &amp; Conditions
+            </h2>
+            <div
+              className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: pkg.terms_and_conditions }}
+            />
+          </section>
+        )}
       </div>
 
       {/* Book Now modal — small form (customer name/email/phone only) */}
