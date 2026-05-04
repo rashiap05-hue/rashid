@@ -18,6 +18,7 @@ import {
   PriceSidebar, formatDate, addDays, TERMS_ICONS
 } from './ProposalView/index';
 import RequestChangesTab from './ProposalView/RequestChangesTab';
+import FlightsBlock from './GroupTourDetail/FlightsBlock';
 
 // Main Proposal View Component
 export default function ProposalView({ proposal: initialProposal, onBack, onBookNow, onEditProposal, onHoldBooking, onViewBooking }) {
@@ -591,6 +592,13 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                 </div>
 
                 {/* Flights Section */}
+                {/* Group-tour proposals carry a structured `flights[]` array — render the rich brochure cards. */}
+                {Array.isArray(proposal.flights) && proposal.flights.length > 0 ? (
+                  <div className="bg-white border border-gray-200 rounded-xl mb-8 shadow-sm p-6" data-testid="flights-section">
+                    <FlightsBlock flights={proposal.flights} />
+                  </div>
+                ) : (
+                <>
                 {/* Flights Section - Only show when flights are added */}
                 {(proposal.arrival_flight_info?.airline || proposal.departure_flight_info?.airline) && (
                 <div className="bg-white border border-gray-200 rounded-xl mb-8 shadow-sm" data-testid="flights-section">
@@ -775,6 +783,8 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                   </div>
                   )}
                 </div>
+                )}
+                </>
                 )}
 
                 {/* Hotel Section - Per City */}

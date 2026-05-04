@@ -926,6 +926,9 @@ async def save_group_tour_as_proposal(
         "flights_booked": body.flights_booked,
         "arrival_flight_info": arrival_flight_info,
         "departure_flight_info": departure_flight_info,
+        # Full structured flight cards — group-tour proposals only.
+        # ProposalView renders the rich FlightsBlock when this array is set.
+        "flights": pkg_flights,
         "markup_value": float(body.markup_value or 0),
         "markup_type": body.markup_type or "percentage",
         "markup_land": markup_amount,

@@ -127,6 +127,11 @@ class ProposalResponse(BaseModel):
     booking_id: Optional[str] = None
     booking_ref: Optional[str] = None
     booking_number: Optional[int] = None
+    # Group-tour proposals carry the full structured flights array so the
+    # ProposalView can render the rich brochure-style flight cards.
+    flights: Optional[List[Dict]] = None
+    group_tour_id: Optional[str] = None
+    group_tour_title: Optional[str] = None
 
 class FlightCreate(BaseModel):
     airline: str
