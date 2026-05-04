@@ -293,6 +293,10 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
             image: hotelImages[0] || h.image || '',
             images: hotelImages,
             hotel_id: h.hotel_id || null,
+            check_in_time: h.check_in_time || '',
+            check_out_time: h.check_out_time || '',
+            check_in_date: h.check_in_date || '',
+            check_out_date: h.check_out_date || '',
           };
         }),
         transfers: (form.transfers || []).map(t => ({
