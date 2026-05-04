@@ -1,5 +1,6 @@
-import React from 'react';
-import { Plane, X, Plus } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Plane, X, Plus, Upload, Loader2 } from 'lucide-react';
+import { api } from '@/App';
 
 /* Empty flight segment template (mirrors the backend FlightSegment Pydantic model). */
 const EMPTY_FLIGHT = {
@@ -11,6 +12,77 @@ const EMPTY_FLIGHT = {
   duration: '', fare: 'Basic', baggage: '20 kg',
   meals: 'At Extra Cost', cabin: 'Economy',
 };
+
+/* Upload-or-paste logo widget for a single airline.
+ * Click thumbnail to upload a file (≤2 MB), or paste a URL.
+ * Reuses the existing /api/uploads/group-tour-image endpoint. */
+function AirlineLogoField({ value, onChange, idx }) {
+  const ref = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  const upload = async (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setErr('Pick an image'); return; }
+    if (file.size > 2 * 1024 * 1024) { setErr('Logo must be ≤ 2 MB'); return; }
+    setBusy(true); setErr('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('package_id', `airline_${idx}`);
+      const res = await api.post('/uploads/group-tour-image', fd, {
+        headers: { 'Content-Type': undefined },
+        transformRequest: [(d) => d],
+      });
+      onChange(res.data.url);
+    } catch (e) {
+      setErr(e?.response?.data?.detail || 'Upload failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div>
+      <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Airline Logo</label>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => ref.current?.click()}
+          className="relative w-16 h-12 border-2 border-dashed border-gray-300 rounded bg-white hover:border-sky-400 hover:bg-sky-50 flex items-center justify-center flex-shrink-0 overflow-hidden"
+          title="Click to upload a logo"
+          data-testid={`gt-flight-${idx}-logo-upload`}
+        >
+          {busy ? (
+            <Loader2 size={16} className="animate-spin text-sky-500" />
+          ) : value ? (
+            <img src={value} alt="logo" className="max-w-full max-h-full object-contain" />
+          ) : (
+            <Upload size={16} className="text-gray-400" />
+          )}
+        </button>
+        <input
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="…or paste URL"
+          className="flex-1 border border-gray-300 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="text-gray-400 hover:text-red-600 p-1"
+            title="Remove logo"
+          >
+            <X size={14} />
+          </button>
+        )}
+        <input ref={ref} type="file" accept="image/*" className="hidden" onChange={(e) => upload(e.target.files?.[0])} />
+      </div>
+      {err && <p className="text-[11px] text-red-600 mt-1">{err}</p>}
+    </div>
+  );
+}
 
 function Field({ label, children, span = 1 }) {
   return (
@@ -46,7 +118,11 @@ function FlightCard({ flight, idx, onChange, onRemove }) {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Field label="Airline"><input value={flight.airline} onChange={e => set('airline', e.target.value)} className={cls} placeholder="Air Arabia" /></Field>
         <Field label="Flight Number"><input value={flight.flight_number} onChange={e => set('flight_number', e.target.value)} className={cls} placeholder="G9-253" /></Field>
-        <Field label="Airline Logo URL"><input value={flight.airline_logo} onChange={e => set('airline_logo', e.target.value)} className={cls} placeholder="https://..." /></Field>
+        <AirlineLogoField
+          value={flight.airline_logo}
+          onChange={(v) => set('airline_logo', v)}
+          idx={idx}
+        />
       </div>
 
       <div className="border-t border-gray-100 pt-3">
