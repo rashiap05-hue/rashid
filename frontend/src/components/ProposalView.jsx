@@ -406,6 +406,12 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
   // departure is on day X but local arrival lands on X+1). Falls back to
   // `leaving_on` for trips without flight info.
   const tripStartStr = proposal.arrival_flight_info?.arrivalDate || proposal.leaving_on;
+  // For red-eye departures (e.g. flight at 03:30 AM), the customer actually
+  // transfers to the airport the previous evening. Render the departure day
+  // card with the transfer date, not the flight's calendar date.
+  const _depFlightTime = proposal.departure_flight_info?.flightTime || '';
+  const _depFlightHour = parseInt((_depFlightTime.split(':')[0] || '0'), 10);
+  const _isRedEyeDeparture = _depFlightTime && _depFlightHour < 6;
   const checkInDate = new Date(tripStartStr);
   const checkOutDate = addDays(tripStartStr, nightsCount);
 
@@ -1002,6 +1008,14 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                     const isArrivalDay = dayNum === 1 && !hasOwnActivities;
                     const isDepartureDay = dayNum === daysCount && !hasOwnActivities;
                     const isMiddleDay = !isArrivalDay && !isDepartureDay;
+
+                    // If this is the departure day and the return flight is a
+                    // red-eye (before 06:00), shift the visible date one day
+                    // earlier — the customer actually transfers to the airport
+                    // the previous evening.
+                    if (isDepartureDay && _isRedEyeDeparture) {
+                      dayDate.setDate(dayDate.getDate() - 1);
+                    }
                     
                     // Check for inter-city transfer arriving on this day
                     let interCityTransfer = null;
