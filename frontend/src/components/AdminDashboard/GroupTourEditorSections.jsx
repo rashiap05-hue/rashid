@@ -560,6 +560,7 @@ export function HotelsEditor({ hotels, onChange, packageId = '', destination }) 
   const add = () => onChange([...hotels, {
     name: '', stars: 3, nights: 1,
     room_type: 'Standard Room', meal_plan: 'Bed & Breakfast',
+    check_in_time: '3:00 PM', check_out_time: '12:00 PM',
     image: '', images: [], hotel_id: null,
   }]);
 
@@ -635,6 +636,28 @@ export function HotelsEditor({ hotels, onChange, packageId = '', destination }) 
               <div className="col-span-2">
                 <label className="block text-[10px] uppercase text-gray-500 font-bold mb-0.5">Meal Plan</label>
                 <input type="text" value={h.meal_plan} onChange={e => update(i, { meal_plan: e.target.value })} placeholder="Bed & Breakfast" className="w-full border border-gray-300 rounded px-2 py-1 text-sm" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-0.5">Check-in Time</label>
+                <input
+                  type="text"
+                  value={h.check_in_time || ''}
+                  onChange={e => update(i, { check_in_time: e.target.value })}
+                  placeholder="3:00 PM"
+                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  data-testid={`hotel-${i}-checkin-time`}
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-0.5">Check-out Time</label>
+                <input
+                  type="text"
+                  value={h.check_out_time || ''}
+                  onChange={e => update(i, { check_out_time: e.target.value })}
+                  placeholder="12:00 PM"
+                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  data-testid={`hotel-${i}-checkout-time`}
+                />
               </div>
               <div className="col-span-4">
                 <MultiImageUploadField
