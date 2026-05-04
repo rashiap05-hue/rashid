@@ -8,6 +8,7 @@ import {
 import MultiImageUploadField from './MultiImageUploadField';
 import RichTextEditor from './RichTextEditor';
 import CatalogPicker from './CatalogPicker';
+import FlightsEditor from './FlightsEditor';
 import { DEFAULT_TERMS_HTML } from './defaultTerms';
 
 const BLANK_TIER = { supplier_cost: 0, display_price: 0 };
@@ -40,6 +41,7 @@ const EMPTY_PKG = {
   departure_cities: [],
   travel_window_start: '',
   travel_window_end: '',
+  flights: [],
 };
 
 const TIER_ROWS = [
@@ -312,6 +314,7 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
           .filter(Boolean),
         travel_window_start: form.travel_window_start || null,
         travel_window_end: form.travel_window_end || null,
+        flights: Array.isArray(form.flights) ? form.flights : [],
       };
       if (isEdit) {
         await api.put(`/group-tours/${pkg.id}`, payload);
@@ -400,6 +403,12 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
             windowEnd={form.travel_window_end || ''}
             onWindowStart={(v) => update('travel_window_start', v)}
             onWindowEnd={(v) => update('travel_window_end', v)}
+          />
+
+          {/* Flights — structured cards rendered on the public Flights tab */}
+          <FlightsEditor
+            flights={form.flights || []}
+            onChange={(next) => update('flights', next)}
           />
 
           {/* Pricing — B2B + Display */}

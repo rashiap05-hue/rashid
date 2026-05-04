@@ -129,6 +129,35 @@ class TransferRow(BaseModel):
     note: str = ""
 
 
+class FlightSegment(BaseModel):
+    """One flight leg shown in the Group Tour Flights tab.
+
+    Mirrors the structured card layout from the brochure (airline + flight #,
+    departure timestamp + airport/terminal, duration, arrival timestamp +
+    airport, fare class / baggage / meals / cabin).
+    """
+    airline: str = ""               # "Air Arabia"
+    airline_logo: str = ""          # optional URL; falls back to a generic plane icon
+    flight_number: str = ""         # "G9-253"
+    from_city: str = ""             # "Sharjah"
+    from_airport: str = ""          # "Sharjah Airport"
+    from_code: str = ""             # "SHJ"
+    from_terminal: str = ""         # "1" or "" — appended as "Term…"
+    to_city: str = ""               # "Almaty"
+    to_airport: str = ""            # "Almaty Airport"
+    to_code: str = ""               # "ALA"
+    to_terminal: str = ""
+    departure_date: str = ""        # ISO "YYYY-MM-DD"
+    departure_time: str = ""        # "20:45" (24h) — frontend formats to AM/PM
+    arrival_date: str = ""          # ISO "YYYY-MM-DD"
+    arrival_time: str = ""          # "02:30"
+    duration: str = ""              # "3h 10m"
+    fare: str = "Basic"
+    baggage: str = "20 kg"
+    meals: str = "At Extra Cost"
+    cabin: str = "Economy"
+
+
 class GroupTourPackageBase(BaseModel):
     title: str
     destination: str
@@ -159,6 +188,7 @@ class GroupTourPackageBase(BaseModel):
     exclusions: List[str] = Field(default_factory=list)
     what_to_expect: List[str] = Field(default_factory=list)
     terms_and_conditions: str = ""   # rich-text HTML shown on the public "Terms" tab
+    flights: List[FlightSegment] = Field(default_factory=list)  # structured cards on Flights tab
 
 
 class GroupTourPackageCreate(GroupTourPackageBase):
@@ -191,6 +221,7 @@ class GroupTourPackageUpdate(BaseModel):
     departure_cities: Optional[List[str]] = None
     travel_window_start: Optional[str] = None
     travel_window_end: Optional[str] = None
+    flights: Optional[List[FlightSegment]] = None
 
 
 class GroupTourPackageResponse(GroupTourPackageBase):

@@ -7,6 +7,7 @@ import {
 import { api } from '@/App';
 import ActivityDetailModal from './ActivityDetailModal';
 import GroupTourCustomerModal from './GroupTourDetail/GroupTourCustomerModal';
+import FlightsBlock from './GroupTourDetail/FlightsBlock';
 import SaveProposalModal from './TripBuilder/SaveProposalModal';
 
 /* ---------- Fallback-safe image ---------- */
@@ -112,7 +113,7 @@ function buildPackage(deal) {
     { id: 'dubai', title: 'Dubai Explorer', city: 'Dubai', nights: 3, price: 1980, gradient: 'linear-gradient(135deg, #fbbf24 0%, #92400e 100%)' },
   ];
 
-  return { destination, nights, highlights, itinerary, hotels, inclusions, exclusions, similar, intro_paragraph, what_to_expect, terms_and_conditions: deal?.terms_and_conditions || '' };
+  return { destination, nights, highlights, itinerary, hotels, inclusions, exclusions, similar, intro_paragraph, what_to_expect, terms_and_conditions: deal?.terms_and_conditions || '', flights: Array.isArray(deal?.flights) ? deal.flights : [] };
 }
 
 const MEAL_META = {
@@ -793,15 +794,7 @@ export default function GroupTourDetail({ deal, onBack, onBookFromGroupTour, onP
             )}
 
             {activeTab === 'flights' && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3" data-testid="pkg-flights-banner">
-                <Plane size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold text-amber-800 text-sm">Flights</p>
-                  <p className="text-sm text-amber-700 mt-0.5">
-                    To and Fro flights included upto AED 1,100 / pax booked.
-                  </p>
-                </div>
-              </div>
+              <FlightsBlock flights={pkg.flights || deal?.flights || []} />
             )}
 
             {activeTab === 'hotels' && (
