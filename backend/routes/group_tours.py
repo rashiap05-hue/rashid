@@ -818,6 +818,12 @@ async def save_group_tour_as_proposal(
             "images": (h.get("images") or ([h.get("image")] if h.get("image") else [])),
             "image": h.get("image") or "",
             "city": destination,
+            # Admin-configured stay window — overrides ProposalView's computed
+            # check-in/check-out times when present.
+            "check_in_time": h.get("check_in_time") or "",
+            "check_out_time": h.get("check_out_time") or "",
+            "check_in_date": h.get("check_in_date") or "",
+            "check_out_date": h.get("check_out_date") or "",
         }
 
     # 3) Build selected_activities from itinerary days. Use the day's index

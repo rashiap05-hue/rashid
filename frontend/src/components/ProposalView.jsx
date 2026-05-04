@@ -868,15 +868,26 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                               </div>
                             </div>
 
-                            {/* Check-in / Check-out */}
+                            {/* Check-in / Check-out — prefer the admin-configured
+                                 per-hotel values when present (group-tour
+                                 proposals), otherwise fall back to the package's
+                                 leaving_on + nights computation. */}
                             <div className="flex gap-8 mb-4">
                               <div>
                                 <p className="text-gray-500 text-sm">Check-in</p>
-                                <p className="font-medium text-gray-800">02:00 PM {formatDate(checkInDate, 'short')}</p>
+                                <p className="font-medium text-gray-800">
+                                  {hotel?.check_in_time || '02:00 PM'} {hotel?.check_in_date
+                                    ? formatDate(new Date(`${hotel.check_in_date}T00:00:00`), 'short')
+                                    : formatDate(checkInDate, 'short')}
+                                </p>
                               </div>
                               <div className="border-l border-gray-200 pl-8">
                                 <p className="text-gray-500 text-sm">Check-out</p>
-                                <p className="font-medium text-gray-800">12:00 PM {formatDate(checkOutDate, 'short')}</p>
+                                <p className="font-medium text-gray-800">
+                                  {hotel?.check_out_time || '12:00 PM'} {hotel?.check_out_date
+                                    ? formatDate(new Date(`${hotel.check_out_date}T00:00:00`), 'short')
+                                    : formatDate(checkOutDate, 'short')}
+                                </p>
                               </div>
                             </div>
 
