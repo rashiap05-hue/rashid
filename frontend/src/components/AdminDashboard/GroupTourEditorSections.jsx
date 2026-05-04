@@ -322,11 +322,29 @@ function SortableDay({ id, index, day, total, onUpdate, onRemove, destination, p
     onUpdate(patch);
   };
 
-  // Linked transfer (read from day.transfer_id + denormalised label)
-  // NOTE: Per-day transfer picker removed from the admin UI on user request —
-  // existing per-day `transfer_id`/`transfer_label` data is still round-tripped
-  // by the backend and rendered on the public Group Tour Detail page for any
-  // previously-saved days.
+  // Linked transfer (read from day.transfer_id + denormalised label).
+  // Only shown for first day (Arrival) + last day (Departure) per user requirement.
+  const isArrivalDay = index === 0;
+  const isDepartureDay = total > 1 && index === total - 1;
+  const showTransferPicker = isArrivalDay || isDepartureDay;
+  const transferLabel = isArrivalDay ? 'Arrival Transfer' : 'Departure Transfer';
+  const transferPlaceholder = isArrivalDay
+    ? 'Pick the airport-to-hotel transfer…'
+    : 'Pick the hotel-to-airport transfer…';
+
+  const linkedTransfer = day.transfer_id
+    ? { id: day.transfer_id, label: day.transfer_label || 'Selected transfer', sub: '', image: '' }
+    : null;
+
+  const onPickTransfer = (item) => {
+    if (!item) {
+      onUpdate({ transfer_id: null, transfer_label: '' });
+      return;
+    }
+    const raw = item.raw || {};
+    const labelText = item.label || `${raw.from_location || '—'} → ${raw.to_location || '—'}`;
+    onUpdate({ transfer_id: item.id, transfer_label: labelText });
+  };
 
   return (
     <div ref={setNodeRef} style={style} className="border border-gray-200 rounded-lg p-3 bg-gray-50" data-testid={`itin-day-${index}`}>
@@ -428,6 +446,30 @@ function SortableDay({ id, index, day, total, onUpdate, onRemove, destination, p
           </label>
         ))}
       </div>
+
+      {/* Transfer picker — first/last day only (Arrival / Departure) */}
+      {showTransferPicker && (
+        <div className="mb-2 border border-sky-200 bg-sky-50/60 rounded-md p-2.5 space-y-1.5" data-testid={`itin-${index}-transfer`}>
+          <label className="block text-[10px] uppercase text-sky-800 font-bold tracking-wide">{transferLabel}</label>
+          <CatalogPicker
+            selected={linkedTransfer}
+            onSelect={onPickTransfer}
+            loadItems={loadTransfers}
+            placeholder={transferPlaceholder}
+            emptyText="No transfers found in the catalog yet."
+            scopeFilter={_cityScopeFilter(destination)}
+            testid={`itin-${index}-transfer-picker`}
+          />
+          <input
+            type="text"
+            value={day.transfer_label || ''}
+            onChange={e => onUpdate({ transfer_label: e.target.value })}
+            placeholder="Display label (override) — e.g. Airport → Hotel (Sedan)"
+            className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+            data-testid={`itin-${index}-transfer-label`}
+          />
+        </div>
+      )}
       <input
         type="text"
         value={day.hotel_note || ''}
