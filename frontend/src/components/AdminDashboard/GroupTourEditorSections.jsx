@@ -561,6 +561,7 @@ export function HotelsEditor({ hotels, onChange, packageId = '', destination }) 
     name: '', stars: 3, nights: 1,
     room_type: 'Standard Room', meal_plan: 'Bed & Breakfast',
     check_in_time: '3:00 PM', check_out_time: '12:00 PM',
+    check_in_date: '', check_out_date: '',
     image: '', images: [], hotel_id: null,
   }]);
 
@@ -657,6 +658,27 @@ export function HotelsEditor({ hotels, onChange, packageId = '', destination }) 
                   placeholder="12:00 PM"
                   className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                   data-testid={`hotel-${i}-checkout-time`}
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-0.5">Check-in Date</label>
+                <input
+                  type="date"
+                  value={h.check_in_date || ''}
+                  onChange={e => update(i, { check_in_date: e.target.value })}
+                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  data-testid={`hotel-${i}-checkin-date`}
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-0.5">Check-out Date</label>
+                <input
+                  type="date"
+                  value={h.check_out_date || ''}
+                  onChange={e => update(i, { check_out_date: e.target.value })}
+                  min={h.check_in_date || undefined}
+                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  data-testid={`hotel-${i}-checkout-date`}
                 />
               </div>
               <div className="col-span-4">

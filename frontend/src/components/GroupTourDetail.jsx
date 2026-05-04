@@ -65,7 +65,7 @@ function buildPackage(deal) {
       ];
 
   const hotels = (deal?.hotels && deal.hotels.length)
-    ? deal.hotels.map(h => ({ name: h.name, stars: h.stars, nights: h.nights, image: h.image || deal?.image, roomType: h.room_type || 'Standard Room', meal: h.meal_plan || 'Bed & Breakfast', check_in_time: h.check_in_time || '', check_out_time: h.check_out_time || '' }))
+    ? deal.hotels.map(h => ({ name: h.name, stars: h.stars, nights: h.nights, image: h.image || deal?.image, roomType: h.room_type || 'Standard Room', meal: h.meal_plan || 'Bed & Breakfast', check_in_time: h.check_in_time || '', check_out_time: h.check_out_time || '', check_in_date: h.check_in_date || '', check_out_date: h.check_out_date || '' }))
     : [
         { name: `Park Inn by Radisson ${destination} or similar`, stars: 4, nights, image: deal?.image, roomType: 'Standard Twin Room', meal: 'Bed & Breakfast' },
         { name: `Holiday Inn ${destination} or similar`, stars: 4, nights: Math.max(1, nights - 2), image: deal?.image, roomType: 'Superior Room', meal: 'Bed & Breakfast' },
@@ -258,6 +258,13 @@ function HotelRow({ h, i }) {
   const nightsLabel = `Stay for ${nights} ${nights === 1 ? 'night' : 'nights'} at ${h.name || 'this hotel'} or Similar`;
   const checkIn = h.check_in_time || '3:00 PM';
   const checkOut = h.check_out_time || '12:00 PM';
+  const _fmtDate = (iso) => {
+    if (!iso) return '';
+    const d = new Date(`${iso}T00:00:00`);
+    return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  };
+  const checkInDate = _fmtDate(h.check_in_date);
+  const checkOutDate = _fmtDate(h.check_out_date);
 
   return (
     <div className="flex items-start gap-4 py-4 border-b border-gray-200 last:border-b-0" data-testid={`pkg-hotel-${i}`}>
@@ -284,11 +291,11 @@ function HotelRow({ h, i }) {
           </li>
           <li className="flex items-start gap-1.5">
             <Check size={14} className="text-emerald-600 flex-shrink-0 mt-0.5" />
-            <span>Check-in : <span className="font-semibold">{checkIn}</span></span>
+            <span>Check-in : <span className="font-semibold">{checkIn}</span>{checkInDate && <> <span className="text-gray-500">·</span> <span className="font-semibold">{checkInDate}</span></>}</span>
           </li>
           <li className="flex items-start gap-1.5">
             <Check size={14} className="text-emerald-600 flex-shrink-0 mt-0.5" />
-            <span>Check-out : <span className="font-semibold">{checkOut}</span></span>
+            <span>Check-out : <span className="font-semibold">{checkOut}</span>{checkOutDate && <> <span className="text-gray-500">·</span> <span className="font-semibold">{checkOutDate}</span></>}</span>
           </li>
           {mealIncluded && (
             <li className="flex items-start gap-1.5">

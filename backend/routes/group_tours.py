@@ -120,6 +120,8 @@ class HotelRow(BaseModel):
     hotel_id: Optional[str] = None                   # optional reference to /hotels catalog
     check_in_time: str = ""                          # blank → frontend defaults to "3:00 PM"
     check_out_time: str = ""                         # blank → frontend defaults to "12:00 PM"
+    check_in_date: str = ""                          # ISO YYYY-MM-DD; blank → derived from itinerary
+    check_out_date: str = ""                         # ISO YYYY-MM-DD; blank → derived from itinerary
 
 
 class TransferRow(BaseModel):
