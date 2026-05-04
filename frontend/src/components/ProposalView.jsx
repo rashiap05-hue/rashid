@@ -1557,20 +1557,24 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                       transfers.push({ ...proposal.departure_transfer, _dayNum: nightsCount + 1, _date: addDays(tripStartStr, nightsCount) });
                     }
 
-                    // Collect ALL activities for this city
+                    // Collect ALL activities for this city — keep the day number
+                    // from each `selected_activities` key (e.g. `Almaty_2`) so
+                    // the Inclusions tab groups items by their actual day, not by
+                    // their position in a flattened list.
                     const cityActivities = [];
                     const selectedActs = proposal.selected_activities || {};
                     Object.keys(selectedActs).forEach(key => {
                       if (key === `${city.name}_${cityIdx}` || key.startsWith(city.name + '_')) {
+                        const dayNum = parseInt(key.split('_').pop()) || 1;
                         const acts = selectedActs[key];
                         if (Array.isArray(acts)) {
                           acts.forEach(a => {
                             if (!cityActivities.some(existing => existing.name === a.name)) {
-                              cityActivities.push(a);
+                              cityActivities.push({ ...a, _dayNum: dayNum });
                             }
                           });
                         } else if (acts && !cityActivities.some(existing => existing.name === acts.name)) {
-                          cityActivities.push(acts);
+                          cityActivities.push({ ...acts, _dayNum: dayNum });
                         }
                       }
                     });
@@ -1614,8 +1618,12 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                               ...cityActivities.map((a, aIdx) => ({
                                 ...a,
                                 _type: 'activity',
-                                _sortDay: cumulativeNights + 1 + Math.min(aIdx, city.nights - 1),
-                                _date: addDays(tripStartStr, cumulativeNights + Math.min(aIdx, city.nights - 1)),
+                                // Use the activity's actual day number (parsed from
+                                // its `selected_activities` key) instead of clamping
+                                // by aIdx, which previously collapsed all activities
+                                // beyond city.nights onto the last day.
+                                _sortDay: a._dayNum || (cumulativeNights + 1),
+                                _date: addDays(tripStartStr, (a._dayNum ? a._dayNum - 1 : cumulativeNights)),
                                 _idx: aIdx
                               }))
                             ].sort((a, b) => a._sortDay - b._sortDay);
