@@ -461,7 +461,7 @@ function RoomsOccupancyPicker({ rooms, onChange, testid = 'pkg-rooms-adults' }) 
 /* ---------- Main component ---------- */
 export default function GroupTourDetail({ deal, onBack, onBookFromGroupTour, onProposalSaved }) {
   const pkg = buildPackage(deal);
-  const [activeTab, setActiveTab] = useState('itinerary');
+  const [activeTab, setActiveTab] = useState('flights');
 
   // Allowed "Leaving From" cities — admin-managed per-package; fall back to platform default.
   const DEFAULT_DEPARTURE_CITIES = ['Dubai', 'Abu Dhabi', 'Sharjah', 'Bangalore', 'Mumbai', 'Delhi'];
@@ -763,9 +763,9 @@ export default function GroupTourDetail({ deal, onBack, onBookFromGroupTour, onP
         <div className="bg-white rounded-xl border border-gray-200">
           <div className="flex gap-1 border-b border-gray-200 px-5 md:px-6 overflow-x-auto">
             {[
-              { k: 'itinerary', label: 'Itinerary' },
               { k: 'flights', label: 'Flights' },
               { k: 'hotels', label: 'Hotels' },
+              { k: 'itinerary', label: 'Itinerary' },
               ...((pkg.terms_and_conditions || '').trim() ? [{ k: 'terms', label: 'Terms' }] : []),
             ].map(t => (
               <button
