@@ -101,6 +101,10 @@ def build_day_plan(proposal):
     """Return a flat list of days, each with date + items (hotel/activities/transfers)."""
     cities = proposal.get("cities", []) or []
     leaving_on = proposal.get("leaving_on", "")
+    # Use the destination arrival date for Day 1 if a flight is set (overnight
+    # flights = customer arrives next day). Falls back to leaving_on otherwise.
+    arr_flight = proposal.get("arrival_flight_info") or {}
+    trip_start = (arr_flight.get("arrivalDate") or arr_flight.get("flightDate") or leaving_on)
     selected_hotels = proposal.get("selected_hotels", {}) or {}
     selected_activities = proposal.get("selected_activities", {}) or {}
     inter_city = proposal.get("inter_city_transfers", {}) or {}
@@ -116,7 +120,7 @@ def build_day_plan(proposal):
 
         for night in range(nights):
             day_num += 1
-            day_date = add_days(leaving_on, day_num - 1)
+            day_date = add_days(trip_start, day_num - 1)
             items = []
 
             # Arrival transfer on first day
@@ -129,10 +133,13 @@ def build_day_plan(proposal):
                 if t:
                     items.append({"type": "transfer", "data": t, "label": "Inter-city Transfer"})
 
-            # Hotel check-in card on first night
+            # Hotel check-in card on first night — prefer admin-configured
+            # check-in/out dates when set on the hotel.
             if night == 0 and hotel:
-                items.append({"type": "hotel", "data": hotel, "city": city_name, "nights": nights, "checkin": day_date,
-                              "checkout": add_days(day_date, nights)})
+                ci_d = hotel.get("check_in_date") or day_date
+                co_d = hotel.get("check_out_date") or add_days(day_date, nights)
+                items.append({"type": "hotel", "data": hotel, "city": city_name, "nights": nights,
+                              "checkin": ci_d, "checkout": co_d})
 
             # Activities for the day (selected_activities key is `<City>_<dayNum>`)
             acts = selected_activities.get(f"{city_name}_{day_num}", [])
@@ -156,7 +163,7 @@ def build_day_plan(proposal):
         last_city_name = last_city.get("name") if isinstance(last_city, dict) else last_city
         days.append({
             "num": day_num,
-            "date": add_days(leaving_on, day_num - 1),
+            "date": add_days(trip_start, day_num - 1),
             "city": last_city_name,
             "items": [{"type": "transfer", "data": departure_transfer, "label": "Departure Transfer"}],
         })
@@ -209,6 +216,113 @@ def section_overview_table(days):
         </table>
     </section>
     """
+
+
+
+def _fmt_time_12(t24):
+    """Convert 'HH:MM' (24h) to '0H:MM AM/PM'. Returns input unchanged if not parseable."""
+    if not t24:
+        return ""
+    m = re.match(r"^(\d{1,2}):(\d{2})", str(t24))
+    if not m:
+        return str(t24)
+    hh = int(m.group(1))
+    mm = m.group(2)
+    ap = "PM" if hh >= 12 else "AM"
+    hh = hh % 12 or 12
+    return f"{hh:02d}:{mm} {ap}"
+
+
+def section_flights(proposal):
+    """Render a structured Flights block (Group-tour proposals carry flights[];
+    others fall back to arrival/departure_flight_info).
+
+    Output mirrors the public proposal page: route header, airline strip,
+    timeline + airports + duration + +1 next-day badge, fare/baggage/meals/cabin column.
+    """
+    flights = proposal.get("flights") or []
+    if not flights:
+        # Build single legs from arrival/departure_flight_info if structured
+        # `flights[]` array isn't on the proposal.
+        af = proposal.get("arrival_flight_info") or {}
+        df = proposal.get("departure_flight_info") or {}
+        legs = []
+        for src in (af, df):
+            if not src or not src.get("airline"):
+                continue
+            legs.append({
+                "airline": src.get("airline", ""),
+                "airline_logo": src.get("airlineLogo", ""),
+                "flight_number": src.get("flightNumber", ""),
+                "from_airport": src.get("departureAirport", ""),
+                "to_airport": src.get("arrivalAirport", ""),
+                "from_terminal": src.get("terminal", ""),
+                "departure_date": src.get("flightDate", ""),
+                "departure_time": src.get("flightTime", ""),
+                "arrival_date": src.get("arrivalDate", ""),
+                "arrival_time": src.get("arrivalTime", ""),
+                "duration": src.get("duration", ""),
+                "fare": src.get("fare", "Basic"),
+                "baggage": src.get("baggage", ""),
+                "meals": src.get("meals", ""),
+                "cabin": src.get("cabin", "Economy"),
+            })
+        flights = legs
+    if not flights:
+        return ""
+
+    cards = []
+    for f in flights:
+        f = f or {}
+        from_city = f.get("from_city") or (f.get("from_airport") or "").split("(")[0].strip()
+        to_city = f.get("to_city") or (f.get("to_airport") or "").split("(")[0].strip()
+        next_day = bool(f.get("departure_date") and f.get("arrival_date") and f.get("arrival_date") > f.get("departure_date"))
+        from_full = f.get('from_airport') or '—'
+        if f.get('from_terminal'):
+            from_full += f", Terminal {f.get('from_terminal')}"
+        to_full = f.get('to_airport') or '—'
+        if f.get('to_terminal'):
+            to_full += f", Terminal {f.get('to_terminal')}"
+        airline_html = ""
+        if f.get("airline_logo"):
+            airline_html = f"<img src='{resolve_image(f.get('airline_logo'))}' style='height:18px;max-width:60px;object-fit:contain;vertical-align:middle;'/>"
+        plus1 = "<sup style='color:#dc2626;font-weight:700;font-size:9px;'>+1</sup>" if next_day else ""
+        card = f"""
+        <div class="flight-card">
+          <div class="fl-route">
+            <span style="font-weight:800;">{from_city or 'From'} to {to_city or 'To'}</span>
+            <span class="fl-route-date">{fmt_date(f.get('departure_date'), with_weekday=True) if f.get('departure_date') else ''}</span>
+          </div>
+          <div class="fl-airline">
+            {airline_html}
+            <span style="font-weight:700;color:#0F2A4A;">{f.get('airline','')}</span>
+            <span style="font-weight:700;color:#1f2937;">{f.get('flight_number','')}</span>
+          </div>
+          <div class="fl-body">
+            <div class="fl-timeline">
+              <div class="fl-row"><div class="fl-time">{_fmt_time_12(f.get('departure_time'))}</div><div class="fl-airport">{from_full}</div></div>
+              <div class="fl-row"><div class="fl-conn">│</div><div class="fl-dur"><b>{f.get('duration') or '—'}</b></div></div>
+              <div class="fl-row"><div class="fl-time">{_fmt_time_12(f.get('arrival_time'))}{plus1}</div><div class="fl-airport">{to_full}</div></div>
+            </div>
+            <table class="fl-fare">
+              <tr><td>Fare</td><td><b>{f.get('fare','Basic')}</b></td></tr>
+              <tr><td>Baggage</td><td><b>{f.get('baggage','—')}</b></td></tr>
+              <tr><td>Meals</td><td><b>{f.get('meals','—')}</b></td></tr>
+              <tr><td>Cabin</td><td><b>{f.get('cabin','Economy')}</b></td></tr>
+            </table>
+          </div>
+        </div>
+        """
+        cards.append(card)
+
+    return f"""
+    <section class="page-section">
+        <h2 class="section-title">✈ Flights</h2>
+        {''.join(cards)}
+    </section>
+    """
+
+
 
 
 def section_hotel_card(hotel, city, checkin, checkout, nights):
@@ -957,17 +1071,21 @@ def build_pdf_html(proposal, terms, expert, user):
     pricing_html = section_pricing(proposal, adults)
     inclusions_html = section_inclusions_exclusions(proposal)
     terms_html = section_terms(terms)
+    flights_html = section_flights(proposal)
 
-    # Hotel detail sections (one per city)
+    # Hotel detail sections (one per city) — prefer admin-configured
+    # check_in_date / check_out_date set on the hotel.
     hotels_html = ""
+    arr_flight = proposal.get("arrival_flight_info") or {}
+    trip_start = (arr_flight.get("arrivalDate") or arr_flight.get("flightDate") or leaving_on)
     day_cursor = 0
     for ci, c in enumerate(cities):
         cname = c.get("name") if isinstance(c, dict) else c
         nights = c.get("nights", 1) if isinstance(c, dict) else 1
         hotel = get_hotel(proposal, cname, ci)
         if hotel:
-            checkin = add_days(leaving_on, day_cursor)
-            checkout = add_days(checkin, nights)
+            checkin = hotel.get("check_in_date") or add_days(trip_start, day_cursor)
+            checkout = hotel.get("check_out_date") or add_days(checkin, nights)
             hotels_html += section_hotel_card(hotel, cname, checkin, checkout, nights)
         day_cursor += nights
 
@@ -998,6 +1116,23 @@ def build_pdf_html(proposal, terms, expert, user):
   li {{ margin-bottom: 3px; }}
 
   .page-break-before {{ page-break-before: always; }}
+
+  /* ---- Flight cards ---- */
+  .flight-card {{ border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 4mm; overflow: hidden; page-break-inside: avoid; }}
+  .fl-route {{ background: #f8fafc; padding: 3mm 4mm; border-bottom: 1px solid #e2e8f0; display: flex; align-items: baseline; gap: 6px; font-size: 11px; color: #0f2a4a; }}
+  .fl-route-date {{ color: #64748b; font-size: 10px; margin-left: 6px; }}
+  .fl-airline {{ padding: 2.5mm 4mm; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; }}
+  .fl-body {{ display: flex; gap: 4mm; padding: 3mm 4mm; }}
+  .fl-timeline {{ flex: 1.4; }}
+  .fl-row {{ display: flex; gap: 8px; align-items: center; padding: 1mm 0; }}
+  .fl-time {{ width: 22mm; font-weight: 800; color: #0f2a4a; font-size: 11px; }}
+  .fl-airport {{ flex: 1; color: #475569; font-size: 10.5px; }}
+  .fl-conn {{ width: 22mm; color: #cbd5e1; text-align: center; }}
+  .fl-dur {{ color: #1f2937; font-size: 10.5px; }}
+  .fl-fare {{ flex: 1; border-collapse: collapse; font-size: 10.5px; }}
+  .fl-fare td {{ padding: 1.5mm 4px; border-bottom: 1px dashed #e2e8f0; }}
+  .fl-fare td:first-child {{ color: #94a3b8; }}
+  .fl-fare td:last-child {{ color: #0f2a4a; text-align: right; }}
 
   /* ---- Cover ---- */
   .cover {{
@@ -1229,6 +1364,8 @@ def build_pdf_html(proposal, terms, expert, user):
 </div>
 
 {overview_html}
+
+{flights_html}
 
 {hotels_html}
 
