@@ -152,30 +152,35 @@ function DayCard({ entry }) {
       <div className="flex-1 min-w-0">
         <h3 className="font-black text-gray-900 text-base md:text-lg mb-2">{entry.title}</h3>
 
-        {/* Linked activities — rich cards (image + name + sub) */}
+        {/* Linked activities — full-width rich cards (image + title + sub-text + VIEW) */}
         {acts.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3" data-testid={`itinerary-day-${entry.day}-activities`}>
+          <div className="space-y-2 mb-3" data-testid={`itinerary-day-${entry.day}-activities`}>
             {acts.map((a, i) => (
               <div
                 key={a.id || i}
-                className="flex items-center gap-2 p-2 bg-emerald-50/60 border border-emerald-100 rounded-lg"
+                className="flex items-stretch gap-3 p-2.5 bg-emerald-50/50 border border-emerald-200 rounded-lg hover:shadow-md transition-shadow"
                 data-testid={`itinerary-day-${entry.day}-activity-${i}`}
               >
                 {a.image && (
                   <img
                     src={_resolveActImg(a.image)}
                     alt=""
-                    className="w-12 h-12 object-cover rounded-md flex-shrink-0"
+                    className="w-24 h-24 sm:w-28 sm:h-28 object-cover rounded-md flex-shrink-0"
                   />
                 )}
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold text-emerald-900 truncate">{a.name}</div>
-                  {a.sub && <div className="text-[11px] text-emerald-700 truncate">{a.sub}</div>}
+                <div className="flex-1 min-w-0 flex flex-col justify-center py-0.5">
+                  <div className="text-sm md:text-base font-black text-emerald-900 leading-tight mb-1">{a.name}</div>
+                  {a.sub && (
+                    <div className="text-[12px] text-emerald-800/90 leading-snug line-clamp-3">{a.sub}</div>
+                  )}
+                  {a.duration && (
+                    <div className="text-[11px] text-emerald-700 mt-1 font-semibold uppercase tracking-wide">⏱ {a.duration}</div>
+                  )}
                 </div>
                 <button
                   type="button"
                   onClick={() => setOpenAct({ id: a.id, fallback: a })}
-                  className="px-2.5 py-1 bg-white hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[10px] font-bold rounded uppercase tracking-wider flex-shrink-0"
+                  className="self-center px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded uppercase tracking-wider flex-shrink-0"
                   data-testid={`itinerary-day-${entry.day}-activity-${i}-view`}
                 >
                   View

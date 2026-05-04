@@ -428,6 +428,41 @@ def _project_for_response(pkg: dict) -> dict:
     return pkg
 
 
+async def _enrich_itinerary_activities(pkg: dict) -> None:
+    """Look up each itinerary day's activity ids in the `activities` collection
+    and inject a short preview (`sub`) + `duration` so the public detail page can
+    render rich inline activity cards (matching the brochure PDF layout).
+
+    Mutates `pkg` in place. Activities not found in the catalog keep whatever
+    fields the admin saved (name/image only). Safe no-op when no activities.
+    """
+    days = pkg.get("itinerary") or []
+    ids = {a.get("id") for d in days for a in (d.get("activities") or []) if a and a.get("id")}
+    if not ids:
+        return
+    cursor = db.activities.find(
+        {"id": {"$in": list(ids)}},
+        {"_id": 0, "id": 1, "description": 1, "duration": 1, "images": 1},
+    )
+    catalog: Dict[str, dict] = {a["id"]: a async for a in cursor}
+    for d in days:
+        for a in (d.get("activities") or []):
+            if not a or not a.get("id"):
+                continue
+            cat = catalog.get(a["id"])
+            if not cat:
+                continue
+            # Always replace `sub` with the catalog description preview — much
+            # more informative than the legacy location/duration string.
+            desc = (cat.get("description") or "").strip()
+            if desc:
+                a["sub"] = desc[:200] + ("…" if len(desc) > 200 else "")
+            if not a.get("duration") and cat.get("duration"):
+                a["duration"] = cat["duration"]
+            if not a.get("image") and cat.get("images"):
+                a["image"] = cat["images"][0] if cat["images"] else ""
+
+
 def _adult_tier(pricing: dict, adults_in_room: int) -> dict:
     """Pick the right per-adult tier based on room occupancy."""
     if adults_in_room <= 1:
@@ -523,7 +558,13 @@ async def list_group_tours(include_inactive: bool = False):
     await _seed_defaults_if_empty()
     query = {} if include_inactive else {"active": True}
     docs = await db.group_tour_packages.find(query, {"_id": 0}).to_list(500)
-    return [_project_for_response(d) for d in docs]
+    projected = [_project_for_response(d) for d in docs]
+    # Enrich activity sub-text/duration/image from the activities catalog so
+    # the public detail page (which uses the deal object straight from the
+    # listing) renders the brochure-style rich activity cards.
+    for p in projected:
+        await _enrich_itinerary_activities(p)
+    return projected
 
 
 @router.get("/group-tours/{pkg_id}", response_model=GroupTourPackageResponse)
@@ -532,7 +573,9 @@ async def get_group_tour(pkg_id: str):
     doc = await db.group_tour_packages.find_one({"id": pkg_id}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Package not found")
-    return _project_for_response(doc)
+    projected = _project_for_response(doc)
+    await _enrich_itinerary_activities(projected)
+    return projected
 
 
 @router.post("/group-tours/{pkg_id}/quote", response_model=QuoteResponse)
