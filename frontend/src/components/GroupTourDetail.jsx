@@ -65,7 +65,7 @@ function buildPackage(deal) {
       ];
 
   const hotels = (deal?.hotels && deal.hotels.length)
-    ? deal.hotels.map(h => ({ name: h.name, stars: h.stars, nights: h.nights, image: h.image || deal?.image, roomType: h.room_type || 'Standard Room', meal: h.meal_plan || 'Bed & Breakfast' }))
+    ? deal.hotels.map(h => ({ name: h.name, stars: h.stars, nights: h.nights, image: h.image || deal?.image, roomType: h.room_type || 'Standard Room', meal: h.meal_plan || 'Bed & Breakfast', check_in_time: h.check_in_time || '', check_out_time: h.check_out_time || '' }))
     : [
         { name: `Park Inn by Radisson ${destination} or similar`, stars: 4, nights, image: deal?.image, roomType: 'Standard Twin Room', meal: 'Bed & Breakfast' },
         { name: `Holiday Inn ${destination} or similar`, stars: 4, nights: Math.max(1, nights - 2), image: deal?.image, roomType: 'Superior Room', meal: 'Bed & Breakfast' },
@@ -239,9 +239,29 @@ function DayCard({ entry }) {
 }
 
 function HotelRow({ h, i }) {
+  // Derive "Included - …" line from the meal plan stored on the hotel.
+  const meal = (h.meal || '').toLowerCase();
+  let mealIncluded = '';
+  if (meal.includes('all-inclusive') || meal.includes('all inclusive') || meal === 'ai') {
+    mealIncluded = 'All meals included';
+  } else if (meal.includes('full board') || meal === 'fb') {
+    mealIncluded = 'Breakfast, Lunch & Dinner included';
+  } else if (meal.includes('half board') || meal === 'hb') {
+    mealIncluded = 'Breakfast & Dinner included';
+  } else if (meal.includes('breakfast') || meal === 'bb' || meal.includes('b&b') || meal.includes('bed and breakfast')) {
+    mealIncluded = 'Breakfast in Hotel';
+  } else if (meal.includes('room only') || meal === 'ro') {
+    mealIncluded = 'Room Only';
+  }
+
+  const nights = Number(h.nights) || 0;
+  const nightsLabel = `Stay for ${nights} ${nights === 1 ? 'night' : 'nights'} at ${h.name || 'this hotel'} or Similar`;
+  const checkIn = h.check_in_time || '3:00 PM';
+  const checkOut = h.check_out_time || '12:00 PM';
+
   return (
-    <div className="flex items-center gap-4 py-4 border-b border-gray-200 last:border-b-0" data-testid={`pkg-hotel-${i}`}>
-      <DealImage src={h.image} alt={h.name} className="w-28 h-20 object-cover rounded-md flex-shrink-0" gradient="linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%)" label="Hotel" />
+    <div className="flex items-start gap-4 py-4 border-b border-gray-200 last:border-b-0" data-testid={`pkg-hotel-${i}`}>
+      <DealImage src={h.image} alt={h.name} className="w-28 h-24 md:w-32 md:h-28 object-cover rounded-md flex-shrink-0" gradient="linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%)" label="Hotel" />
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -255,6 +275,28 @@ function HotelRow({ h, i }) {
           </div>
           <button className="text-sky-600 hover:underline text-xs font-semibold flex-shrink-0" data-testid={`hotel-view-details-${i}`}>View Details</button>
         </div>
+
+        {/* Stay details — matches the brochure PDF format */}
+        <ul className="mt-2.5 space-y-1 text-xs md:text-[13px] text-gray-700" data-testid={`pkg-hotel-${i}-details`}>
+          <li className="flex items-start gap-1.5">
+            <Check size={14} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+            <span>{nightsLabel}</span>
+          </li>
+          <li className="flex items-start gap-1.5">
+            <Check size={14} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+            <span>Check-in : <span className="font-semibold">{checkIn}</span></span>
+          </li>
+          <li className="flex items-start gap-1.5">
+            <Check size={14} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+            <span>Check-out : <span className="font-semibold">{checkOut}</span></span>
+          </li>
+          {mealIncluded && (
+            <li className="flex items-start gap-1.5">
+              <Check size={14} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+              <span>Included - <span className="font-semibold">{mealIncluded}</span></span>
+            </li>
+          )}
+        </ul>
       </div>
     </div>
   );

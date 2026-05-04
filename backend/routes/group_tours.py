@@ -118,6 +118,8 @@ class HotelRow(BaseModel):
     image: str = ""                                  # legacy single-image field (kept in sync with images[0])
     images: List[str] = Field(default_factory=list)  # up to 5 images; index 0 = primary
     hotel_id: Optional[str] = None                   # optional reference to /hotels catalog
+    check_in_time: str = ""                          # blank → frontend defaults to "3:00 PM"
+    check_out_time: str = ""                         # blank → frontend defaults to "12:00 PM"
 
 
 class TransferRow(BaseModel):
