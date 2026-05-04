@@ -973,9 +973,6 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                   {/* Generate Day Cards */}
                   {Array.from({ length: daysCount }).map((_, dayIndex) => {
                     const dayNum = dayIndex + 1;
-                    const isArrivalDay = dayNum === 1;
-                    const isDepartureDay = dayNum === daysCount;
-                    const isMiddleDay = !isArrivalDay && !isDepartureDay;
                     const isExpanded = expandedDays[dayNum] || false;
                     
                     const dayDate = new Date(proposal.leaving_on);
@@ -989,6 +986,14 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                     // Get activities for this day
                     const dayActivities = proposal.selected_activities?.[`${dayCity}_${dayNum}`] || [];
                     const hotel = getHotelForCity(dayCity, dayCityIdx);
+
+                    // For group-tour proposals, when Day 1 / last day already carries activities,
+                    // skip the generic "Arrival/Departure into …" template and render the
+                    // activities inline using the middle-day layout.
+                    const hasOwnActivities = dayActivities.length > 0;
+                    const isArrivalDay = dayNum === 1 && !hasOwnActivities;
+                    const isDepartureDay = dayNum === daysCount && !hasOwnActivities;
+                    const isMiddleDay = !isArrivalDay && !isDepartureDay;
                     
                     // Check for inter-city transfer arriving on this day
                     let interCityTransfer = null;
