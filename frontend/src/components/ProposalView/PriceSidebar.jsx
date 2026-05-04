@@ -355,13 +355,6 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
               })()}`}
             </button>
           )}
-          <button 
-            onClick={() => setShowBookingTerms(true)}
-            className="w-full py-3 bg-[#8B4513] hover:bg-[#723A0F] text-white font-semibold rounded-lg transition-colors"
-            data-testid="book-now-btn"
-          >
-            BOOK NOW
-          </button>
 
           {/* Booking Terms Modal */}
           {showBookingTerms && (
