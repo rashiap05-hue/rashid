@@ -1541,7 +1541,13 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                     const hotel = getHotelForCity(city.name, cityIdx);
                     let cumulativeNights = 0;
                     for (let i = 0; i < cityIdx; i++) cumulativeNights += proposal.cities[i]?.nights || 0;
-                    const cityStartDate = addDays(tripStartStr, cumulativeNights);
+                    // City header date: first city shows the leaving_on date
+                    // (when the trip from origin begins). Subsequent cities are
+                    // calculated from the destination arrival date + previous
+                    // cities' nights.
+                    const cityStartDate = cityIdx === 0
+                      ? new Date(proposal.leaving_on)
+                      : addDays(tripStartStr, cumulativeNights);
                     const isLastCity = cityIdx === proposal.cities.length - 1;
 
                     // Collect ALL transfers for this city
@@ -1852,7 +1858,9 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                   const hotel = getHotelForCity(city.name, idx);
                   let cumulativeNightsTab = 0;
                   for (let i = 0; i < idx; i++) cumulativeNightsTab += proposal.cities[i]?.nights || 0;
-                  const cityStartDateTab = addDays(tripStartStr, cumulativeNightsTab);
+                  const cityStartDateTab = idx === 0
+                    ? new Date(proposal.leaving_on)
+                    : addDays(tripStartStr, cumulativeNightsTab);
                   const isLastCityTab = idx === proposal.cities.length - 1;
                   const totalNightsTab = proposal.cities?.reduce((acc, c) => acc + (c.nights || 0), 0) || 1;
 
