@@ -401,9 +401,13 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
     return mealPlan.includes('dinner') || mealPlan.includes('half board') || mealPlan === 'hb' || mealPlan.includes('full board') || mealPlan === 'fb' || mealPlan.includes('all inclusive') || mealPlan === 'ai';
   };
 
-  // Check-in/Check-out dates
-  const checkInDate = new Date(proposal.leaving_on);
-  const checkOutDate = addDays(proposal.leaving_on, nightsCount);
+  // Check-in/Check-out dates — use the actual destination arrival date when
+  // a flight's `arrivalDate` is set (e.g. an overnight flight where origin
+  // departure is on day X but local arrival lands on X+1). Falls back to
+  // `leaving_on` for trips without flight info.
+  const tripStartStr = proposal.arrival_flight_info?.arrivalDate || proposal.leaving_on;
+  const checkInDate = new Date(tripStartStr);
+  const checkOutDate = addDays(tripStartStr, nightsCount);
 
   const toggleDay = (day) => {
     setExpandedDays(prev => ({ ...prev, [day]: !prev[day] }));
@@ -795,7 +799,7 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                   for (let i = 0; i < cityIdx; i++) {
                     cumulativeNights += proposal.cities[i].nights || 1;
                   }
-                  const checkInDate = new Date(proposal.leaving_on);
+                  const checkInDate = new Date(tripStartStr);
                   checkInDate.setDate(checkInDate.getDate() + cumulativeNights);
                   const checkOutDate = new Date(checkInDate);
                   checkOutDate.setDate(checkOutDate.getDate() + (city.nights || 1));
@@ -975,7 +979,11 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                     const dayNum = dayIndex + 1;
                     const isExpanded = expandedDays[dayNum] || false;
                     
-                    const dayDate = new Date(proposal.leaving_on);
+                    // Day 1 = actual arrival date in destination (uses flight's
+                    // arrivalDate when present so overnight flights show the
+                    // correct local arrival day rather than the origin departure
+                    // date). Subsequent days increment from there.
+                    const dayDate = new Date(tripStartStr);
                     dayDate.setDate(dayDate.getDate() + dayIndex);
                     
                     // Get the city this day belongs to
@@ -1519,20 +1527,20 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                     const hotel = getHotelForCity(city.name, cityIdx);
                     let cumulativeNights = 0;
                     for (let i = 0; i < cityIdx; i++) cumulativeNights += proposal.cities[i]?.nights || 0;
-                    const cityStartDate = addDays(proposal.leaving_on, cumulativeNights);
+                    const cityStartDate = addDays(tripStartStr, cumulativeNights);
                     const isLastCity = cityIdx === proposal.cities.length - 1;
 
                     // Collect ALL transfers for this city
                     const transfers = [];
                     if (cityIdx === 0 && proposal.arrival_transfer) {
-                      transfers.push({ ...proposal.arrival_transfer, _dayNum: 1, _date: addDays(proposal.leaving_on, 0) });
+                      transfers.push({ ...proposal.arrival_transfer, _dayNum: 1, _date: addDays(tripStartStr, 0) });
                     }
                     if (cityIdx > 0 && proposal.inter_city_transfers) {
                       const ict = proposal.inter_city_transfers[`${cityIdx - 1}_${cityIdx}`];
                       if (ict) transfers.push({ ...ict, _dayNum: cumulativeNights + 1, _date: cityStartDate });
                     }
                     if (isLastCity && proposal.departure_transfer) {
-                      transfers.push({ ...proposal.departure_transfer, _dayNum: nightsCount + 1, _date: addDays(proposal.leaving_on, nightsCount) });
+                      transfers.push({ ...proposal.departure_transfer, _dayNum: nightsCount + 1, _date: addDays(tripStartStr, nightsCount) });
                     }
 
                     // Collect ALL activities for this city
@@ -1593,7 +1601,7 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                                 ...a,
                                 _type: 'activity',
                                 _sortDay: cumulativeNights + 1 + Math.min(aIdx, city.nights - 1),
-                                _date: addDays(proposal.leaving_on, cumulativeNights + Math.min(aIdx, city.nights - 1)),
+                                _date: addDays(tripStartStr, cumulativeNights + Math.min(aIdx, city.nights - 1)),
                                 _idx: aIdx
                               }))
                             ].sort((a, b) => a._sortDay - b._sortDay);
@@ -1822,21 +1830,21 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                   const hotel = getHotelForCity(city.name, idx);
                   let cumulativeNightsTab = 0;
                   for (let i = 0; i < idx; i++) cumulativeNightsTab += proposal.cities[i]?.nights || 0;
-                  const cityStartDateTab = addDays(proposal.leaving_on, cumulativeNightsTab);
+                  const cityStartDateTab = addDays(tripStartStr, cumulativeNightsTab);
                   const isLastCityTab = idx === proposal.cities.length - 1;
                   const totalNightsTab = proposal.cities?.reduce((acc, c) => acc + (c.nights || 0), 0) || 1;
 
                   // Collect transfers for this city
                   const cityTransfersTab = [];
                   if (idx === 0 && proposal.arrival_transfer) {
-                    cityTransfersTab.push({ ...proposal.arrival_transfer, _dayNum: 1, _date: addDays(proposal.leaving_on, 0) });
+                    cityTransfersTab.push({ ...proposal.arrival_transfer, _dayNum: 1, _date: addDays(tripStartStr, 0) });
                   }
                   if (idx > 0 && proposal.inter_city_transfers) {
                     const ict = proposal.inter_city_transfers[`${idx - 1}_${idx}`];
                     if (ict) cityTransfersTab.push({ ...ict, _dayNum: cumulativeNightsTab + 1, _date: cityStartDateTab });
                   }
                   if (isLastCityTab && proposal.departure_transfer) {
-                    cityTransfersTab.push({ ...proposal.departure_transfer, _dayNum: totalNightsTab + 1, _date: addDays(proposal.leaving_on, totalNightsTab) });
+                    cityTransfersTab.push({ ...proposal.departure_transfer, _dayNum: totalNightsTab + 1, _date: addDays(tripStartStr, totalNightsTab) });
                   }
 
                   // Collect activities for this city with day numbers
@@ -1852,7 +1860,7 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                             cityActivitiesTab.push({
                               ...a,
                               _dayNum: dayNum,
-                              _date: addDays(proposal.leaving_on, dayNum - 1)
+                              _date: addDays(tripStartStr, dayNum - 1)
                             });
                           }
                         });
@@ -1860,7 +1868,7 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                         cityActivitiesTab.push({
                           ...acts,
                           _dayNum: dayNum,
-                          _date: addDays(proposal.leaving_on, dayNum - 1)
+                          _date: addDays(tripStartStr, dayNum - 1)
                         });
                       }
                     }
