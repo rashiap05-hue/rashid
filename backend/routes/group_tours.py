@@ -818,13 +818,15 @@ async def save_group_tour_as_proposal(
             "city": destination,
         }
 
-    # 3) Build selected_activities from itinerary days
+    # 3) Build selected_activities from itinerary days. Use the day's index
+    # (1..N) as the key suffix instead of `day` so packages with duplicate or
+    # non-sequential day numbers in the source data still map cleanly.
     selected_activities = {}
-    for d in (pkg.get("itinerary") or []):
+    for idx, d in enumerate(pkg.get("itinerary") or [], start=1):
         acts = d.get("activities") or []
         if not acts:
             continue
-        dkey = f"{destination}_{int(d.get('day') or 1)}"
+        dkey = f"{destination}_{idx}"
         selected_activities[dkey] = [
             {
                 "id": a.get("id") or f"gt_act_{i}",
@@ -834,6 +836,42 @@ async def save_group_tour_as_proposal(
             }
             for i, a in enumerate(acts) if a
         ]
+
+    # 4) Map structured flights[] → arrival/departure_flight_info shape that
+    # ProposalView expects (camelCase fields). First flight = outbound, last
+    # flight = return. Skipped silently if no flights configured.
+    arrival_flight_info = None
+    departure_flight_info = None
+    pkg_flights = pkg.get("flights") or []
+    if pkg_flights:
+        def _to_pv(f: dict) -> dict:
+            term = (f.get("from_terminal") or "").strip()
+            from_air = f.get("from_airport") or ""
+            from_code = f.get("from_code") or ""
+            dep = f"{from_air} ({from_code})" if from_code else from_air
+            to_air = f.get("to_airport") or ""
+            to_code = f.get("to_code") or ""
+            arr = f"{to_air} ({to_code})" if to_code else to_air
+            return {
+                "airline": f.get("airline", ""),
+                "airlineLogo": f.get("airline_logo", ""),
+                "flightNumber": f.get("flight_number", ""),
+                "flightDate": f.get("departure_date", ""),
+                "flightTime": f.get("departure_time", ""),
+                "arrivalTime": f.get("arrival_time", ""),
+                "arrivalDate": f.get("arrival_date", ""),
+                "duration": f.get("duration", ""),
+                "departureAirport": dep.strip(),
+                "arrivalAirport": arr.strip(),
+                "terminal": term,
+                "fare": f.get("fare", "Basic"),
+                "baggage": f.get("baggage", ""),
+                "meals": f.get("meals", ""),
+                "cabin": f.get("cabin", "Economy"),
+            }
+        arrival_flight_info = _to_pv(pkg_flights[0])
+        if len(pkg_flights) > 1:
+            departure_flight_info = _to_pv(pkg_flights[-1])
 
     # 4) Apply optional markup + discount to the base quote total
     base_total = float(quote.total)
@@ -886,6 +924,8 @@ async def save_group_tour_as_proposal(
         "proposal_name": (body.proposal_name or pkg.get("title") or "Group Tour"),
         "expected_booking_date": body.expected_booking_date or None,
         "flights_booked": body.flights_booked,
+        "arrival_flight_info": arrival_flight_info,
+        "departure_flight_info": departure_flight_info,
         "markup_value": float(body.markup_value or 0),
         "markup_type": body.markup_type or "percentage",
         "markup_land": markup_amount,
