@@ -103,10 +103,6 @@ function SaveProposalModal({ isOpen, onClose, onSave, tripData, pricing, selecte
       alert('Estimated date of booking is required');
       return;
     }
-    if (formData.flights_booked === null) {
-      alert('Please select if flights are booked');
-      return;
-    }
 
     setSaving(true);
     try {
@@ -368,34 +364,6 @@ function SaveProposalModal({ isOpen, onClose, onSave, tripData, pricing, selecte
                   <p className="text-xs text-gray-500 mt-1">
                     Please select a date when you expect this quote to close
                   </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <label className="w-40 text-sm font-medium text-gray-700">
-                  Are Flights Booked?<span className="text-red-500">*</span>
-                </label>
-                <div className="flex items-center gap-6">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="flights_booked"
-                      checked={formData.flights_booked === true}
-                      onChange={() => setFormData({ ...formData, flights_booked: true })}
-                      className="w-4 h-4 text-[#002B5B] border-gray-300 focus:ring-[#002B5B]"
-                    />
-                    <span className="text-sm text-gray-700">Yes</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="flights_booked"
-                      checked={formData.flights_booked === false}
-                      onChange={() => setFormData({ ...formData, flights_booked: false })}
-                      className="w-4 h-4 text-[#002B5B] border-gray-300 focus:ring-[#002B5B]"
-                    />
-                    <span className="text-sm text-gray-700">No</span>
-                  </label>
                 </div>
               </div>
             </div>
