@@ -1160,17 +1160,18 @@ def build_pdf_html(proposal, terms, expert, user):
   .cover .info-row svg {{ flex-shrink: 0; }}
 
   /* ---- Section header ---- */
-  .section-title {{ color: #002B5B; font-size: 18px; font-weight: 800; padding-bottom: 8px; border-bottom: 2px solid #002B5B; margin-bottom: 14px; }}
-  .section-title-centered {{ color: #1F2937; font-size: 24px; font-weight: 800; text-align: center; letter-spacing: 1px; margin: 14mm 0 10mm 0; }}
+  .section-title {{ color: #002B5B; font-size: 18px; font-weight: 800; padding-bottom: 8px; border-bottom: 2px solid #002B5B; margin-bottom: 14px; page-break-after: avoid; break-after: avoid; }}
+  .section-title-centered {{ color: #1F2937; font-size: 24px; font-weight: 800; text-align: center; letter-spacing: 1px; margin: 14mm 0 10mm 0; page-break-after: avoid; break-after: avoid; }}
   .sub-title {{ font-size: 13px; font-weight: 700; margin-bottom: 8px; }}
   .sub-title.green {{ color: #047857; }}
   .sub-title.red {{ color: #B91C1C; }}
 
   /* ---- Inclusions per-city blocks ---- */
-  .inc-city-block {{ margin-bottom: 16px; page-break-inside: avoid; }}
+  .inc-city-block {{ margin-bottom: 16px; }}
   .inc-city-header {{
     background: #002B5B; color: #fff; padding: 10px 16px; display: flex; align-items: center; gap: 10px;
     border-top-left-radius: 8px; border-top-right-radius: 8px;
+    page-break-after: avoid; break-after: avoid;
   }}
   .inc-city-pin {{ background: #10B981; padding: 4px 6px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }}
   .inc-city-name {{ font-size: 14px; font-weight: 800; }}
@@ -1268,8 +1269,8 @@ def build_pdf_html(proposal, terms, expert, user):
   .hot-room-row .val.pending {{ color: #B45309; }}
 
   /* ---- Day-wise ---- */
-  .day-card {{ border: 1px solid #E5E7EB; border-radius: 10px; margin-bottom: 14px; overflow: hidden; page-break-inside: avoid; }}
-  .day-header {{ background: #002B5B; color: #fff; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }}
+  .day-card {{ border: 1px solid #E5E7EB; border-radius: 10px; margin-bottom: 14px; overflow: hidden; }}
+  .day-header {{ background: #002B5B; color: #fff; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; page-break-after: avoid; break-after: avoid; }}
   .day-num {{ font-size: 14px; font-weight: 800; letter-spacing: 1px; }}
   .day-meta {{ text-align: right; }}
   .day-date {{ font-size: 11px; opacity: 0.9; }}
