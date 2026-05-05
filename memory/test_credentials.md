@@ -20,3 +20,9 @@
 - Password: password123
 - Company: Travo Georgia
 - Role: supplier
+
+## Agent (Neha)
+- Email: neha@travotours.ae
+- Password: password123
+- Company: Travo Tours
+- Role: agent
