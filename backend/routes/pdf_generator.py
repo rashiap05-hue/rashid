@@ -622,7 +622,11 @@ def section_inclusions_exclusions(proposal):
     for ci, c in enumerate(cities):
         city_name = c.get("name") if isinstance(c, dict) else c
         nights = c.get("nights", 1) if isinstance(c, dict) else 1
-        first_day_date = add_days(leaving_on, day_cursor)
+        # Per-item dates use trip_start (arrival date in destination — handles
+        # overnight flights). City header for first city keeps leaving_on
+        # (origin departure date) to mirror ProposalView UX.
+        first_day_date = add_days(trip_start, day_cursor)
+        city_header_date = leaving_on if ci == 0 else first_day_date
         items_html = ""
 
         # Inter-city transfer (when entering this city after the first)
@@ -683,7 +687,7 @@ def section_inclusions_exclusions(proposal):
         # Activities for each day in this city
         for night in range(nights):
             day_num = day_cursor + night + 1
-            day_date = add_days(leaving_on, day_num - 1)
+            day_date = add_days(trip_start, day_num - 1)
             acts = selected_activities.get(f"{city_name}_{day_num}", [])
             if not isinstance(acts, list):
                 acts = [acts] if acts else []
@@ -734,7 +738,7 @@ def section_inclusions_exclusions(proposal):
         is_last_city = (ci == len(cities) - 1)
         if is_last_city and departure_transfer:
             last_day_num = day_cursor + nights + 1  # arrival day on last day
-            last_day_date = add_days(leaving_on, last_day_num - 1)
+            last_day_date = add_days(trip_start, last_day_num - 1)
             items_html += render_transfer_inclusion(departure_transfer, "Departure Transfer", last_day_num, fmt_short(last_day_date), CAR_ICON)
 
         city_blocks += f"""
@@ -742,7 +746,7 @@ def section_inclusions_exclusions(proposal):
             <div class="inc-city-header">
                 <span class="inc-city-pin">{PIN_ICON}</span>
                 <span class="inc-city-name">{city_name}</span>
-                <span class="inc-city-meta">{nights} night{'s' if nights>1 else ''} - {fmt_short(first_day_date)}</span>
+                <span class="inc-city-meta">{nights} night{'s' if nights>1 else ''} - {fmt_short(city_header_date)}</span>
             </div>
             <div class="inc-city-body">{items_html}</div>
         </div>
