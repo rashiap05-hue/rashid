@@ -584,6 +584,11 @@ def section_inclusions_exclusions(proposal):
     """Rich Inclusions section grouped per city + a separate Exclusions section."""
     cities = proposal.get("cities", []) or []
     leaving_on = proposal.get("leaving_on", "")
+    # For day-card dates use the actual arrival date in destination (overnight
+    # flights = customer arrives next day). The city-block header keeps
+    # `leaving_on` as the trip start (when the agent leaves origin city).
+    arr_flight = proposal.get("arrival_flight_info") or {}
+    trip_start = (arr_flight.get("arrivalDate") or arr_flight.get("flightDate") or leaving_on)
     selected_hotels = proposal.get("selected_hotels", {}) or {}
     selected_activities = proposal.get("selected_activities", {}) or {}
     inter_city = proposal.get("inter_city_transfers", {}) or {}
