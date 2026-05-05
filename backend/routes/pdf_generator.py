@@ -118,6 +118,25 @@ def build_day_plan(proposal):
         nights = c.get("nights", 1) if isinstance(c, dict) else 1
         hotel = selected_hotels.get(f"{city_name}_{ci}") or {}
 
+        # Detect extra activity days beyond `nights` (common for group-tour
+        # packages where the last day is a post-checkout morning of activities
+        # before the return flight, e.g. 3-night / 4-day Almaty Eid Break).
+        # Only applies to the last city — for non-last cities, the next city's
+        # first day covers the transition.
+        is_last_city = (ci == len(cities) - 1)
+        extra_days = 0
+        if is_last_city:
+            for k in selected_activities.keys():
+                if not (k == f"{city_name}_{ci}" or k.startswith(f"{city_name}_")):
+                    continue
+                try:
+                    dn = int(k.rsplit("_", 1)[-1])
+                except (ValueError, IndexError):
+                    continue
+                # dn is the global day number (1-indexed)
+                if dn > day_num + nights:
+                    extra_days = max(extra_days, dn - (day_num + nights))
+
         for night in range(nights):
             day_num += 1
             day_date = add_days(trip_start, day_num - 1)
@@ -156,8 +175,36 @@ def build_day_plan(proposal):
                 "items": items,
             })
 
-    # Final departure day (after the last night)
-    if departure_transfer and cities:
+        # Post-checkout activity days (last city only). Activities render but
+        # the hotel stay has already ended.
+        for extra in range(extra_days):
+            day_num += 1
+            day_date = add_days(trip_start, day_num - 1)
+            items = []
+            acts = selected_activities.get(f"{city_name}_{day_num}", [])
+            if not isinstance(acts, list):
+                acts = [acts] if acts else []
+            for a in acts:
+                if a:
+                    items.append({"type": "activity", "data": a})
+            # Append the departure transfer on the very last extra day so it
+            # doesn't get duplicated below as a separate one-item day.
+            if extra == extra_days - 1 and departure_transfer:
+                items.append({"type": "transfer", "data": departure_transfer, "label": "Departure Transfer"})
+            days.append({
+                "num": day_num,
+                "date": day_date,
+                "city": city_name,
+                "items": items,
+            })
+
+    # Final departure day (after the last night) — only when the departure
+    # transfer wasn't already attached to a post-checkout activity day above.
+    has_extra_departure_day = bool(days and days[-1]["items"] and any(
+        it.get("type") == "transfer" and it.get("label") == "Departure Transfer"
+        for it in days[-1]["items"]
+    ))
+    if departure_transfer and cities and not has_extra_departure_day:
         day_num += 1
         last_city = cities[-1]
         last_city_name = last_city.get("name") if isinstance(last_city, dict) else last_city
@@ -684,8 +731,24 @@ def section_inclusions_exclusions(proposal):
             </div>
             """
 
-        # Activities for each day in this city
-        for night in range(nights):
+        # Activities for each day in this city. For the last city, include any
+        # post-checkout activity days (selected_activities key day_num > nights)
+        # so a 3-night / 4-day group tour doesn't silently drop Day 4.
+        is_last_city = (ci == len(cities) - 1)
+        activity_day_span = nights
+        if is_last_city:
+            for k in selected_activities.keys():
+                if not (k == f"{city_name}_{ci}" or k.startswith(f"{city_name}_")):
+                    continue
+                try:
+                    dn = int(k.rsplit("_", 1)[-1])
+                except (ValueError, IndexError):
+                    continue
+                rel = dn - day_cursor
+                if rel > activity_day_span:
+                    activity_day_span = rel
+
+        for night in range(activity_day_span):
             day_num = day_cursor + night + 1
             day_date = add_days(trip_start, day_num - 1)
             acts = selected_activities.get(f"{city_name}_{day_num}", [])
@@ -735,9 +798,8 @@ def section_inclusions_exclusions(proposal):
                 """
 
         # Departure transfer on the very last city's last day
-        is_last_city = (ci == len(cities) - 1)
         if is_last_city and departure_transfer:
-            last_day_num = day_cursor + nights + 1  # arrival day on last day
+            last_day_num = day_cursor + activity_day_span + 1  # day after last activity day
             last_day_date = add_days(trip_start, last_day_num - 1)
             items_html += render_transfer_inclusion(departure_transfer, "Departure Transfer", last_day_num, fmt_short(last_day_date), CAR_ICON)
 
