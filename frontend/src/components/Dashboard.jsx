@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import FlightDashboard from './FlightDashboard';
 import ActivitiesDashboard from './ActivitiesDashboard';
 import MyProposals from './MyProposals';
+import MyLeads from './MyLeads';
 import MyBookings from './MyBookings';
 import AIRecommendationsModal from './AIRecommendationsModal';
 import { api } from '@/App';
@@ -57,7 +58,19 @@ export default function Dashboard({
             <FlightDashboard />
           ) : activeTab === 'Activities' ? (
             <ActivitiesDashboard />
-          ) : activeTab === 'My Leads' || activeTab === 'My Proposals' ? (
+          ) : activeTab === 'My Leads' ? (
+            <MyLeads
+              onCreateNewQuery={onNewProposal}
+              onViewLead={(lead) => {
+                // If converted, navigate to the booking/proposal; otherwise just open new proposal flow
+                if (lead?.proposal_id) {
+                  api.get(`/proposals/${lead.proposal_id}`).then(res => onViewProposal?.(res.data)).catch(console.error);
+                } else {
+                  onNewProposal?.();
+                }
+              }}
+            />
+          ) : activeTab === 'My Proposals' ? (
             <MyProposals 
               onViewProposal={onViewProposal}
               onEditProposal={onEditProposal}
