@@ -1055,10 +1055,14 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
 
   // Calculate pricing
   const calculatePricing = () => {
+    // Number of physical rooms the customer is booking (e.g. 2 rooms for
+    // 4 adults split as 2A + 2A). Each selected room type gets booked
+    // `roomsCount` times — pricing scales accordingly.
+    const roomsCount = data?.room_data?.length || 1;
     let hotelTotal = 0;
     Object.values(selectedHotels).forEach(hotel => {
       if (hotel?.selectedRoom?.price) {
-        hotelTotal += hotel.selectedRoom.price * (hotel.nights || 1);
+        hotelTotal += hotel.selectedRoom.price * (hotel.nights || 1) * roomsCount;
       }
     });
 
@@ -1708,7 +1712,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                         <div className="mt-4 space-y-2">
                           <div className="flex items-center gap-2 text-sm">
                             <Check className="w-5 h-5 text-green-500" />
-                            <span className="text-gray-700">Selected Room: <strong>1 x {cityHotel.selectedRoom?.name || 'Standard Room'}, {cityHotel.selectedRoom?.bed_type || 'Twin Beds'}</strong></span>
+                            <span className="text-gray-700">Selected Room: <strong>{(data?.room_data?.length || 1)} x {cityHotel.selectedRoom?.name || 'Standard Room'}, {cityHotel.selectedRoom?.bed_type || 'Twin Beds'}</strong></span>
                           </div>
                           {(() => {
                             const mealPlan = cityHotel.selectedRoom?.rate_plan?.meal_plan
