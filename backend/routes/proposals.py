@@ -85,8 +85,11 @@ async def get_proposals(user: dict = Depends(get_optional_user)):
         ]
     }
     if user:
-        query["user_id"] = user["id"]
-    proposals = await db.proposals.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+        role = (user.get("role") or "agent").lower()
+        # Admins and staff see every user's proposals. Agents & suppliers only see their own.
+        if role not in ("admin", "staff"):
+            query["user_id"] = user["id"]
+    proposals = await db.proposals.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
     return [ProposalResponse(**p) for p in proposals]
 
 
