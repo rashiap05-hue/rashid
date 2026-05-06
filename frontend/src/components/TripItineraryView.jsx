@@ -451,13 +451,14 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
 
   // Build day list. Two kinds of days:
   //   (a) per-night day  -> belongs to a city, has a hotel
-  //   (b) departure-only day after the last night
+  //   (b) post-checkout activity day or departure-only day after the last night
   const days = useMemo(() => {
     if (!proposal) return [];
     const out = [];
     const startDate = proposal.leaving_on || proposal.start_date;
     let cursor = 0;
-    (proposal.cities || []).forEach((c, ci) => {
+    const cities = proposal.cities || [];
+    cities.forEach((c, ci) => {
       const cityName = c?.name || c;
       const nights = Number(c?.nights || 0);
       const hotel = (proposal.selected_hotels || {})[`${cityName}_${ci}`];
@@ -476,11 +477,38 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
         cursor += 1;
       }
     });
+
+    // Detect post-checkout activity days for the last city. Common for group
+    // tours where Day N has morning activities before the return flight (e.g.
+    // 3-night / 4-day Almaty Eid Break).
+    const lastCity = cities[cities.length - 1];
+    const lastCityName = lastCity?.name || lastCity || '';
+    const sa = proposal.selected_activities || {};
+    let maxDayWithActs = cursor;
+    Object.keys(sa).forEach((k) => {
+      const parts = String(k).split('_');
+      const dn = parseInt(parts[parts.length - 1], 10);
+      if (!Number.isFinite(dn)) return;
+      const cityPart = parts.slice(0, -1).join('_');
+      if (cityPart && cityPart !== lastCityName) return;
+      if (dn > maxDayWithActs) maxDayWithActs = dn;
+    });
+    while (cursor < maxDayWithActs) {
+      out.push({
+        idx: out.length,
+        date: addDays(startDate, cursor),
+        city: lastCityName,
+        cityIdx: cities.length - 1,
+        isPostCheckoutActivityDay: true,
+      });
+      cursor += 1;
+    }
+
     out.push({
       idx: out.length,
       date: addDays(startDate, cursor),
-      city: (proposal.cities?.[(proposal.cities?.length || 1) - 1]?.name) || '',
-      cityIdx: (proposal.cities?.length || 1) - 1,
+      city: (cities[cities.length - 1]?.name) || '',
+      cityIdx: cities.length - 1,
       isDeparture: true,
     });
     return out;

@@ -829,21 +829,46 @@ async def save_group_tour_as_proposal(
     # 3) Build selected_activities from itinerary days. Use the day's index
     # (1..N) as the key suffix instead of `day` so packages with duplicate or
     # non-sequential day numbers in the source data still map cleanly.
+    # Also enrich each activity with full catalog data (transfer_type,
+    # inclusions, pickup info, meals_included, etc.) so the saved proposal +
+    # PDF + Trip Itinerary page render the same way as a normal proposal.
     selected_activities = {}
+    activity_ids = set()
+    for d in pkg.get("itinerary") or []:
+        for a in d.get("activities") or []:
+            if a and a.get("id"):
+                activity_ids.add(a["id"])
+    catalog_acts: dict = {}
+    if activity_ids:
+        cur = db.activities.find(
+            {"id": {"$in": list(activity_ids)}},
+            {"_id": 0},
+        )
+        catalog_acts = {a["id"]: a async for a in cur}
+
     for idx, d in enumerate(pkg.get("itinerary") or [], start=1):
         acts = d.get("activities") or []
         if not acts:
             continue
         dkey = f"{destination}_{idx}"
-        selected_activities[dkey] = [
-            {
+        out = []
+        for i, a in enumerate(acts):
+            if not a:
+                continue
+            full = catalog_acts.get(a.get("id")) or {}
+            merged = {
+                # Pull rich fields from the catalog so Private/SIC, inclusions,
+                # pickup info, meals etc. render correctly in the saved proposal.
+                **full,
+                # Always prefer the package's snapshot id/name/image/duration
+                # over catalog values when they were customised on the package.
                 "id": a.get("id") or f"gt_act_{i}",
-                "name": a.get("name", ""),
-                "image": a.get("image", ""),
-                "duration": a.get("duration", ""),
+                "name": a.get("name", "") or full.get("name", ""),
+                "image": a.get("image", "") or full.get("image", "") or (full.get("images") or [None])[0],
+                "duration": a.get("duration", "") or full.get("duration", ""),
             }
-            for i, a in enumerate(acts) if a
-        ]
+            out.append(merged)
+        selected_activities[dkey] = out
 
     # 4) Map structured flights[] → arrival/departure_flight_info shape that
     # ProposalView expects (camelCase fields). First flight = outbound, last

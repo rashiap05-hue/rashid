@@ -106,22 +106,37 @@ async def get_proposal(proposal_id: str):
             for a in (v if isinstance(v, list) else [v]):
                 if a and a.get("id"):
                     ids.add(a["id"])
-        meals_by_id = {}
+        enrich_by_id = {}
         if ids:
-            async for doc in db.activities.find({"id": {"$in": list(ids)}}, {"_id": 0, "id": 1, "meals_included": 1, "useful_information": 1}):
-                meals_by_id[doc["id"]] = {
-                    "meals_included": doc.get("meals_included") or {},
-                    "useful_information": doc.get("useful_information") or [],
-                }
-        # Apply to the snapshot
+            async for doc in db.activities.find(
+                {"id": {"$in": list(ids)}},
+                {"_id": 0, "id": 1, "meals_included": 1, "useful_information": 1,
+                 "transfer_type": 1, "is_sic": 1, "inclusions": 1, "description": 1,
+                 "pickup_location": 1, "meeting_point": 1, "pickup_info": 1, "start_times": 1,
+                 "highlights": 1, "category": 1, "images": 1, "image": 1},
+            ):
+                enrich_by_id[doc["id"]] = {k: v for k, v in doc.items() if k != "id"}
+        # Apply to the snapshot — fill in fields that aren't already set on the
+        # snapshot (so package-level customisations win), but always refresh
+        # meals_included + useful_information.
         for k, v in sel_acts.items():
             items = v if isinstance(v, list) else [v]
             for a in items:
-                if a and a.get("id") and a["id"] in meals_by_id:
-                    enr = meals_by_id[a["id"]]
-                    a["meals_included"] = enr["meals_included"]
-                    if enr["useful_information"]:
-                        a["useful_information"] = enr["useful_information"]
+                if not (a and a.get("id") and a["id"] in enrich_by_id):
+                    continue
+                enr = enrich_by_id[a["id"]]
+                # Always overwrite meals + useful_information (live data)
+                a["meals_included"] = enr.get("meals_included") or {}
+                if enr.get("useful_information"):
+                    a["useful_information"] = enr["useful_information"]
+                # Backfill other fields only when missing on the snapshot
+                for fld in ("transfer_type", "is_sic", "inclusions", "description",
+                            "pickup_location", "meeting_point", "pickup_info",
+                            "start_times", "highlights", "category", "images"):
+                    if not a.get(fld) and enr.get(fld):
+                        a[fld] = enr[fld]
+                if not a.get("image"):
+                    a["image"] = enr.get("image") or (enr.get("images") or [None])[0] or ""
             sel_acts[k] = items if isinstance(v, list) else (items[0] if items else v)
         proposal["selected_activities"] = sel_acts
 
