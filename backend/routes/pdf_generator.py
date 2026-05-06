@@ -76,14 +76,13 @@ def activity_image(activity):
 
 
 def short_ref(pid):
+    """7-character alphanumeric reference (uppercase) matching the format
+    used in the My Proposals / My Bookings tables — e.g. id ending in
+    ``2592a69d-387d-4cc4-96dd-12a83b49c0ab`` produces ``B49C0AB``."""
     if not pid:
         return ""
-    # Numeric-style reference like "8362858" (7 digits)
-    digits = "".join(ch for ch in str(pid) if ch.isdigit())
-    if len(digits) >= 7:
-        return digits[:7]
-    # fallback: hash-like 7 digits
-    return str(abs(hash(str(pid))))[:7]
+    s = str(pid).replace("-", "")
+    return s[-7:].upper()
 
 
 def cities_summary(cities):
@@ -1548,7 +1547,14 @@ async def generate_proposal_pdf(proposal_id: str, current_user: dict = Depends(g
     if expert_id:
         expert = await db.destination_experts.find_one({"id": expert_id}, {"_id": 0})
 
-    user = await db.users.find_one({"id": current_user.get("id")}, {"_id": 0, "password": 0})
+    # Use the PROPOSAL CREATOR's profile for the "Specially prepared by"
+    # section — never the current viewer. This way an admin opening Neha's
+    # proposal still sees Neha's name + email on the PDF.
+    creator_id = proposal.get("user_id") or current_user.get("id")
+    user = await db.users.find_one({"id": creator_id}, {"_id": 0, "password": 0})
+    if not user:
+        # Fallback to viewer if the creator record was deleted
+        user = await db.users.find_one({"id": current_user.get("id")}, {"_id": 0, "password": 0})
 
     html_content = build_pdf_html(proposal, terms, expert, user)
 
