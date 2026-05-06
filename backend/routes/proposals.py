@@ -90,6 +90,21 @@ async def get_proposals(user: dict = Depends(get_optional_user)):
         if role not in ("admin", "staff"):
             query["user_id"] = user["id"]
     proposals = await db.proposals.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+    # Batch-fetch creator names so the "Sent By" column reflects the actual
+    # user who built the proposal (not a hardcoded 'Admin' fallback).
+    user_ids = list({p.get("user_id") for p in proposals if p.get("user_id")})
+    creator_by_id: dict = {}
+    if user_ids:
+        async for u in db.users.find(
+            {"id": {"$in": user_ids}},
+            {"_id": 0, "id": 1, "full_name": 1, "email": 1},
+        ):
+            creator_by_id[u["id"]] = u.get("full_name") or u.get("email") or ""
+    for p in proposals:
+        uid = p.get("user_id")
+        p["created_by_name"] = creator_by_id.get(uid) or ""
+
     return [ProposalResponse(**p) for p in proposals]
 
 

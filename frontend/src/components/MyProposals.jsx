@@ -208,7 +208,7 @@ export default function MyProposals({ onViewProposal, onEditProposal }) {
             data-testid={`proposal-row-${proposal.id}`}
           >
             <td className="px-4 py-4 text-sm text-gray-800 font-medium">{generateProposalNumber(proposal.id)}</td>
-            <td className="px-4 py-4 text-sm text-gray-600">{proposal.sent_by || proposal.created_by || 'Admin'}</td>
+            <td className="px-4 py-4 text-sm text-gray-600">{proposal.created_by_name || proposal.sent_by || proposal.created_by || 'Admin'}</td>
             <td className="px-4 py-4 text-sm text-gray-600">{proposal.customer_name || proposal.client_name || '-'}</td>
             <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">{formatDateTime(proposal.created_at)}</td>
             <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">{formatDate(proposal.expected_booking_date) || '-'}</td>

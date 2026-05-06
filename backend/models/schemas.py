@@ -132,6 +132,9 @@ class ProposalResponse(BaseModel):
     flights: Optional[List[Dict]] = None
     group_tour_id: Optional[str] = None
     group_tour_title: Optional[str] = None
+    # Human-readable creator name — computed server-side from the owning user.
+    # Used by the My Proposals table to show which advisor/agent owns the row.
+    created_by_name: Optional[str] = None
 
 class FlightCreate(BaseModel):
     airline: str
