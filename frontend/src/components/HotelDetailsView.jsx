@@ -470,47 +470,19 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
     return acc;
   }, {});
 
-  // Helper function to determine max occupancy from room name/type
-  const getRoomMaxOccupancy = (room) => {
-    const name = (room.name || '').toLowerCase();
-    const type = (room.type || '').toLowerCase();
-    const combinedText = `${name} ${type}`;
-    
-    // Check for explicit max_occupancy or capacity field
-    if (room.max_occupancy) return room.max_occupancy;
-    if (room.capacity) return room.capacity;
-    if (room.room_type?.max_occupancy) return room.room_type.max_occupancy;
-    
-    // Infer from room name/type
-    if (combinedText.includes('family') || combinedText.includes('suite')) return 4;
-    if (combinedText.includes('triple') || combinedText.includes('3 bed')) return 3;
-    if (combinedText.includes('quad') || combinedText.includes('4 bed')) return 4;
-    if (combinedText.includes('twin') || combinedText.includes('double')) return 2;
-    if (combinedText.includes('single')) return 1;
-    if (combinedText.includes('king') || combinedText.includes('queen')) return 2;
-    if (combinedText.includes('apartment') || combinedText.includes('villa')) return 6;
-    if (combinedText.includes('deluxe') || combinedText.includes('superior')) return 2;
-    if (combinedText.includes('standard')) return 2;
-    
-    // Default to 2 if unknown
-    return 2;
-  };
-
-  // Filter rooms
+  // Filter rooms. Capacity intentionally NOT filtered — agents commonly
+  // combine room types (e.g. 2× Double for 4 pax, or 1× Double + 2× Single)
+  // so all room types must remain visible regardless of group size.
   const filterRooms = (rooms) => {
     return rooms.filter(room => {
-      const matchesSearch = !searchQuery || 
+      const matchesSearch = !searchQuery ||
         room.name?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesMeal = mealFilter === 'all' || 
+      const matchesMeal = mealFilter === 'all' ||
         (mealFilter === 'breakfast' && room.meals?.toLowerCase().includes('breakfast')) ||
         (mealFilter === 'none' && (room.meals === 'Room Only' || !room.meals));
       const matchesRefund = !refundableOnly || room.refundable;
-      
-      // Filter by guest capacity - only show rooms that can fit totalGuests
-      const roomCapacity = getRoomMaxOccupancy(room);
-      const matchesCapacity = roomCapacity >= totalGuests;
-      
-      return matchesSearch && matchesMeal && matchesRefund && matchesCapacity;
+
+      return matchesSearch && matchesMeal && matchesRefund;
     });
   };
 
@@ -692,8 +664,8 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
               {Object.entries(roomsByCategory).every(([_, rooms]) => filterRooms(rooms).length === 0) && allRooms.length > 0 && (
                 <div className="text-center py-12 text-gray-500 bg-amber-50 border border-amber-200 rounded-lg">
                   <Users size={48} className="mx-auto mb-4 text-amber-400" />
-                  <p className="font-medium text-amber-700">No rooms available for {totalGuests} guests</p>
-                  <p className="text-sm text-amber-600 mt-2">Try selecting a different room type or reducing the number of guests</p>
+                  <p className="font-medium text-amber-700">No rooms match the selected filters</p>
+                  <p className="text-sm text-amber-600 mt-2">Try adjusting the search, meal plan, or refundable filters</p>
                 </div>
               )}
 
