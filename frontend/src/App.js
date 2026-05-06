@@ -224,8 +224,8 @@ function App() {
                     onLogout={handleLogout}
                     activeTab={activeTab}
                     setActiveTab={setActiveTab}
-                    onNewProposal={() => {
-                      setPendingProposalData(null);
+                    onNewProposal={(prefill) => {
+                      setPendingProposalData(prefill || null);
                       setCurrentView('form');
                     }}
                     onViewProposal={(proposal) => {
@@ -304,6 +304,21 @@ function App() {
                     onBack={() => setCurrentView('form')}
                     onConfirm={async (savedProposalData) => {
                       if (savedProposalData) {
+                        // Lead → Proposal conversion: if a lead id was stashed
+                        // during MyLeads "Convert" click, call the convert
+                        // endpoint to flip its status to `converted` and link
+                        // the new proposal id back to the lead.
+                        try {
+                          const leadId = sessionStorage.getItem('travo_converting_lead_id');
+                          if (leadId && savedProposalData?.id) {
+                            await api.post(`/leads/${leadId}/convert`, {
+                              proposal_id: savedProposalData.id,
+                            });
+                            sessionStorage.removeItem('travo_converting_lead_id');
+                          }
+                        } catch (e) {
+                          console.error('Lead conversion failed', e);
+                        }
                         setSavedProposal(savedProposalData);
                         setProposalViewSource('edit');
                         setCurrentView('proposal-view');

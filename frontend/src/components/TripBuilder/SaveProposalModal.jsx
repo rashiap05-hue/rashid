@@ -42,10 +42,14 @@ function SaveProposalModal({ isOpen, onClose, onSave, tripData, pricing, selecte
       });
       setShowCustomerEdit(false);
     } else {
-      // New proposal: auto-generate trip name only
+      // New proposal: auto-generate trip name. Pre-fill customer fields when
+      // they were forwarded from a lead (lead → proposal conversion flow).
       setFormData(prev => ({
         ...prev,
-        proposal_name: prev.proposal_name || `Trip to ${tripData?.cities?.[0]?.name || ''}`
+        customer_name: prev.customer_name || tripData?.customer_name || '',
+        customer_email: prev.customer_email || tripData?.customer_email || '',
+        customer_phone: prev.customer_phone || tripData?.customer_phone || '',
+        proposal_name: prev.proposal_name || tripData?.proposal_name || `Trip to ${tripData?.cities?.[0]?.name || ''}`,
       }));
       setShowCustomerEdit(true);
     }

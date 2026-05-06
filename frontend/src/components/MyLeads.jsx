@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Search, Calendar, Plus, Loader2, Star, AlertCircle, ChevronDown,
+  Search, Calendar, Plus, Loader2, Star, AlertCircle, ChevronDown, Wand2,
 } from 'lucide-react';
 import { api } from '@/App';
 
@@ -55,7 +55,7 @@ const KpiCard = ({ value, label, testid }) => (
   </div>
 );
 
-export default function MyLeads({ onCreateNewQuery, onViewLead }) {
+export default function MyLeads({ onCreateNewQuery, onViewLead, onConvertLead }) {
   const [leads, setLeads] = useState([]);
   const [stats, setStats] = useState({ total: 0, converted: 0, conv_rate: 0, last_txn_on: null, new_count: 0, follow_up_count: 0 });
   const [loading, setLoading] = useState(true);
@@ -262,7 +262,7 @@ export default function MyLeads({ onCreateNewQuery, onViewLead }) {
                       <th className="px-3 py-3 text-left">To</th>
                       <th className="px-3 py-3 text-left">Travel Date</th>
                       <th className="px-3 py-3 text-left">Lead Creation Time</th>
-                      <th className="px-3 py-3 text-center w-10"></th>
+                      <th className="px-3 py-3 text-center w-24">Actions</th>
                     </tr>
                     <tr className="bg-white border-b border-gray-100">
                       <th className="px-3 py-2"></th>
@@ -313,8 +313,23 @@ export default function MyLeads({ onCreateNewQuery, onViewLead }) {
                           <Countdown days={lead.days_to_travel} />
                         </td>
                         <td className="px-3 py-3 text-xs text-gray-500">{fmtDateTime(lead.created_at)}</td>
-                        <td className="px-3 py-3 text-center">
-                          {lead.is_follow_up && <Star size={14} className="text-amber-500 mx-auto" />}
+                        <td className="px-3 py-3">
+                          <div className="flex items-center justify-center gap-2">
+                            {lead.is_follow_up && <Star size={14} className="text-amber-500" title="Follow-up needed" />}
+                            {lead.status !== 'converted' && (
+                              <button
+                                onClick={() => onConvertLead?.(lead)}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 rounded text-[11px] font-semibold transition-colors"
+                                title="Convert to Proposal"
+                                data-testid={`convert-lead-${idx}`}
+                              >
+                                <Wand2 size={12} /> Convert
+                              </button>
+                            )}
+                            {lead.status === 'converted' && (
+                              <span className="inline-block px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-[10px] font-bold">Converted</span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

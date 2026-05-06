@@ -454,7 +454,13 @@ export default function FitPackageForm({ onClose, onCreateSuccess, initialData }
         add_transfers: addTransfers,
         travelers: `${roomData.length} Room(s), ${totalAdults} Adults`,
         travelersSummary,
-        star_rating: starRating
+        star_rating: starRating,
+        // Forward customer details from a lead-pre-fill so TripBuilder can
+        // auto-populate the Save Proposal form.
+        customer_name: initialData?.customer_name,
+        customer_email: initialData?.customer_email,
+        customer_phone: initialData?.customer_phone,
+        proposal_name: initialData?.proposal_name,
       };
       onCreateSuccess(proposalData);
     }, 2000);

@@ -69,6 +69,24 @@ export default function Dashboard({
                   onNewProposal?.();
                 }
               }}
+              onConvertLead={(lead) => {
+                // Stash the lead id so when the proposal is saved we can mark
+                // the lead as converted (handled in App.js post-save hook).
+                try {
+                  sessionStorage.setItem('travo_converting_lead_id', lead.id);
+                } catch { /* ignore quota errors */ }
+                // Pre-fill the FitPackageForm with the lead's customer details.
+                onNewProposal?.({
+                  prefillFromLead: true,
+                  customer_name: lead.customer_name || '',
+                  customer_email: lead.customer_email || '',
+                  customer_phone: lead.customer_phone || '',
+                  leaving_from: lead.from_location || '',
+                  leaving_on: lead.travel_date || '',
+                  proposal_name: lead.proposal_name || '',
+                  rawCities: (lead.destinations || []).map((c, i) => ({ id: String(i + 1), name: c, nights: 2 })),
+                });
+              }}
             />
           ) : activeTab === 'My Proposals' ? (
             <MyProposals 
