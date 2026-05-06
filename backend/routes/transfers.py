@@ -29,13 +29,48 @@ async def get_transfers(
 
 @transfers_router.get("/inter-city/search")
 async def search_inter_city_transfers(from_city: str, to_city: str):
-    """Find inter-hotel transfers between two cities only."""
-    query = {
-        "transfer_direction": "inter-hotel",
-        "to_location": {"$regex": to_city, "$options": "i"},
-    }
-    transfers = await db.transfers.find(query, {"_id": 0}).to_list(50)
-    return {"success": True, "transfers": transfers, "from_city": from_city, "to_city": to_city}
+    """Find inter-hotel transfers between two cities.
+
+    City names are matched permissively to tolerate common transliteration
+    variants (e.g. "Tsaghkadzor" / "Tsakhkadzor" / "Tsagkhadzor" all match).
+    Both `from_location` / `to_location` and the canonical `city` field on
+    the transfer record are considered.
+    """
+    import re
+
+    def core(name: str) -> str:
+        # Remove the letters that flip in common transliterations (g / k / h)
+        # and any non-alphabetic chars — so "Tsaghkadzor" and "Tsagkhadzor"
+        # both reduce to "tsadzor".
+        s = (name or "").lower()
+        return "".join(c for c in s if c.isalpha() and c not in "gkh")
+
+    from_core = core(from_city)
+    to_core = core(to_city)
+
+    candidates = await db.transfers.find(
+        {"transfer_direction": "inter-hotel"},
+        {"_id": 0},
+    ).to_list(500)
+
+    matches = []
+    for t in candidates:
+        from_hay = " ".join(filter(None, [t.get("from_location"), t.get("city")]))
+        to_hay = " ".join(filter(None, [t.get("to_location"), t.get("destination")]))
+        # Per-haystack core comparison: a candidate matches if its from-side
+        # contains the from_core AND its to-side contains the to_core.
+        if from_core and from_core in core(from_hay) and to_core and to_core in core(to_hay):
+            matches.append(t)
+            continue
+        # Fallback: fuzzy regex on the original strings (case-insensitive)
+        try:
+            if (re.search(re.escape(from_city), from_hay, re.I)
+                    and re.search(re.escape(to_city), to_hay, re.I)):
+                matches.append(t)
+        except re.error:
+            pass
+
+    return {"success": True, "transfers": matches, "from_city": from_city, "to_city": to_city}
 
 
 @transfers_router.get("/{transfer_id}")
