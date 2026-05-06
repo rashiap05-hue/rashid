@@ -579,6 +579,46 @@ async def _load_booking_context(booking_id, current_user):
     if booking.get("proposal_id"):
         proposal = await db.proposals.find_one({"id": booking["proposal_id"]}, {"_id": 0}) or {}
 
+    # Enrich saved activities with full catalog data (transfer_type,
+    # inclusions, description, etc.) — mirrors GET /api/proposals/{id} so
+    # voucher/invoice/receipt PDFs render Private vs Shared correctly even
+    # when the snapshot only carries id+name+image+duration (e.g. group-tour
+    # save-as-proposal flow).
+    sel_acts = proposal.get("selected_activities") or {}
+    if sel_acts:
+        ids = set()
+        for v in sel_acts.values():
+            for a in (v if isinstance(v, list) else [v]):
+                if a and a.get("id"):
+                    ids.add(a["id"])
+        enrich = {}
+        if ids:
+            async for doc in db.activities.find(
+                {"id": {"$in": list(ids)}},
+                {"_id": 0, "id": 1, "transfer_type": 1, "is_sic": 1,
+                 "inclusions": 1, "description": 1, "meals_included": 1,
+                 "useful_information": 1, "category": 1, "images": 1, "image": 1},
+            ):
+                enrich[doc["id"]] = {k: v for k, v in doc.items() if k != "id"}
+        for k, v in sel_acts.items():
+            items = v if isinstance(v, list) else [v]
+            for a in items:
+                if not (a and a.get("id") and a["id"] in enrich):
+                    continue
+                enr = enrich[a["id"]]
+                # Always overwrite live fields
+                if enr.get("meals_included"):
+                    a["meals_included"] = enr["meals_included"]
+                # Backfill missing snapshot fields
+                for fld in ("transfer_type", "is_sic", "inclusions", "description",
+                            "useful_information", "category", "images"):
+                    if not a.get(fld) and enr.get(fld):
+                        a[fld] = enr[fld]
+                if not a.get("image"):
+                    a["image"] = enr.get("image") or (enr.get("images") or [None])[0] or ""
+            sel_acts[k] = items if isinstance(v, list) else (items[0] if items else v)
+        proposal["selected_activities"] = sel_acts
+
     user = await db.users.find_one({"id": current_user.get("id")}, {"_id": 0, "password": 0})
 
     # Filter terms by trip destination countries (mirror proposal-PDF logic)
