@@ -487,20 +487,58 @@ def render_item(it):
     if it["type"] == "transfer":
         title = data.get("title") or data.get("name", "")
         ttype = data.get("transfer_type") or data.get("type") or "Private"
-        duration = data.get("duration", "")
+        duration_raw = str(data.get("duration", "")).strip()
+        # Append "hrs" if the supplier just stored a bare number like "6"
+        duration = duration_raw
+        if duration_raw and duration_raw.replace(".", "").isdigit():
+            duration = f"{duration_raw} hrs"
         from_loc = data.get("from_location", "")
         to_loc = data.get("to_location", "")
         route = f"{from_loc} → {to_loc}" if (from_loc and to_loc) else ""
         is_private = "private" in str(ttype).lower()
         tag_class = "tag-green" if is_private else "tag-amber"
         tag_label = "Private Transfer" if is_private else "Shared Transfer"
+        vehicle = data.get("vehicle_type") or ""
+        desc = (data.get("description") or "").strip()
+
+        inclusions = data.get("inclusions") or []
+        if isinstance(inclusions, str):
+            inclusions = [i.strip() for i in inclusions.split(",") if i.strip()]
+        exclusions = data.get("exclusions") or []
+        if isinstance(exclusions, str):
+            exclusions = [e.strip() for e in exclusions.split(",") if e.strip()]
+
+        img_url = activity_image(data)
+        img_html = f'<img src="{img_url}" alt="{title}" class="act-thumb" />' if img_url else '<div class="day-icon transfer-icon">🚗</div>'
+
+        meta_lines = []
+        if route:
+            meta_lines.append(f'<div class="day-item-meta">{route}</div>')
+        if duration:
+            meta_lines.append(f'<div class="day-item-meta"><strong>Duration:</strong> {duration}</div>')
+        if vehicle:
+            meta_lines.append(f'<div class="day-item-meta"><strong>Vehicle:</strong> {vehicle}</div>')
+
+        inc_html = ''
+        if inclusions:
+            items = ''.join(f'<li>{i}</li>' for i in inclusions[:6])
+            inc_html = f'<div class="act-extra"><div class="act-extra-title">What\'s Included</div><ul class="act-bullets">{items}</ul></div>'
+        exc_html = ''
+        if exclusions:
+            items = ''.join(f'<li>{e}</li>' for e in exclusions[:6])
+            exc_html = f'<div class="act-extra"><div class="act-extra-title">What\'s Not Included</div><ul class="act-bullets">{items}</ul></div>'
+
         return f"""
-        <div class="day-item">
-            <div class="day-icon transfer-icon">🚗</div>
+        <div class="day-item activity-row">
+            {img_html}
             <div class="day-content">
                 <div class="day-item-title">{title}</div>
-                {f'<div class="day-item-meta">{route}</div>' if route else ''}
-                {f'<div class="day-item-meta">Duration: {duration}</div>' if duration else ''}
+                {''.join(meta_lines)}
+                {f'<div class="day-item-desc">{desc}</div>' if desc else ''}
+                <div class="act-extras-row">
+                    {inc_html}
+                    {exc_html}
+                </div>
                 <div class="day-tags"><span class="tag {tag_class}">{tag_label}</span></div>
             </div>
         </div>
@@ -1555,6 +1593,52 @@ async def generate_proposal_pdf(proposal_id: str, current_user: dict = Depends(g
     if not user:
         # Fallback to viewer if the creator record was deleted
         user = await db.users.find_one({"id": current_user.get("id")}, {"_id": 0, "password": 0})
+
+    # Enrich transfer snapshots with full catalog data (description, images,
+    # inclusions, exclusions, etc.) so the PDF day-cards render rich content
+    # instead of just title + duration. The proposal stores only a thin
+    # snapshot at save time; the master `transfers` collection has the
+    # full record.
+    transfer_ids = set()
+    for t_field in ("arrival_transfer", "departure_transfer"):
+        t = proposal.get(t_field) or {}
+        if t.get("id"):
+            transfer_ids.add(t["id"])
+    for t in (proposal.get("inter_city_transfers") or {}).values():
+        if isinstance(t, dict) and t.get("id"):
+            transfer_ids.add(t["id"])
+    if transfer_ids:
+        catalog: dict = {}
+        async for d in db.transfers.find(
+            {"id": {"$in": list(transfer_ids)}},
+            {"_id": 0, "id": 1, "title": 1, "description": 1, "duration": 1,
+             "images": 1, "image": 1, "inclusions": 1, "exclusions": 1,
+             "from_location": 1, "to_location": 1, "transfer_type": 1,
+             "vehicle_type": 1},
+        ):
+            catalog[d["id"]] = {k: v for k, v in d.items() if k != "id"}
+        def _merge(t: dict) -> dict:
+            if not (t and t.get("id") and t["id"] in catalog):
+                return t
+            enr = catalog[t["id"]]
+            merged = {**t}
+            for fld in ("description", "images", "image", "inclusions",
+                        "exclusions", "from_location", "to_location",
+                        "transfer_type", "vehicle_type"):
+                if not merged.get(fld) and enr.get(fld):
+                    merged[fld] = enr[fld]
+            if not merged.get("title") and enr.get("title"):
+                merged["title"] = enr["title"]
+            return merged
+        if proposal.get("arrival_transfer"):
+            proposal["arrival_transfer"] = _merge(proposal["arrival_transfer"])
+        if proposal.get("departure_transfer"):
+            proposal["departure_transfer"] = _merge(proposal["departure_transfer"])
+        ic = proposal.get("inter_city_transfers") or {}
+        for k, v in list(ic.items()):
+            if isinstance(v, dict):
+                ic[k] = _merge(v)
+        proposal["inter_city_transfers"] = ic
 
     html_content = build_pdf_html(proposal, terms, expert, user)
 
