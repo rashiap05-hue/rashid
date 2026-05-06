@@ -70,7 +70,22 @@ async def create_proposal(proposal: ProposalCreate, user: dict = Depends(get_opt
 
 @proposals_router.get("", response_model=List[ProposalResponse])
 async def get_proposals(user: dict = Depends(get_optional_user)):
-    query = {} if not user else {"user_id": user["id"]}
+    # Hide proposals that have already been held / booked / paid — once a
+    # booking_id is stamped onto the proposal it lives in My Bookings instead
+    # of the Proposals dashboard. Same for proposals whose status has moved
+    # past the quote phase.
+    query: dict = {
+        "$and": [
+            {"$or": [{"booking_id": {"$exists": False}}, {"booking_id": None}, {"booking_id": ""}]},
+            {"$or": [
+                {"status": {"$exists": False}},
+                {"status": None},
+                {"status": {"$nin": ["held", "booked", "confirmed", "payment_received", "cancelled"]}},
+            ]},
+        ]
+    }
+    if user:
+        query["user_id"] = user["id"]
     proposals = await db.proposals.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
     return [ProposalResponse(**p) for p in proposals]
 
