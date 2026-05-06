@@ -395,6 +395,26 @@ def section_hotel_card(hotel, city, checkin, checkout, nights):
         or "Room Only"
     )
 
+    # Refundable status — pulled from the rate plan or selected room flag.
+    is_refundable = (
+        rate_plan.get("refundable")
+        if isinstance(rate_plan.get("refundable"), bool)
+        else sel_room.get("refundable")
+    )
+    if is_refundable is None:
+        # Fallback: parse cancellation_policy string for negative signals
+        cp = (sel_room.get("cancellation_policy") or rate_plan.get("cancellation_policy") or "").lower()
+        if cp:
+            is_refundable = "non-refundable" not in cp and "non refundable" not in cp
+    refund_label = (
+        "Refundable" if is_refundable is True
+        else ("Non-Refundable" if is_refundable is False else "On Request")
+    )
+    refund_class = (
+        "refund-yes" if is_refundable is True
+        else ("refund-no" if is_refundable is False else "refund-na")
+    )
+
     amenities = hotel.get("amenities") or []
     if isinstance(amenities, str):
         amenities = [a.strip() for a in re.split(r"[,•|;]", amenities) if a.strip()]
@@ -454,6 +474,7 @@ def section_hotel_card(hotel, city, checkin, checkout, nights):
             <div class="hot-room-row">
                 <div><span class="lbl">Room Type</span><span class="val">{room_name}</span></div>
                 <div><span class="lbl">Meal Plan</span><span class="val">{meal_plan}</span></div>
+                <div><span class="lbl">Cancellation</span><span class="val refund-pill {refund_class}">{refund_label}</span></div>
             </div>
         </div>
     </section>
@@ -1366,6 +1387,11 @@ def build_pdf_html(proposal, terms, expert, user):
   .hot-room-row .lbl {{ display: block; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #6B7280; }}
   .hot-room-row .val {{ display: block; font-size: 12px; font-weight: 700; color: #111827; margin-top: 2px; }}
   .hot-room-row .val.pending {{ color: #B45309; }}
+  /* Cancellation pill */
+  .refund-pill {{ display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; }}
+  .refund-pill.refund-yes {{ background: #DCFCE7; color: #166534; }}
+  .refund-pill.refund-no  {{ background: #FEE2E2; color: #B91C1C; }}
+  .refund-pill.refund-na  {{ background: #F3F4F6; color: #6B7280; }}
 
   /* ---- Day-wise ---- */
   .day-card {{ border: 1px solid #E5E7EB; border-radius: 10px; margin-bottom: 14px; overflow: hidden; }}
