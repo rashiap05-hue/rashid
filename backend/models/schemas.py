@@ -72,6 +72,12 @@ class ProposalCreate(BaseModel):
     discount_amount: Optional[float] = None
     travel_insurance: Optional[bool] = None
     travel_insurance_price: Optional[float] = None
+    sim_card_included: Optional[bool] = None
+    sim_card_details: Optional[Dict] = None
+    sim_card_persons: Optional[int] = None
+    visa_included: Optional[bool] = None
+    visa_details: Optional[Dict] = None
+    visa_persons: Optional[int] = None
     status: Optional[str] = None
 
 class ProposalResponse(BaseModel):
@@ -119,6 +125,12 @@ class ProposalResponse(BaseModel):
     discount_amount: Optional[float] = None
     travel_insurance: Optional[bool] = None
     travel_insurance_price: Optional[float] = None
+    sim_card_included: Optional[bool] = None
+    sim_card_details: Optional[Dict] = None
+    sim_card_persons: Optional[int] = None
+    visa_included: Optional[bool] = None
+    visa_details: Optional[Dict] = None
+    visa_persons: Optional[int] = None
     accepted_at: Optional[str] = None
     hold_until: Optional[str] = None
     assigned_expert_id: Optional[str] = None

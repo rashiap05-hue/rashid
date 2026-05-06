@@ -6,7 +6,8 @@ import {
   Download, Mail, MessageCircle, DollarSign, CreditCard, HelpCircle,
   Coffee, Utensils, Sun, Moon, Plus, Edit2, Trash2, Bed, Info, Eye,
   FileText, ChevronRight, Shield, Briefcase, AlertCircle, List,
-  MessageSquare, Phone, CheckCircle, Menu, Camera, Loader2, MoreVertical, User
+  MessageSquare, Phone, CheckCircle, Menu, Camera, Loader2, MoreVertical, User,
+  Wifi, Globe
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api, resolveImageUrl } from '@/App';
@@ -1533,6 +1534,68 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                         <p className="text-sm text-teal-600 font-medium mt-1">Included</p>
                       </div>
                       <span className="px-3 py-1.5 bg-teal-50 text-teal-700 text-sm font-medium rounded border border-teal-200">Added</span>
+                    </div>
+                  </div>
+                </div>
+                )}
+
+                {/* SIM Card Section - only if added */}
+                {proposal.sim_card_included && (
+                <div className="bg-white border border-gray-200 rounded-xl mb-8 shadow-sm overflow-hidden" data-testid="sim-card-section">
+                  <div className="px-6 py-5 flex items-center gap-3 border-b border-gray-100">
+                    <Wifi size={20} className="text-[#002B5B]" />
+                    <h2 className="text-lg font-bold text-[#002B5B]">Tourist SIM Card</h2>
+                  </div>
+                  <div className="px-6 py-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="text-gray-700 font-medium">
+                          {(proposal.sim_card_details?.provider) || 'Local SIM'} — {(proposal.sim_card_details?.plan_name) || 'Tourist Data Plan'}
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {[
+                            proposal.sim_card_details?.data_allowance,
+                            proposal.sim_card_details?.validity,
+                            proposal.sim_card_details?.country,
+                          ].filter(Boolean).join(' • ') || 'Stay connected throughout your trip'}
+                        </p>
+                        {proposal.sim_card_details?.price > 0 && (
+                          <p className="text-base font-semibold text-[#002B5B] mt-2">
+                            AED {proposal.sim_card_details.price} <span className="text-xs font-normal text-gray-500">per person × {proposal.sim_card_persons || 1} traveller{(proposal.sim_card_persons || 1) > 1 ? 's' : ''}</span>
+                          </p>
+                        )}
+                        <p className="text-sm text-teal-600 font-medium mt-1">Included</p>
+                      </div>
+                      <span className="px-3 py-1.5 bg-teal-50 text-teal-700 text-sm font-medium rounded border border-teal-200 whitespace-nowrap">Added</span>
+                    </div>
+                  </div>
+                </div>
+                )}
+
+                {/* Visa Section - only if added */}
+                {proposal.visa_included && (
+                <div className="bg-white border border-gray-200 rounded-xl mb-8 shadow-sm overflow-hidden" data-testid="visa-section">
+                  <div className="px-6 py-5 flex items-center gap-3 border-b border-gray-100">
+                    <Globe size={20} className="text-[#002B5B]" />
+                    <h2 className="text-lg font-bold text-[#002B5B]">Visa Assistance</h2>
+                  </div>
+                  <div className="px-6 py-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="text-gray-700 font-medium">
+                          {(proposal.visa_details?.visa_type) || (proposal.visa_details?.type) || 'Tourist Visa'}{proposal.visa_details?.country ? ` — ${proposal.visa_details.country}` : ''}
+                        </p>
+                        {proposal.visa_details?.processing_time && (
+                          <p className="text-sm text-gray-500 mt-1">Processing time: {proposal.visa_details.processing_time}</p>
+                        )}
+                        {proposal.visa_details?.price > 0 && (
+                          <p className="text-base font-semibold text-[#002B5B] mt-2">
+                            AED {proposal.visa_details.price} <span className="text-xs font-normal text-gray-500">per person × {proposal.visa_persons || 1} traveller{(proposal.visa_persons || 1) > 1 ? 's' : ''}</span>
+                          </p>
+                        )}
+                        <p className="text-sm text-teal-600 font-medium mt-1">Included</p>
+                      </div>
+                      <span className="px-3 py-1.5 bg-teal-50 text-teal-700 text-sm font-medium rounded border border-teal-200 whitespace-nowrap">Added</span>
                     </div>
                   </div>
                 </div>

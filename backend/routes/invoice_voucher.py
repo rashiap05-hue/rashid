@@ -419,6 +419,31 @@ def build_voucher_html(booking, proposal, user, terms):
         title = departure_t.get("title") or departure_t.get("name") or "Departure Transfer"
         ttype = departure_t.get("transfer_type") or departure_t.get("type") or "Private"
         inclusions_list.append(f"{title} - {ttype}")
+    # Add-on services
+    if proposal.get("travel_insurance"):
+        price = proposal.get("travel_insurance_price")
+        inclusions_list.append(
+            f"Travel Insurance - Min $50,000 coverage{f' (AED {price} per person)' if price else ''}"
+        )
+    if proposal.get("sim_card_included"):
+        sd = proposal.get("sim_card_details") or {}
+        bits = [sd.get("provider") or "Local SIM", sd.get("plan_name") or "Tourist Data Plan"]
+        if sd.get("data_allowance"):
+            bits.append(sd["data_allowance"])
+        if sd.get("validity"):
+            bits.append(sd["validity"])
+        persons = proposal.get("sim_card_persons") or 1
+        inclusions_list.append(
+            f"Tourist SIM Card - {' - '.join(bits)} × {persons} traveller{'s' if persons != 1 else ''}"
+        )
+    if proposal.get("visa_included"):
+        vd = proposal.get("visa_details") or {}
+        vtype = vd.get("visa_type") or vd.get("type") or "Tourist Visa"
+        country = vd.get("country") or ""
+        persons = proposal.get("visa_persons") or 1
+        inclusions_list.append(
+            f"Visa Assistance - {vtype}{f' ({country})' if country else ''} × {persons} traveller{'s' if persons != 1 else ''}"
+        )
     inclusions_html = "".join(f'<div class="inc-item">✓ {i}</div>' for i in inclusions_list)
 
     # Terms (rendered as proper bullet lists, with sub-section headings)
