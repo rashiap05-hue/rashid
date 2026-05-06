@@ -824,6 +824,33 @@ export default function BookingDetail({ bookingId, initialTaskId, onBack, onView
                 days.push({ num: dayNum, date: dayDate, city: cityName, items });
               }
             }
+
+            // Post-checkout activity days for the last city. Common for
+            // group-tour packages where Day N has morning activities before the
+            // return flight (e.g. 3-night / 4-day Almaty Eid Break).
+            const lastCityObj = cities[cities.length - 1];
+            const lastCityName = lastCityObj?.name || lastCityObj || '';
+            let maxDayWithActs = dayNum;
+            Object.keys(selectedActivities || {}).forEach((k) => {
+              const parts = String(k).split('_');
+              const dn = parseInt(parts[parts.length - 1], 10);
+              if (!Number.isFinite(dn)) return;
+              const cityPart = parts.slice(0, -1).join('_');
+              if (cityPart && cityPart !== lastCityName) return;
+              if (dn > maxDayWithActs) maxDayWithActs = dn;
+            });
+            while (dayNum < maxDayWithActs) {
+              dayNum++;
+              const dayDate = addDays(leavingOn, dayNum - 1);
+              const items = [];
+              const acts = selectedActivities[`${lastCityName}_${dayNum}`];
+              if (acts) {
+                const arr = Array.isArray(acts) ? acts : [acts];
+                arr.forEach(a => { if (a) items.push({ kind: 'activity', data: a }); });
+              }
+              days.push({ num: dayNum, date: dayDate, city: lastCityName, items });
+            }
+
             // Final departure day (after the last night)
             if (departureT) {
               dayNum++;
