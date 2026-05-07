@@ -723,7 +723,7 @@ def section_pricing(proposal, total_pax):
     markup = float(proposal.get("markup_land", proposal.get("markup_value", 0)) or 0)
     discount = float(proposal.get("discount_amount", 0) or 0)
     insurance = float(proposal.get("travel_insurance_price", 0) or 0)
-    grand_total = float(total_price) + markup - min(discount, markup) + insurance
+    grand_total = float(total_price) + markup - discount + insurance
     per_adult = grand_total / max(total_pax, 1)
 
     # Render the per-rate-plan lines when available (group-tour proposals
@@ -757,7 +757,7 @@ def section_pricing(proposal, total_pax):
     if markup:
         summary_rows += f'<tr><td class="lbl">Markup</td><td class="val">+ AED {markup:,.2f}</td></tr>'
     if discount:
-        summary_rows += f'<tr><td class="lbl">Discount</td><td class="val">- AED {min(discount, markup):,.2f}</td></tr>'
+        summary_rows += f'<tr><td class="lbl">Discount</td><td class="val">- AED {discount:,.2f}</td></tr>'
     if insurance:
         summary_rows += f'<tr><td class="lbl">Travel Insurance</td><td class="val">+ AED {insurance:,.2f}</td></tr>'
 

@@ -43,13 +43,15 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
     ? { label: proposal.vehicle_label, icon: proposal.vehicle_type?.includes('sedan') ? '🚗' : proposal.vehicle_type?.includes('car') ? '🚙' : proposal.vehicle_type?.includes('bus') ? '🚌' : '🚐' }
     : getVehicleTypeForPax(totalPax);
   
-  // Calculate pricing
+  // Calculate pricing — discount is now an independent reduction (was
+  // previously capped at markup, which silently zeroed the discount when
+  // markup=0). Agent is responsible for not pricing below cost.
   const basePrice = proposal.total_price || 0;
   const markupLand = proposal.markup_land || 0;
   const discountAmount = proposal.discount_amount || 0;
   const couponCode = proposal.coupon_code || '';
   const totalPrice = basePrice;
-  const priceAfterDiscount = totalPrice + markupLand - Math.min(discountAmount, markupLand);
+  const priceAfterDiscount = totalPrice + markupLand - discountAmount;
   const pricePerAdult = Math.round(priceAfterDiscount / adultsCount);
   const netPrice = totalPrice;
   
@@ -232,7 +234,7 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
                         className="w-full max-w-[240px] px-3 py-2.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none"
                         data-testid="discount-amount-input"
                       />
-                      <p className="text-xs text-gray-400 mt-2 max-w-[240px]">Discount will be adjusted against and limited by the commission/markup</p>
+                      <p className="text-xs text-gray-400 mt-2 max-w-[240px]">Discount is applied directly to the final price. Make sure it stays within your cost margin.</p>
                     </div>
                   </fieldset>
                 </div>
@@ -243,15 +245,14 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
                     onClick={async () => {
                       setUpdating(true);
                       try {
-                        const cappedDiscount = Math.min(discountValue, markupLandValue);
                         await api.patch(`/proposals/${proposal.id}`, {
                           markup_value: markupLandValue,
                           markup_land: markupLandValue,
-                          discount_amount: cappedDiscount,
+                          discount_amount: discountValue,
                           pricing_breakdown: {
                             ...proposal.pricing_breakdown,
                             markup: markupLandValue,
-                            discount: cappedDiscount
+                            discount: discountValue
                           }
                         });
                         onUpdateProposal?.();
@@ -299,7 +300,7 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
               <div className="pt-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">{couponCode ? 'Coupon Discount' : 'Discount'}</span>
-                  <span className="text-gray-800">AED -{Math.min(discountAmount, markupLand).toLocaleString()}</span>
+                  <span className="text-gray-800">AED -{discountAmount.toLocaleString()}</span>
                 </div>
                 {couponCode && (
                   <p className="text-gray-400 text-xs mt-1">{couponCode} Coupon Applied</p>
