@@ -590,15 +590,23 @@ def render_item(it):
         ext_html = ''
         if extras:
             rows = ''
+            # Use the same vehicle key the agent picked so we surface the
+            # right per-vehicle price when extras carry a `vehicle_pricing`
+            # override map (e.g. zip line costs more on a Bus than a Sedan).
+            sel_veh = (data.get("selectedVehicle") or data.get("selected_vehicle") or "").strip().lower()
             for ex in extras[:8]:
                 if not isinstance(ex, dict):
                     continue
                 nm = ex.get("name", "")
-                pr = ex.get("price")
+                vp = ex.get("vehicle_pricing")
+                if isinstance(vp, dict) and sel_veh and vp.get(sel_veh):
+                    pr = vp.get(sel_veh)
+                else:
+                    pr = ex.get("price")
                 desc = ex.get("description") or ""
                 line = f"<strong>{nm}</strong>"
                 if pr and float(pr) > 0:
-                    line += f' <span style="color:#B45309;">— USD {pr}</span>'
+                    line += f' <span style="color:#B45309;">— AED {pr}</span>'
                 if desc:
                     line += f' <span style="color:#6B7280;font-size:11px;">— {desc}</span>'
                 rows += f'<li>{line}</li>'

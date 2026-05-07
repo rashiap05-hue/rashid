@@ -257,10 +257,14 @@ class CityCreate(BaseModel):
     image: Optional[str] = None
 
 class TransferExtra(BaseModel):
+    id: Optional[str] = None
     name: str
     description: Optional[str] = None
-    price: float
+    price: float = 0
     duration: Optional[str] = None
+    # Optional per-vehicle override pricing (e.g. extra costs more for a Bus
+    # than a Sedan). When None, the flat `price` is used.
+    vehicle_pricing: Optional[dict] = None
 
 class TransferCreate(BaseModel):
     title: str
