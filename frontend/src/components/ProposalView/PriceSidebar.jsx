@@ -285,13 +285,21 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
               <span className="text-gray-600">Total Price</span>
               <span className="text-gray-800 font-medium">AED {totalPrice.toLocaleString()}</span>
             </div>
-            
-            {/* Coupon Discount */}
+
+            {/* Markup */}
+            {markupLand > 0 && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Markup</span>
+                <span className="text-gray-800 font-medium">AED +{markupLand.toLocaleString()}</span>
+              </div>
+            )}
+
+            {/* Coupon / Manual Discount */}
             {discountAmount > 0 && (
               <div className="pt-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Coupon Discount</span>
-                  <span className="text-gray-800">AED -{discountAmount.toLocaleString()}</span>
+                  <span className="text-gray-600">{couponCode ? 'Coupon Discount' : 'Discount'}</span>
+                  <span className="text-gray-800">AED -{Math.min(discountAmount, markupLand).toLocaleString()}</span>
                 </div>
                 {couponCode && (
                   <p className="text-gray-400 text-xs mt-1">{couponCode} Coupon Applied</p>
