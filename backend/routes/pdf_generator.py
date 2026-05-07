@@ -705,14 +705,47 @@ def section_pricing(proposal, total_pax):
     grand_total = float(total_price) + markup - min(discount, markup) + insurance
     per_adult = grand_total / max(total_pax, 1)
 
-    return f"""
-    <section class="pricing-section page-break-before">
-        <h2 class="section-title">Pricing Summary</h2>
-        <table class="pricing-table">
+    # Render the per-rate-plan lines when available (group-tour proposals
+    # carry an array like "Adults — Twin/Double sharing × 2", "Children
+    # (2-5 yrs, no bed) × 1") so the breakdown is transparent to the client.
+    lines = pricing.get("lines") or []
+    line_rows = ""
+    for ln in lines:
+        if not isinstance(ln, dict):
+            continue
+        label = ln.get("label", "")
+        count = ln.get("count") or 0
+        unit = ln.get("unit_price") or 0
+        sub = ln.get("subtotal") or (count * unit)
+        line_rows += f"""
+            <tr>
+                <td class="lbl">{label} <span style="color:#94a3b8;font-weight:500;">× {count}</span></td>
+                <td class="val">AED {sub:,.2f} <span style="color:#94a3b8;font-weight:500;font-size:11px;">(AED {unit:,.0f} each)</span></td>
+            </tr>
+        """
+
+    summary_rows = ""
+    if not line_rows:
+        # Legacy proposals without per-line breakdown — fall back to per-adult
+        summary_rows += f"""
             <tr>
                 <td class="lbl">Price per adult</td>
                 <td class="val">AED {per_adult:,.2f}</td>
             </tr>
+        """
+    if markup:
+        summary_rows += f'<tr><td class="lbl">Markup</td><td class="val">+ AED {markup:,.2f}</td></tr>'
+    if discount:
+        summary_rows += f'<tr><td class="lbl">Discount</td><td class="val">- AED {min(discount, markup):,.2f}</td></tr>'
+    if insurance:
+        summary_rows += f'<tr><td class="lbl">Travel Insurance</td><td class="val">+ AED {insurance:,.2f}</td></tr>'
+
+    return f"""
+    <section class="pricing-section page-break-before">
+        <h2 class="section-title">Pricing Summary</h2>
+        <table class="pricing-table">
+            {line_rows}
+            {summary_rows}
             <tr class="total-row">
                 <td class="lbl">Total Price</td>
                 <td class="val">AED {grand_total:,.2f}</td>
@@ -1195,6 +1228,32 @@ def build_pdf_html(proposal, terms, expert, user):
     proposal_name = proposal.get("proposal_name") or f"{customer_name}'s Trip to {(cities[0].get('name') if cities and isinstance(cities[0], dict) else cities[0]) if cities else ''}"
     adults = sum((r.get("adults", 0) for r in (proposal.get("room_data") or []))) or proposal.get("adults", 1) or 1
     rooms_count = len(proposal.get("room_data") or []) or proposal.get("rooms", 1) or 1
+    # Children: count + per-room age summary. Each `room_data` entry has a
+    # `children` array of {age: '3+ yrs'} dicts. Surface this on the cover so
+    # group bookings show the full pax composition (e.g. 1 room, 2 adults,
+    # 1 child (3+ yrs)).
+    children_list = []
+    for r in (proposal.get("room_data") or []):
+        for ch in (r.get("children") or []):
+            if isinstance(ch, dict):
+                age = (ch.get("age") or "").strip()
+                children_list.append(age or "Child")
+            elif ch:
+                children_list.append(str(ch))
+    children_count = len(children_list)
+    if children_count:
+        # Group same ages: ['3+ yrs','3+ yrs'] → '2× 3+ yrs'
+        from collections import Counter
+        bins = Counter(children_list)
+        ages_str = ", ".join(
+            f"{n}× {age}" if n > 1 else age
+            for age, n in bins.items()
+        )
+        children_summary = (
+            f", {children_count} child{'ren' if children_count != 1 else ''} ({ages_str})"
+        )
+    else:
+        children_summary = ""
     prepared_by = (user or {}).get("full_name") or (user or {}).get("name") or "Travel Advisor"
     company = (user or {}).get("company_name") or "Travo Tours & Travels"
 
@@ -1524,7 +1583,7 @@ def build_pdf_html(proposal, terms, expert, user):
     </div>
     <div class="info-row">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <span>{rooms_count} room{'s' if rooms_count!=1 else ''}, {adults} adult{'s' if adults!=1 else ''}</span>
+      <span>{rooms_count} room{'s' if rooms_count!=1 else ''}, {adults} adult{'s' if adults!=1 else ''}{children_summary}</span>
     </div>
   </div>
 </div>
