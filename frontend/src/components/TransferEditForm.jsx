@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Check, Clock, Info, Image, Car, CheckCircle, Building2 } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -296,7 +296,12 @@ export default function TransferEditForm({ transfer, onSave, onClose, isNew = fa
     description: transfer?.description || '',
     from_location: transfer?.from_location || '',
     to_location: transfer?.to_location || '',
-    country: transfer?.country || '',
+    // Derive country from the city when the saved transfer record only has
+    // city set (older records didn't persist country) — keeps the dropdown
+    // pre-selected on edit instead of forcing the agent to re-pick it.
+    country: transfer?.country
+      || cities.find(c => c.name?.toLowerCase() === (transfer?.city || '').toLowerCase())?.country
+      || '',
     city: transfer?.city || '',
     transfer_type: transfer?.transfer_type || 'Private',
     transfer_direction: transfer?.transfer_direction || 'arrival',
@@ -341,6 +346,18 @@ export default function TransferEditForm({ transfer, onSave, onClose, isNew = fa
       setSaving(false);
     }
   };
+
+  // When the cities list loads asynchronously (after the form mounts) and the
+  // saved transfer record didn't persist a country, derive it from the city
+  // → so the Country dropdown stays pre-selected on edit instead of forcing
+  // the agent to re-pick it every time.
+  useEffect(() => {
+    if (formData.country || !formData.city || !cities?.length) return;
+    const match = cities.find(c => c.name?.toLowerCase() === formData.city.toLowerCase());
+    if (match?.country) {
+      setFormData(prev => ({ ...prev, country: match.country }));
+    }
+  }, [cities, formData.city, formData.country]);
 
   const tabs = [
     { id: 'basic', label: 'Basic Info', icon: Info },
