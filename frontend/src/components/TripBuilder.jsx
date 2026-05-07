@@ -1088,21 +1088,44 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       });
     });
     
-    // Calculate extras total
+    // Eligible pax for extras = adults + children excluding infants (<2 yrs).
+    // Per business rule, infants are not charged for extras.
+    const eligiblePax = (data?.room_data || []).reduce((acc, r) => {
+      const adultCount = Number(r.adults || 0);
+      const nonInfantChildren = (r.children || []).filter(ch => {
+        const age = (ch?.age || '').toString().toLowerCase();
+        return !(age.includes('<2') || age.includes('infant') || age.includes('0-2'));
+      }).length;
+      return acc + adultCount + nonInfantChildren;
+    }, 0) || 1;
+
+    // Calculate extras total. Extras are keyed by entityId (activity OR
+    // transfer id). Look up the entity's selected vehicle in either the
+    // activities map or the transfer maps so per-vehicle pricing applies.
     let extrasTotal = 0;
-    Object.entries(selectedExtras).forEach(([activityId, extras]) => {
-      extras.forEach(extra => {
-        // Find the activity to check vehicle selection
-        let activityVehicle = null;
-        Object.values(selectedActivities).forEach(dayActs => {
-          const found = dayActs.find(a => a.id === activityId);
-          if (found) activityVehicle = found.selectedVehicle;
+    Object.entries(selectedExtras).forEach(([entityId, extras]) => {
+      let entityVehicle = null;
+      // Activities
+      Object.values(selectedActivities).forEach(dayActs => {
+        const found = dayActs.find(a => a.id === entityId);
+        if (found) entityVehicle = found.selectedVehicle;
+      });
+      // Inter-city transfers
+      if (!entityVehicle) {
+        Object.values(interCityTransfers).forEach(t => {
+          if (t?.id === entityId) entityVehicle = t.selectedVehicle;
         });
-        if (extra.vehicle_pricing && activityVehicle && extra.vehicle_pricing[activityVehicle]) {
-          extrasTotal += extra.vehicle_pricing[activityVehicle];
-        } else {
-          extrasTotal += extra.price || 0;
-        }
+      }
+      // Arrival / departure transfers
+      if (!entityVehicle && selectedArrivalTransfer?.id === entityId) entityVehicle = selectedArrivalTransfer.selectedVehicle;
+      if (!entityVehicle && selectedDepartureTransfer?.id === entityId) entityVehicle = selectedDepartureTransfer.selectedVehicle;
+
+      extras.forEach(extra => {
+        const perPax = (extra.vehicle_pricing && entityVehicle && extra.vehicle_pricing[entityVehicle])
+          ? extra.vehicle_pricing[entityVehicle]
+          : (extra.price || 0);
+        // Per-person extras: multiply by eligible pax (adults + non-infant kids)
+        extrasTotal += perPax * eligiblePax;
       });
     });
     activitiesTotal += extrasTotal;
