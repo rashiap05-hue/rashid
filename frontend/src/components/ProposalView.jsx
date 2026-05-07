@@ -1641,21 +1641,32 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                     // from each `selected_activities` key (e.g. `Almaty_2`) so
                     // the Inclusions tab groups items by their actual day, not by
                     // their position in a flattened list.
+                    //
+                    // Multi-stay cities: when the same city appears more than
+                    // once on a trip (e.g. Yerevan → Tsaghkadzor → Yerevan),
+                    // each stay only owns the days that fall within its night
+                    // range. Day 1-2 belong to the first Yerevan; Day 4-6
+                    // belong to the second. Without this filter, both Yerevan
+                    // blocks would render every Yerevan_* activity.
+                    const cityDayMin = cumulativeNights + 1;
+                    const cityDayMax = cumulativeNights + (city.nights || 0) + (isLastCity ? 1 : 0);
                     const cityActivities = [];
                     const selectedActs = proposal.selected_activities || {};
                     Object.keys(selectedActs).forEach(key => {
-                      if (key === `${city.name}_${cityIdx}` || key.startsWith(city.name + '_')) {
-                        const dayNum = parseInt(key.split('_').pop()) || 1;
-                        const acts = selectedActs[key];
-                        if (Array.isArray(acts)) {
-                          acts.forEach(a => {
-                            if (!cityActivities.some(existing => existing.name === a.name)) {
-                              cityActivities.push({ ...a, _dayNum: dayNum });
-                            }
-                          });
-                        } else if (acts && !cityActivities.some(existing => existing.name === acts.name)) {
-                          cityActivities.push({ ...acts, _dayNum: dayNum });
-                        }
+                      // Match keys like `Yerevan_2`, but require the day number
+                      // to fall within this city stay's day range.
+                      if (!key.startsWith(city.name + '_')) return;
+                      const dayNum = parseInt(key.split('_').pop()) || 1;
+                      if (dayNum < cityDayMin || dayNum > cityDayMax) return;
+                      const acts = selectedActs[key];
+                      if (Array.isArray(acts)) {
+                        acts.forEach(a => {
+                          if (!cityActivities.some(existing => existing.name === a.name && existing._dayNum === dayNum)) {
+                            cityActivities.push({ ...a, _dayNum: dayNum });
+                          }
+                        });
+                      } else if (acts && !cityActivities.some(existing => existing.name === acts.name && existing._dayNum === dayNum)) {
+                        cityActivities.push({ ...acts, _dayNum: dayNum });
                       }
                     });
 
@@ -1951,30 +1962,34 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                     cityTransfersTab.push({ ...proposal.departure_transfer, _dayNum: totalNightsTab + 1, _date: addDays(tripStartStr, totalNightsTab) });
                   }
 
-                  // Collect activities for this city with day numbers
+                  // Collect activities for this city with day numbers — scoped
+                  // to this stay's day range so multi-stay cities (e.g.
+                  // Yerevan → Tsaghkadzor → Yerevan) don't double-render.
                   const cityActivitiesTab = [];
                   const selectedActsTab = proposal.selected_activities || {};
+                  const cityDayMinTab = cumulativeNightsTab + 1;
+                  const cityDayMaxTab = cumulativeNightsTab + (city.nights || 0) + (isLastCityTab ? 1 : 0);
                   Object.keys(selectedActsTab).forEach(key => {
-                    if (key.startsWith(city.name + '_')) {
-                      const dayNum = parseInt(key.split('_').pop()) || 1;
-                      const acts = selectedActsTab[key];
-                      if (Array.isArray(acts)) {
-                        acts.forEach(a => {
-                          if (!cityActivitiesTab.some(existing => existing.id === a.id)) {
-                            cityActivitiesTab.push({
-                              ...a,
-                              _dayNum: dayNum,
-                              _date: addDays(tripStartStr, dayNum - 1)
-                            });
-                          }
-                        });
-                      } else if (acts && !cityActivitiesTab.some(existing => existing.id === acts.id)) {
-                        cityActivitiesTab.push({
-                          ...acts,
-                          _dayNum: dayNum,
-                          _date: addDays(tripStartStr, dayNum - 1)
-                        });
-                      }
+                    if (!key.startsWith(city.name + '_')) return;
+                    const dayNum = parseInt(key.split('_').pop()) || 1;
+                    if (dayNum < cityDayMinTab || dayNum > cityDayMaxTab) return;
+                    const acts = selectedActsTab[key];
+                    if (Array.isArray(acts)) {
+                      acts.forEach(a => {
+                        if (!cityActivitiesTab.some(existing => existing.id === a.id && existing._dayNum === dayNum)) {
+                          cityActivitiesTab.push({
+                            ...a,
+                            _dayNum: dayNum,
+                            _date: addDays(tripStartStr, dayNum - 1)
+                          });
+                        }
+                      });
+                    } else if (acts && !cityActivitiesTab.some(existing => existing.id === acts.id && existing._dayNum === dayNum)) {
+                      cityActivitiesTab.push({
+                        ...acts,
+                        _dayNum: dayNum,
+                        _date: addDays(tripStartStr, dayNum - 1)
+                      });
                     }
                   });
 
