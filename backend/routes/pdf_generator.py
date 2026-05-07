@@ -85,6 +85,41 @@ def short_ref(pid):
     return s[-7:].upper()
 
 
+# Maps the supplier's vehicle catalog keys (used by transfers + activities)
+# to a human-readable label including seat count. Used in the PDF transfer
+# and activity cards so agents can see "5-seater Sedan / 7-seater SUV /
+# 14-seater Van / Coach" at a glance.
+_VEHICLE_LABELS = {
+    "sedan_4": "4-seater Sedan",
+    "car_7": "7-seater SUV",
+    "van_8": "8-seater Van",
+    "van_14": "14-seater Van",
+    "van_17": "17-seater Mini-Coach",
+    "bus_29": "29-seater Coach",
+    "bus_45": "45-seater Coach",
+    "bus_55": "55-seater Coach",
+}
+
+
+def vehicle_label(item: dict) -> str:
+    """Return a human-readable vehicle label like '7-seater SUV' for the
+    selected vehicle on a transfer or activity. Falls back to vehicle_type
+    or empty string."""
+    if not isinstance(item, dict):
+        return ""
+    sel = (item.get("selectedVehicle") or item.get("selected_vehicle") or "").strip().lower()
+    if sel and sel in _VEHICLE_LABELS:
+        return _VEHICLE_LABELS[sel]
+    if sel and "_" in sel:
+        # Pattern: <type>_<seats>
+        kind, _, seats = sel.partition("_")
+        if seats.isdigit():
+            kind_map = {"sedan": "Sedan", "car": "SUV", "van": "Van", "bus": "Coach"}
+            return f"{seats}-seater {kind_map.get(kind, kind.title())}"
+    # Fall back to display string already on the item
+    return (item.get("vehicle_type") or item.get("vehicleType") or "").strip()
+
+
 def cities_summary(cities):
     parts = []
     for c in cities:
@@ -519,7 +554,7 @@ def render_item(it):
         is_private = "private" in str(ttype).lower()
         tag_class = "tag-green" if is_private else "tag-amber"
         tag_label = "Private Transfer" if is_private else "Shared Transfer"
-        vehicle = data.get("vehicle_type") or ""
+        vehicle = vehicle_label(data)
         desc = (data.get("description") or "").strip()
 
         inclusions = data.get("inclusions") or []
@@ -614,6 +649,9 @@ def render_item(it):
         meta_lines.append(f'<div class="day-item-meta"><strong>Start times:</strong> {start_times}</div>')
     if meeting_point:
         meta_lines.append(f'<div class="day-item-meta"><strong>Meeting point:</strong> {meeting_point}</div>')
+    veh = vehicle_label(data)
+    if veh:
+        meta_lines.append(f'<div class="day-item-meta"><strong>Vehicle:</strong> {veh}</div>')
 
     return f"""
     <div class="day-item activity-row">
@@ -933,9 +971,10 @@ def section_inclusions_exclusions(proposal):
         plan_name = sd.get("plan_name") or "Tourist Data Plan"
         data_allowance = sd.get("data_allowance") or ""
         validity = sd.get("validity") or ""
-        price = sd.get("price")
-        price_text = f" • AED {price} per person" if price else ""
-        meta_bits = [f"{persons} traveler{'s' if persons != 1 else ''}{price_text}"]
+        # Per requirement: SIM card price is hidden in the PDF — only the
+        # plan details (provider, plan name, persons, data, validity) are
+        # shown. The web view still displays the price.
+        meta_bits = [f"{persons} traveler{'s' if persons != 1 else ''}"]
         if data_allowance:
             meta_bits.append(data_allowance)
         if validity:
