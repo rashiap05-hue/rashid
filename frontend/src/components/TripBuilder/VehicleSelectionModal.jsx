@@ -8,7 +8,7 @@ function VehicleSelectionModal({ isOpen, onClose, activity, onSelectVehicle, tot
 
   const vehicleOptions = [
     { key: 'sedan_4', label: '4 Seater Sedan', icon: '🚗', minPax: 1, maxPax: 4 },
-    { key: 'car_7', label: '7 Seater Car', icon: '🚙', minPax: 3, maxPax: 7, optional: true },
+    { key: 'car_7', label: '7 Seater Minivan', icon: '🚙', minPax: 3, maxPax: 7, optional: true },
     { key: 'van_8', label: '8 Seater Van', icon: '🚐', minPax: 5, maxPax: 8, optional: true },
     { key: 'van_17', label: '17 Seater Van', icon: '🚐', minPax: 9, maxPax: 17 },
     { key: 'bus_29', label: '29 Seater Bus', icon: '🚌', minPax: 18, maxPax: 29 },

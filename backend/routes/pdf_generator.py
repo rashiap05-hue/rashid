@@ -91,7 +91,7 @@ def short_ref(pid):
 # 14-seater Van / Coach" at a glance.
 _VEHICLE_LABELS = {
     "sedan_4": "4-seater Sedan",
-    "car_7": "7-seater SUV",
+    "car_7": "7-seater Minivan",
     "van_8": "8-seater Van",
     "van_14": "14-seater Van",
     "van_17": "17-seater Mini-Coach",
@@ -102,7 +102,7 @@ _VEHICLE_LABELS = {
 
 
 def vehicle_label(item: dict) -> str:
-    """Return a human-readable vehicle label like '7-seater SUV' for the
+    """Return a human-readable vehicle label like '7-seater Minivan' for the
     selected vehicle on a transfer or activity. Falls back to vehicle_type
     or empty string."""
     if not isinstance(item, dict):
@@ -114,7 +114,7 @@ def vehicle_label(item: dict) -> str:
         # Pattern: <type>_<seats>
         kind, _, seats = sel.partition("_")
         if seats.isdigit():
-            kind_map = {"sedan": "Sedan", "car": "SUV", "van": "Van", "bus": "Coach"}
+            kind_map = {"sedan": "Sedan", "car": "Minivan", "van": "Van", "bus": "Coach"}
             return f"{seats}-seater {kind_map.get(kind, kind.title())}"
     # Fall back to display string already on the item
     return (item.get("vehicle_type") or item.get("vehicleType") or "").strip()

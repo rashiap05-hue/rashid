@@ -304,7 +304,7 @@ export default function TransferEditForm({ transfer, onSave, onClose, isNew = fa
 
   const vehicles = [
     { key: 'sedan_4', label: '4 Seater Sedan', pax: '1-4 pax' },
-    { key: 'car_7', label: '7 Seater Car', pax: '3-7 pax', optional: true },
+    { key: 'car_7', label: '7 Seater Minivan', pax: '3-7 pax', optional: true },
     { key: 'van_8', label: '8 Seater Van', pax: '5-8 pax', optional: true },
     { key: 'van_17', label: '17 Seater Van', pax: '9-17 pax' },
     { key: 'bus_29', label: '29 Seater Bus', pax: '18-29 pax' },

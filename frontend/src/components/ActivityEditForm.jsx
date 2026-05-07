@@ -1112,7 +1112,7 @@ Example:
                               <div className="mt-2 grid grid-cols-4 gap-2">
                                 {[
                                   { key: 'sedan_4', label: 'Sedan (4)' },
-                                  { key: 'car_7', label: 'Car (7)' },
+                                  { key: 'car_7', label: 'Minivan (7)' },
                                   { key: 'van_17', label: 'Van (17)' },
                                   { key: 'bus_45', label: 'Bus (45)' }
                                 ].map(v => (
@@ -1197,7 +1197,7 @@ Example:
                   <div className="divide-y divide-gray-100">
                     {[
                       { key: 'sedan_4', label: '4 Seater Sedan', icon: '🚗', pax: '1-4 pax' },
-                      { key: 'car_7', label: '7 Seater Car', icon: '🚙', pax: '3-7 pax', optional: true },
+                      { key: 'car_7', label: '7 Seater Minivan', icon: '🚙', pax: '3-7 pax', optional: true },
                       { key: 'van_8', label: '8 Seater Van', icon: '🚐', pax: '5-8 pax', optional: true },
                       { key: 'van_17', label: '17 Seater Van', icon: '🚐', pax: '9-17 pax' },
                       { key: 'bus_29', label: '29 Seater Bus', icon: '🚌', pax: '18-29 pax' },

@@ -31,7 +31,7 @@ function PriceSidebar({ proposal, onBookNow, onEditProposal, onUpdateProposal, o
   // Get vehicle type based on passengers
   const getVehicleTypeForPax = (pax) => {
     if (pax <= 4) return { key: 'sedan_4', label: '4 Seater Sedan', icon: '🚗' };
-    if (pax <= 7) return { key: 'car_7', label: '7 Seater Car', icon: '🚙' };
+    if (pax <= 7) return { key: 'car_7', label: '7 Seater Minivan', icon: '🚙' };
     if (pax <= 8) return { key: 'van_8', label: '8 Seater Van', icon: '🚐' };
     if (pax <= 17) return { key: 'van_17', label: '17 Seater Van', icon: '🚐' };
     if (pax <= 29) return { key: 'bus_29', label: '29 Seater Bus', icon: '🚌' };

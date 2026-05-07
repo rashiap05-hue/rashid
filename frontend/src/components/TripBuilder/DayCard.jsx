@@ -123,7 +123,7 @@ function DayCard({
                             {selectedArrivalTransfer.selectedVehicle ? (
                               <>
                                 {selectedArrivalTransfer.selectedVehicle === 'sedan_4' && '🚗 4 Seater Sedan'}
-                                {selectedArrivalTransfer.selectedVehicle === 'car_7' && '🚙 7 Seater Car'}
+                                {selectedArrivalTransfer.selectedVehicle === 'car_7' && '🚙 7 Seater Minivan'}
                                 {selectedArrivalTransfer.selectedVehicle === 'van_8' && '🚐 8 Seater Van'}
                                 {selectedArrivalTransfer.selectedVehicle === 'van_17' && '🚐 17 Seater Van'}
                                 {selectedArrivalTransfer.selectedVehicle === 'bus_29' && '🚌 29 Seater Bus'}
@@ -212,7 +212,7 @@ function DayCard({
                             {selectedDepartureTransfer.selectedVehicle ? (
                               <>
                                 {selectedDepartureTransfer.selectedVehicle === 'sedan_4' && '🚗 4 Seater Sedan'}
-                                {selectedDepartureTransfer.selectedVehicle === 'car_7' && '🚙 7 Seater Car'}
+                                {selectedDepartureTransfer.selectedVehicle === 'car_7' && '🚙 7 Seater Minivan'}
                                 {selectedDepartureTransfer.selectedVehicle === 'van_8' && '🚐 8 Seater Van'}
                                 {selectedDepartureTransfer.selectedVehicle === 'van_17' && '🚐 17 Seater Van'}
                                 {selectedDepartureTransfer.selectedVehicle === 'bus_29' && '🚌 29 Seater Bus'}

@@ -886,7 +886,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   // Determine vehicle type based on total passengers
   const getVehicleTypeForPax = (totalPax) => {
     if (totalPax <= 4) return { key: 'sedan_4', label: '4 Seater Sedan', icon: '🚗', maxPax: 4 };
-    if (totalPax <= 7) return { key: 'car_7', label: '7 Seater Car', icon: '🚙', maxPax: 7 };
+    if (totalPax <= 7) return { key: 'car_7', label: '7 Seater Minivan', icon: '🚙', maxPax: 7 };
     if (totalPax <= 8) return { key: 'van_8', label: '8 Seater Van', icon: '🚐', maxPax: 8 };
     if (totalPax <= 17) return { key: 'van_17', label: '17 Seater Van', icon: '🚐', maxPax: 17 };
     if (totalPax <= 29) return { key: 'bus_29', label: '29 Seater Bus', icon: '🚌', maxPax: 29 };
@@ -936,7 +936,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     if (activity.selectedVehicle) {
       const vehicles = {
         'sedan_4': '🚗 4 Seater Sedan',
-        'car_7': '🚙 7 Seater Car',
+        'car_7': '🚙 7 Seater Minivan',
         'van_8': '🚐 8 Seater Van',
         'van_17': '🚐 17 Seater Van',
         'bus_29': '🚌 29 Seater Bus',
@@ -981,7 +981,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     if (transfer.selectedVehicle) {
       const vehicles = {
         'sedan_4': '🚗 4 Seater Sedan',
-        'car_7': '🚙 7 Seater Car',
+        'car_7': '🚙 7 Seater Minivan',
         'van_8': '🚐 8 Seater Van',
         'van_17': '🚐 17 Seater Van',
         'bus_29': '🚌 29 Seater Bus',
@@ -1027,7 +1027,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const handleInterCityVehicleSelect = (transfer, vehicleKey, price) => {
     const vehicleLabels = {
       'sedan_4': '4 Seater Sedan',
-      'car_7': '7 Seater Car',
+      'car_7': '7 Seater Minivan',
       'van_8': '8 Seater Van',
       'van_17': '17 Seater Van',
       'bus_29': '29 Seater Bus',

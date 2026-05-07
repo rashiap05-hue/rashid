@@ -1494,7 +1494,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView, onVie
                   <div className="divide-y divide-gray-100 max-h-[300px] overflow-y-auto">
                     {[
                       { key: 'sedan_4', label: '4 Seater Sedan', icon: '🚗', pax: '1-4 pax' },
-                      { key: 'car_7', label: '7 Seater Car', icon: '🚙', pax: '3-7 pax', optional: true },
+                      { key: 'car_7', label: '7 Seater Minivan', icon: '🚙', pax: '3-7 pax', optional: true },
                       { key: 'van_8', label: '8 Seater Van', icon: '🚐', pax: '5-8 pax', optional: true },
                       { key: 'van_17', label: '17 Seater Van', icon: '🚐', pax: '9-17 pax' },
                       { key: 'bus_29', label: '29 Seater Bus', icon: '🚌', pax: '18-29 pax' },
