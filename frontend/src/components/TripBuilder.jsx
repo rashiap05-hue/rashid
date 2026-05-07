@@ -1295,6 +1295,10 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
             selectedVehicle: t.selectedVehicle || null,
             vehiclePrice: t.selectedPrice ?? t.vehiclePrice ?? null,
             duration: t.duration,
+            // Carry the catalog's extras list so the saved proposal can show
+            // them in the customer view; the user-selected ones live in
+            // selectedExtras keyed by transfer id.
+            extras: t.extras || [],
           };
           return acc;
         }, {}),

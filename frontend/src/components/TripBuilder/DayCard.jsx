@@ -521,6 +521,59 @@ function DayCard({
                           </button>
                         </div>
                       </div>
+
+                      {/* Extras Available for Purchase — same pattern as activities */}
+                      {(() => {
+                        const transferExtras = incomingTransfer.extras || [];
+                        if (transferExtras.length === 0) return null;
+                        const transferKey = incomingTransfer.id || `transfer_${day}`;
+                        const selectedTransferExtras = selectedExtras?.[transferKey] || [];
+                        return (
+                          <div className="mt-3 -mx-4 px-4 py-3 bg-gradient-to-r from-green-50/40 to-white border-t border-green-100">
+                            <p className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">Extras available for purchase</p>
+                            <div className="space-y-1.5">
+                              {transferExtras.map((extra, eIdx) => {
+                                const isChecked = selectedTransferExtras.some(e => (e.id || e.name) === (extra.id || extra.name));
+                                const extraPrice = extra.vehicle_pricing && incomingTransfer.selectedVehicle
+                                  ? (extra.vehicle_pricing[incomingTransfer.selectedVehicle] || extra.price || 0)
+                                  : (extra.price || 0);
+                                return (
+                                  <label
+                                    key={extra.id || eIdx}
+                                    className={cn(
+                                      "flex items-start gap-3 p-2.5 rounded-lg cursor-pointer transition-colors",
+                                      isChecked ? "bg-green-50 border border-green-200" : "hover:bg-gray-50 border border-transparent"
+                                    )}
+                                    data-testid={`transfer-extra-checkbox-${transferKey}-${eIdx}`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => onToggleExtra && onToggleExtra(transferKey, extra)}
+                                      className="mt-0.5 w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <p className={cn("text-sm font-medium", isChecked ? "text-green-700" : "text-gray-700")}>
+                                        {extra.name}
+                                      </p>
+                                      {extra.description && (
+                                        <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{extra.description}</p>
+                                      )}
+                                    </div>
+                                    <div className="text-right flex-shrink-0">
+                                      <span className="text-[10px] text-gray-400">starting from</span>
+                                      <p className={cn("text-sm font-bold", isChecked ? "text-green-600" : "text-gray-700")}>
+                                        AED {extraPrice}
+                                      </p>
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
                       <button
                         onClick={() => onChangeInterCityTransfer('incoming')}
                         className="mt-3 w-full py-2 border border-green-200 rounded-lg text-green-600 text-sm font-medium hover:bg-green-50 transition-colors"
