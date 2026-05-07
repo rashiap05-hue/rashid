@@ -1621,6 +1621,91 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                 </div>
                 )}
 
+                {/* Selected Extras Section — paid add-ons the agent ticked
+                    on activities/transfers (e.g. Zip line, Rope way). Shows
+                    per-pax price, eligible pax count, and per-extra subtotal.
+                    Infants are excluded from pax count. */}
+                {(() => {
+                  const selectedExtras = proposal.selected_extras || {};
+                  const entityIds = Object.keys(selectedExtras).filter(k => Array.isArray(selectedExtras[k]) && selectedExtras[k].length);
+                  if (!entityIds.length) return null;
+
+                  // Eligible pax = adults + non-infant children
+                  const eligiblePax = (proposal.room_data || []).reduce((acc, r) => {
+                    const adultCount = Number(r.adults || 0);
+                    const nonInfantChildren = (r.children || []).filter(ch => {
+                      const age = (ch?.age || '').toString().toLowerCase();
+                      return !(age.includes('<2') || age.includes('infant') || age.includes('0-2'));
+                    }).length;
+                    return acc + adultCount + nonInfantChildren;
+                  }, 0) || 1;
+
+                  // Build entity-id → {name, vehicle, type} map for friendly labels
+                  const entityMap = {};
+                  Object.entries(proposal.selected_activities || {}).forEach(([k, v]) => {
+                    const acts = Array.isArray(v) ? v : [v];
+                    acts.forEach(a => {
+                      if (a?.id) entityMap[a.id] = { name: a.name, type: 'Activity', vehicle: a.selectedVehicle };
+                    });
+                  });
+                  Object.values(proposal.inter_city_transfers || {}).forEach(t => {
+                    if (t?.id) entityMap[t.id] = { name: t.title, type: 'Transfer', vehicle: t.selectedVehicle };
+                  });
+                  if (proposal.arrival_transfer?.id) entityMap[proposal.arrival_transfer.id] = { name: proposal.arrival_transfer.title, type: 'Transfer', vehicle: proposal.arrival_transfer.selectedVehicle };
+                  if (proposal.departure_transfer?.id) entityMap[proposal.departure_transfer.id] = { name: proposal.departure_transfer.title, type: 'Transfer', vehicle: proposal.departure_transfer.selectedVehicle };
+
+                  let grandTotal = 0;
+                  const rows = [];
+                  entityIds.forEach(entityId => {
+                    const ent = entityMap[entityId] || { name: 'Service', type: '' };
+                    selectedExtras[entityId].forEach((ex, idx) => {
+                      const perPax = (ex.vehicle_pricing && ent.vehicle && ex.vehicle_pricing[ent.vehicle])
+                        ? ex.vehicle_pricing[ent.vehicle]
+                        : (ex.price || 0);
+                      const sub = perPax * eligiblePax;
+                      grandTotal += sub;
+                      rows.push({
+                        key: `${entityId}_${idx}`,
+                        name: ex.name,
+                        description: ex.description,
+                        forLabel: ent.type ? `${ent.type}: ${ent.name}` : ent.name,
+                        perPax,
+                        subtotal: sub,
+                      });
+                    });
+                  });
+                  if (rows.length === 0) return null;
+
+                  return (
+                    <div className="bg-white border border-gray-200 rounded-xl mb-8 shadow-sm overflow-hidden" data-testid="selected-extras-section">
+                      <div className="px-6 py-5 flex items-center gap-3 border-b border-gray-100">
+                        <Camera size={20} className="text-amber-600" />
+                        <h2 className="text-lg font-bold text-[#002B5B]">Extras Available for Purchase</h2>
+                        <span className="ml-auto px-3 py-1 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full border border-amber-200">{rows.length} item{rows.length !== 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="px-6 py-4 space-y-2">
+                        {rows.map((r) => (
+                          <div key={r.key} className="flex items-start justify-between gap-4 py-3 border-b border-gray-100 last:border-b-0">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-gray-800">{r.name}</p>
+                              {r.description && <p className="text-xs text-gray-500 mt-0.5">{r.description}</p>}
+                              <p className="text-[11px] text-gray-400 mt-1 italic">For {r.forLabel}</p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-xs text-gray-500">AED {r.perPax.toLocaleString()} × {eligiblePax} pax</p>
+                              <p className="text-base font-bold text-amber-700 mt-0.5">AED {r.subtotal.toLocaleString()}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-t border-gray-100">
+                        <span className="text-sm font-semibold text-gray-700">Extras Subtotal ({eligiblePax} eligible pax, infants excluded)</span>
+                        <span className="text-lg font-bold text-amber-700">AED {grandTotal.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* ========== INCLUSIONS SECTION ========== */}
                 <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-8" data-testid="inclusions-section">
                   {/* Header */}

@@ -786,6 +786,111 @@ def section_pricing(proposal, total_pax):
     """
 
 
+def section_selected_extras(proposal):
+    """Render the agent's ticked optional extras (e.g. Zip line, Rope way) as
+    a dedicated table. Per-pax × eligible-pax-count = subtotal; infants are
+    excluded from pax count."""
+    selected_extras = proposal.get("selected_extras") or {}
+    if not selected_extras:
+        return ""
+
+    # Eligible pax = adults + non-infant children
+    eligible_pax = 0
+    for r in (proposal.get("room_data") or []):
+        eligible_pax += int(r.get("adults") or 0)
+        for ch in (r.get("children") or []):
+            age = (ch.get("age") if isinstance(ch, dict) else "") or ""
+            age = age.lower()
+            if not (("<2" in age) or ("infant" in age) or ("0-2" in age)):
+                eligible_pax += 1
+    eligible_pax = eligible_pax or 1
+
+    # Build entity_id → {name, type, vehicle} map
+    entity_map: dict = {}
+    for v in (proposal.get("selected_activities") or {}).values():
+        items = v if isinstance(v, list) else [v]
+        for a in items:
+            if isinstance(a, dict) and a.get("id"):
+                entity_map[a["id"]] = {
+                    "name": a.get("name", ""),
+                    "type": "Activity",
+                    "vehicle": a.get("selectedVehicle"),
+                }
+    for t in (proposal.get("inter_city_transfers") or {}).values():
+        if isinstance(t, dict) and t.get("id"):
+            entity_map[t["id"]] = {
+                "name": t.get("title", ""),
+                "type": "Transfer",
+                "vehicle": t.get("selectedVehicle"),
+            }
+    for fld in ("arrival_transfer", "departure_transfer"):
+        t = proposal.get(fld) or {}
+        if t.get("id"):
+            entity_map[t["id"]] = {
+                "name": t.get("title", ""),
+                "type": "Transfer",
+                "vehicle": t.get("selectedVehicle"),
+            }
+
+    rows_html = ""
+    grand_total = 0.0
+    has_any = False
+    for entity_id, extras in selected_extras.items():
+        if not isinstance(extras, list) or not extras:
+            continue
+        ent = entity_map.get(entity_id) or {"name": "Service", "type": "", "vehicle": None}
+        for ex in extras:
+            if not isinstance(ex, dict):
+                continue
+            has_any = True
+            vp = ex.get("vehicle_pricing")
+            if isinstance(vp, dict) and ent.get("vehicle") and vp.get(ent["vehicle"]):
+                per_pax = float(vp[ent["vehicle"]])
+            else:
+                per_pax = float(ex.get("price") or 0)
+            subtotal = per_pax * eligible_pax
+            grand_total += subtotal
+            for_label = (
+                f"{ent['type']}: {ent['name']}" if ent.get("type") else ent.get("name", "")
+            )
+            desc = ex.get("description") or ""
+            rows_html += f"""
+            <tr>
+                <td class="extra-cell">
+                    <div class="extra-name">{ex.get("name","")}</div>
+                    {f'<div class="extra-desc">{desc}</div>' if desc else ''}
+                    <div class="extra-for">For {for_label}</div>
+                </td>
+                <td class="extra-pax">AED {per_pax:,.0f} × {eligible_pax}</td>
+                <td class="extra-sub">AED {subtotal:,.0f}</td>
+            </tr>
+            """
+
+    if not has_any:
+        return ""
+
+    return f"""
+    <section class="extras-section">
+        <h2 class="section-title">Extras Available for Purchase</h2>
+        <table class="extras-table">
+            <thead>
+                <tr><th>Item</th><th class="right">Per Pax</th><th class="right">Subtotal</th></tr>
+            </thead>
+            <tbody>
+                {rows_html}
+            </tbody>
+            <tfoot>
+                <tr class="extras-total">
+                    <td>Extras Subtotal <span class="extras-note">({eligible_pax} eligible pax, infants excluded)</span></td>
+                    <td></td>
+                    <td class="right">AED {grand_total:,.0f}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </section>
+    """
+
+
 def section_inclusions_exclusions(proposal):
     """Rich Inclusions section grouped per city + a separate Exclusions section."""
     cities = proposal.get("cities", []) or []
@@ -1327,6 +1432,7 @@ def build_pdf_html(proposal, terms, expert, user):
     day_wise_html = section_day_wise(days)
     pricing_html = section_pricing(proposal, adults)
     inclusions_html = section_inclusions_exclusions(proposal)
+    selected_extras_html = section_selected_extras(proposal)
     terms_html = section_terms(terms)
     flights_html = section_flights(proposal)
 
@@ -1566,6 +1672,21 @@ def build_pdf_html(proposal, terms, expert, user):
   .pricing-table .total-row .val {{ color: #002B5B; font-size: 18px; }}
   .price-note {{ margin-top: 10px; font-size: 10px; color: #6B7280; font-style: italic; }}
 
+  /* ---- Extras Section (selected paid add-ons) ---- */
+  .extras-section {{ page-break-before: always; }}
+  .extras-table {{ width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12px; }}
+  .extras-table thead th {{ background: #FEF3C7; color: #78350F; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; padding: 8px 12px; text-align: left; border-bottom: 1px solid #FDE68A; }}
+  .extras-table thead th.right, .extras-table .right {{ text-align: right; }}
+  .extras-table tbody td {{ padding: 10px 12px; border-bottom: 1px solid #F3F4F6; vertical-align: top; }}
+  .extras-table .extra-name {{ font-weight: 700; color: #111827; }}
+  .extras-table .extra-desc {{ font-size: 11px; color: #6B7280; margin-top: 2px; }}
+  .extras-table .extra-for  {{ font-size: 10px; color: #9CA3AF; font-style: italic; margin-top: 4px; }}
+  .extras-table .extra-pax  {{ color: #6B7280; white-space: nowrap; text-align: right; }}
+  .extras-table .extra-sub  {{ color: #B45309; font-weight: 700; text-align: right; white-space: nowrap; }}
+  .extras-table tfoot tr.extras-total td {{ background: #FFFBEB; color: #78350F; font-weight: 800; font-size: 13px; padding: 12px; border-top: 2px solid #FDE68A; }}
+  .extras-table tfoot tr.extras-total .right {{ color: #B45309; }}
+  .extras-table .extras-note {{ font-weight: 500; color: #A16207; font-size: 11px; }}
+
   /* ---- Inclusions ---- */
   .two-col {{ display: flex; gap: 24px; }}
   .col {{ flex: 1; }}
@@ -1635,6 +1756,8 @@ def build_pdf_html(proposal, terms, expert, user):
 {day_wise_html}
 
 {inclusions_html}
+
+{selected_extras_html}
 
 {terms_html}
 
