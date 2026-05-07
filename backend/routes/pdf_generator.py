@@ -586,27 +586,18 @@ def render_item(it):
 
         # Optional paid extras (e.g. zip line, rope way) — render as a small
         # amber callout below so the customer knows what they can opt into.
+        # Prices intentionally hidden in the day-card view; the dedicated
+        # "Extras Available for Purchase" page shows the full per-pax breakdown.
         extras = data.get("extras") or []
         ext_html = ''
         if extras:
             rows = ''
-            # Use the same vehicle key the agent picked so we surface the
-            # right per-vehicle price when extras carry a `vehicle_pricing`
-            # override map (e.g. zip line costs more on a Bus than a Sedan).
-            sel_veh = (data.get("selectedVehicle") or data.get("selected_vehicle") or "").strip().lower()
             for ex in extras[:8]:
                 if not isinstance(ex, dict):
                     continue
                 nm = ex.get("name", "")
-                vp = ex.get("vehicle_pricing")
-                if isinstance(vp, dict) and sel_veh and vp.get(sel_veh):
-                    pr = vp.get(sel_veh)
-                else:
-                    pr = ex.get("price")
                 desc = ex.get("description") or ""
                 line = f"<strong>{nm}</strong>"
-                if pr and float(pr) > 0:
-                    line += f' <span style="color:#B45309;">— AED {pr}</span>'
                 if desc:
                     line += f' <span style="color:#6B7280;font-size:11px;">— {desc}</span>'
                 rows += f'<li>{line}</li>'
