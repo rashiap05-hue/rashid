@@ -1291,8 +1291,10 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
             from_city: cities[parseInt(fromIdx)]?.name,
             to_city: cities[parseInt(toIdx)]?.name,
             price: t.selectedPrice || t.price,
-            vehicle_type: t.vehicle_type,
-            duration: t.duration
+            vehicle_type: t.vehicleLabel || t.vehicle_type,
+            selectedVehicle: t.selectedVehicle || null,
+            vehiclePrice: t.selectedPrice ?? t.vehiclePrice ?? null,
+            duration: t.duration,
           };
           return acc;
         }, {}),
