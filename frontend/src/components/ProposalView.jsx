@@ -922,14 +922,34 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                               return <p className="text-gray-500 text-sm mb-2">No meals included (Room Only)</p>;
                             })()}
 
-                            {/* Refund Policy */}
-                            {hotel?.selectedRoom?.rate_plan?.refund_policy === 'Refundable' || hotel?.selectedRoom?.rate_plan?.refund_deadline ? (
-                              <p className="text-teal-600 text-sm">{hotel.selectedRoom.rate_plan.refund_deadline || `Fully refundable before ${formatDate(new Date(checkInDate.getTime() - 86400000), 'day')}`}</p>
-                            ) : hotel?.selectedRoom?.cancellation_policy ? (
-                              <p className="text-teal-600 text-sm">{hotel.selectedRoom.cancellation_policy}</p>
-                            ) : (
-                              <p className="text-teal-600 text-sm hover:underline">Fully refundable before {formatDate(new Date(checkInDate.getTime() - 86400000), 'day')}</p>
-                            )}
+                            {/* Refund Policy — explicit three-way logic so a
+                                non-refundable room never silently falls through
+                                to "Fully refundable" via the else branch. */}
+                            {(() => {
+                              const sr = hotel?.selectedRoom || {};
+                              const rp = sr.rate_plan || {};
+                              const isRefundable = rp.refundable === true
+                                || sr.refundable === true
+                                || rp.refund_policy === 'Refundable'
+                                || (typeof rp.refund_deadline === 'string' && rp.refund_deadline.trim() !== '');
+                              const isNonRefundable = rp.refundable === false
+                                || sr.refundable === false
+                                || rp.refund_policy === 'Non-refundable'
+                                || rp.refund_policy === 'Non-Refundable'
+                                || /non[\s-]?refundable/i.test(sr.cancellation_policy || '');
+                              if (isNonRefundable && !isRefundable) {
+                                return <p className="text-rose-600 text-sm font-medium">Non-Refundable</p>;
+                              }
+                              if (isRefundable) {
+                                const label = (rp.refund_deadline && rp.refund_deadline.trim())
+                                  || `Fully refundable before ${formatDate(new Date(checkInDate.getTime() - 86400000), 'day')}`;
+                                return <p className="text-teal-600 text-sm">{label}</p>;
+                              }
+                              if (sr.cancellation_policy) {
+                                return <p className="text-teal-600 text-sm">{sr.cancellation_policy}</p>;
+                              }
+                              return <p className="text-gray-500 text-sm">Cancellation policy on request</p>;
+                            })()}
                           </div>
 
                           {/* 3-dot menu */}
