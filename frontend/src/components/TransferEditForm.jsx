@@ -209,6 +209,54 @@ function ListEditor({ items = [], onChange, placeholder = "Add item...", label =
   );
 }
 
+// Extras Editor — paid optional add-ons (e.g. "Zip line" / 25 USD per pax)
+function ExtrasEditor({ items = [], onChange }) {
+  const [draft, setDraft] = useState({ name: '', description: '', price: '', duration: '' });
+  const handleAdd = () => {
+    if (!draft.name.trim()) return;
+    onChange([...items, {
+      name: draft.name.trim(),
+      description: draft.description.trim() || undefined,
+      price: parseFloat(draft.price) || 0,
+      duration: draft.duration.trim() || undefined,
+    }]);
+    setDraft({ name: '', description: '', price: '', duration: '' });
+  };
+  const handleRemove = (idx) => onChange(items.filter((_, i) => i !== idx));
+  return (
+    <div className="space-y-2 pt-2 border-t border-gray-200" data-testid="transfer-extras-editor">
+      <label className="block text-sm font-bold text-gray-600">Optional Extras / Add-ons</label>
+      <p className="text-xs text-gray-500 -mt-1">Paid extras the customer can opt in for on the day (e.g. "Zip line — 25 USD per pax", "Rope way — 8 USD per pax").</p>
+      {items.length > 0 && (
+        <div className="space-y-1.5">
+          {items.map((it, idx) => (
+            <div key={idx} className="flex items-center gap-2 bg-amber-50 border border-amber-100 px-3 py-2 rounded-lg group">
+              <div className="flex-1 text-sm text-gray-800">
+                <div className="flex items-center gap-2">
+                  <strong>{it.name}</strong>
+                  {Number(it.price) > 0
+                    ? <span className="text-amber-700">— USD {it.price}</span>
+                    : <span className="text-gray-500 italic">— complimentary</span>}
+                  {it.duration && <span className="text-gray-500">• {it.duration}</span>}
+                </div>
+                {it.description && <div className="text-xs text-gray-500 mt-0.5">{it.description}</div>}
+              </div>
+              <button type="button" onClick={() => handleRemove(idx)} className="p-1 text-red-500 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity"><X size={14} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-[2fr_2fr_1fr_1fr_auto] gap-2 mt-2">
+        <input type="text" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Name (e.g. Zip line)" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent" data-testid="transfer-extra-name" />
+        <input type="text" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description (optional)" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent" data-testid="transfer-extra-desc" />
+        <input type="number" min="0" step="0.01" value={draft.price} onChange={(e) => setDraft({ ...draft, price: e.target.value })} placeholder="Price USD" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent" data-testid="transfer-extra-price" />
+        <input type="text" value={draft.duration} onChange={(e) => setDraft({ ...draft, duration: e.target.value })} placeholder="Duration" className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent" data-testid="transfer-extra-duration" />
+        <button type="button" onClick={handleAdd} className="px-3 py-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors" data-testid="transfer-extra-add"><Plus size={16} /></button>
+      </div>
+    </div>
+  );
+}
+
 // Pickup Times Editor
 function PickupTimesEditor({ times = [], onChange }) {
   const [newTime, setNewTime] = useState('');
@@ -260,6 +308,7 @@ export default function TransferEditForm({ transfer, onSave, onClose, isNew = fa
     inclusions: transfer?.inclusions || [],
     exclusions: transfer?.exclusions || [],
     notes: transfer?.notes || '',
+    extras: transfer?.extras || [],
     pickup_times: transfer?.pickup_times || [],
     supplier_name: transfer?.supplier_name || '',
     is_available: transfer?.is_available !== false,
@@ -452,6 +501,7 @@ export default function TransferEditForm({ transfer, onSave, onClose, isNew = fa
               <motion.div key="details" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
                 <ListEditor items={formData.inclusions} onChange={(i) => handleFieldChange('inclusions', i)} placeholder="Add inclusion..." label="Inclusions (What's Included)" />
                 <ListEditor items={formData.exclusions} onChange={(e) => handleFieldChange('exclusions', e)} placeholder="Add exclusion..." label="Exclusions (What's Not Included)" />
+                <ExtrasEditor items={formData.extras} onChange={(x) => handleFieldChange('extras', x)} />
                 <div>
                   <label className="block text-sm font-bold text-gray-600 mb-1">Notes / Important Info</label>
                   <textarea value={formData.notes} onChange={(e) => handleFieldChange('notes', e.target.value)} rows={3} placeholder="Important notes for this transfer..." className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent resize-none" />

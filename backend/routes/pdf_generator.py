@@ -584,6 +584,27 @@ def render_item(it):
             items = ''.join(f'<li>{e}</li>' for e in exclusions[:6])
             exc_html = f'<div class="act-extra"><div class="act-extra-title">What\'s Not Included</div><ul class="act-bullets">{items}</ul></div>'
 
+        # Optional paid extras (e.g. zip line, rope way) — render as a small
+        # amber callout below so the customer knows what they can opt into.
+        extras = data.get("extras") or []
+        ext_html = ''
+        if extras:
+            rows = ''
+            for ex in extras[:8]:
+                if not isinstance(ex, dict):
+                    continue
+                nm = ex.get("name", "")
+                pr = ex.get("price")
+                desc = ex.get("description") or ""
+                line = f"<strong>{nm}</strong>"
+                if pr and float(pr) > 0:
+                    line += f' <span style="color:#B45309;">— USD {pr}</span>'
+                if desc:
+                    line += f' <span style="color:#6B7280;font-size:11px;">— {desc}</span>'
+                rows += f'<li>{line}</li>'
+            if rows:
+                ext_html = f'<div class="act-extra act-extra-paid"><div class="act-extra-title">Optional Add-ons (paid)</div><ul class="act-bullets">{rows}</ul></div>'
+
         return f"""
         <div class="day-item activity-row">
             {img_html}
@@ -595,6 +616,7 @@ def render_item(it):
                     {inc_html}
                     {exc_html}
                 </div>
+                {ext_html}
                 <div class="day-tags"><span class="tag {tag_class}">{tag_label}</span></div>
             </div>
         </div>
@@ -1737,8 +1759,8 @@ async def generate_proposal_pdf(proposal_id: str, current_user: dict = Depends(g
             {"id": {"$in": list(transfer_ids)}},
             {"_id": 0, "id": 1, "title": 1, "description": 1, "duration": 1,
              "images": 1, "image": 1, "inclusions": 1, "exclusions": 1,
-             "from_location": 1, "to_location": 1, "transfer_type": 1,
-             "vehicle_type": 1},
+             "extras": 1, "from_location": 1, "to_location": 1,
+             "transfer_type": 1, "vehicle_type": 1},
         ):
             catalog[d["id"]] = {k: v for k, v in d.items() if k != "id"}
         def _merge(t: dict) -> dict:
@@ -1747,7 +1769,7 @@ async def generate_proposal_pdf(proposal_id: str, current_user: dict = Depends(g
             enr = catalog[t["id"]]
             merged = {**t}
             for fld in ("description", "images", "image", "inclusions",
-                        "exclusions", "from_location", "to_location",
+                        "exclusions", "extras", "from_location", "to_location",
                         "transfer_type", "vehicle_type"):
                 if not merged.get(fld) and enr.get(fld):
                     merged[fld] = enr[fld]
