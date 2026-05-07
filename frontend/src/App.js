@@ -225,7 +225,14 @@ function App() {
                     activeTab={activeTab}
                     setActiveTab={setActiveTab}
                     onNewProposal={(prefill) => {
-                      setPendingProposalData(prefill || null);
+                      // Defensive: callers like a Quick Link card may pass the
+                      // React SyntheticEvent through. Only treat plain prefill
+                      // objects (must carry prefillFromLead flag) to avoid
+                      // serializing a Window reference into state.
+                      const safePrefill = (prefill && typeof prefill === 'object' && prefill.prefillFromLead)
+                        ? prefill
+                        : null;
+                      setPendingProposalData(safePrefill);
                       setCurrentView('form');
                     }}
                     onViewProposal={(proposal) => {
