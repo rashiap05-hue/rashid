@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { api } from '@/App';
 import GroupToursAdmin from './AdminDashboard/GroupToursAdmin';
 import CollectionsDashboard from './AdminDashboard/CollectionsDashboard';
+import CouponsAdmin from './CouponsAdmin';
 import HotelEditForm from './HotelEditForm';
 import ActivityEditForm from './ActivityEditForm';
 import TransferEditForm from './TransferEditForm';
@@ -1755,7 +1756,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView, onVie
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-gray-100 overflow-x-auto">
-            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'visas', 'sim-cards', 'terms', 'insurance', 'staff', 'wallets', 'supplier-bookings', 'group-tours', 'collections'].map((tab) => (
+            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'visas', 'sim-cards', 'terms', 'insurance', 'coupons', 'staff', 'wallets', 'supplier-bookings', 'group-tours', 'collections'].map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -2904,6 +2905,10 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView, onVie
                   )}
                 </AnimatePresence>
               </div>
+            )}
+
+            {activeTab === 'coupons' && (
+              <CouponsAdmin />
             )}
 
             {activeTab === 'staff' && (

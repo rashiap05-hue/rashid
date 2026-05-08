@@ -453,10 +453,33 @@ export default function BookingConfirmation({ proposal, initialBookingData, user
     return keys.length > 0 ? proposal.selected_hotels[keys[0]] : null;
   }, [proposal.selected_hotels]);
 
-  const handleApplyCoupon = () => {
-    if (couponCode.trim()) {
-      setCouponApplied(true);
-      setCouponDiscount(16);
+  const [couponError, setCouponError] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const handleApplyCoupon = async () => {
+    const code = (couponCode || '').trim();
+    if (!code) {
+      setCouponError('Please enter a coupon code');
+      return;
+    }
+    setCouponError('');
+    setCouponLoading(true);
+    try {
+      const res = await api.post('/coupons/validate', { code, order_amount: finalPrice });
+      if (res.data?.valid) {
+        setCouponApplied(true);
+        setCouponDiscount(res.data.discount || 0);
+        setCouponError('');
+      } else {
+        setCouponApplied(false);
+        setCouponDiscount(0);
+        setCouponError(res.data?.message || 'Invalid coupon');
+      }
+    } catch (e) {
+      setCouponApplied(false);
+      setCouponDiscount(0);
+      setCouponError(e?.response?.data?.detail || 'Could not validate coupon. Please try again.');
+    } finally {
+      setCouponLoading(false);
     }
   };
 
@@ -1067,21 +1090,27 @@ export default function BookingConfirmation({ proposal, initialBookingData, user
                   <input
                     type="text"
                     value={couponCode}
-                    onChange={e => setCouponCode(e.target.value)}
+                    onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponError(''); }}
                     placeholder="Enter code"
-                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase tracking-wide focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
                     data-testid="coupon-input"
                   />
                   <button
                     onClick={handleApplyCoupon}
-                    className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg border border-gray-300 transition-colors"
+                    disabled={couponLoading}
+                    className="px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-60 disabled:cursor-wait"
                     data-testid="apply-coupon-btn"
                   >
-                    Apply Discount
+                    {couponLoading ? 'Applying…' : 'Apply Discount'}
                   </button>
                 </div>
                 {couponApplied && (
-                  <p className="text-xs text-green-600 mt-2 font-medium">Awesome! You will get Discount: AED {couponDiscount}</p>
+                  <p className="text-xs text-green-600 mt-2 font-medium" data-testid="coupon-success">
+                    Awesome! You will get Discount: AED {couponDiscount.toLocaleString()}
+                  </p>
+                )}
+                {couponError && (
+                  <p className="text-xs text-rose-600 mt-2 font-medium" data-testid="coupon-error">{couponError}</p>
                 )}
               </div>
 
