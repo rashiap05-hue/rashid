@@ -1194,14 +1194,12 @@ def _build_brochure_html(pkg: dict) -> str:
 
     # --- Terms & Conditions (rich HTML from admin) ---
     terms_html = pkg.get("terms_and_conditions") or ""
-    terms_block = f"<div class='terms-body'>{terms_html}</div>" if terms_html.strip() else "<p class='muted'>Standard Travo Tours terms apply.</p>"
-
-    logo_img = f"<img src='{_LOGO_DATA_URL}' class='brand-logo' />" if _LOGO_DATA_URL else "<span class='brand-text'>TRAVO</span>"
+    terms_block = f"<div class='terms-body'>{terms_html}</div>" if terms_html.strip() else "<p class='muted'>Standard terms apply.</p>"
 
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>{_esc(title)} — Brochure</title>
 <style>
-  @page {{ size: A4; margin: 14mm 12mm; @bottom-center {{ content: "Travo Tours · Brochure · Page " counter(page) " of " counter(pages); font-size: 9px; color:#64748b; }} }}
+  @page {{ size: A4; margin: 14mm 12mm; @bottom-center {{ content: "Page " counter(page) " of " counter(pages); font-size: 9px; color:#64748b; }} }}
   * {{ box-sizing: border-box; }}
   body {{ font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11px; color: #1e293b; margin: 0; line-height: 1.45; }}
   h1,h2,h3,h4 {{ margin: 0; color: #0f2a4a; }}
@@ -1228,9 +1226,9 @@ def _build_brochure_html(pkg: dict) -> str:
   li {{ margin: 2px 0; }}
   .grid-2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; }}
   .day-card {{ border: 1px solid #e2e8f0; border-radius: 8px; padding: 0 0 4mm; margin-bottom: 4mm; page-break-inside: avoid; overflow: hidden; }}
-  .day-hero {{ width: 100%; height: 38mm; background-size: cover; background-position: center; background-color: #e2e8f0; }}
+  .day-hero {{ width: 100%; height: 22mm; background-size: cover; background-position: center; background-color: #e2e8f0; }}
   .day-thumbs {{ display: flex; gap: 3mm; margin: 3mm 5mm 0; flex-wrap: wrap; }}
-  .day-thumb {{ width: 32mm; height: 22mm; background-size: cover; background-position: center; background-color: #e2e8f0; border-radius: 4px; }}
+  .day-thumb {{ width: 22mm; height: 16mm; background-size: cover; background-position: center; background-color: #e2e8f0; border-radius: 4px; }}
   .day-head {{ display:flex; align-items: baseline; gap: 8px; margin: 4mm 5mm 2mm; }}
   .day-num  {{ background: #0F2A4A; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; }}
   .day-title {{ font-weight: 800; color:#0f2a4a; font-size: 13px; }}
@@ -1270,7 +1268,7 @@ def _build_brochure_html(pkg: dict) -> str:
   <div class="cover-hero" style="background-image:url('{_esc(hero_img)}');"></div>
   <div class="cover-overlay"></div>
   <div class="cover-inner">
-    <div>{logo_img}</div>
+    <div></div>
     <div>
       <div class="cover-title">{_esc(title)}</div>
       <div class="cover-sub">{_esc(subtitle or f'{nights} nights · {days} days in {dest}')}</div>
