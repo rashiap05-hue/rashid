@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, ChevronRight, Star, MapPin, Calendar, Users,
-  Coffee, Utensils, Moon, Bed, Plane, Check, X, Info, ChevronDown,
+  Coffee, Utensils, Moon, Bed, Plane, Check, X, Info, ChevronDown, Shield,
 } from 'lucide-react';
 import { api } from '@/App';
 import ActivityDetailModal from './ActivityDetailModal';
@@ -606,7 +606,9 @@ export default function GroupTourDetail({ deal, onBack, onBookFromGroupTour, onP
     ? adminImages
     : [deal?.image, deal?.image, deal?.image].filter(Boolean);
   const title = deal?.title || `${pkg.destination} Package`;
-  const price = Number(deal?.price_per_adult ?? deal?.price ?? 3293);
+  const insurancePerPax = Number(deal?.insurance_per_pax || 0);
+  const insuranceIncluded = !!deal?.insurance?.included && insurancePerPax > 0;
+  const price = Number(deal?.price_per_adult ?? deal?.price ?? 3293) + insurancePerPax;
 
   return (
     <div className="min-h-screen bg-gray-50" data-testid="group-tour-detail-page">
@@ -655,9 +657,15 @@ export default function GroupTourDetail({ deal, onBack, onBookFromGroupTour, onP
             {/* Price card */}
             <div className="bg-white rounded-xl border border-gray-200 p-5 md:p-6">
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl md:text-4xl font-black text-[#002B5B]">AED {price.toLocaleString()}</span>
+                <span className="text-3xl md:text-4xl font-black text-[#002B5B]" data-testid="pkg-price-display">AED {price.toLocaleString()}</span>
               </div>
               <p className="text-sm text-gray-500 mt-2">per person · {new Date(selectedDate).toLocaleString('en-US', { month: 'long' })}</p>
+              {insuranceIncluded && (
+                <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold" data-testid="pkg-insurance-pill">
+                  <Shield size={12} />
+                  Inclusive of travel insurance
+                </div>
+              )}
             </div>
 
             {/* Book your trip form card */}

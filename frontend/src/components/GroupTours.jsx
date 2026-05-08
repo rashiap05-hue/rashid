@@ -64,7 +64,9 @@ function DealImage({ src, alt, gradient, className, label }) {
 }
 
 function EidDealCard({ deal, onClick }) {
-  const price = Number(deal.price_per_adult ?? deal.price ?? 0);
+  const insurancePerPax = Number(deal.insurance_per_pax || 0);
+  const price = Number(deal.price_per_adult ?? deal.price ?? 0) + insurancePerPax;
+  const insuranceIncluded = !!deal.insurance?.included && insurancePerPax > 0;
   const dateRange = deal.date_range || deal.dateRange || '';
   const subtitle = deal.subtitle || `${deal.destination || ''} ${deal.nights || ''} nights`.trim();
   return (
@@ -117,6 +119,9 @@ function EidDealCard({ deal, onClick }) {
           <div className="text-right">
             <div className="text-[11px] text-gray-500">Starting From</div>
             <div className="font-black text-gray-900 text-lg leading-none mt-0.5">AED {price.toLocaleString()}</div>
+            {insuranceIncluded && (
+              <div className="text-[10px] text-emerald-700 font-semibold mt-1">🛡️ Incl. travel insurance</div>
+            )}
           </div>
         </div>
       </div>

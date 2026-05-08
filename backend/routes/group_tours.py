@@ -237,6 +237,10 @@ class GroupTourPackageResponse(GroupTourPackageBase):
     # Legacy alias for the public Group Tours page — derived from
     # pricing.twin_double.display_price so existing UI keeps working.
     price_per_adult: float = 0.0
+    # Resolved per-traveller travel insurance cost (AED). 0 when not bundled.
+    # The frontend rolls this into the displayed prices and shows an
+    # "Inclusive of travel insurance" pill when > 0.
+    insurance_per_pax: float = 0.0
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -603,6 +607,7 @@ async def list_group_tours(include_inactive: bool = False):
     # listing) renders the brochure-style rich activity cards.
     for p in projected:
         await _enrich_itinerary_activities(p)
+        p["insurance_per_pax"] = await _resolve_insurance_per_pax(p)
     return projected
 
 
@@ -614,6 +619,7 @@ async def get_group_tour(pkg_id: str):
         raise HTTPException(status_code=404, detail="Package not found")
     projected = _project_for_response(doc)
     await _enrich_itinerary_activities(projected)
+    projected["insurance_per_pax"] = await _resolve_insurance_per_pax(projected)
     return projected
 
 
@@ -727,7 +733,9 @@ async def create_group_tour(body: GroupTourPackageCreate, current_user: dict = D
     _sync_image_fields(doc)
     await db.group_tour_packages.insert_one(doc)
     doc.pop("_id", None)
-    return _project_for_response(doc)
+    projected = _project_for_response(doc)
+    projected["insurance_per_pax"] = await _resolve_insurance_per_pax(projected)
+    return projected
 
 
 @router.put("/group-tours/{pkg_id}", response_model=GroupTourPackageResponse)
@@ -749,7 +757,9 @@ async def update_group_tour(pkg_id: str, body: GroupTourPackageUpdate, current_u
                 update[k] = merged[k]
     await db.group_tour_packages.update_one({"id": pkg_id}, {"$set": update})
     fresh = await db.group_tour_packages.find_one({"id": pkg_id}, {"_id": 0})
-    return _project_for_response(fresh)
+    projected = _project_for_response(fresh)
+    projected["insurance_per_pax"] = await _resolve_insurance_per_pax(projected)
+    return projected
 
 
 @router.delete("/group-tours/{pkg_id}")
@@ -1043,6 +1053,33 @@ def _star_html(n: int) -> str:
     return "★" * n + "<span style='color:#cbd5e1;'>" + ("★" * (5 - n)) + "</span>"
 
 
+async def _resolve_insurance_per_pax(pkg: dict) -> float:
+    """Compute the per-traveller insurance cost in AED for a package.
+
+    Returns 0 when insurance is not toggled on. Resolution chain:
+    explicit `custom_price_per_person` → country tier → "Default" tier → 50.0.
+    """
+    ins = pkg.get("insurance") or {}
+    if not ins.get("included"):
+        return 0.0
+    custom = ins.get("custom_price_per_person")
+    if custom is not None and custom != "":
+        try:
+            return float(custom)
+        except (TypeError, ValueError):
+            pass
+    country = (ins.get("country") or pkg.get("destination") or "").strip()
+    if country:
+        doc = await db.insurance_prices.find_one({"country": country}, {"_id": 0})
+        if doc and doc.get("price_per_person") is not None:
+            return float(doc["price_per_person"])
+    default = await db.insurance_prices.find_one({"country": "Default"}, {"_id": 0})
+    if default and default.get("price_per_person") is not None:
+        return float(default["price_per_person"])
+    return 50.0
+
+
+
 def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
     branding = branding or {}
     title = pkg.get("title") or pkg.get("destination") or "Holiday Package"
@@ -1070,7 +1107,9 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
         ) + "</div>"
     pricing = pkg.get("pricing") or {}
     twin = (pricing.get("twin_double") or {})
-    starting_price = float(twin.get("display_price") or pkg.get("price_per_adult") or 0)
+    insurance_per_pax = float(pkg.get("_insurance_per_pax") or 0)
+    insurance_included = bool((pkg.get("insurance") or {}).get("included")) and insurance_per_pax > 0
+    starting_price = float(twin.get("display_price") or pkg.get("price_per_adult") or 0) + insurance_per_pax
 
     window = ""
     if pkg.get("travel_window_start") or pkg.get("travel_window_end"):
@@ -1208,8 +1247,12 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
         ("infant",         "Infant 0–2 yrs"),
     ]
     price_rows = "".join(
-        f"<tr><td>{_esc(label)}</td><td class='r'>AED {float((pricing.get(k) or {}).get('display_price') or 0):,.0f}</td></tr>"
+        f"<tr><td>{_esc(label)}</td><td class='r'>AED {float((pricing.get(k) or {}).get('display_price') or 0) + insurance_per_pax:,.0f}</td></tr>"
         for k, label in tier_labels
+    )
+    insurance_note_html = (
+        f"<p style='font-size:10px;color:#0f2a4a;margin:2mm 0 0;'><b>Inclusive of travel insurance</b> — AED {insurance_per_pax:,.0f} per traveller already added to all prices above.</p>"
+        if insurance_included else ""
     )
 
     # --- Terms & Conditions (rich HTML from admin) ---
@@ -1316,6 +1359,7 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
         {f'<span class="chip">📅 {_esc(date_range)}</span>' if date_range else ''}
         <span class="chip">🌙 {nights} Nights · {days} Days</span>
         {f'<span class="chip">{_star_html(stars)}</span>' if stars else ''}
+        {'<span class="chip" style="background:rgba(16,185,129,0.25);border-color:rgba(16,185,129,0.55);">🛡️ Inclusive of travel insurance</span>' if insurance_included else ''}
       </div>
       <div class="cover-price">
         <span class="from">Starting from</span>
@@ -1373,6 +1417,7 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
     <thead><tr><th>Occupancy</th><th class="r">Rate</th></tr></thead>
     <tbody>{price_rows}</tbody>
   </table>
+  {insurance_note_html}
   <p class="muted" style="margin-top:3mm;">Prices are indicative and subject to availability at the time of booking.</p>
 </div>
 
@@ -1398,7 +1443,9 @@ async def download_group_tour_brochure(pkg_id: str):
     from routes.settings import get_pdf_branding
     branding = await get_pdf_branding()
 
-    # Resolve insurance description (if package opts in) before the sync builder runs
+    # Resolve the per-traveller insurance cost (rolled into displayed prices) and
+    # the brochure description before the sync builder runs.
+    pkg["_insurance_per_pax"] = await _resolve_insurance_per_pax(pkg)
     insurance = pkg.get("insurance") or {}
     if insurance.get("included") and not (insurance.get("description") or "").strip():
         ins_country = (insurance.get("country") or pkg.get("destination") or "").strip()
