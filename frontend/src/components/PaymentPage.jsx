@@ -21,7 +21,10 @@ export default function PaymentPage({ proposal, bookingData, onBack, onPaymentSu
   const totalPrice = proposal?.pricing_breakdown?.total || proposal?.total_price || 0;
   const markupLand = proposal?.markup_land || 0;
   const discountAmount = proposal?.discount_amount || 0;
-  const priceAfterMarkup = totalPrice + markupLand - discountAmount;
+  // Coupon redemption from BookingConfirmation step (if any)
+  const couponDiscount = Number(bookingData?.couponDiscount) || 0;
+  const couponCode = bookingData?.couponCode || '';
+  const priceAfterMarkup = Math.max(0, totalPrice + markupLand - discountAmount - couponDiscount);
   // Honour the customPartialAmount the admin/staff entered on the booking
   // confirmation page (falls back to 25 % default for non-privileged users).
   const amountToPay = bookingData?.paymentOption === 'partial'
@@ -62,7 +65,19 @@ export default function PaymentPage({ proposal, bookingData, onBack, onPaymentSu
         payment_method: 'wallet',
         payment_amount: amountToPay,
         order_id: orderId,
+        coupon_code: couponCode,
+        coupon_discount: couponDiscount,
+        final_total: priceAfterMarkup,
       });
+
+      // 3. Increment coupon usage_count (best-effort; don't fail the booking)
+      if (couponCode) {
+        try {
+          await api.post('/coupons/redeem', { code: couponCode, proposal_id: proposal.id });
+        } catch (_) {
+          /* non-fatal */
+        }
+      }
 
       setPaymentSuccess(true);
       setWalletBalance(prev => prev - amountToPay);

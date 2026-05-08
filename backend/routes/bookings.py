@@ -100,6 +100,9 @@ class BookingCreate(BaseModel):
     payment_method: Optional[str] = None
     payment_amount: Optional[float] = None
     order_id: Optional[str] = None
+    coupon_code: Optional[str] = None
+    coupon_discount: Optional[float] = 0
+    final_total: Optional[float] = None
 
     class Config:
         populate_by_name = True
@@ -136,7 +139,18 @@ async def create_booking(booking: BookingCreate, current_user: dict = Depends(ge
         "travelers": booking.travelers,
         "contact_info": booking.contact_info,
         "special_occasion": booking.special_occasion,
+        "coupon_code": (booking.coupon_code or "").strip().upper() or None,
+        "coupon_discount": float(booking.coupon_discount or 0),
     }
+
+    # Final billable total = explicit final_total from frontend, else proposal total minus coupon
+    proposal_total = float(proposal.get("total_price", 0) or 0)
+    coupon_disc = float(booking.coupon_discount or 0)
+    final_total = (
+        float(booking.final_total)
+        if booking.final_total is not None
+        else max(0.0, proposal_total - coupon_disc)
+    )
 
     # Status is "payment_received" until supplier confirms
     new_status = "payment_received"
@@ -157,7 +171,8 @@ async def create_booking(booking: BookingCreate, current_user: dict = Depends(ge
         "nights": proposal.get("nights", 0),
         "rooms": proposal.get("rooms", 1),
         "adults": proposal.get("adults", 1),
-        "total_price": proposal.get("total_price", 0),
+        "total_price": final_total,
+        "original_total_price": proposal_total,
         "type": "Package",
         "status": new_status,
         "supplier_status": (existing_held or {}).get("supplier_status", "pending"),

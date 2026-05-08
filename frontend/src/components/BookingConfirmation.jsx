@@ -418,7 +418,7 @@ export default function BookingConfirmation({ proposal, initialBookingData, user
   const pricePerAdult = proposal.pricing_breakdown?.total 
     ? Math.round(proposal.pricing_breakdown.total / Math.max(proposal.total_pax || 2, 1))
     : Math.round(totalPrice / Math.max(proposal.total_pax || 2, 1));
-  const finalPrice = totalPrice;
+  const finalPrice = Math.max(0, totalPrice - couponDiscount);
   const partialPayment = Math.round(finalPrice * 0.25);
   const balanceAmount = finalPrice - partialPayment;
 
@@ -1025,7 +1025,7 @@ export default function BookingConfirmation({ proposal, initialBookingData, user
                     </button>
                   ) : (
                     <button
-                      onClick={() => onConfirmBooking?.({ travelers, contactInfo, specialOccasion, paymentOption, confirmationTime, attachments, customPartialAmount: paymentOption === 'partial' ? effectivePartial : finalPrice })}
+                      onClick={() => onConfirmBooking?.({ travelers, contactInfo, specialOccasion, paymentOption, confirmationTime, attachments, customPartialAmount: paymentOption === 'partial' ? effectivePartial : finalPrice, couponCode: couponApplied ? couponCode : '', couponDiscount: couponApplied ? couponDiscount : 0, finalPrice })}
                       className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg transition-colors text-sm"
                       data-testid="proceed-payment-btn"
                     >
