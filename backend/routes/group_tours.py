@@ -1049,6 +1049,20 @@ def _build_brochure_html(pkg: dict) -> str:
     stars = int(pkg.get("stars") or 0)
 
     hero_img = resolve_image((pkg.get("images") or [None])[0] or pkg.get("image") or "")
+    # Additional cover images (beyond the hero) — rendered as a 3-up gallery
+    # under the cover hero so customers see a richer first impression.
+    extra_cover_imgs = []
+    for raw in (pkg.get("images") or [])[1:]:
+        ru = resolve_image(raw)
+        if ru:
+            extra_cover_imgs.append(ru)
+    extra_cover_imgs = extra_cover_imgs[:3]
+    cover_gallery_html = ""
+    if extra_cover_imgs:
+        cover_gallery_html = "<div class='cover-gallery'>" + "".join(
+            f"<div class='cover-thumb' style=\"background-image:url('{_esc(u)}')\"></div>"
+            for u in extra_cover_imgs
+        ) + "</div>"
     pricing = pkg.get("pricing") or {}
     twin = (pricing.get("twin_double") or {})
     starting_price = float(twin.get("display_price") or pkg.get("price_per_adult") or 0)
@@ -1088,13 +1102,39 @@ def _build_brochure_html(pkg: dict) -> str:
         date_tag = ""
         if d.get("date"):
             date_tag = f"<span class='day-date'>{_esc(d['date'])}</span>"
+
+        # Day-wise images: hero banner (primary) + strip of up to 4 thumbnails.
+        # Falls back to the first activity image, then the cover hero, so the
+        # brochure never prints a flat blank day card even when the admin
+        # hasn't uploaded explicit per-day photos yet.
+        day_imgs_raw = [i for i in (d.get("images") or []) if i]
+        if not day_imgs_raw:
+            for a in activities:
+                if a and a.get("image"):
+                    day_imgs_raw = [a["image"]]
+                    break
+        day_imgs = [resolve_image(i) for i in day_imgs_raw if resolve_image(i)]
+        hero_url = day_imgs[0] if day_imgs else hero_img
+        hero_block = (
+            f"<div class='day-hero' style=\"background-image:url('{_esc(hero_url)}')\"></div>"
+            if hero_url else ""
+        )
+        thumb_strip = ""
+        if len(day_imgs) > 1:
+            thumb_strip = "<div class='day-thumbs'>" + "".join(
+                f"<div class='day-thumb' style=\"background-image:url('{_esc(t)}')\"></div>"
+                for t in day_imgs[1:5]
+            ) + "</div>"
+
         itin_rows.append(f"""
           <div class='day-card'>
+            {hero_block}
             <div class='day-head'>
               <div class='day-num'>Day {int(d.get('day') or 0)}</div>
               <div class='day-title'>{_esc(d.get('title') or '')} {date_tag}</div>
             </div>
             <div class='day-body'>{safe_desc}</div>
+            {thumb_strip}
             {act_html}
             {transfer_html}
             <div class='day-foot'>
@@ -1179,21 +1219,26 @@ def _build_brochure_html(pkg: dict) -> str:
   .cover-price {{ margin-top: 10mm; display:flex; align-items:baseline; gap: 10px; }}
   .cover-price .from {{ font-size: 12px; opacity: 0.8; }}
   .cover-price .val  {{ font-size: 28px; font-weight: 900; }}
+  .cover-gallery {{ display: flex; gap: 4mm; margin-top: 8mm; }}
+  .cover-thumb {{ flex: 1; height: 28mm; background-size: cover; background-position: center; border-radius: 6px; border: 2px solid rgba(255,255,255,0.4); }}
   .section {{ padding: 4mm 0 6mm; }}
   .section h2 {{ font-size: 18px; margin-bottom: 4mm; border-bottom: 3px solid #0F2A4A; padding-bottom: 3mm; display:flex; align-items:center; gap:6px; }}
   .section h2::before {{ content: ''; width: 4px; height: 18px; background:#EF4444; display:inline-block; margin-right: 6px; }}
   ul {{ margin: 0 0 4px 16px; padding: 0; }}
   li {{ margin: 2px 0; }}
   .grid-2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; }}
-  .day-card {{ border: 1px solid #e2e8f0; border-radius: 8px; padding: 4mm 5mm; margin-bottom: 4mm; page-break-inside: avoid; }}
-  .day-head {{ display:flex; align-items: baseline; gap: 8px; margin-bottom: 2mm; }}
+  .day-card {{ border: 1px solid #e2e8f0; border-radius: 8px; padding: 0 0 4mm; margin-bottom: 4mm; page-break-inside: avoid; overflow: hidden; }}
+  .day-hero {{ width: 100%; height: 38mm; background-size: cover; background-position: center; background-color: #e2e8f0; }}
+  .day-thumbs {{ display: flex; gap: 3mm; margin: 3mm 5mm 0; flex-wrap: wrap; }}
+  .day-thumb {{ width: 32mm; height: 22mm; background-size: cover; background-position: center; background-color: #e2e8f0; border-radius: 4px; }}
+  .day-head {{ display:flex; align-items: baseline; gap: 8px; margin: 4mm 5mm 2mm; }}
   .day-num  {{ background: #0F2A4A; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; }}
   .day-title {{ font-weight: 800; color:#0f2a4a; font-size: 13px; }}
   .day-date {{ font-size:10px; color:#64748b; font-weight: 600; margin-left: 4px; }}
-  .day-body {{ font-size: 11px; color: #334155; }}
+  .day-body {{ font-size: 11px; color: #334155; padding: 0 5mm; }}
   .day-body p {{ margin: 2px 0; }}
-  .day-acts, .day-transfer {{ margin-top: 2mm; font-size: 10.5px; color:#0f2a4a; }}
-  .day-foot {{ margin-top: 3mm; display: flex; flex-wrap: wrap; gap: 4px; }}
+  .day-acts, .day-transfer {{ margin-top: 2mm; padding: 0 5mm; font-size: 10.5px; color:#0f2a4a; }}
+  .day-foot {{ margin: 3mm 5mm 0; display: flex; flex-wrap: wrap; gap: 4px; }}
   .pill {{ display:inline-block; padding: 2px 8px; border-radius: 999px; font-size: 9.5px; font-weight: 700; }}
   .pill-meal {{ background:#d1fae5; color:#065f46; border:1px solid #6ee7b7; }}
   .pill-hotel {{ background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }}
@@ -1240,6 +1285,7 @@ def _build_brochure_html(pkg: dict) -> str:
         <span class="val">AED {starting_price:,.0f}</span>
         <span class="from">per adult · Twin / Double</span>
       </div>
+      {cover_gallery_html}
     </div>
   </div>
 </div>
