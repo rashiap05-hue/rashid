@@ -900,3 +900,127 @@ export function ParagraphListEditor({ paragraphs, onChange, placeholder = 'Write
     </div>
   );
 }
+
+
+/* ---------- Insurance editor ---------- */
+export function InsuranceEditor({ insurance, destination, onChange }) {
+  const ins = insurance || {};
+  const [options, setOptions] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await api.get('/settings/insurance');
+        const list = Array.isArray(r.data?.insurance_prices) ? r.data.insurance_prices : [];
+        if (alive) setOptions(list);
+      } catch {
+        if (alive) setOptions([]);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const upd = (patch) => onChange({ ...ins, ...patch });
+  const selected = options.find(o => o.country === ins.country) ||
+    options.find(o => (o.country || '').toLowerCase() === (destination || '').toLowerCase()) ||
+    options.find(o => o.country === 'Default');
+  const effectivePrice = ins.custom_price_per_person !== '' && ins.custom_price_per_person != null
+    ? Number(ins.custom_price_per_person)
+    : (selected?.price_per_person ?? null);
+
+  return (
+    <div className="space-y-4" data-testid="insurance-editor">
+      <label className="flex items-center gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={!!ins.included}
+          onChange={(e) => upd({ included: e.target.checked })}
+          className="w-4 h-4 accent-[#002B5B]"
+          data-testid="insurance-included-toggle"
+        />
+        <span className="text-sm font-semibold text-[#002B5B]">
+          Include travel insurance in this package
+        </span>
+      </label>
+      {!ins.included && (
+        <p className="text-xs text-gray-500 italic ml-7">
+          Toggle on to bundle insurance — the brochure Inclusions list will then show
+          &quot;✓ Travel Insurance — min $50K coverage&quot; automatically.
+        </p>
+      )}
+
+      {ins.included && (
+        <div className="ml-7 grid grid-cols-1 md:grid-cols-2 gap-4 bg-blue-50/40 border border-blue-100 rounded-lg p-4">
+          <div>
+            <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1.5">
+              Country pricing tier
+            </label>
+            <select
+              value={ins.country || ''}
+              onChange={(e) => upd({ country: e.target.value })}
+              disabled={loading}
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white"
+              data-testid="insurance-country-select"
+            >
+              <option value="">— Auto (use destination &quot;{destination || 'Default'}&quot;)</option>
+              {options.map(o => (
+                <option key={o.id || o.country} value={o.country}>
+                  {o.country} — AED {o.price_per_person}/pax
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-gray-500 mt-1">
+              Pulls from Admin → Insurance settings. Empty = use the package destination.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1.5">
+              Custom price override (optional)
+            </label>
+            <div className="relative">
+              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">AED</span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={ins.custom_price_per_person ?? ''}
+                onChange={(e) => upd({ custom_price_per_person: e.target.value })}
+                placeholder="Leave blank to use country price"
+                className="w-full pl-12 pr-2 py-1.5 border border-gray-300 rounded text-sm"
+                data-testid="insurance-custom-price-input"
+              />
+            </div>
+            {effectivePrice != null && (
+              <p className="text-[11px] text-emerald-700 mt-1 font-medium">
+                Effective: AED {Number(effectivePrice).toLocaleString()} per traveller
+              </p>
+            )}
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1.5">
+              Brochure description (optional)
+            </label>
+            <input
+              type="text"
+              value={ins.description || ''}
+              onChange={(e) => upd({ description: e.target.value })}
+              placeholder={selected?.description || 'Travel Insurance with min $50,000 coverage — Only for Age Below 60 Yrs'}
+              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+              data-testid="insurance-description-input"
+            />
+            <p className="text-[11px] text-gray-500 mt-1">
+              Leave blank to use the country tier&apos;s default description.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+

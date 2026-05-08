@@ -42,7 +42,7 @@ import logging
 import os
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
@@ -193,6 +193,9 @@ class GroupTourPackageBase(BaseModel):
     what_to_expect: List[str] = Field(default_factory=list)
     terms_and_conditions: str = ""   # rich-text HTML shown on the public "Terms" tab
     flights: List[FlightSegment] = Field(default_factory=list)  # structured cards on Flights tab
+    insurance: Optional[Dict[str, Any]] = Field(
+        default_factory=lambda: {"included": False, "country": "", "custom_price_per_person": None, "description": ""}
+    )
 
 
 class GroupTourPackageCreate(GroupTourPackageBase):
@@ -226,6 +229,7 @@ class GroupTourPackageUpdate(BaseModel):
     travel_window_start: Optional[str] = None
     travel_window_end: Optional[str] = None
     flights: Optional[List[FlightSegment]] = None
+    insurance: Optional[Dict[str, Any]] = None
 
 
 class GroupTourPackageResponse(GroupTourPackageBase):
@@ -1170,6 +1174,21 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
     # --- Inclusions / Exclusions ---
     inclusions_dict = pkg.get("inclusions") or {}
     inc_sections = []
+
+    # Travel Insurance inclusion (always renders first when toggled on).
+    # The description is resolved in the route handler (async) and passed
+    # in via pkg["_insurance_description_resolved"].
+    insurance = pkg.get("insurance") or {}
+    if insurance.get("included"):
+        ins_desc = (
+            (insurance.get("description") or "").strip()
+            or (pkg.get("_insurance_description_resolved") or "").strip()
+            or "Travel Insurance with min $50,000 coverage — Only for Age Below 60 Yrs"
+        )
+        inc_sections.append(
+            f"<div class='inc-cat'><h4>Travel Insurance</h4><ul><li>{_esc(ins_desc)}</li></ul></div>"
+        )
+
     for cat, items in inclusions_dict.items():
         lis = "".join(f"<li>{_esc(x)}</li>" for x in (items or []) if x)
         if lis:
@@ -1378,6 +1397,19 @@ async def download_group_tour_brochure(pkg_id: str):
     # Fetch tenant-wide white-label branding (logo + footer email/phone/website)
     from routes.settings import get_pdf_branding
     branding = await get_pdf_branding()
+
+    # Resolve insurance description (if package opts in) before the sync builder runs
+    insurance = pkg.get("insurance") or {}
+    if insurance.get("included") and not (insurance.get("description") or "").strip():
+        ins_country = (insurance.get("country") or pkg.get("destination") or "").strip()
+        ins_doc = None
+        if ins_country:
+            ins_doc = await db.insurance_prices.find_one({"country": ins_country}, {"_id": 0})
+        if not ins_doc:
+            ins_doc = await db.insurance_prices.find_one({"country": "Default"}, {"_id": 0})
+        if ins_doc:
+            pkg["_insurance_description_resolved"] = ins_doc.get("description", "")
+
     try:
         html = _build_brochure_html(pkg, branding=branding)
         pdf_bytes = HTML(string=html).write_pdf()

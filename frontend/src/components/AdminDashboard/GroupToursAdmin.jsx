@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, X, Save, Loader2, RefreshCw } from 'lucide-react';
 import { api } from '@/App';
 import {
   Section, BulletListEditor, ItineraryEditor, HotelsEditor, InclusionsEditor, ParagraphListEditor,
+  InsuranceEditor,
   loadCities,
 } from './GroupTourEditorSections';
 import MultiImageUploadField from './MultiImageUploadField';
@@ -42,6 +43,12 @@ const EMPTY_PKG = {
   travel_window_start: '',
   travel_window_end: '',
   flights: [],
+  insurance: {
+    included: false,
+    country: '',
+    custom_price_per_person: '',
+    description: '',
+  },
 };
 
 const TIER_ROWS = [
@@ -319,6 +326,14 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
         travel_window_start: form.travel_window_start || null,
         travel_window_end: form.travel_window_end || null,
         flights: Array.isArray(form.flights) ? form.flights : [],
+        insurance: form.insurance && typeof form.insurance === 'object' ? {
+          included: !!form.insurance.included,
+          country: (form.insurance.country || '').trim(),
+          custom_price_per_person: form.insurance.custom_price_per_person === '' || form.insurance.custom_price_per_person == null
+            ? null
+            : Number(form.insurance.custom_price_per_person),
+          description: (form.insurance.description || '').trim(),
+        } : { included: false, country: '', custom_price_per_person: null, description: '' },
       };
       if (isEdit) {
         await api.put(`/group-tours/${pkg.id}`, payload);
@@ -563,6 +578,19 @@ function PackageEditorModal({ open, pkg, onClose, onSaved }) {
             <InclusionsEditor
               inclusions={form.inclusions || {}}
               onChange={(inc) => update('inclusions', inc)}
+            />
+          </Section>
+
+          <Section
+            title="Travel Insurance"
+            subtitle="Toggle on to bundle travel insurance into this package. Auto-shown in the brochure Inclusions list."
+            count={form.insurance?.included ? 1 : 0}
+            testid="gt-section-insurance"
+          >
+            <InsuranceEditor
+              insurance={form.insurance || EMPTY_PKG.insurance}
+              destination={form.destination}
+              onChange={(ins) => update('insurance', ins)}
             />
           </Section>
 
