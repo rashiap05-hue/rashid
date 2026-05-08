@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, User, Calendar, MapPin, Hotel, Car, Camera, 
@@ -344,7 +344,7 @@ function TravelerForm({ index, roomIndex, traveler, onChange, isChild, isFirstIn
   );
 }
 
-export default function BookingConfirmation({ proposal, initialBookingData, onBack, onConfirmBooking, onHoldBooking }) {
+export default function BookingConfirmation({ proposal, initialBookingData, user, onBack, onConfirmBooking, onHoldBooking }) {
   // Build traveler list from room_data
   const roomData = proposal.room_data || [{ adults: proposal.total_pax || 2, children: [] }];
   
@@ -421,6 +421,26 @@ export default function BookingConfirmation({ proposal, initialBookingData, onBa
   const finalPrice = totalPrice;
   const partialPayment = Math.round(finalPrice * 0.25);
   const balanceAmount = finalPrice - partialPayment;
+
+  // Admin / staff / sales users can override the "Pay now" amount manually
+  // (e.g. accept a custom advance instead of the default 25 %). Other roles
+  // see the read-only default.
+  const role = (user?.role || 'agent').toLowerCase();
+  const canEditPartial = role === 'admin' || role === 'staff' || role === 'sales';
+  const [customPartialAmount, setCustomPartialAmount] = useState(
+    initialBookingData?.customPartialAmount ?? partialPayment
+  );
+  // If the trip's total changes mid-flow (markup/discount edits etc.) reset
+  // the custom amount to the new 25 % default.
+  useEffect(() => {
+    if (!initialBookingData?.customPartialAmount) {
+      setCustomPartialAmount(partialPayment);
+    }
+  }, [partialPayment]); // eslint-disable-line react-hooks/exhaustive-deps
+  const effectivePartial = canEditPartial
+    ? Math.max(0, Math.min(Number(customPartialAmount) || 0, finalPrice))
+    : partialPayment;
+  const effectiveBalance = finalPrice - effectivePartial;
   const nightsCount = proposal.cities?.reduce((acc, c) => acc + (c.nights || 0), 0) || 1;
 
   // Hold booking date
@@ -816,11 +836,36 @@ export default function BookingConfirmation({ proposal, initialBookingData, onBa
                       onChange={() => setPaymentOption('partial')}
                       className="w-4 h-4 text-teal-600 mr-2"
                     />
-                    <span className="text-sm font-medium text-gray-800">Pay AED {partialPayment.toLocaleString()} now and confirm</span>
+                    {canEditPartial && paymentOption === 'partial' ? (
+                      <span className="text-sm font-medium text-gray-800 inline-flex items-center gap-2 flex-wrap">
+                        Pay
+                        <span className="inline-flex items-center bg-white border border-teal-300 rounded-md px-2 py-1 text-teal-700">
+                          <span className="text-xs mr-1">AED</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={finalPrice}
+                            step={1}
+                            value={customPartialAmount}
+                            onChange={(e) => setCustomPartialAmount(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            className="w-24 outline-none font-bold text-sm bg-transparent"
+                            data-testid="partial-amount-input"
+                          />
+                        </span>
+                        now and confirm
+                      </span>
+                    ) : (
+                      <span className="text-sm font-medium text-gray-800">Pay AED {effectivePartial.toLocaleString()} now and confirm</span>
+                    )}
                     {paymentOption === 'partial' && (
                       <div className="mt-2 ml-6">
-                        <p className="text-xs text-red-600">Balance amount of AED {balanceAmount.toLocaleString()} due on {formatDate(addDays(proposal.leaving_on, -7), 'short')}</p>
+                        <p className="text-xs text-red-600">Balance amount of AED {effectiveBalance.toLocaleString()} due on {formatDate(addDays(proposal.leaving_on, -7), 'short')}</p>
                         <p className="text-xs text-gray-500 mt-1">Remaining amount needs to be paid as per our <span className="text-teal-600 underline">payment policy</span></p>
+                        {canEditPartial && (
+                          <p className="text-[10px] text-amber-600 mt-1 italic">Default 25% (AED {partialPayment.toLocaleString()}). You can edit this advance amount.</p>
+                        )}
                       </div>
                     )}
                   </label>
@@ -853,7 +898,7 @@ export default function BookingConfirmation({ proposal, initialBookingData, onBa
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="font-bold text-gray-700">AMOUNT TO PAY NOW</span>
-                    <span className="font-bold text-gray-900">AED {(paymentOption === 'full' ? finalPrice : partialPayment).toLocaleString()}.00</span>
+                    <span className="font-bold text-gray-900">AED {(paymentOption === 'full' ? finalPrice : effectivePartial).toLocaleString()}.00</span>
                   </div>
                 </div>
 
@@ -957,7 +1002,7 @@ export default function BookingConfirmation({ proposal, initialBookingData, onBa
                     </button>
                   ) : (
                     <button
-                      onClick={() => onConfirmBooking?.({ travelers, contactInfo, specialOccasion, paymentOption, confirmationTime, attachments })}
+                      onClick={() => onConfirmBooking?.({ travelers, contactInfo, specialOccasion, paymentOption, confirmationTime, attachments, customPartialAmount: paymentOption === 'partial' ? effectivePartial : finalPrice })}
                       className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg transition-colors text-sm"
                       data-testid="proceed-payment-btn"
                     >

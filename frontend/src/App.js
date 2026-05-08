@@ -402,6 +402,7 @@ function App() {
                   <BookingConfirmation
                     proposal={savedProposal}
                     initialBookingData={bookingData}
+                    user={user}
                     onBack={() => setCurrentView('proposal-view')}
                     onConfirmBooking={(data) => {
                       setBookingData(data);

@@ -21,9 +21,13 @@ export default function PaymentPage({ proposal, bookingData, onBack, onPaymentSu
   const totalPrice = proposal?.pricing_breakdown?.total || proposal?.total_price || 0;
   const markupLand = proposal?.markup_land || 0;
   const discountAmount = proposal?.discount_amount || 0;
-  const priceAfterMarkup = totalPrice + markupLand - Math.min(discountAmount, markupLand);
+  const priceAfterMarkup = totalPrice + markupLand - discountAmount;
+  // Honour the customPartialAmount the admin/staff entered on the booking
+  // confirmation page (falls back to 25 % default for non-privileged users).
   const amountToPay = bookingData?.paymentOption === 'partial'
-    ? Math.round(priceAfterMarkup * 0.25)
+    ? (Number(bookingData?.customPartialAmount) > 0
+        ? Number(bookingData.customPartialAmount)
+        : Math.round(priceAfterMarkup * 0.25))
     : priceAfterMarkup;
 
   // Fetch wallet balance when wallet method is selected
