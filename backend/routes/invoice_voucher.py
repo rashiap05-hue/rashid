@@ -17,6 +17,7 @@ from db import db, get_current_user
 from booking_number import format_booking_ref
 from routes.pdf_generator import resolve_image, fmt_date, add_days, short_ref, _render_term_bullets
 from routes.email_service import send_email_async, RESEND_API_KEY, SENDER_EMAIL
+from routes.settings import get_pdf_branding
 import resend
 
 logger = logging.getLogger(__name__)
@@ -43,11 +44,33 @@ def _short_ref(booking_or_pid):
     return format_booking_ref(seed.lstrip("0") or "0")
 
 
-def _company_block(user):
+def _company_block(user, branding=None):
+    """Returns the company name + email rendered on every PDF.
+
+    Tenant-wide branding overrides take precedence over the user's own
+    company; user record is the next fallback; finally the legacy defaults.
+    """
+    branding = branding or {}
+    name = (branding.get("company_name") or "").strip()
+    if not name:
+        name = ((user or {}).get("company_name") or "").strip() or "Travo Tours & Travels"
+    email = (branding.get("footer_email") or "").strip()
+    if not email:
+        email = ((user or {}).get("email") or "").strip() or "care@travotours.ae"
     return {
-        "name": (user or {}).get("company_name") or "Travo Tours & Travels",
-        "email": (user or {}).get("email") or "care@travotours.ae",
+        "name": name,
+        "email": email,
+        "phone": (branding.get("footer_phone") or "").strip(),
+        "website": (branding.get("footer_website") or "").strip(),
     }
+
+
+def _branded_logo(branding):
+    """Pick the white-label logo if configured, else fall back to the
+    Travo by MedVentures logo embedded at module load."""
+    if branding and (branding.get("logo_data_url") or "").strip():
+        return branding["logo_data_url"]
+    return _LOGO_DATA_URL
 
 
 # Path to the brand logo (Travo by MedVentures). Loaded once at import-time and embedded
@@ -84,8 +107,9 @@ def _guest_lines(travelers):
 
 # ---------------- INVOICE ----------------
 
-def build_invoice_html(booking, proposal, user):
-    company = _company_block(user)
+def build_invoice_html(booking, proposal, user, branding=None):
+    company = _company_block(user, branding)
+    logo_url = _branded_logo(branding)
     ref = _short_ref(booking)
     customer_name = booking.get("customer_name") or proposal.get("customer_name") or ""
     customer_email = booking.get("customer_email") or proposal.get("customer_email") or ""
@@ -240,7 +264,7 @@ body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 
 
 <div class="header">
     <div class="brand-block">
-        {f'<img src="{_LOGO_DATA_URL}" alt="Travo logo" class="brand-logo" />' if _LOGO_DATA_URL else f'<div class="brand">{company["name"].upper()}</div><div class="brand-tag">Travel & Tourism</div>'}
+        {f'<img src="{logo_url}" alt="Logo" class="brand-logo" />' if logo_url else f'<div class="brand">{company["name"].upper()}</div><div class="brand-tag">Travel & Tourism</div>'}
     </div>
     <div class="title">Proforma Invoice</div>
 </div>
@@ -306,8 +330,9 @@ body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 
 
 # ---------------- VOUCHER ----------------
 
-def build_voucher_html(booking, proposal, user, terms):
-    company = _company_block(user)
+def build_voucher_html(booking, proposal, user, terms, branding=None):
+    company = _company_block(user, branding)
+    logo_url = _branded_logo(branding)
     ref = _short_ref(booking)
     cities = proposal.get("cities", []) or []
     journey_date = booking.get("leaving_on") or proposal.get("leaving_on")
@@ -561,7 +586,7 @@ body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 
 </style></head><body>
 
 <div class="header">
-    {f'<img src="{_LOGO_DATA_URL}" alt="Travo logo" class="voucher-brand-logo" />' if _LOGO_DATA_URL else f'<div class="brand-circle">{company["name"][:1]}</div><div class="brand-text"><div class="name">{company["name"].upper()}</div><div class="tag">Travel & Tourism</div></div>'}
+    {f'<img src="{logo_url}" alt="Logo" class="voucher-brand-logo" />' if logo_url else f'<div class="brand-circle">{company["name"][:1]}</div><div class="brand-text"><div class="name">{company["name"].upper()}</div><div class="tag">Travel & Tourism</div></div>'}
 </div>
 
 <div class="trip-row">
@@ -685,7 +710,8 @@ async def _load_booking_context(booking_id, current_user):
 @router.get("/bookings/{booking_id}/invoice-pdf")
 async def get_invoice_pdf(booking_id: str, current_user: dict = Depends(get_current_user)):
     booking, proposal, user, _ = await _load_booking_context(booking_id, current_user)
-    html_content = build_invoice_html(booking, proposal, user)
+    branding = await get_pdf_branding()
+    html_content = build_invoice_html(booking, proposal, user, branding=branding)
     try:
         pdf_bytes = HTML(string=html_content).write_pdf()
     except Exception as e:
@@ -701,7 +727,8 @@ async def get_invoice_pdf(booking_id: str, current_user: dict = Depends(get_curr
 @router.get("/bookings/{booking_id}/voucher-pdf")
 async def get_voucher_pdf(booking_id: str, current_user: dict = Depends(get_current_user)):
     booking, proposal, user, terms = await _load_booking_context(booking_id, current_user)
-    html_content = build_voucher_html(booking, proposal, user, terms)
+    branding = await get_pdf_branding()
+    html_content = build_voucher_html(booking, proposal, user, terms, branding=branding)
     try:
         pdf_bytes = HTML(string=html_content).write_pdf()
     except Exception as e:
@@ -760,12 +787,13 @@ def _fmt_receipt_date_only(iso):
         return str(iso)[:10]
 
 
-def build_receipt_html(booking, proposal, user, txn_index=None):
+def build_receipt_html(booking, proposal, user, txn_index=None, branding=None):
     """Payment Receipt PDF (Nexus-style layout).
     If `txn_index` is given, only that single transaction is highlighted;
     otherwise all transactions are listed.
     """
-    company = _company_block(user)
+    company = _company_block(user, branding)
+    logo_url = _branded_logo(branding)
     ref = _short_ref(booking)
     customer_name = booking.get("customer_name") or (proposal or {}).get("customer_name") or "—"
     customer_email = booking.get("customer_email") or (proposal or {}).get("customer_email") or "—"
@@ -809,8 +837,8 @@ def build_receipt_html(booking, proposal, user, txn_index=None):
         """
 
     logo_block = (
-        f'<img src="{_LOGO_DATA_URL}" class="brand-logo" alt="Travo by MedVentures" />'
-        if _LOGO_DATA_URL else f'<div class="brand-text">{company["name"].upper()}</div>'
+        f'<img src="{logo_url}" class="brand-logo" alt="Logo" />'
+        if logo_url else f'<div class="brand-text">{company["name"].upper()}</div>'
     )
 
     html = f"""
@@ -1037,7 +1065,8 @@ async def get_receipt_pdf(
     """Generate a Payment Receipt PDF. Optional `?txn=<index>` pins the receipt to one
     specific transaction row (matches the row on the BookingDetail 'Print Receipt' link)."""
     booking, proposal, user, _ = await _load_booking_context(booking_id, current_user)
-    html_content = build_receipt_html(booking, proposal, user, txn_index=txn)
+    branding = await get_pdf_branding()
+    html_content = build_receipt_html(booking, proposal, user, txn_index=txn, branding=branding)
     try:
         pdf_bytes = HTML(string=html_content).write_pdf()
     except Exception as e:
@@ -1080,9 +1109,13 @@ async def _refresh_refund_deadline(hotel: dict, sel_room: dict) -> str:
     return ""
 
 
-def _build_hotel_voucher_html(booking, proposal, user, terms, hotel_key, fresh_refund_deadline=""):
+def _build_hotel_voucher_html(booking, proposal, user, terms, hotel_key, fresh_refund_deadline="", branding=None):
     """Hotel-specific voucher (one-hotel Happihaus-style layout)."""
     from datetime import datetime as _dt, timedelta as _td
+
+    logo_url = _branded_logo(branding)
+    company_block = _company_block(user, branding)
+    company_name_for_fallback = company_block["name"]
 
     selected_hotels = (proposal or {}).get("selected_hotels") or {}
     hotel = selected_hotels.get(hotel_key) or {}
@@ -1328,7 +1361,7 @@ def _build_hotel_voucher_html(booking, proposal, user, terms, hotel_key, fresh_r
 
     <div class="header">
       <div class="brand-block">
-        {f'<img src="{_LOGO_DATA_URL}" class="brand-logo" />' if _LOGO_DATA_URL else '<div class="brand-fallback">TRAVO TOURS &amp; TRAVELS</div>'}
+        {f'<img src="{logo_url}" class="brand-logo" />' if logo_url else f'<div class="brand-fallback">{company_name_for_fallback.upper()}</div>'}
       </div>
       <div class="trip-ref">
         <div class="label">Trip Reference</div>
@@ -1411,7 +1444,8 @@ async def get_hotel_voucher_pdf(
     hotel = selected_hotels.get(key) or {}
     sel_room = hotel.get("selected_room") or hotel.get("selectedRoom") or {}
     fresh_refund = await _refresh_refund_deadline(hotel, sel_room) if hotel else ""
-    html_content = _build_hotel_voucher_html(booking, proposal, user, terms, key, fresh_refund)
+    branding = await get_pdf_branding()
+    html_content = _build_hotel_voucher_html(booking, proposal, user, terms, key, fresh_refund, branding=branding)
     try:
         pdf_bytes = HTML(string=html_content).write_pdf()
     except Exception as e:
@@ -1480,10 +1514,11 @@ async def send_invoice_email(booking_id: str, current_user: dict = Depends(get_c
     if not to_email:
         raise HTTPException(status_code=400, detail="No customer email on booking")
 
-    html_pdf = build_invoice_html(booking, proposal, user)
+    branding = await get_pdf_branding()
+    html_pdf = build_invoice_html(booking, proposal, user, branding=branding)
     pdf_bytes = HTML(string=html_pdf).write_pdf()
     ref = _short_ref(booking)
-    company = _company_block(user)
+    company = _company_block(user, branding)
     subject = f"Trip Invoice — {ref} | {company['name']}"
     body = _build_doc_email_html("invoice", booking.get("customer_name") or proposal.get("customer_name"), ref, company["name"])
     result = _send_pdf_email(to_email, subject, body, f"Trip_Invoice_{ref}.pdf", pdf_bytes)
@@ -1504,10 +1539,11 @@ async def send_voucher_email(booking_id: str, current_user: dict = Depends(get_c
     if not to_email:
         raise HTTPException(status_code=400, detail="No customer email on booking")
 
-    html_pdf = build_voucher_html(booking, proposal, user, terms)
+    branding = await get_pdf_branding()
+    html_pdf = build_voucher_html(booking, proposal, user, terms, branding=branding)
     pdf_bytes = HTML(string=html_pdf).write_pdf()
     ref = _short_ref(booking)
-    company = _company_block(user)
+    company = _company_block(user, branding)
     subject = f"Travel Voucher — {ref} | {company['name']}"
     body = _build_doc_email_html("voucher", booking.get("customer_name") or proposal.get("customer_name"), ref, company["name"])
     result = _send_pdf_email(to_email, subject, body, f"{ref}_Voucher.pdf", pdf_bytes)
@@ -1596,7 +1632,7 @@ async def _send_payment_reminder_core(booking_id: str, current_user: dict, *, so
         except Exception:
             final_due = ""
 
-    html_pdf = build_invoice_html(booking, proposal, user)
+    html_pdf = build_invoice_html(booking, proposal, user, branding=await get_pdf_branding())
     pdf_bytes = HTML(string=html_pdf).write_pdf()
     ref = _short_ref(booking)
     company = _company_block(user)
@@ -1941,10 +1977,11 @@ async def mark_paid(
         if to_email:
             try:
                 txn_index = len(existing_payments) - 1
-                html_pdf = build_receipt_html(fresh, proposal, user, txn_index=txn_index)
+                branding = await get_pdf_branding()
+                html_pdf = build_receipt_html(fresh, proposal, user, txn_index=txn_index, branding=branding)
                 pdf_bytes = HTML(string=html_pdf).write_pdf()
                 ref = _short_ref(fresh)
-                company = _company_block(user)
+                company = _company_block(user, branding)
                 subject = f"Payment Receipt — {ref} | AED {float(body.amount):,.2f} Received"
                 html_body = _build_receipt_email_html(
                     fresh.get("customer_name") or proposal.get("customer_name"),

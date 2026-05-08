@@ -118,3 +118,117 @@ async def get_visa_settings(country: Optional[str] = None):
     async for doc in db.visas.find({}, {"_id": 0}).sort("country", 1):
         entries.append(doc)
     return {"visa_settings": entries}
+
+
+
+# ---------------------------------------------------------------------------
+# Branding (white-label) settings — single tenant-wide override applied to
+# customer-facing PDFs (Brochure / Invoice / Voucher / Payment Receipt).
+# ---------------------------------------------------------------------------
+import base64
+from pathlib import Path
+from db import UPLOADS_DIR
+
+_BRANDING_KEY = "branding"
+
+
+def _empty_branding() -> dict:
+    return {
+        "key": _BRANDING_KEY,
+        "logo_url": "",          # /api/static/branding/<file>.png — applied to all PDFs when set
+        "company_name": "",      # company name shown on PDF headers/footers
+        "footer_email": "",      # support / care email
+        "footer_phone": "",      # optional phone shown in PDF footer
+        "footer_website": "",    # optional website shown in PDF footer
+        "updated_at": "",
+    }
+
+
+def _is_admin(user: dict) -> bool:
+    role = ((user or {}).get("role") or "").lower()
+    return role in ("admin", "staff")
+
+
+@settings_router.get("/branding")
+async def get_branding(user: dict = Depends(get_current_user)):
+    """Return the current tenant-wide branding settings. Any signed-in user can
+    read so the frontend can preview the logo + footer that will appear on
+    their downloaded PDFs."""
+    doc = await db.app_settings.find_one({"key": _BRANDING_KEY}, {"_id": 0})
+    return doc or _empty_branding()
+
+
+@settings_router.put("/branding")
+async def update_branding(request: Request, user: dict = Depends(get_current_user)):
+    """Admin/staff update the tenant-wide branding. Whitelisted fields only."""
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    data = await request.json()
+    allowed = {"logo_url", "company_name", "footer_email", "footer_phone", "footer_website"}
+    update = {k: (data.get(k) or "").strip() for k in allowed if k in data}
+    update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    update["key"] = _BRANDING_KEY
+    await db.app_settings.update_one(
+        {"key": _BRANDING_KEY},
+        {"$set": update},
+        upsert=True,
+    )
+    doc = await db.app_settings.find_one({"key": _BRANDING_KEY}, {"_id": 0})
+    return doc or _empty_branding()
+
+
+@settings_router.delete("/branding")
+async def reset_branding(user: dict = Depends(get_current_user)):
+    """Admin-only — clear all branding overrides (PDFs revert to defaults)."""
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    await db.app_settings.delete_one({"key": _BRANDING_KEY})
+    return _empty_branding()
+
+
+# ---------------------------------------------------------------------------
+# Shared helper — used by every PDF generator (brochure, invoice, voucher,
+# receipt). Resolves the saved logo URL into a `data:image/...;base64,` string
+# so WeasyPrint can embed the image without a network round-trip, and exposes
+# the company-block fields directly.
+# ---------------------------------------------------------------------------
+async def get_pdf_branding() -> dict:
+    """Returns the branding dict to be injected into a PDF builder.
+
+    Keys:
+        logo_data_url   — base64-encoded data URL for the saved logo, or "" if
+                          none uploaded. Only PNG / JPEG / WEBP supported.
+        company_name    — empty string if not configured.
+        footer_email    — same.
+        footer_phone    — same.
+        footer_website  — same.
+    """
+    doc = await db.app_settings.find_one({"key": _BRANDING_KEY}, {"_id": 0})
+    if not doc:
+        return {"logo_data_url": "", "company_name": "", "footer_email": "",
+                "footer_phone": "", "footer_website": ""}
+    logo_url = (doc.get("logo_url") or "").strip()
+    logo_data_url = ""
+    if logo_url:
+        # The URL is /api/static/branding/<file>.<ext> — resolve to the local
+        # file and base64-encode it so WeasyPrint embeds it inline.
+        import re as _re
+        m = _re.search(r"/(?:api/static|uploads)/([^?#]+)", logo_url)
+        if m:
+            local = UPLOADS_DIR / m.group(1)
+            if local.exists():
+                ext = local.suffix.lower().lstrip(".")
+                mime = {"jpg": "jpeg", "jpeg": "jpeg", "png": "png", "webp": "webp",
+                        "gif": "gif"}.get(ext, "png")
+                try:
+                    with open(local, "rb") as lf:
+                        logo_data_url = f"data:image/{mime};base64," + base64.b64encode(lf.read()).decode("ascii")
+                except Exception:
+                    logo_data_url = ""
+    return {
+        "logo_data_url": logo_data_url,
+        "company_name": (doc.get("company_name") or "").strip(),
+        "footer_email": (doc.get("footer_email") or "").strip(),
+        "footer_phone": (doc.get("footer_phone") or "").strip(),
+        "footer_website": (doc.get("footer_website") or "").strip(),
+    }

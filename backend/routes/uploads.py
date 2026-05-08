@@ -176,3 +176,27 @@ async def upload_group_tour_image(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
     return {"success": True, "url": f"/api/static/group-tours/{filename}", "filename": filename}
+
+
+
+@uploads_router.post("/branding-logo")
+async def upload_branding_logo(
+    file: UploadFile = File(...),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Upload the tenant-wide branding logo. Returned URL is what
+    /api/settings/branding stores in `logo_url` and the PDF builders embed."""
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
+    unique_id = str(uuid.uuid4())[:8]
+    filename = f"logo_{unique_id}{file_ext}"
+    folder = UPLOADS_DIR / "branding"
+    folder.mkdir(parents=True, exist_ok=True)
+    file_path = folder / filename
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+    return {"success": True, "url": f"/api/static/branding/{filename}", "filename": filename}

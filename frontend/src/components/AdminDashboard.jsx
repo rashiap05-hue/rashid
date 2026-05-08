@@ -11,6 +11,7 @@ import { api } from '@/App';
 import GroupToursAdmin from './AdminDashboard/GroupToursAdmin';
 import CollectionsDashboard from './AdminDashboard/CollectionsDashboard';
 import CouponsAdmin from './CouponsAdmin';
+import BrandingSettings from './AdminDashboard/BrandingSettings';
 import HotelEditForm from './HotelEditForm';
 import ActivityEditForm from './ActivityEditForm';
 import TransferEditForm from './TransferEditForm';
@@ -1756,7 +1757,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView, onVie
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-gray-100 overflow-x-auto">
-            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'visas', 'sim-cards', 'terms', 'insurance', 'coupons', 'staff', 'wallets', 'supplier-bookings', 'group-tours', 'collections'].map((tab) => (
+            {['airports', 'cities', 'hotels', 'transfers', 'activities', 'visas', 'sim-cards', 'terms', 'insurance', 'coupons', 'staff', 'wallets', 'supplier-bookings', 'group-tours', 'collections', 'branding'].map((tab) => (
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -1766,7 +1767,7 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView, onVie
                   activeTab === tab ? "text-[#002B5B]" : "text-gray-400 hover:text-gray-600"
                 )}
               >
-                {tab === 'terms' ? 'Terms & Policies' : tab === 'insurance' ? 'Insurance' : tab === 'staff' ? 'Staff / Experts' : tab === 'wallets' ? 'Wallets' : tab === 'bookings' ? 'Bookings' : tab === 'visas' ? 'Visas' : tab === 'sim-cards' ? 'SIM Cards' : tab === 'supplier-bookings' ? 'Operational Bookings' : tab === 'group-tours' ? 'Group Tours' : tab === 'collections' ? 'Collections' : `${tab} Management`}
+                {tab === 'terms' ? 'Terms & Policies' : tab === 'insurance' ? 'Insurance' : tab === 'staff' ? 'Staff / Experts' : tab === 'wallets' ? 'Wallets' : tab === 'bookings' ? 'Bookings' : tab === 'visas' ? 'Visas' : tab === 'sim-cards' ? 'SIM Cards' : tab === 'supplier-bookings' ? 'Operational Bookings' : tab === 'group-tours' ? 'Group Tours' : tab === 'collections' ? 'Collections' : tab === 'branding' ? 'Branding' : `${tab} Management`}
                 {activeTab === tab && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-1 bg-[#002B5B]" />}
               </button>
             ))}
@@ -2933,6 +2934,10 @@ export default function AdminDashboard({ onBack, onViewHotel, onUsersView, onVie
 
             {activeTab === 'collections' && (
               <CollectionsDashboard onViewBooking={onViewBooking} />
+            )}
+
+            {activeTab === 'branding' && (
+              <BrandingSettings />
             )}
           </div>
         </div>

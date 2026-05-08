@@ -1039,7 +1039,8 @@ def _star_html(n: int) -> str:
     return "★" * n + "<span style='color:#cbd5e1;'>" + ("★" * (5 - n)) + "</span>"
 
 
-def _build_brochure_html(pkg: dict) -> str:
+def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
+    branding = branding or {}
     title = pkg.get("title") or pkg.get("destination") or "Holiday Package"
     dest = pkg.get("destination") or ""
     subtitle = pkg.get("subtitle") or ""
@@ -1196,6 +1197,23 @@ def _build_brochure_html(pkg: dict) -> str:
     terms_html = pkg.get("terms_and_conditions") or ""
     terms_block = f"<div class='terms-body'>{terms_html}</div>" if terms_html.strip() else "<p class='muted'>Standard terms apply.</p>"
 
+    # --- Branding (white-label) — optional logo + footer line ---
+    brand_logo = (branding or {}).get("logo_data_url") or ""
+    brand_company = (branding or {}).get("company_name") or ""
+    brand_email = (branding or {}).get("footer_email") or ""
+    brand_phone = (branding or {}).get("footer_phone") or ""
+    brand_website = (branding or {}).get("footer_website") or ""
+
+    cover_logo_block = (
+        f"<div class='cover-logo-wrap'><img src='{brand_logo}' class='brand-logo' alt='Logo' /></div>"
+        if brand_logo else ""
+    )
+    footer_bits = [b for b in (brand_company, brand_email, brand_phone, brand_website) if b]
+    footer_line_html = (
+        f"<div class='brand-footer'>{' · '.join(_esc(b) for b in footer_bits)}</div>"
+        if footer_bits else ""
+    )
+
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>{_esc(title)} — Brochure</title>
 <style>
@@ -1210,6 +1228,8 @@ def _build_brochure_html(pkg: dict) -> str:
   .cover-inner {{ position: absolute; inset: 0; padding: 18mm 14mm; display: flex; flex-direction: column; justify-content: space-between; color: white; }}
   .brand-logo {{ max-height: 60px; max-width: 220px; background:#ffffffdd; padding:6px 10px; border-radius:6px; }}
   .brand-text {{ font-weight:900; font-size: 22px; letter-spacing: 2px; color:white; }}
+  .cover-logo-wrap {{ display: flex; }}
+  .brand-footer {{ margin-top: 10mm; padding-top: 4mm; border-top: 1px solid #e2e8f0; font-size: 10px; color: #64748b; text-align: center; }}
   .cover-title {{ font-family: Georgia, 'Times New Roman', serif; font-size: 44px; font-weight: 900; line-height: 1.05; color: white; margin-bottom: 6mm; }}
   .cover-sub {{ font-size: 16px; opacity: 0.95; margin-bottom: 10mm; }}
   .cover-meta {{ display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; opacity: 0.95; }}
@@ -1268,7 +1288,7 @@ def _build_brochure_html(pkg: dict) -> str:
   <div class="cover-hero" style="background-image:url('{_esc(hero_img)}');"></div>
   <div class="cover-overlay"></div>
   <div class="cover-inner">
-    <div></div>
+    <div>{cover_logo_block}</div>
     <div>
       <div class="cover-title">{_esc(title)}</div>
       <div class="cover-sub">{_esc(subtitle or f'{nights} nights · {days} days in {dest}')}</div>
@@ -1341,6 +1361,7 @@ def _build_brochure_html(pkg: dict) -> str:
 <div class="section page-break">
   <h2>Terms &amp; Conditions</h2>
   {terms_block}
+  {footer_line_html}
 </div>
 
 </body></html>
@@ -1354,8 +1375,11 @@ async def download_group_tour_brochure(pkg_id: str):
     if not pkg:
         raise HTTPException(status_code=404, detail="Package not found")
     _migrate_legacy(pkg)
+    # Fetch tenant-wide white-label branding (logo + footer email/phone/website)
+    from routes.settings import get_pdf_branding
+    branding = await get_pdf_branding()
     try:
-        html = _build_brochure_html(pkg)
+        html = _build_brochure_html(pkg, branding=branding)
         pdf_bytes = HTML(string=html).write_pdf()
     except Exception as e:
         logger.exception("brochure PDF generation failed for %s: %s", pkg_id, e)
