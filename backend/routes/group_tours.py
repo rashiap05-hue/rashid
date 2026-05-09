@@ -1212,6 +1212,48 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
         except Exception:
             return iso
 
+    # Built-in catalog so popular MENA carriers auto-render their logo even
+    # when the admin didn't upload one. Logos are served from local
+    # /api/static/airlines/<slug>.png so WeasyPrint embeds them inline
+    # without an external network round-trip. Match keys are case-insensitive
+    # against the airline name OR the IATA prefix on the flight number.
+    _AIRLINE_LOGOS = {
+        "flydubai":       "/api/static/airlines/flydubai.png",
+        "emirates":       "/api/static/airlines/emirates.png",
+        "air arabia":     "/api/static/airlines/air-arabia.png",
+        "etihad airways": "/api/static/airlines/etihad.png",
+        "etihad":         "/api/static/airlines/etihad.png",
+        "qatar airways":  "/api/static/airlines/qatar-airways.png",
+        "flyone":         "/api/static/airlines/flyone.png",
+        "saudia":         "/api/static/airlines/saudia.png",
+        "wizz air":       "/api/static/airlines/wizz-air.png",
+        "salam air":      "/api/static/airlines/salam-air.png",
+        "oman air":       "/api/static/airlines/oman-air.png",
+        "gulf air":       "/api/static/airlines/gulf-air.png",
+        "indigo":         "/api/static/airlines/indigo.png",
+        "air india":      "/api/static/airlines/air-india.png",
+    }
+    _IATA_PREFIX = {
+        "FZ": "flydubai", "EK": "emirates", "G9": "air arabia", "EY": "etihad airways",
+        "QR": "qatar airways", "5F": "flyone", "SV": "saudia", "W6": "wizz air",
+        "OV": "salam air", "WY": "oman air", "GF": "gulf air", "6E": "indigo", "AI": "air india",
+    }
+
+    def _resolve_airline_logo(f: dict) -> str:
+        if (f.get("airline_logo") or "").strip():
+            return resolve_image(f["airline_logo"].strip())
+        name = (f.get("airline") or "").strip().lower()
+        if name in _AIRLINE_LOGOS:
+            return resolve_image(_AIRLINE_LOGOS[name])
+        # Try IATA prefix on the flight number ("FZ 713" → "FZ")
+        fn = (f.get("flight_number") or "").strip().upper()
+        m_pref = __import__("re").match(r"^([A-Z0-9]{2,3})", fn)
+        if m_pref:
+            mapped = _IATA_PREFIX.get(m_pref.group(1))
+            if mapped:
+                return resolve_image(_AIRLINE_LOGOS.get(mapped, ""))
+        return ""
+
     flights_list = pkg.get("flights") or []
     flight_cards = []
     for idx, f in enumerate(flights_list):
@@ -1231,40 +1273,59 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
             f.get("departure_date") and f.get("arrival_date")
             and f.get("arrival_date") > f.get("departure_date")
         )
+        logo_url = _resolve_airline_logo(f)
         airline_block = (
-            f"<img src='{_esc(f.get('airline_logo'))}' alt='{_esc(f.get('airline',''))}' class='fl-airline-logo'/>"
-            if f.get("airline_logo") else "<span class='fl-airline-dot'>✈</span>"
+            f"<img src='{_esc(logo_url)}' alt='{_esc(f.get('airline',''))}' class='fl-airline-logo'/>"
+            if logo_url else "<span class='fl-airline-dot'>✈</span>"
         )
         next_day_sup = '<sup class="fl-nextday">+1</sup>' if next_day else ''
+        dep_time = _fmt_time12(f.get('departure_time', ''))
+        arr_time = _fmt_time12(f.get('arrival_time', ''))
+        dep_date = _fmt_flight_date(f.get('departure_date', ''))
+        arr_date = _fmt_flight_date(f.get('arrival_date', ''))
+        duration = f.get('duration') or '—'
         flight_cards.append(f"""
           <div class='fl-card'>
             <div class='fl-route'>
               <span class='fl-route-icon'>✈</span>
               <span class='fl-route-text'>{_esc(f.get('from_city') or 'From')} to {_esc(f.get('to_city') or 'To')}</span>
-              <span class='fl-route-date'>{_esc(_fmt_flight_date(f.get('departure_date','')))}</span>
+              <span class='fl-route-date'>{_esc(dep_date)}</span>
             </div>
             <div class='fl-airline'>
               {airline_block}
               <span class='fl-airline-name'>{_esc(f.get('airline','Airline'))}</span>
               <span class='fl-flight-no'>{_esc(f.get('flight_number',''))}</span>
             </div>
-            <div class='fl-body'>
-              <div class='fl-timeline'>
-                <div class='fl-time-cell'><span class='fl-time'>{_esc(_fmt_time12(f.get('departure_time','')))}</span><span class='fl-airport'>{_esc(from_airport_full or '—')}</span></div>
-                <div class='fl-conn'><span class='fl-conn-line'></span><span class='fl-dur'>{_esc(f.get('duration') or '—')}</span></div>
-                <div class='fl-time-cell'><span class='fl-time'>{_esc(_fmt_time12(f.get('arrival_time','')))}{next_day_sup}</span><span class='fl-airport'>{_esc(to_airport_full or '—')}</span></div>
-              </div>
-              <div class='fl-dates'>
-                <div class='fl-date'>{_esc(_fmt_flight_date(f.get('departure_date','')))}</div>
-                <div class='fl-date'>{_esc(_fmt_flight_date(f.get('arrival_date','')))}</div>
-              </div>
-              <div class='fl-meta'>
-                <div class='fl-meta-row'><span class='fl-meta-k'>Fare</span><span class='fl-meta-v'>{_esc(f.get('fare') or 'Basic')}</span></div>
-                <div class='fl-meta-row'><span class='fl-meta-k'>Baggage</span><span class='fl-meta-v'>{_esc(f.get('baggage') or '20 kg')}</span></div>
-                <div class='fl-meta-row'><span class='fl-meta-k'>Meals</span><span class='fl-meta-v'>{_esc(f.get('meals') or 'At Extra Cost')}</span></div>
-                <div class='fl-meta-row'><span class='fl-meta-k'>Cabin</span><span class='fl-meta-v'>{_esc(f.get('cabin') or 'Economy')}</span></div>
-              </div>
-            </div>
+            <table class='fl-tbl'>
+              <tr class='fl-tbl-row'>
+                <td class='fl-time'>{_esc(dep_time)}</td>
+                <td class='fl-airport'>{_esc(from_airport_full or '—')}</td>
+                <td class='fl-date'>{_esc(dep_date)}</td>
+                <td class='fl-meta-k'>Fare</td>
+                <td class='fl-meta-v'>{_esc(f.get('fare') or 'Basic')}</td>
+              </tr>
+              <tr class='fl-tbl-row'>
+                <td class='fl-spacer'></td>
+                <td class='fl-dur'>{_esc(duration)}</td>
+                <td class='fl-spacer'></td>
+                <td class='fl-meta-k'><span class='fl-meta-icon'>🧳</span> Baggage</td>
+                <td class='fl-meta-v'>{_esc(f.get('baggage') or '20 kg')}</td>
+              </tr>
+              <tr class='fl-tbl-row'>
+                <td class='fl-spacer'></td>
+                <td class='fl-spacer'></td>
+                <td class='fl-spacer'></td>
+                <td class='fl-meta-k'><span class='fl-meta-icon'>🍴</span> Meals</td>
+                <td class='fl-meta-v'>{_esc(f.get('meals') or 'At Extra Cost')}</td>
+              </tr>
+              <tr class='fl-tbl-row'>
+                <td class='fl-time'>{_esc(arr_time)}{next_day_sup}</td>
+                <td class='fl-airport'>{_esc(to_airport_full or '—')}</td>
+                <td class='fl-date'>{_esc(arr_date)}</td>
+                <td class='fl-meta-k'>Cabin</td>
+                <td class='fl-meta-v'>{_esc(f.get('cabin') or 'Economy')}</td>
+              </tr>
+            </table>
           </div>
         """)
     flights_section_html = ""
@@ -1408,29 +1469,26 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
 
   /* Flight cards — mirrors the public Flights tab */
   .fl-card {{ border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 5mm; page-break-inside: avoid; background: white; }}
-  .fl-route {{ display: flex; align-items: center; gap: 6px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 3mm 5mm; }}
-  .fl-route-icon {{ color: #475569; font-size: 12px; }}
+  .fl-route {{ background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 3mm 5mm; }}
+  .fl-route-icon {{ color: #475569; font-size: 12px; margin-right: 4px; }}
   .fl-route-text {{ font-weight: 800; color: #0f2a4a; font-size: 13px; }}
-  .fl-route-date {{ margin-left: 4mm; color: #64748b; font-size: 11px; }}
-  .fl-airline {{ display: flex; align-items: center; gap: 8px; padding: 3mm 5mm; border-bottom: 1px solid #e2e8f0; }}
-  .fl-airline-logo {{ height: 18px; width: auto; max-width: 60px; object-fit: contain; }}
-  .fl-airline-dot {{ display: inline-block; width: 18px; height: 18px; border-radius: 4px; background: #fff1f2; color: #f43f5e; text-align: center; line-height: 18px; font-size: 11px; }}
-  .fl-airline-name {{ font-weight: 800; color: #0f2a4a; font-size: 12px; }}
-  .fl-flight-no {{ font-weight: 800; color: #1f2937; font-size: 12px; }}
-  .fl-body {{ padding: 4mm 5mm; display: flex; align-items: stretch; gap: 6mm; font-size: 11px; }}
-  .fl-timeline {{ flex: 1.4; display: grid; grid-template-columns: auto 1fr; row-gap: 1.5mm; column-gap: 4mm; align-content: start; }}
-  .fl-time-cell {{ display: contents; }}
-  .fl-time-cell .fl-time {{ font-weight: 800; color: #0f2a4a; white-space: nowrap; }}
-  .fl-time-cell .fl-airport {{ color: #475569; }}
-  .fl-conn {{ display: contents; }}
-  .fl-conn-line {{ display: inline-block; width: 1px; height: 6mm; background: #cbd5e1; margin-left: 8mm; }}
-  .fl-dur {{ color: #0f2a4a; font-weight: 800; padding: 0.5mm 0; }}
+  .fl-route-date {{ margin-left: 4mm; color: #64748b; font-size: 11px; font-weight: 500; }}
+  .fl-airline {{ padding: 3mm 5mm; border-bottom: 1px solid #e2e8f0; }}
+  .fl-airline-logo {{ height: 22px; width: auto; max-width: 110px; vertical-align: middle; margin-right: 8px; border-radius: 3px; }}
+  .fl-airline-dot {{ display: inline-block; width: 18px; height: 18px; border-radius: 4px; background: #fff1f2; color: #f43f5e; text-align: center; line-height: 18px; font-size: 11px; vertical-align: middle; margin-right: 6px; }}
+  .fl-airline-name {{ font-weight: 800; color: #0f2a4a; font-size: 12px; vertical-align: middle; margin-right: 12px; }}
+  .fl-flight-no {{ font-weight: 800; color: #1f2937; font-size: 12px; vertical-align: middle; }}
+  .fl-tbl {{ width: 100%; border-collapse: collapse; font-size: 10.5px; padding: 3mm 5mm; }}
+  .fl-tbl-row td {{ padding: 1.6mm 4mm 1.6mm 0; vertical-align: middle; }}
+  .fl-time {{ font-weight: 800; color: #0f2a4a; white-space: nowrap; width: 18mm; padding-left: 5mm !important; }}
+  .fl-airport {{ color: #475569; padding-left: 4mm !important; border-left: 1px solid #e2e8f0; }}
+  .fl-dur {{ color: #0f2a4a; font-weight: 800; padding-left: 4mm !important; border-left: 1px solid #e2e8f0; }}
+  .fl-spacer {{ padding-left: 4mm !important; border-left: 1px solid #e2e8f0; }}
+  .fl-date {{ color: #64748b; white-space: nowrap; width: 26mm; }}
+  .fl-meta-k {{ color: #64748b; white-space: nowrap; padding-left: 5mm !important; border-left: 1px solid #e2e8f0; width: 22mm; }}
+  .fl-meta-v {{ font-weight: 800; color: #0f2a4a; white-space: nowrap; padding-right: 5mm !important; }}
+  .fl-meta-icon {{ font-size: 9.5px; }}
   .fl-nextday {{ color: #f43f5e; font-size: 8px; font-weight: 800; vertical-align: super; margin-left: 1px; }}
-  .fl-dates {{ flex: 0.7; display: flex; flex-direction: column; justify-content: space-between; color: #64748b; font-size: 10.5px; padding: 1mm 0; }}
-  .fl-meta {{ flex: 0.9; border-left: 1px solid #e2e8f0; padding-left: 5mm; display: flex; flex-direction: column; gap: 2mm; }}
-  .fl-meta-row {{ display: flex; justify-content: space-between; gap: 4mm; }}
-  .fl-meta-k {{ color: #64748b; font-size: 10.5px; }}
-  .fl-meta-v {{ font-weight: 800; color: #0f2a4a; font-size: 11px; }}
   .pill {{ display:inline-block; padding: 2px 8px; border-radius: 999px; font-size: 9.5px; font-weight: 700; }}
   .pill-meal {{ background:#d1fae5; color:#065f46; border:1px solid #6ee7b7; }}
   .pill-hotel {{ background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }}
