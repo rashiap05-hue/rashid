@@ -1498,24 +1498,28 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
   </div>
 </div>
 
+{flights_section_html}
+
+<!-- HOTELS -->
+<div class="section{' page-break' if not flights_section_html else ''}">
+  <h2>Hotels</h2>
+  {hotels_html}
+</div>
+
 <!-- ITINERARY -->
 <div class="section page-break">
   <h2>Day-wise Itinerary</h2>
   {itinerary_html}
 </div>
 
-{flights_section_html}
-
-<!-- HOTELS -->
-<div class="section">
-  <h2>Hotels</h2>
-  {hotels_html}
-</div>
-
-<!-- INCLUSIONS -->
+<!-- INCLUSIONS + WHAT'S EXCLUDED -->
 <div class="section">
   <h2>Inclusions</h2>
   {inclusions_html}
+  <div style="margin-top:6mm;">
+    <h2>What's Excluded</h2>
+    {exc_html}
+  </div>
 </div>
 
 <!-- PRICING -->
