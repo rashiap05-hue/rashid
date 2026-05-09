@@ -1189,6 +1189,92 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
         """)
     itinerary_html = "\n".join(itin_rows) or "<p class='muted'>Itinerary will be shared upon booking.</p>"
 
+    # --- Flights section (cards mirroring the public Flights tab layout) ---
+    def _fmt_time12(t24: str) -> str:
+        if not t24:
+            return ""
+        m = __import__("re").match(r"^(\d{1,2}):(\d{2})", t24)
+        if not m:
+            return t24
+        hh = int(m.group(1))
+        mm = m.group(2)
+        ap = "PM" if hh >= 12 else "AM"
+        hh = hh % 12 or 12
+        return f"{hh:02d}:{mm} {ap}"
+
+    def _fmt_flight_date(iso: str) -> str:
+        if not iso:
+            return ""
+        try:
+            from datetime import datetime as _dt
+            d = _dt.strptime(iso[:10], "%Y-%m-%d")
+            return d.strftime("%a, %d %b %Y")
+        except Exception:
+            return iso
+
+    flights_list = pkg.get("flights") or []
+    flight_cards = []
+    for idx, f in enumerate(flights_list):
+        if not f:
+            continue
+        from_airport_full = (
+            f"{f.get('from_airport','')}"
+            + (f" ({f.get('from_code','')})" if f.get('from_code') else "")
+            + (f" , Terminal {f.get('from_terminal')}" if f.get('from_terminal') else "")
+        ).strip(" ,")
+        to_airport_full = (
+            f"{f.get('to_airport','')}"
+            + (f" ({f.get('to_code','')})" if f.get('to_code') else "")
+            + (f" , Terminal {f.get('to_terminal')}" if f.get('to_terminal') else "")
+        ).strip(" ,")
+        next_day = (
+            f.get("departure_date") and f.get("arrival_date")
+            and f.get("arrival_date") > f.get("departure_date")
+        )
+        airline_block = (
+            f"<img src='{_esc(f.get('airline_logo'))}' alt='{_esc(f.get('airline',''))}' class='fl-airline-logo'/>"
+            if f.get("airline_logo") else "<span class='fl-airline-dot'>✈</span>"
+        )
+        next_day_sup = '<sup class="fl-nextday">+1</sup>' if next_day else ''
+        flight_cards.append(f"""
+          <div class='fl-card'>
+            <div class='fl-route'>
+              <span class='fl-route-icon'>✈</span>
+              <span class='fl-route-text'>{_esc(f.get('from_city') or 'From')} to {_esc(f.get('to_city') or 'To')}</span>
+              <span class='fl-route-date'>{_esc(_fmt_flight_date(f.get('departure_date','')))}</span>
+            </div>
+            <div class='fl-airline'>
+              {airline_block}
+              <span class='fl-airline-name'>{_esc(f.get('airline','Airline'))}</span>
+              <span class='fl-flight-no'>{_esc(f.get('flight_number',''))}</span>
+            </div>
+            <div class='fl-body'>
+              <div class='fl-timeline'>
+                <div class='fl-time-cell'><span class='fl-time'>{_esc(_fmt_time12(f.get('departure_time','')))}</span><span class='fl-airport'>{_esc(from_airport_full or '—')}</span></div>
+                <div class='fl-conn'><span class='fl-conn-line'></span><span class='fl-dur'>{_esc(f.get('duration') or '—')}</span></div>
+                <div class='fl-time-cell'><span class='fl-time'>{_esc(_fmt_time12(f.get('arrival_time','')))}{next_day_sup}</span><span class='fl-airport'>{_esc(to_airport_full or '—')}</span></div>
+              </div>
+              <div class='fl-dates'>
+                <div class='fl-date'>{_esc(_fmt_flight_date(f.get('departure_date','')))}</div>
+                <div class='fl-date'>{_esc(_fmt_flight_date(f.get('arrival_date','')))}</div>
+              </div>
+              <div class='fl-meta'>
+                <div class='fl-meta-row'><span class='fl-meta-k'>Fare</span><span class='fl-meta-v'>{_esc(f.get('fare') or 'Basic')}</span></div>
+                <div class='fl-meta-row'><span class='fl-meta-k'>Baggage</span><span class='fl-meta-v'>{_esc(f.get('baggage') or '20 kg')}</span></div>
+                <div class='fl-meta-row'><span class='fl-meta-k'>Meals</span><span class='fl-meta-v'>{_esc(f.get('meals') or 'At Extra Cost')}</span></div>
+                <div class='fl-meta-row'><span class='fl-meta-k'>Cabin</span><span class='fl-meta-v'>{_esc(f.get('cabin') or 'Economy')}</span></div>
+              </div>
+            </div>
+          </div>
+        """)
+    flights_section_html = ""
+    if flight_cards:
+        flights_section_html = (
+            "<div class='section page-break'><h2>✈ Flights</h2>"
+            + "\n".join(flight_cards)
+            + "</div>"
+        )
+
     # --- Hotels ---
     hotels = pkg.get("hotels") or []
     hotel_rows = []
@@ -1319,6 +1405,32 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
   .day-body p {{ margin: 2px 0; }}
   .day-acts, .day-transfer {{ margin-top: 2mm; padding: 0 5mm; font-size: 10.5px; color:#0f2a4a; }}
   .day-foot {{ margin: 3mm 5mm 0; display: flex; flex-wrap: wrap; gap: 4px; }}
+
+  /* Flight cards — mirrors the public Flights tab */
+  .fl-card {{ border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 5mm; page-break-inside: avoid; background: white; }}
+  .fl-route {{ display: flex; align-items: center; gap: 6px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 3mm 5mm; }}
+  .fl-route-icon {{ color: #475569; font-size: 12px; }}
+  .fl-route-text {{ font-weight: 800; color: #0f2a4a; font-size: 13px; }}
+  .fl-route-date {{ margin-left: 4mm; color: #64748b; font-size: 11px; }}
+  .fl-airline {{ display: flex; align-items: center; gap: 8px; padding: 3mm 5mm; border-bottom: 1px solid #e2e8f0; }}
+  .fl-airline-logo {{ height: 18px; width: auto; max-width: 60px; object-fit: contain; }}
+  .fl-airline-dot {{ display: inline-block; width: 18px; height: 18px; border-radius: 4px; background: #fff1f2; color: #f43f5e; text-align: center; line-height: 18px; font-size: 11px; }}
+  .fl-airline-name {{ font-weight: 800; color: #0f2a4a; font-size: 12px; }}
+  .fl-flight-no {{ font-weight: 800; color: #1f2937; font-size: 12px; }}
+  .fl-body {{ padding: 4mm 5mm; display: flex; align-items: stretch; gap: 6mm; font-size: 11px; }}
+  .fl-timeline {{ flex: 1.4; display: grid; grid-template-columns: auto 1fr; row-gap: 1.5mm; column-gap: 4mm; align-content: start; }}
+  .fl-time-cell {{ display: contents; }}
+  .fl-time-cell .fl-time {{ font-weight: 800; color: #0f2a4a; white-space: nowrap; }}
+  .fl-time-cell .fl-airport {{ color: #475569; }}
+  .fl-conn {{ display: contents; }}
+  .fl-conn-line {{ display: inline-block; width: 1px; height: 6mm; background: #cbd5e1; margin-left: 8mm; }}
+  .fl-dur {{ color: #0f2a4a; font-weight: 800; padding: 0.5mm 0; }}
+  .fl-nextday {{ color: #f43f5e; font-size: 8px; font-weight: 800; vertical-align: super; margin-left: 1px; }}
+  .fl-dates {{ flex: 0.7; display: flex; flex-direction: column; justify-content: space-between; color: #64748b; font-size: 10.5px; padding: 1mm 0; }}
+  .fl-meta {{ flex: 0.9; border-left: 1px solid #e2e8f0; padding-left: 5mm; display: flex; flex-direction: column; gap: 2mm; }}
+  .fl-meta-row {{ display: flex; justify-content: space-between; gap: 4mm; }}
+  .fl-meta-k {{ color: #64748b; font-size: 10.5px; }}
+  .fl-meta-v {{ font-weight: 800; color: #0f2a4a; font-size: 11px; }}
   .pill {{ display:inline-block; padding: 2px 8px; border-radius: 999px; font-size: 9.5px; font-weight: 700; }}
   .pill-meal {{ background:#d1fae5; color:#065f46; border:1px solid #6ee7b7; }}
   .pill-hotel {{ background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }}
@@ -1380,15 +1492,9 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
     <span class="kv"><b>Departure Cities:</b> {dep_cities_html}</span>
     {f'<span class="kv"><b>Travel Window:</b> {window}</span>' if window else ''}
   </div>
-  <div class="grid-2">
-    <div>
-      <h3 style="font-size:13px;margin-bottom:2mm;">Trip Highlights</h3>
-      <ul>{highlights_html}</ul>
-    </div>
-    <div>
-      <h3 style="font-size:13px;margin-bottom:2mm;">What's Excluded</h3>
-      {exc_html}
-    </div>
+  <div>
+    <h3 style="font-size:13px;margin-bottom:2mm;">Trip Highlights</h3>
+    <ul>{highlights_html}</ul>
   </div>
 </div>
 
@@ -1397,6 +1503,8 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
   <h2>Day-wise Itinerary</h2>
   {itinerary_html}
 </div>
+
+{flights_section_html}
 
 <!-- HOTELS -->
 <div class="section">
