@@ -407,6 +407,22 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
   // departure is on day X but local arrival lands on X+1). Falls back to
   // `leaving_on` for trips without flight info.
   const tripStartStr = proposal.arrival_flight_info?.arrivalDate || proposal.leaving_on;
+  // Per-day date overrides — admin-entered Group Tour Package dates take
+  // precedence over computed offsets. Empty for non-group-tour proposals.
+  const _dayDateOverrides = React.useMemo(() => {
+    const map = {};
+    (proposal.group_tour_day_dates || []).forEach((x) => {
+      const d = parseInt(x?.day, 10);
+      if (d > 0 && (x?.date || '').trim()) map[d] = x.date;
+    });
+    return map;
+  }, [proposal.group_tour_day_dates]);
+  const resolveDayDate = React.useCallback((dayNum) => {
+    if (_dayDateOverrides[dayNum]) return new Date(_dayDateOverrides[dayNum]);
+    const d = new Date(tripStartStr);
+    d.setDate(d.getDate() + (dayNum - 1));
+    return d;
+  }, [_dayDateOverrides, tripStartStr]);
   // For red-eye departures (e.g. flight at 03:30 AM), the customer actually
   // transfers to the airport the previous evening. Render the departure day
   // card with the transfer date, not the flight's calendar date.
@@ -1020,9 +1036,11 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                     // Day 1 = actual arrival date in destination (uses flight's
                     // arrivalDate when present so overnight flights show the
                     // correct local arrival day rather than the origin departure
-                    // date). Subsequent days increment from there.
-                    const dayDate = new Date(tripStartStr);
-                    dayDate.setDate(dayDate.getDate() + dayIndex);
+                    // date). Subsequent days increment from there. When this
+                    // proposal was spawned from a Group Tour Package, the
+                    // admin's explicit per-day dates override the computed
+                    // offsets via `resolveDayDate()`.
+                    const dayDate = resolveDayDate(dayNum);
                     
                     // Get the city this day belongs to
                     const dayCityInfo = getDayCityInfo(dayNum);

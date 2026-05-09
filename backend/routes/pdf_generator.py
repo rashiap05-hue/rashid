@@ -145,6 +145,18 @@ def build_day_plan(proposal):
     arrival_transfer = proposal.get("arrival_transfer") or {}
     departure_transfer = proposal.get("departure_transfer") or {}
 
+    # Per-day date overrides — populated when this proposal was spawned from a
+    # Group Tour Package whose admin set explicit dates per day. Keys are the
+    # 1-indexed day number; values are ISO YYYY-MM-DD strings.
+    _day_date_overrides = {
+        int(x.get("day") or 0): (x.get("date") or "")
+        for x in (proposal.get("group_tour_day_dates") or [])
+        if (x or {}).get("date")
+    }
+
+    def _day_date(day_num: int) -> str:
+        return _day_date_overrides.get(day_num) or add_days(trip_start, day_num - 1)
+
     days = []
     day_num = 0
     for ci, c in enumerate(cities):
@@ -173,7 +185,7 @@ def build_day_plan(proposal):
 
         for night in range(nights):
             day_num += 1
-            day_date = add_days(trip_start, day_num - 1)
+            day_date = _day_date(day_num)
             items = []
 
             # Arrival transfer on first day
@@ -213,7 +225,7 @@ def build_day_plan(proposal):
         # the hotel stay has already ended.
         for extra in range(extra_days):
             day_num += 1
-            day_date = add_days(trip_start, day_num - 1)
+            day_date = _day_date(day_num)
             items = []
             acts = selected_activities.get(f"{city_name}_{day_num}", [])
             if not isinstance(acts, list):
@@ -244,7 +256,7 @@ def build_day_plan(proposal):
         last_city_name = last_city.get("name") if isinstance(last_city, dict) else last_city
         days.append({
             "num": day_num,
-            "date": add_days(trip_start, day_num - 1),
+            "date": _day_date(day_num),
             "city": last_city_name,
             "items": [{"type": "transfer", "data": departure_transfer, "label": "Departure Transfer"}],
         })
@@ -897,6 +909,17 @@ def section_inclusions_exclusions(proposal):
     arrival_transfer = proposal.get("arrival_transfer") or {}
     departure_transfer = proposal.get("departure_transfer") or {}
 
+    # Per-day date overrides (same source as build_day_blocks) — admin's
+    # explicit Group Tour package dates take precedence over computed ones.
+    _day_date_overrides = {
+        int(x.get("day") or 0): (x.get("date") or "")
+        for x in (proposal.get("group_tour_day_dates") or [])
+        if (x or {}).get("date")
+    }
+
+    def _day_date(day_num: int) -> str:
+        return _day_date_overrides.get(day_num) or add_days(trip_start, day_num - 1)
+
     HOTEL_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.6"><path d="M3 21h18M5 21V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v13M9 12h.01M15 12h.01M9 16h.01M15 16h.01M9 8h.01M15 8h.01"/></svg>'
     CAR_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.6"><path d="M3 13h18l-2-6H5l-2 6zM5 13v5h2v-2h10v2h2v-5"/><circle cx="7" cy="16" r="1.5"/><circle cx="17" cy="16" r="1.5"/></svg>'
     CAMERA_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.6"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>'
@@ -924,10 +947,9 @@ def section_inclusions_exclusions(proposal):
     for ci, c in enumerate(cities):
         city_name = c.get("name") if isinstance(c, dict) else c
         nights = c.get("nights", 1) if isinstance(c, dict) else 1
-        # Per-item dates use trip_start (arrival date in destination — handles
-        # overnight flights). City header for first city keeps leaving_on
-        # (origin departure date) to mirror ProposalView UX.
-        first_day_date = add_days(trip_start, day_cursor)
+        # Per-item dates respect admin's per-day Group Tour overrides, falling
+        # back to trip_start + offset for non-group-tour proposals.
+        first_day_date = _day_date(day_cursor + 1)
         city_header_date = leaving_on if ci == 0 else first_day_date
         items_html = ""
 
@@ -1005,7 +1027,7 @@ def section_inclusions_exclusions(proposal):
 
         for night in range(activity_day_span):
             day_num = day_cursor + night + 1
-            day_date = add_days(trip_start, day_num - 1)
+            day_date = _day_date(day_num)
             acts = selected_activities.get(f"{city_name}_{day_num}", [])
             if not isinstance(acts, list):
                 acts = [acts] if acts else []
@@ -1055,7 +1077,7 @@ def section_inclusions_exclusions(proposal):
         # Departure transfer on the very last city's last day
         if is_last_city and departure_transfer:
             last_day_num = day_cursor + activity_day_span + 1  # day after last activity day
-            last_day_date = add_days(trip_start, last_day_num - 1)
+            last_day_date = _day_date(last_day_num)
             items_html += render_transfer_inclusion(departure_transfer, "Departure Transfer", last_day_num, fmt_short(last_day_date), CAR_ICON)
 
         city_blocks += f"""

@@ -1028,6 +1028,15 @@ async def save_group_tour_as_proposal(
         # Back-reference so we know this proposal was spawned from a group tour.
         "group_tour_id": pkg_id,
         "group_tour_title": pkg.get("title") or "",
+        # Snapshot of the admin-configured per-day dates so the saved proposal
+        # + PDF render the EXACT dates entered in the editor (instead of
+        # naively re-deriving from start_date + day index, which would
+        # silently override the package's true departure dates).
+        "group_tour_day_dates": [
+            {"day": int(d.get("day") or i + 1), "date": (d.get("date") or "")}
+            for i, d in enumerate(pkg.get("itinerary") or [])
+            if (d or {}).get("date")
+        ],
     }
 
     await db.proposals.insert_one(doc)
@@ -1123,6 +1132,18 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
     highlights_html = "".join(f"<li>{_esc(h)}</li>" for h in highlights) or "<li>Curated by Travo travel experts</li>"
 
     # --- Itinerary ---
+    def _fmt_flight_date(iso: str) -> str:
+        """Format ISO YYYY-MM-DD as 'Wed, 27 May 2026'. Used by both itinerary
+        day cards and the Flights section."""
+        if not iso:
+            return ""
+        try:
+            from datetime import datetime as _dt
+            d = _dt.strptime(iso[:10], "%Y-%m-%d")
+            return d.strftime("%a, %d %b %Y")
+        except Exception:
+            return iso
+
     itinerary = pkg.get("itinerary") or []
     itin_rows = []
     for d in itinerary:
@@ -1145,7 +1166,8 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
         safe_desc = desc.replace("<script", "&lt;script").replace("</script", "&lt;/script")
         date_tag = ""
         if d.get("date"):
-            date_tag = f"<span class='day-date'>{_esc(d['date'])}</span>"
+            # Format as "Wed, 27 May 2026" rather than raw ISO "2026-05-27"
+            date_tag = f"<span class='day-date'>{_esc(_fmt_flight_date(d['date']))}</span>"
 
         # Day-wise images: hero banner (primary) + strip of up to 4 thumbnails.
         # Falls back to the first activity image, then the cover hero, so the
@@ -1201,16 +1223,6 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
         ap = "PM" if hh >= 12 else "AM"
         hh = hh % 12 or 12
         return f"{hh:02d}:{mm} {ap}"
-
-    def _fmt_flight_date(iso: str) -> str:
-        if not iso:
-            return ""
-        try:
-            from datetime import datetime as _dt
-            d = _dt.strptime(iso[:10], "%Y-%m-%d")
-            return d.strftime("%a, %d %b %Y")
-        except Exception:
-            return iso
 
     # Built-in catalog so popular MENA carriers auto-render their logo even
     # when the admin didn't upload one. Logos are served from local
