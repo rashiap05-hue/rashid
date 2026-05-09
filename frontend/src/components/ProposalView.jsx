@@ -302,6 +302,25 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
     fetchTermsAndPolicies();
   }, [proposal]);
 
+  // Per-day date overrides — admin-entered Group Tour Package dates take
+  // precedence over computed offsets. Empty for non-group-tour proposals.
+  // Defined before the early-return below to comply with rules-of-hooks.
+  const _dayDateOverrides = React.useMemo(() => {
+    const map = {};
+    (proposal?.group_tour_day_dates || []).forEach((x) => {
+      const d = parseInt(x?.day, 10);
+      if (d > 0 && (x?.date || '').trim()) map[d] = x.date;
+    });
+    return map;
+  }, [proposal?.group_tour_day_dates]);
+  const tripStartStr = proposal?.arrival_flight_info?.arrivalDate || proposal?.leaving_on;
+  const resolveDayDate = React.useCallback((dayNum) => {
+    if (_dayDateOverrides[dayNum]) return new Date(_dayDateOverrides[dayNum]);
+    const d = new Date(tripStartStr);
+    d.setDate(d.getDate() + (dayNum - 1));
+    return d;
+  }, [_dayDateOverrides, tripStartStr]);
+
   if (!proposal) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -405,24 +424,8 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
   // Check-in/Check-out dates — use the actual destination arrival date when
   // a flight's `arrivalDate` is set (e.g. an overnight flight where origin
   // departure is on day X but local arrival lands on X+1). Falls back to
-  // `leaving_on` for trips without flight info.
-  const tripStartStr = proposal.arrival_flight_info?.arrivalDate || proposal.leaving_on;
-  // Per-day date overrides — admin-entered Group Tour Package dates take
-  // precedence over computed offsets. Empty for non-group-tour proposals.
-  const _dayDateOverrides = React.useMemo(() => {
-    const map = {};
-    (proposal.group_tour_day_dates || []).forEach((x) => {
-      const d = parseInt(x?.day, 10);
-      if (d > 0 && (x?.date || '').trim()) map[d] = x.date;
-    });
-    return map;
-  }, [proposal.group_tour_day_dates]);
-  const resolveDayDate = React.useCallback((dayNum) => {
-    if (_dayDateOverrides[dayNum]) return new Date(_dayDateOverrides[dayNum]);
-    const d = new Date(tripStartStr);
-    d.setDate(d.getDate() + (dayNum - 1));
-    return d;
-  }, [_dayDateOverrides, tripStartStr]);
+  // `leaving_on` for trips without flight info. (`tripStartStr` and
+  // `resolveDayDate` are defined above the early-return for hook ordering.)
   // For red-eye departures (e.g. flight at 03:30 AM), the customer actually
   // transfers to the airport the previous evening. Render the departure day
   // card with the transfer date, not the flight's calendar date.
