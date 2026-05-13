@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
+import { toast } from 'sonner';
 import '@/App.css';
 import { CurrencyProvider } from '@/CurrencyContext';
 
@@ -59,6 +60,44 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// 401 response interceptor — when the JWT expires (or is invalid), wipe the
+// session and bounce the user back to the login screen instead of letting
+// them stare at a cryptic "Token expired" toast while editing.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const detail = (error?.response?.data?.detail || '').toString().toLowerCase();
+    const isAuthEndpoint = (error?.config?.url || '').includes('/auth/login') ||
+      (error?.config?.url || '').includes('/auth/signup');
+    if (
+      !isAuthEndpoint &&
+      (status === 401 || (status === 403 && /token|expired|invalid|authenticated/i.test(detail)))
+    ) {
+      // Stash a one-time toast so the user understands why they got logged out.
+      try {
+        sessionStorage.setItem('travo_auth_expired_msg', 'Your session expired — please sign in again.');
+      } catch (_) {
+        /* ignore */
+      }
+      // Clear stored auth + UI state and reload to the login screen.
+      try {
+        localStorage.removeItem('travo_token');
+        localStorage.removeItem('travo_user');
+      } catch (_) {
+        /* ignore */
+      }
+      // Avoid hard-reloading inside an in-flight render loop — defer.
+      setTimeout(() => {
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.href = '/';
+        }
+      }, 50);
+    }
+    return Promise.reject(error);
+  }
+);
 
 function App() {
   const [user, setUser] = useState(null);
@@ -127,6 +166,16 @@ function App() {
       setUser(JSON.parse(savedUser));
     }
     setLoading(false);
+    // Surface the one-time toast set by the 401 interceptor so users know
+    // why they're back on the login screen.
+    try {
+      const expiredMsg = sessionStorage.getItem('travo_auth_expired_msg');
+      if (expiredMsg) {
+        sessionStorage.removeItem('travo_auth_expired_msg');
+        // Delay so the toast root is mounted.
+        setTimeout(() => toast.error(expiredMsg), 200);
+      }
+    } catch (_) { /* ignore */ }
   }, []);
 
   const handleLoginSuccess = (userData, token) => {
