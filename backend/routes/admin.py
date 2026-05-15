@@ -106,3 +106,205 @@ async def update_user_status(user_id: str, status: str):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
     return {"success": True, "message": f"User status updated to {status}"}
+
+
+
+import re as _re
+from db import get_current_user
+from fastapi import Depends
+
+
+def _placeholder_hotel(city: str, nights: int) -> dict:
+    return {
+        "name": "Hotel TBC (restored from booking)",
+        "stars": 4,
+        "nights": nights,
+        "city": city,
+        "room_type": "Standard Room",
+        "meal_plan": "Bed & Breakfast",
+        "price_per_night": 0,
+        "total_price": 0,
+        "image": "",
+        "_restored": True,
+    }
+
+
+def _placeholder_activity(name_hint: str) -> dict:
+    return {
+        "name": name_hint,
+        "duration": "—",
+        "image": "",
+        "price": 0,
+        "_restored": True,
+    }
+
+
+@admin_router.post("/bookings/{booking_ref}/restore-proposal")
+async def restore_orphan_proposal(booking_ref: str, current_user: dict = Depends(get_current_user)):
+    """Re-create a deleted proposal from a booking record so the booking can
+    render hotels/transfers/tours again. Admin-only. Idempotent — refuses to
+    overwrite an existing proposal.
+
+    Reconstructs as much as possible (city structure, customer info,
+    confirmation numbers, traveller list, total price) — hotel/activity NAMES
+    become placeholders because they weren't denormalised onto the booking.
+    """
+    role = ((current_user or {}).get("role") or "").lower()
+    if role not in ("admin", "staff"):
+        raise HTTPException(status_code=403, detail="Admin/staff access required")
+
+    booking = await db.bookings.find_one({"booking_ref": booking_ref}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail=f"Booking {booking_ref} not found")
+
+    proposal_id = booking.get("proposal_id")
+    if not proposal_id:
+        raise HTTPException(status_code=400, detail="Booking has no proposal_id reference")
+
+    existing = await db.proposals.find_one({"id": proposal_id})
+    if existing:
+        return {"success": False, "message": "Proposal already exists, nothing to do", "proposal_id": proposal_id}
+
+    cities = booking.get("cities") or []
+    svc = booking.get("service_confirmations") or {}
+
+    selected_hotels = {}
+    for i, c in enumerate(cities):
+        city_name = c.get("name") if isinstance(c, dict) else c
+        nights = c.get("nights", 1) if isinstance(c, dict) else 1
+        key = f"{city_name}_{i}"
+        hotel = _placeholder_hotel(city_name, nights)
+        conf = svc.get(f"hotel:{key}")
+        if conf:
+            hotel["confirmation_number"] = conf.get("confirmation_number")
+            hotel["supplier_status"] = conf.get("status")
+        selected_hotels[key] = hotel
+
+    selected_activities = {}
+    for k, conf in svc.items():
+        m = _re.match(r"^activity:([^:#]+)(?:#(\d+))?$", k)
+        if not m:
+            continue
+        city_idx = m.group(1)
+        selected_activities.setdefault(city_idx, [])
+        act = _placeholder_activity(f"Activity (restored) — conf {conf.get('confirmation_number', '')}")
+        act["confirmation_number"] = conf.get("confirmation_number")
+        act["supplier_status"] = conf.get("status")
+        if conf.get("pickup_time"):
+            act["pickup_time"] = conf["pickup_time"]
+        if conf.get("driver_name"):
+            act["driver_name"] = conf["driver_name"]
+        selected_activities[city_idx].append(act)
+
+    inter_city = {}
+    for k, conf in svc.items():
+        m = _re.match(r"^transfer:inter:(\d+)_(\d+)$", k)
+        if not m:
+            continue
+        inter_city[f"{m.group(1)}_{m.group(2)}"] = {
+            "name": "Inter-city Transfer (restored)",
+            "type": "private",
+            "price": 0,
+            "confirmation_number": conf.get("confirmation_number"),
+            "supplier_status": conf.get("status"),
+            "driver_name": conf.get("driver_name") or "",
+            "driver_phone": conf.get("driver_phone") or "",
+            "vehicle_plate": conf.get("vehicle_plate") or "",
+            "pickup_time": conf.get("pickup_time") or "",
+            "_restored": True,
+        }
+
+    arr_conf = svc.get("transfer:arrival") or {}
+    dep_conf = svc.get("transfer:departure") or {}
+    arrival_transfer = {
+        "name": "Arrival Transfer (restored)",
+        "price": 0,
+        "confirmation_number": arr_conf.get("confirmation_number"),
+        "supplier_status": arr_conf.get("status") or "confirmed",
+        "pickup_time": arr_conf.get("pickup_time") or "",
+        "_restored": True,
+    } if arr_conf else {}
+    departure_transfer = {
+        "name": "Departure Transfer (restored)",
+        "price": 0,
+        "confirmation_number": dep_conf.get("confirmation_number"),
+        "supplier_status": dep_conf.get("status") or "confirmed",
+        "_restored": True,
+    } if dep_conf else {}
+
+    arr_fl = svc.get("flight:arrival") or {}
+    dep_fl = svc.get("flight:departure") or {}
+    arrival_flight_info = {
+        "airline": "TBC",
+        "flightNumber": "TBC",
+        "flightDate": booking.get("leaving_on"),
+        "arrivalDate": booking.get("leaving_on"),
+        "pnr": arr_fl.get("confirmation_number") or "",
+        "_restored": True,
+    } if arr_fl else {}
+    departure_flight_info = {
+        "airline": "TBC",
+        "flightNumber": "TBC",
+        "pnr": dep_fl.get("confirmation_number") or "",
+        "_restored": True,
+    } if dep_fl else {}
+
+    now = datetime.now(timezone.utc).isoformat()
+    proposal = {
+        "id": proposal_id,
+        "customer_name": booking.get("customer_name") or "Restored Customer",
+        "customer_email": (booking.get("contact_info") or {}).get("email") or booking.get("customer_email") or "",
+        "customer_phone": (booking.get("contact_info") or {}).get("phone") or "",
+        "adults": booking.get("adults") or 1,
+        "children": [],
+        "rooms": [{"adults": booking.get("adults") or 1, "children": []}],
+        "leaving_on": booking.get("leaving_on") or "",
+        "return_on": "",
+        "departure_city": (booking.get("contact_info") or {}).get("city") or "Dubai",
+        "leaving_from": (booking.get("contact_info") or {}).get("city") or "Dubai",
+        "nationality": (booking.get("contact_info") or {}).get("nationality") or "Indian",
+        "star_rating": "4 Star",
+        "add_transfers": True,
+        "room_data": [{"room_type": "Twin/Double", "adults": booking.get("adults") or 2, "children": []}],
+        "stayplan": "Twin Sharing",
+        "cities": cities,
+        "selected_hotels": selected_hotels,
+        "selected_activities": selected_activities,
+        "inter_city_transfers": inter_city,
+        "arrival_transfer": arrival_transfer,
+        "departure_transfer": departure_transfer,
+        "arrival_flight_info": arrival_flight_info,
+        "departure_flight_info": departure_flight_info,
+        "total_price": booking.get("total_price") or 0,
+        "markup_land": 0,
+        "discount_amount": 0,
+        "pricing_breakdown": {"total": booking.get("total_price") or 0},
+        "status": "booked",
+        "booking_id": booking.get("id"),
+        "booking_ref": booking_ref,
+        "created_by": booking.get("created_by"),
+        "created_by_name": booking.get("booked_by_name") or "Restored",
+        "created_at": booking.get("created_at") or now,
+        "updated_at": now,
+        "_restored_from_booking": booking_ref,
+        "_restoration_note": (
+            "Reconstructed from booking data after the original was deleted. "
+            "Hotel and activity names are placeholders; confirmation numbers, "
+            "traveller details, city structure, and pricing are accurate."
+        ),
+    }
+
+    await db.proposals.insert_one(proposal)
+    return {
+        "success": True,
+        "proposal_id": proposal_id,
+        "booking_ref": booking_ref,
+        "stats": {
+            "cities": len(cities),
+            "hotels": len(selected_hotels),
+            "activities": sum(len(v) for v in selected_activities.values()),
+            "inter_city_transfers": len(inter_city),
+            "arrival_transfer": bool(arrival_transfer),
+            "departure_transfer": bool(departure_transfer),
+        },
+    }
