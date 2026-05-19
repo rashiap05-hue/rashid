@@ -16,6 +16,7 @@ export default function PaymentPage({ proposal, bookingData, onBack, onPaymentSu
   const [walletLoading, setWalletLoading] = useState(false);
   const [paying, setPaying] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [stripeError, setStripeError] = useState('');
   const orderId = useState(() => generateOrderId())[0];
 
   const totalPrice = proposal?.pricing_breakdown?.total || proposal?.total_price || 0;
@@ -88,6 +89,41 @@ export default function PaymentPage({ proposal, bookingData, onBack, onPaymentSu
       }, 1500);
     } catch (e) {
       alert(e.response?.data?.detail || 'Payment failed. Please try again.');
+    }
+    setPaying(false);
+  };
+
+  const handleStripeCheckout = async () => {
+    setStripeError('');
+    setPaying(true);
+    try {
+      // Stash the booking + proposal state so when Stripe redirects back the
+      // user lands on My Bookings, not the (now stale) payment page.
+      sessionStorage.setItem('travo_pending_stripe_session', JSON.stringify({
+        proposal_id: proposal?.id,
+        amount: amountToPay,
+        order_id: orderId,
+      }));
+
+      const { data } = await api.post('/payments/stripe/checkout', {
+        proposal_id: proposal.id,
+        origin_url: window.location.origin,
+        paymentOption: bookingData?.paymentOption || 'full',
+        customPartialAmount: bookingData?.customPartialAmount,
+        travelers: bookingData?.travelers || [],
+        contactInfo: bookingData?.contactInfo || {},
+        specialOccasion: bookingData?.specialOccasion || 'none',
+        couponCode: couponCode,
+        couponDiscount: couponDiscount,
+      });
+
+      if (data?.url) {
+        window.location.href = data.url; // redirect to Stripe-hosted checkout
+        return;
+      }
+      throw new Error('No checkout URL returned by Stripe');
+    } catch (e) {
+      setStripeError(e.response?.data?.detail || e.message || 'Could not start payment. Please try again.');
     }
     setPaying(false);
   };
@@ -317,6 +353,8 @@ export default function PaymentPage({ proposal, bookingData, onBack, onPaymentSu
             onClick={() => {
               if (paymentMethod === 'wallet') {
                 handlePayFromWallet();
+              } else if (paymentMethod === 'credit_card') {
+                handleStripeCheckout();
               } else {
                 alert(`Payment of AED ${amountToPay.toLocaleString()} via ${paymentMethod} — integration coming soon!`);
               }
@@ -326,6 +364,12 @@ export default function PaymentPage({ proposal, bookingData, onBack, onPaymentSu
             {paymentSuccess ? 'Paid' : paying ? 'Processing...' : 'Pay Now'}
           </button>
         </div>
+
+        {stripeError && (
+          <div className="mt-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700" data-testid="stripe-error">
+            {stripeError}
+          </div>
+        )}
 
         {/* Security Footer */}
         <div className="mt-6 flex items-center justify-center gap-2 text-gray-400">

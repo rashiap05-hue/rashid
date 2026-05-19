@@ -39,6 +39,7 @@ from routes.change_requests import router as change_requests_router
 from routes.operational_services import router as operational_services_router
 from routes.leads import leads_router
 from routes.coupons import coupons_router
+from routes.stripe_webhook import webhook_router as stripe_webhook_router
 
 from seed import seed_initial_data, seed_terms_policies, migrate_image_urls, migrate_activities_fields, migrate_transfer_image_urls, seed_destination_experts
 
@@ -69,6 +70,7 @@ api_router.include_router(activities_router)
 api_router.include_router(terms_router)
 api_router.include_router(ai_router)
 api_router.include_router(payments_router)
+api_router.include_router(stripe_webhook_router)
 api_router.include_router(sheets_router)
 api_router.include_router(admin_router)
 api_router.include_router(supplier_router)

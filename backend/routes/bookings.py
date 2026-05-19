@@ -108,61 +108,67 @@ class BookingCreate(BaseModel):
         populate_by_name = True
 
 
-@router.post("/bookings")
-async def create_booking(booking: BookingCreate, current_user: dict = Depends(get_current_user)):
-    # Verify proposal exists
-    proposal = await db.proposals.find_one({"id": booking.proposal_id}, {"_id": 0})
+async def _create_or_update_booking_doc(
+    proposal_id: str,
+    user_id: str,
+    booked_by_name: str,
+    travelers: List[Dict[str, Any]],
+    contact_info: Dict[str, Any],
+    special_occasion: str,
+    payment_option: str,
+    confirmation_time: Optional[str],
+    payment_method: Optional[str],
+    payment_amount: Optional[float],
+    order_id: Optional[str],
+    coupon_code: Optional[str],
+    coupon_discount: float,
+    final_total: Optional[float],
+) -> Dict[str, Any]:
+    """Shared booking-creation helper used by both `/api/bookings` (wallet/cash)
+    and the Stripe-payment-success path. Idempotent: if a paid booking already
+    exists for the proposal, returns it unchanged."""
+    proposal = await db.proposals.find_one({"id": proposal_id}, {"_id": 0})
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found")
 
-    user_id = current_user.get("id") or current_user.get("email")
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    # If a held booking already exists for this proposal, reuse its id so MyBookings
-    # row simply flips from "Hold" to "Under Process" / "Payment Received".
-    existing_held = await db.held_bookings.find_one({"proposal_id": booking.proposal_id}, {"_id": 0})
+    existing_held = await db.held_bookings.find_one({"proposal_id": proposal_id}, {"_id": 0})
     booking_id = existing_held["id"] if existing_held else str(uuid.uuid4())
 
-    # Reuse the existing booking_number if the held booking already had one,
-    # otherwise allocate a new sequential one.
+    # Idempotency: if the booking is already paid + confirmed, return immediately.
+    existing_paid = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+    if existing_paid and existing_paid.get("status") in ("payment_received", "confirmed", "ticketed", "completed"):
+        return {
+            "id": booking_id,
+            "booking_number": existing_paid.get("booking_number"),
+            "booking_ref": existing_paid.get("booking_ref"),
+            "status": existing_paid.get("status"),
+            "confirmation_time": existing_paid.get("confirmation_time"),
+            "already_processed": True,
+        }
+
     booking_number = (existing_held or {}).get("booking_number")
     if not booking_number:
         existing_booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0, "booking_number": 1})
         booking_number = (existing_booking or {}).get("booking_number") or await next_booking_number()
 
-    payment_fields = {
-        "payment_method": booking.payment_method,
-        "payment_amount": booking.payment_amount,
-        "order_id": booking.order_id,
-        "payment_option": booking.payment_option,
-        "confirmation_time": booking.confirmation_time,
-        "travelers": booking.travelers,
-        "contact_info": booking.contact_info,
-        "special_occasion": booking.special_occasion,
-        "coupon_code": (booking.coupon_code or "").strip().upper() or None,
-        "coupon_discount": float(booking.coupon_discount or 0),
-    }
-
-    # Final billable total = explicit final_total from frontend, else proposal total minus coupon
     proposal_total = float(proposal.get("total_price", 0) or 0)
-    coupon_disc = float(booking.coupon_discount or 0)
-    final_total = (
-        float(booking.final_total)
-        if booking.final_total is not None
+    coupon_disc = float(coupon_discount or 0)
+    resolved_final = (
+        float(final_total)
+        if final_total is not None
         else max(0.0, proposal_total - coupon_disc)
     )
-
-    # Status is "payment_received" until supplier confirms
-    new_status = "payment_received"
 
     booking_doc = {
         "id": booking_id,
         "booking_number": booking_number,
         "booking_ref": format_booking_ref(booking_number),
-        "proposal_id": booking.proposal_id,
+        "proposal_id": proposal_id,
         "user_id": user_id,
         "created_by": user_id,
-        "booked_by_name": current_user.get("name") or current_user.get("full_name", ""),
+        "booked_by_name": booked_by_name or "",
         "proposal_name": proposal.get("proposal_name", ""),
         "customer_name": proposal.get("customer_name", ""),
         "customer_email": proposal.get("customer_email", ""),
@@ -171,18 +177,26 @@ async def create_booking(booking: BookingCreate, current_user: dict = Depends(ge
         "nights": proposal.get("nights", 0),
         "rooms": proposal.get("rooms", 1),
         "adults": proposal.get("adults", 1),
-        "total_price": final_total,
+        "total_price": resolved_final,
         "original_total_price": proposal_total,
         "type": "Package",
-        "status": new_status,
+        "status": "payment_received",
         "supplier_status": (existing_held or {}).get("supplier_status", "pending"),
         "held_at": (existing_held or {}).get("held_at") or now_iso,
         "created_at": (existing_held or {}).get("created_at") or now_iso,
         "paid_at": now_iso,
-        **payment_fields,
+        "payment_method": payment_method,
+        "payment_amount": payment_amount,
+        "order_id": order_id,
+        "payment_option": payment_option,
+        "confirmation_time": confirmation_time,
+        "travelers": travelers or [],
+        "contact_info": contact_info or {},
+        "special_occasion": special_occasion or "none",
+        "coupon_code": (coupon_code or "").strip().upper() or None,
+        "coupon_discount": coupon_disc,
     }
 
-    # Upsert into both collections so MyBookings, Supplier & Admin views all reflect the paid booking
     await db.bookings.update_one(
         {"id": booking_id},
         {"$set": booking_doc},
@@ -194,9 +208,8 @@ async def create_booking(booking: BookingCreate, current_user: dict = Depends(ge
         upsert=True,
     )
 
-    # Update proposal status + stamp booking refs so ProposalView can render the locked sidebar
     await db.proposals.update_one(
-        {"id": booking.proposal_id},
+        {"id": proposal_id},
         {"$set": {
             "status": "booked",
             "booking_id": booking_id,
@@ -209,10 +222,34 @@ async def create_booking(booking: BookingCreate, current_user: dict = Depends(ge
         "id": booking_id,
         "booking_number": booking_number,
         "booking_ref": format_booking_ref(booking_number),
-        "status": new_status,
-        "confirmation_time": booking.confirmation_time,
-        "message": "Booking confirmed successfully"
+        "status": "payment_received",
+        "confirmation_time": confirmation_time,
+        "already_processed": False,
     }
+
+
+@router.post("/bookings")
+async def create_booking(booking: BookingCreate, current_user: dict = Depends(get_current_user)):
+    user_id = current_user.get("id") or current_user.get("email")
+    booked_by = current_user.get("name") or current_user.get("full_name", "")
+
+    result = await _create_or_update_booking_doc(
+        proposal_id=booking.proposal_id,
+        user_id=user_id,
+        booked_by_name=booked_by,
+        travelers=booking.travelers,
+        contact_info=booking.contact_info,
+        special_occasion=booking.special_occasion,
+        payment_option=booking.payment_option,
+        confirmation_time=booking.confirmation_time,
+        payment_method=booking.payment_method,
+        payment_amount=booking.payment_amount,
+        order_id=booking.order_id,
+        coupon_code=booking.coupon_code,
+        coupon_discount=float(booking.coupon_discount or 0),
+        final_total=booking.final_total,
+    )
+    return {**result, "message": "Booking confirmed successfully"}
 
 
 @router.get("/bookings")
