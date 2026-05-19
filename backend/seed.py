@@ -318,7 +318,6 @@ async def migrate_transfer_image_urls():
     transfers = await transfers_collection.find({}).to_list(length=1000)
     fixed_count = 0
     for transfer in transfers:
-        updated = False
         new_images = []
         for img in transfer.get('images', []):
             # Extract relative path from absolute URLs with broken patterns
@@ -328,7 +327,6 @@ async def migrate_transfer_image_urls():
                 # Fix double /api/api/static/ -> /api/static/
                 relative = re.sub(r'/api/api/static/', '/api/static/', relative)
                 new_images.append(relative)
-                updated = True
             else:
                 new_images.append(img)
         video = transfer.get('video')
@@ -338,7 +336,6 @@ async def migrate_transfer_image_urls():
             if vmatch:
                 new_video = vmatch.group(1)
                 new_video = re.sub(r'/api/api/static/', '/api/static/', new_video)
-                updated = True
         updates = {}
         if new_images != transfer.get('images', []):
             updates['images'] = new_images

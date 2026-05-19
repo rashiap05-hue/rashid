@@ -81,5 +81,5 @@ async def get_optional_user(credentials=Depends(security)):
         return None
     try:
         return await get_current_user(credentials)
-    except:
+    except Exception:
         return None

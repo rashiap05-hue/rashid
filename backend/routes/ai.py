@@ -17,7 +17,9 @@ async def ai_chat(message: ChatMessage):
 
     session_id = message.session_id or str(uuid.uuid4())
 
-    history = await db.chat_history.find({"session_id": session_id}, {"_id": 0}).sort("created_at", 1).to_list(50)
+    # Conversation history is persisted via the `await db.chat_history.insert_one(...)`
+    # call below and the `LlmChat` API replays it via `session_id` — so we
+    # don't need to pre-fetch and pass it explicitly here.
 
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
@@ -95,7 +97,10 @@ async def generate_itinerary(request: ItineraryRequest):
 
     city_names = [c.name for c in request.cities]
     activities = await db.activities.find({"city": {"$in": city_names}}, {"_id": 0, "id": 1, "name": 1, "city": 1, "duration": 1, "description": 1}).to_list(200)
-    transfers = await db.transfers.find({"city": {"$in": city_names}}, {"_id": 0, "id": 1, "title": 1, "city": 1, "type": 1}).to_list(100)
+    # NOTE: transfers context is intentionally not included in the prompt
+    # right now — the model picks transfers per-day from the catalog after
+    # the itinerary is finalised. Re-enable here when we surface transfer
+    # suggestions inside the AI itinerary response itself.
 
     activities_context = ""
     for city_name in city_names:

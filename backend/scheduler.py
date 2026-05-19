@@ -15,7 +15,9 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from db import db
-from routes.invoice_voucher import _send_payment_reminder_core
+# NOTE: `_send_payment_reminder_core` is imported lazily inside the function
+# below to break a circular import (routes/invoice_voucher.py also references
+# this module to expose a manual "trigger reminders now" admin endpoint).
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,11 @@ async def run_due_date_reminders() -> dict:
 
     Returns a stats summary for logging/tests.
     """
+    # Lazy import to break the circular dependency between this module and
+    # routes/invoice_voucher.py (which exposes a manual "run reminders now"
+    # admin endpoint that imports this function).
+    from routes.invoice_voucher import _send_payment_reminder_core
+
     today = datetime.now(timezone.utc).date()
     stats = {"scanned": 0, "sent": 0, "skipped": 0, "errors": 0, "milestones": {}}
 

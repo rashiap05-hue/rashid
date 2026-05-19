@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import DOMPurify from 'dompurify';
 import { Bold, Italic, Underline, Link as LinkIcon, List, ListOrdered, Eraser } from 'lucide-react';
 
 /* Lightweight WYSIWYG editor using contentEditable + a small toolbar.
@@ -9,6 +10,8 @@ import { Bold, Italic, Underline, Link as LinkIcon, List, ListOrdered, Eraser } 
  *   warnings under React 18 concurrent mode.
  * - Toolbar: H3, Bold, Italic, Underline, Link, Bullet List, Numbered List,
  *   Clear formatting.
+ * - Incoming HTML is sanitised with DOMPurify before being injected into
+ *   the contentEditable so a malicious paste cannot execute scripts.
  */
 export default function RichTextEditor({ value, onChange, placeholder = '', testid = 'rte', minHeight = 100 }) {
   const ref = useRef(null);
@@ -18,7 +21,7 @@ export default function RichTextEditor({ value, onChange, placeholder = '', test
   // (prevents caret jumping while the user is typing).
   useEffect(() => {
     if (!ref.current) return;
-    const incoming = value || '';
+    const incoming = DOMPurify.sanitize(value || '');
     if (ref.current.innerHTML !== incoming) {
       ref.current.innerHTML = incoming;
     }

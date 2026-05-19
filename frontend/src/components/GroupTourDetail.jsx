@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import DOMPurify from 'dompurify';
 import {
   ArrowLeft, ChevronRight, Star, MapPin, Calendar, Users,
   Coffee, Utensils, Moon, Bed, Plane, Check, X, Info, ChevronDown, Shield,
@@ -193,7 +194,7 @@ function DayCard({ entry }) {
 
         <div
           className="text-sm text-gray-600 leading-relaxed mb-3 prose prose-sm max-w-none"
-          dangerouslySetInnerHTML={{ __html: entry.desc }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(entry.desc || '') }}
         />
 
         <div className="flex flex-wrap items-center gap-4 text-xs">
@@ -633,7 +634,7 @@ export default function GroupTourDetail({ deal, onBack, onBookFromGroupTour, onP
         <h1 className="text-2xl md:text-3xl font-black text-gray-900 mb-1">{title}</h1>
         <div
           className="text-sm text-gray-600 mb-6 prose prose-sm max-w-none"
-          dangerouslySetInnerHTML={{ __html: pkg.intro_paragraph }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(pkg.intro_paragraph || '') }}
         />
 
         {/* MAIN GRID: gallery + booking card */}
@@ -926,7 +927,7 @@ export default function GroupTourDetail({ deal, onBack, onBookFromGroupTour, onP
             </h2>
             <div
               className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: pkg.terms_and_conditions }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(pkg.terms_and_conditions || '') }}
             />
           </section>
         )}

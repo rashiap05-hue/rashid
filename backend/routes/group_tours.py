@@ -40,6 +40,7 @@ import base64
 import html as html_lib
 import logging
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
@@ -1215,7 +1216,7 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
     def _fmt_time12(t24: str) -> str:
         if not t24:
             return ""
-        m = __import__("re").match(r"^(\d{1,2}):(\d{2})", t24)
+        m = re.match(r"^(\d{1,2}):(\d{2})", t24)
         if not m:
             return t24
         hh = int(m.group(1))
@@ -1259,7 +1260,7 @@ def _build_brochure_html(pkg: dict, branding: dict | None = None) -> str:
             return resolve_image(_AIRLINE_LOGOS[name])
         # Try IATA prefix on the flight number ("FZ 713" → "FZ")
         fn = (f.get("flight_number") or "").strip().upper()
-        m_pref = __import__("re").match(r"^([A-Z0-9]{2,3})", fn)
+        m_pref = re.match(r"^([A-Z0-9]{2,3})", fn)
         if m_pref:
             mapped = _IATA_PREFIX.get(m_pref.group(1))
             if mapped:

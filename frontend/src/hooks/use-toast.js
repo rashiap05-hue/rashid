@@ -135,6 +135,11 @@ function toast({
 function useToast() {
   const [state, setState] = React.useState(memoryState)
 
+  // Run only on mount/unmount — we subscribe `setState` to the global
+  // `listeners` array exactly once and remove it on unmount. The state
+  // variable does not need to be a dependency: `setState` is stable, and
+  // including it in deps would cause us to subscribe/unsubscribe on every
+  // toast change which is exactly what we don't want.
   React.useEffect(() => {
     listeners.push(setState)
     return () => {
@@ -143,7 +148,7 @@ function useToast() {
         listeners.splice(index, 1)
       }
     };
-  }, [state])
+  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     ...state,

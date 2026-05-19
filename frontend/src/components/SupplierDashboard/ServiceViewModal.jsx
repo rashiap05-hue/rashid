@@ -80,7 +80,9 @@ export default function ServiceViewModal({
     try {
       const res = await api.get(`/bookings/${booking.id}/change-requests`);
       setTasks(res.data?.change_requests || []);
-    } catch { /* noop */ }
+    } catch (e) {
+      console.warn('[ServiceViewModal] fetchTasks failed:', e?.response?.data || e?.message || e);
+    }
   }, [booking?.id]);
 
   useEffect(() => {
@@ -180,7 +182,9 @@ export default function ServiceViewModal({
       setActiveTask(updated);
       setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
       setReply('');
-    } catch { /* noop */ }
+    } catch (e) {
+      console.warn('[ServiceViewModal] reply post failed:', e?.response?.data || e?.message || e);
+    }
     setSending(false);
   };
 
@@ -191,7 +195,9 @@ export default function ServiceViewModal({
       const updated = res.data?.change_request;
       setActiveTask(updated);
       setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
-    } catch { /* noop */ }
+    } catch (e) {
+      console.warn('[ServiceViewModal] handleTaskStatus failed:', e?.response?.data || e?.message || e);
+    }
   };
 
   const kindLabel = {

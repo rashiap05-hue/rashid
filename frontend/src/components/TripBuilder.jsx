@@ -113,7 +113,11 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         setVisaSettings({ ...visaRes.data, country: country || visaRes.data?.country || 'Destination' });
         const simCards = simRes.data?.sim_cards || [];
         setSimCardSettings(simCards.length > 0 ? { ...simCards[0], country: country || simCards[0]?.country || 'Destination' } : { country: country || 'Destination', provider: 'Local SIM', plan_name: 'Tourist Data Plan', data_allowance: '5GB', validity: '7 days', price: 25 });
-      } catch (e) { /* use defaults */ }
+      } catch (e) {
+        // Non-fatal — fall back to the default visa / SIM hint UX. Log so
+        // we can still trace the failure during development.
+        console.warn('[TripBuilder] visa / SIM settings fetch failed:', e?.message || e);
+      }
     };
     fetchSettings();
   }, [data?.cities]);

@@ -48,7 +48,7 @@ def build_proposal_email_html(proposal, sender_name, message):
     try:
         dt = datetime.fromisoformat(str(leaving_on).replace("Z", "+00:00"))
         formatted_date = dt.strftime("%d %b %Y")
-    except:
+    except Exception:
         formatted_date = str(leaving_on)
 
     return f'''
@@ -137,7 +137,7 @@ def build_booking_confirmation_email_html(booking):
     try:
         dt = datetime.fromisoformat(str(leaving_on).replace("Z", "+00:00"))
         formatted_date = dt.strftime("%d %b %Y")
-    except:
+    except Exception:
         formatted_date = str(leaving_on)
 
     return f'''
@@ -225,4 +225,4 @@ async def send_booking_status_email(booking_id: str, new_status: str, note: str 
     # If confirmed, also send confirmation summary
     if new_status == "confirmed":
         confirmation_html = build_booking_confirmation_email_html(booking)
-        await send_email_async(email, f"Booking Confirmed! | Travo Tours", confirmation_html)
+        await send_email_async(email, "Booking Confirmed! | Travo Tours", confirmation_html)

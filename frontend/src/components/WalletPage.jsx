@@ -27,7 +27,12 @@ export default function WalletPage() {
       setProofs(pRes.data);
     } catch (e) { console.error(e); }
     setLoading(false);
-  }, []);
+    // The closure only touches the `api` singleton + React state setters,
+    // both of which are stable across renders — the empty deps array is
+    // correct here (re-creating fetchData on every render would cascade
+    // through `useEffect(() => fetchData(), [fetchData])` and refetch the
+    // wallet on every parent state change).
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
