@@ -200,7 +200,7 @@ async def _finalize_paid_session(session_id: str, payment_status: str, amount_to
 
 
 @payments_router.get("/stripe/status/{session_id}")
-async def get_stripe_status(session_id: str):
+async def get_stripe_status(session_id: str, current_user: dict = Depends(get_current_user)):
     if not STRIPE_API_KEY:
         raise HTTPException(status_code=500, detail="Stripe is not configured")
 
