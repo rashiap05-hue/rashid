@@ -20,28 +20,30 @@ import sys
 import uuid
 
 import requests
+from tests.test_helpers import (
+    TEST_ADMIN_EMAIL,
+    TEST_AGENT_EMAIL,
+    TEST_STAFF_EMAIL,
+    TEST_SUPPLIER_EMAIL,
+    DEFAULT_PASSWORD,
+)
 
 BASE_URL = os.environ.get("BACKEND_URL") or open("/app/frontend/.env").read().split("REACT_APP_BACKEND_URL=")[1].split("\n")[0].strip()
 API = f"{BASE_URL}/api"
 
-ADMIN_EMAIL = "testadmin@example.com"
-AGENT_EMAIL = "rashid@travotours.ae"
-PASSWORD = "password123"
-
+PASSWORD = DEFAULT_PASSWORD
 
 def _login(email: str) -> str:
     r = requests.post(f"{API}/auth/login", json={"email": email, "password": PASSWORD}, timeout=15)
     r.raise_for_status()
     return r.json()["access_token"]
 
-
 def _h(tok: str) -> dict:
     return {"Authorization": f"Bearer {tok}", "Content-Type": "application/json"}
 
-
 def test_coupon_persists_on_booking_total():
-    admin = _login(ADMIN_EMAIL)
-    agent = _login(AGENT_EMAIL)
+    admin = _login(TEST_ADMIN_EMAIL)
+    agent = _login(TEST_AGENT_EMAIL)
 
     code = f"PYTEST{uuid.uuid4().hex[:6].upper()}"
 
@@ -153,7 +155,6 @@ def test_coupon_persists_on_booking_total():
     finally:
         # Always remove the test coupon
         requests.delete(f"{API}/coupons/{coupon_id}", headers=_h(admin), timeout=10)
-
 
 if __name__ == "__main__":
     test_coupon_persists_on_booking_total()

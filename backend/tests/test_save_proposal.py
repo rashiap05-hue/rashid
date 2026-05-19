@@ -7,6 +7,13 @@ import pytest
 import requests
 import os
 from datetime import datetime, timedelta
+from tests.test_helpers import (
+    TEST_ADMIN_EMAIL,
+    TEST_AGENT_EMAIL,
+    TEST_STAFF_EMAIL,
+    TEST_SUPPLIER_EMAIL,
+    DEFAULT_PASSWORD,
+)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
@@ -17,8 +24,8 @@ class TestSaveProposalAPI:
     def auth_token(self):
         """Get auth token for test user"""
         login_data = {
-            "email": "testadmin@example.com",
-            "password": "password123"
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         }
         response = requests.post(f"{BASE_URL}/api/auth/login", json=login_data)
         if response.status_code == 200:
@@ -26,8 +33,8 @@ class TestSaveProposalAPI:
         
         # If login fails, try signup
         signup_data = {
-            "email": "testadmin@example.com",
-            "password": "password123",
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD,
             "full_name": "Test Admin",
             "company_name": "Test Company"
         }
@@ -272,7 +279,6 @@ class TestSaveProposalAPI:
         
         print(f"✓ Proposal with hotels, activities, and transfers saved correctly")
 
-
 class TestAirportsAPI:
     """Tests for airport search - needed for TripBuilder dropdown"""
     
@@ -302,7 +308,6 @@ class TestAirportsAPI:
         airports = data.get("airports", [])
         
         print(f"✓ Airport search for 'Dubai' returns {len(airports)} results")
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { X, Search, Loader2, Check, Compass } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -20,17 +20,8 @@ function ActivitiesModal({ isOpen, onClose, city, dayNumber, startDate, onSelect
     return d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
   })();
 
-  useEffect(() => {
-    if (isOpen && city) {
-      fetchActivities();
-      setSearchQuery('');
-      setCategoryFilter('All Options');
-      setTimeFilter('All');
-      setExpandedDesc({});
-    }
-  }, [isOpen, city]);
-
-  const fetchActivities = async () => {
+  const fetchActivities = useCallback(async () => {
+    if (!city) return;
     setLoading(true);
     try {
       const res = await api.get(`/activities?city=${encodeURIComponent(city)}`);
@@ -50,7 +41,17 @@ function ActivitiesModal({ isOpen, onClose, city, dayNumber, startDate, onSelect
     } finally {
       setLoading(false);
     }
-  };
+  }, [city]);
+
+  useEffect(() => {
+    if (isOpen && city) {
+      fetchActivities();
+      setSearchQuery('');
+      setCategoryFilter('All Options');
+      setTimeFilter('All');
+      setExpandedDesc({});
+    }
+  }, [isOpen, city, fetchActivities]);
 
   // Get unique categories
   const categories = ['All Options', ...new Set(activities.map(a => a.category || 'City Tours'))];

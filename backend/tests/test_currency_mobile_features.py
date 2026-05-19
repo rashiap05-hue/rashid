@@ -5,6 +5,13 @@ Tests: Currency API, Exchange rates, Currency conversion
 import pytest
 import requests
 import os
+from tests.test_helpers import (
+    TEST_ADMIN_EMAIL,
+    TEST_AGENT_EMAIL,
+    TEST_STAFF_EMAIL,
+    TEST_SUPPLIER_EMAIL,
+    DEFAULT_PASSWORD,
+)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
@@ -103,7 +110,6 @@ class TestCurrencyAPI:
         
         print(f"✓ Exchange rates are within reasonable ranges: USD={rates['USD']}, EUR={rates['EUR']}, GBP={rates['GBP']}, INR={rates['INR']}")
 
-
 class TestAuthAndBookings:
     """Test auth and bookings endpoints for currency display"""
     
@@ -111,8 +117,8 @@ class TestAuthAndBookings:
     def auth_token(self):
         """Get authentication token for agent"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "rashid@travotours.ae",
-            "password": "password123"
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code == 200:
             return response.json().get("access_token")
@@ -121,8 +127,8 @@ class TestAuthAndBookings:
     def test_agent_login_success(self):
         """Agent login should return access_token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "rashid@travotours.ae",
-            "password": "password123"
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
         data = response.json()
@@ -167,7 +173,6 @@ class TestAuthAndBookings:
         
         print(f"✓ Booking detail has total_price: {booking['total_price']}")
 
-
 class TestNotifications:
     """Test notifications for mobile bell icon"""
     
@@ -175,8 +180,8 @@ class TestNotifications:
     def auth_token(self):
         """Get authentication token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "rashid@travotours.ae",
-            "password": "password123"
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code == 200:
             return response.json().get("access_token")
@@ -200,7 +205,6 @@ class TestNotifications:
         assert "count" in data, "Response should contain count"
         assert isinstance(data["count"], int), "Count should be integer"
         print(f"✓ Unread count: {data['count']}")
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

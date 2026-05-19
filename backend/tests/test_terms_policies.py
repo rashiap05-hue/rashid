@@ -6,9 +6,15 @@ Tests dynamic terms loading for ProposalView page
 import pytest
 import requests
 import os
+from tests.test_helpers import (
+    TEST_ADMIN_EMAIL,
+    TEST_AGENT_EMAIL,
+    TEST_STAFF_EMAIL,
+    TEST_SUPPLIER_EMAIL,
+    DEFAULT_PASSWORD,
+)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
-
 
 class TestTermsPoliciesAPI:
     """Tests for Terms & Policies endpoints"""
@@ -150,7 +156,6 @@ class TestTermsPoliciesAPI:
         data = response.json()
         assert isinstance(data, list)
 
-
 class TestDeleteProposalAPI:
     """Tests for Proposal deletion endpoint"""
     
@@ -158,7 +163,7 @@ class TestDeleteProposalAPI:
         """Get auth token for tests"""
         login_response = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "testadmin@example.com", "password": "password123"}
+            json={"email": TEST_ADMIN_EMAIL, "password": DEFAULT_PASSWORD}
         )
         if login_response.status_code == 200:
             self.token = login_response.json().get("access_token")
@@ -232,7 +237,6 @@ class TestDeleteProposalAPI:
         # Verify it's deleted
         get_response = requests.get(f"{BASE_URL}/api/proposals/{proposal_id}")
         assert get_response.status_code == 404
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

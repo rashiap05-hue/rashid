@@ -8,6 +8,13 @@ Tests:
 import pytest
 import requests
 import os
+from tests.test_helpers import (
+    TEST_ADMIN_EMAIL,
+    TEST_AGENT_EMAIL,
+    TEST_STAFF_EMAIL,
+    TEST_SUPPLIER_EMAIL,
+    DEFAULT_PASSWORD,
+)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://agent-payment.preview.emergentagent.com')
 
@@ -22,8 +29,8 @@ def api_client():
 def auth_token(api_client):
     """Get authentication token"""
     response = api_client.post(f"{BASE_URL}/api/auth/login", json={
-        "email": "testadmin@example.com",
-        "password": "password123"
+        "email": TEST_ADMIN_EMAIL,
+        "password": DEFAULT_PASSWORD
     })
     if response.status_code == 200:
         return response.json().get("access_token")
@@ -235,7 +242,6 @@ class TestRecommendedFeature:
         
         # Cleanup
         api_client.delete(f"{BASE_URL}/api/hotels/{hotel_id}")
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

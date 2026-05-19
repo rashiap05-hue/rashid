@@ -8,15 +8,17 @@ Tests:
 import pytest
 import requests
 import os
+from tests.test_helpers import (
+    TEST_ADMIN_EMAIL,
+    TEST_AGENT_EMAIL,
+    TEST_STAFF_EMAIL,
+    TEST_SUPPLIER_EMAIL,
+    DEFAULT_PASSWORD,
+)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
-AGENT_EMAIL = "rashid@travotours.ae"
-AGENT_PASSWORD = "password123"
-ADMIN_EMAIL = "testadmin@example.com"
-ADMIN_PASSWORD = "password123"
-
 
 class TestAuth:
     """Authentication tests"""
@@ -24,15 +26,14 @@ class TestAuth:
     def test_agent_login(self):
         """Test agent login returns access_token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         assert response.status_code == 200, f"Login failed: {response.text}"
         data = response.json()
         assert "access_token" in data, f"Response missing access_token: {data}"
         assert len(data["access_token"]) > 0
         print(f"✓ Agent login successful, token received")
-
 
 class TestHeldBookings:
     """Tests for held bookings endpoints"""
@@ -41,8 +42,8 @@ class TestHeldBookings:
     def setup(self):
         """Get auth token before each test"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code != 200:
             pytest.skip("Authentication failed")
@@ -105,7 +106,6 @@ class TestHeldBookings:
         assert response.status_code == 404, f"Expected 404, got {response.status_code}"
         print(f"✓ GET /api/held-bookings/{fake_id} correctly returned 404")
 
-
 class TestTravelerUpdate:
     """Tests for traveler update endpoint"""
     
@@ -113,8 +113,8 @@ class TestTravelerUpdate:
     def setup(self):
         """Get auth token and booking ID before each test"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code != 200:
             pytest.skip("Authentication failed")
@@ -178,7 +178,6 @@ class TestTravelerUpdate:
         assert response.status_code == 404, f"Expected 404, got {response.status_code}"
         print(f"✓ PUT /api/bookings/{fake_id}/travelers correctly returned 404")
 
-
 class TestBookingDataStructure:
     """Tests to verify booking data structure for UI rendering"""
     
@@ -186,8 +185,8 @@ class TestBookingDataStructure:
     def setup(self):
         """Get auth token before each test"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code != 200:
             pytest.skip("Authentication failed")
@@ -226,7 +225,6 @@ class TestBookingDataStructure:
             print(f"✓ User: {user.get('name', 'N/A')} ({user.get('email', 'N/A')})")
         
         print(f"✓ Booking data structure verified for UI rendering")
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

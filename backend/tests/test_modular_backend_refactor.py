@@ -6,15 +6,17 @@ Also verifies the P0 bug fix for inter-city transfer search (excluding inter-hot
 import pytest
 import requests
 import os
+from tests.test_helpers import (
+    TEST_ADMIN_EMAIL,
+    TEST_AGENT_EMAIL,
+    TEST_STAFF_EMAIL,
+    TEST_SUPPLIER_EMAIL,
+    DEFAULT_PASSWORD,
+)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
-ADMIN_EMAIL = "testadmin@example.com"
-ADMIN_PASSWORD = "password123"
-AGENT_EMAIL = "rashid@travotours.ae"
-AGENT_PASSWORD = "password123"
-
 
 class TestRootAndHealth:
     """Test root and health endpoints"""
@@ -37,35 +39,34 @@ class TestRootAndHealth:
         assert "timestamp" in data
         print(f"✓ Health check: {data}")
 
-
 class TestAuthentication:
     """Test authentication endpoints from routes/auth.py"""
     
     def test_login_admin_success(self):
         """POST /api/auth/login - login with admin credentials"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
         assert "user" in data
-        assert data["user"]["email"] == ADMIN_EMAIL
+        assert data["user"]["email"] == TEST_ADMIN_EMAIL
         print(f"✓ Admin login successful: {data['user']['email']}")
         return data["access_token"]
     
     def test_login_agent_success(self):
         """POST /api/auth/login - login with agent credentials"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
         assert "user" in data
-        assert data["user"]["email"] == AGENT_EMAIL
+        assert data["user"]["email"] == TEST_AGENT_EMAIL
         print(f"✓ Agent login successful: {data['user']['email']}")
     
     def test_login_invalid_credentials(self):
@@ -76,7 +77,6 @@ class TestAuthentication:
         })
         assert response.status_code == 401
         print("✓ Invalid credentials correctly rejected")
-
 
 class TestHotels:
     """Test hotel endpoints from routes/hotels.py"""
@@ -98,7 +98,6 @@ class TestHotels:
         data = response.json()
         assert data["success"] == True
         print(f"✓ Hotels filtered by city: {len(data['hotels'])} hotels")
-
 
 class TestTransfers:
     """Test transfer endpoints from routes/transfers.py"""
@@ -139,7 +138,6 @@ class TestTransfers:
         print(f"✓ Inter-city search: {len(data['transfers'])} transfers (no inter-hotel)")
         print(f"  P0 Bug Fix Verified: No inter-hotel direction transfers returned")
 
-
 class TestActivities:
     """Test activity endpoints from routes/activities.py"""
     
@@ -153,7 +151,6 @@ class TestActivities:
         assert isinstance(data["activities"], list)
         print(f"✓ Activities endpoint: {len(data['activities'])} activities returned")
 
-
 class TestCities:
     """Test city endpoints from routes/cities.py"""
     
@@ -166,7 +163,6 @@ class TestCities:
         assert "cities" in data
         assert isinstance(data["cities"], list)
         print(f"✓ Cities endpoint: {len(data['cities'])} cities returned")
-
 
 class TestAirports:
     """Test airport endpoints from routes/airports.py"""
@@ -184,7 +180,6 @@ class TestAirports:
         assert len(data["airports"]) <= 10
         print(f"✓ Airports paginated: {len(data['airports'])} airports, total: {data['pagination']['total']}")
 
-
 class TestSettings:
     """Test settings endpoints from routes/settings.py"""
     
@@ -197,7 +192,6 @@ class TestSettings:
         assert isinstance(data["insurance_prices"], list)
         print(f"✓ Insurance settings: {len(data['insurance_prices'])} entries")
 
-
 class TestTermsPolicies:
     """Test terms and policies endpoints from routes/terms.py"""
     
@@ -209,7 +203,6 @@ class TestTermsPolicies:
         assert isinstance(data, list)
         print(f"✓ Terms and policies: {len(data)} entries")
 
-
 class TestProposals:
     """Test proposal endpoints from routes/proposals.py"""
     
@@ -217,8 +210,8 @@ class TestProposals:
     def auth_token(self):
         """Get auth token for authenticated requests"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code == 200:
             return response.json()["access_token"]
@@ -260,7 +253,6 @@ class TestProposals:
         assert delete_response.status_code == 200
         print(f"✓ Test proposal cleaned up")
 
-
 class TestAdmin:
     """Test admin endpoints from routes/admin.py"""
     
@@ -268,8 +260,8 @@ class TestAdmin:
     def auth_token(self):
         """Get auth token for authenticated requests"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code == 200:
             return response.json()["access_token"]
@@ -288,7 +280,6 @@ class TestAdmin:
         assert "total_proposals" in stats
         assert "total_revenue" in stats
         print(f"✓ Admin stats: {stats['total_users']} users, {stats['total_proposals']} proposals")
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

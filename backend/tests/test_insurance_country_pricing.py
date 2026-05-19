@@ -12,13 +12,17 @@ import pytest
 import requests
 import os
 import uuid
+from tests.test_helpers import (
+    TEST_ADMIN_EMAIL,
+    TEST_AGENT_EMAIL,
+    TEST_STAFF_EMAIL,
+    TEST_SUPPLIER_EMAIL,
+    DEFAULT_PASSWORD,
+)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
-ADMIN_EMAIL = "testadmin@example.com"
-ADMIN_PASSWORD = "password123"
-
 
 class TestInsuranceCountryPricing:
     """Insurance country-based pricing API tests"""
@@ -31,8 +35,8 @@ class TestInsuranceCountryPricing:
         
         # Login to get token
         login_response = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if login_response.status_code == 200:
             data = login_response.json()
@@ -335,7 +339,6 @@ class TestInsuranceCountryPricing:
         assert verify_response.status_code == 200
         assert verify_response.json()["country"] == "Default", "Should fallback to Default after deletion"
         print("VERIFY: Correctly falls back to Default")
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

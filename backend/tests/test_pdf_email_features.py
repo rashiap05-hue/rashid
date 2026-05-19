@@ -7,19 +7,20 @@ Test PDF Generation and Email Integration Features
 import pytest
 import requests
 import os
+from tests.test_helpers import (
+    TEST_ADMIN_EMAIL,
+    TEST_AGENT_EMAIL,
+    TEST_STAFF_EMAIL,
+    TEST_SUPPLIER_EMAIL,
+    DEFAULT_PASSWORD,
+)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
-ADMIN_EMAIL = "testadmin@example.com"
-ADMIN_PASSWORD = "password123"
-AGENT_EMAIL = "rashid@travotours.ae"
-AGENT_PASSWORD = "password123"
 
-# Known proposal IDs from context
 PROPOSAL_ID_1 = "a50358ca"  # Trip to Tbilisi
 PROPOSAL_ID_2 = "5390639d"  # multi-city Tbilisi/Gudauri
-
 
 class TestAuthentication:
     """Test authentication for PDF and Email endpoints"""
@@ -27,8 +28,8 @@ class TestAuthentication:
     def test_admin_login(self):
         """Test admin login returns access_token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         assert response.status_code == 200, f"Admin login failed: {response.text}"
         data = response.json()
@@ -38,14 +39,13 @@ class TestAuthentication:
     def test_agent_login(self):
         """Test agent login returns access_token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         assert response.status_code == 200, f"Agent login failed: {response.text}"
         data = response.json()
         assert "access_token" in data, "Response should contain access_token"
         print(f"PASSED: Agent login successful, token received")
-
 
 class TestPDFGeneration:
     """Test PDF generation endpoint"""
@@ -54,8 +54,8 @@ class TestPDFGeneration:
     def auth_token(self):
         """Get authentication token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code == 200:
             return response.json().get("access_token")
@@ -109,7 +109,6 @@ class TestPDFGeneration:
         assert response.status_code == 404, f"Expected 404 for invalid proposal, got {response.status_code}"
         print(f"PASSED: PDF endpoint returns 404 for invalid proposal")
 
-
 class TestEmailSendProposal:
     """Test email send-proposal endpoint"""
     
@@ -117,8 +116,8 @@ class TestEmailSendProposal:
     def auth_token(self):
         """Get authentication token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code == 200:
             return response.json().get("access_token")
@@ -140,7 +139,7 @@ class TestEmailSendProposal:
         headers = {"Authorization": f"Bearer {auth_token}"}
         
         payload = {
-            "recipient_email": "rashid@travotours.ae",
+            "recipient_email": TEST_AGENT_EMAIL,
             "recipient_name": "Test Recipient",
             "subject": "TEST - Your Trip Proposal",
             "message": "This is a test email from automated testing.",
@@ -195,7 +194,6 @@ class TestEmailSendProposal:
         assert response.status_code == 404, f"Expected 404 for invalid proposal, got {response.status_code}"
         print(f"PASSED: Email endpoint returns 404 for invalid proposal")
 
-
 class TestBookingStatusEmailIntegration:
     """Test that email is sent when admin advances booking status"""
     
@@ -203,8 +201,8 @@ class TestBookingStatusEmailIntegration:
     def admin_token(self):
         """Get admin authentication token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code == 200:
             return response.json().get("access_token")
@@ -263,7 +261,6 @@ class TestBookingStatusEmailIntegration:
         print(f"PASSED: Status advanced from {current_status} to {data.get('new_status')}")
         print("Note: Email notification should be sent to customer (check backend logs)")
 
-
 class TestNotificationBellIntegration:
     """Test notification bell updates after status advance"""
     
@@ -271,8 +268,8 @@ class TestNotificationBellIntegration:
     def agent_token(self):
         """Get agent authentication token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code == 200:
             return response.json().get("access_token")
@@ -299,7 +296,6 @@ class TestNotificationBellIntegration:
         data = response.json()
         assert "count" in data, "Response should contain count"
         print(f"PASSED: Agent has {data.get('count')} unread notifications")
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

@@ -232,7 +232,11 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     // Restore SIM card
     if (data.sim_card_included) setSimCardIncluded(data.sim_card_included);
     if (data.sim_card_persons) setSimCardPersons(data.sim_card_persons);
-  }, [data?.isEditing]);
+    // One-time hydration of saved proposal state when entering edit mode.
+    // We deliberately depend on `data` (the full prop) so a freshly-loaded
+    // proposal re-hydrates the form; the early-return guard at the top
+    // prevents re-runs for non-edit flows.
+  }, [data]);
 
   // Fetch transfers for the destination country
   useEffect(() => {
@@ -391,7 +395,11 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     };
 
     autoRecommend();
-  }, [data?.isEditing, data?.cities]);
+    // `autoRecommendDone` is intentionally read inside but not in deps —
+    // it flips once and the early-return prevents re-fires. `data?.cities`
+    // changing (e.g. user edits city list) IS the trigger for re-recommend.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.isEditing, data?.cities, data?.room_data, data?.add_transfers]);
 
   // Open transfer selection modal
   const openTransferModal = (type, city) => {
@@ -514,7 +522,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     staySearchRef.current = setTimeout(async () => {
       setStayHotelSearching(true);
       try {
-        const cityName = cities[stayDetailsCityIndex]?.name || '';
+        const cityName = data?.cities?.[stayDetailsCityIndex]?.name || '';
         const res = await api.get(`/hotels?search=${encodeURIComponent(stayHotelQuery)}&city=${encodeURIComponent(cityName)}`);
         setStayHotelResults(res.data?.hotels || []);
       } catch (e) {
@@ -523,7 +531,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       setStayHotelSearching(false);
     }, 300);
     return () => { if (staySearchRef.current) clearTimeout(staySearchRef.current); };
-  }, [stayHotelQuery, showStayDetailsModal, stayNotFound, stayDetailsCityIndex]);
+  }, [stayHotelQuery, showStayDetailsModal, stayNotFound, stayDetailsCityIndex, data?.cities]);
 
   // Handle opening Update Flight Info Modal
   const handleOpenFlightInfoModal = (type, city) => {

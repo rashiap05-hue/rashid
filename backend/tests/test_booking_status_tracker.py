@@ -5,15 +5,17 @@ Tests: Status advancement, admin-only access, notifications, audit trail
 import pytest
 import requests
 import os
+from tests.test_helpers import (
+    TEST_ADMIN_EMAIL,
+    TEST_AGENT_EMAIL,
+    TEST_STAFF_EMAIL,
+    TEST_SUPPLIER_EMAIL,
+    DEFAULT_PASSWORD,
+)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
-ADMIN_EMAIL = "testadmin@example.com"
-ADMIN_PASSWORD = "password123"
-AGENT_EMAIL = "rashid@travotours.ae"
-AGENT_PASSWORD = "password123"
-
 
 class TestBookingStatusAdvancement:
     """Tests for PUT /api/bookings/{id}/status/advance endpoint"""
@@ -27,8 +29,8 @@ class TestBookingStatusAdvancement:
     def get_admin_token(self):
         """Get admin authentication token"""
         response = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code == 200:
             return response.json().get("access_token")
@@ -37,8 +39,8 @@ class TestBookingStatusAdvancement:
     def get_agent_token(self):
         """Get agent authentication token"""
         response = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code == 200:
             return response.json().get("access_token")
@@ -47,8 +49,8 @@ class TestBookingStatusAdvancement:
     def test_admin_login_success(self):
         """Test admin can login successfully"""
         response = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         assert response.status_code == 200, f"Admin login failed: {response.text}"
         data = response.json()
@@ -58,8 +60,8 @@ class TestBookingStatusAdvancement:
     def test_agent_login_success(self):
         """Test agent can login successfully"""
         response = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         assert response.status_code == 200, f"Agent login failed: {response.text}"
         data = response.json()
@@ -176,7 +178,6 @@ class TestBookingStatusAdvancement:
         assert response.status_code == 400, f"Expected 400 for ticketed booking, got {response.status_code}: {response.text}"
         print(f"PASSED: Ticketed booking correctly returns 400 when trying to advance")
 
-
 class TestNotifications:
     """Tests for notification endpoints"""
     
@@ -189,8 +190,8 @@ class TestNotifications:
     def get_agent_token(self):
         """Get agent authentication token"""
         response = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code == 200:
             return response.json().get("access_token")
@@ -250,7 +251,6 @@ class TestNotifications:
         
         print(f"PASSED: Mark all read successful, unread count is now 0")
 
-
 class TestBookingDetailWithStatusHistory:
     """Tests for booking detail with status history"""
     
@@ -263,8 +263,8 @@ class TestBookingDetailWithStatusHistory:
     def get_agent_token(self):
         """Get agent authentication token"""
         response = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code == 200:
             return response.json().get("access_token")
@@ -330,7 +330,6 @@ class TestBookingDetailWithStatusHistory:
         
         print(f"PASSED: All {len(bookings)} bookings have valid status values")
 
-
 class TestNotificationCreationOnStatusChange:
     """Test that notifications are created when admin advances booking status"""
     
@@ -343,8 +342,8 @@ class TestNotificationCreationOnStatusChange:
     def get_admin_token(self):
         """Get admin authentication token"""
         response = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code == 200:
             return response.json().get("access_token")
@@ -353,8 +352,8 @@ class TestNotificationCreationOnStatusChange:
     def get_agent_token(self):
         """Get agent authentication token"""
         response = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code == 200:
             return response.json().get("access_token")
@@ -406,7 +405,6 @@ class TestNotificationCreationOnStatusChange:
         # Verify a new notification was created
         # Note: The notification might be for a different user if the booking belongs to someone else
         print(f"PASSED: Notification check complete (initial: {initial_count}, current: {len(new_notifications)})")
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

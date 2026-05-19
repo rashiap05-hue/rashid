@@ -10,17 +10,19 @@ import pytest
 import requests
 import os
 import io
+from tests.test_helpers import (
+    TEST_ADMIN_EMAIL,
+    TEST_AGENT_EMAIL,
+    TEST_STAFF_EMAIL,
+    TEST_SUPPLIER_EMAIL,
+    DEFAULT_PASSWORD,
+)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
-AGENT_EMAIL = "rashid@travotours.ae"
-AGENT_PASSWORD = "password123"
+
 AGENT_USER_ID = "83cfe3b8-256a-4f19-aca6-977deefe20c0"
-
-ADMIN_EMAIL = "testadmin@example.com"
-ADMIN_PASSWORD = "password123"
-
 
 class TestWalletAuth:
     """Test authentication for wallet endpoints"""
@@ -29,8 +31,8 @@ class TestWalletAuth:
     def agent_token(self):
         """Get agent auth token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         assert response.status_code == 200, f"Agent login failed: {response.text}"
         data = response.json()
@@ -40,8 +42,8 @@ class TestWalletAuth:
     def admin_token(self):
         """Get admin auth token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         assert response.status_code == 200, f"Admin login failed: {response.text}"
         data = response.json()
@@ -50,8 +52,8 @@ class TestWalletAuth:
     def test_agent_login_success(self):
         """Test agent can login"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         assert response.status_code == 200
         data = response.json()
@@ -62,8 +64,8 @@ class TestWalletAuth:
     def test_admin_login_success(self):
         """Test admin can login"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         assert response.status_code == 200
         data = response.json()
@@ -72,7 +74,6 @@ class TestWalletAuth:
         # Note: role is not returned in login response, but is stored in DB
         print(f"Admin login successful, email: {data['user'].get('email')}")
 
-
 class TestAgentWallet:
     """Test agent wallet endpoints"""
     
@@ -80,8 +81,8 @@ class TestAgentWallet:
     def agent_token(self):
         """Get agent auth token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code != 200:
             pytest.skip("Agent login failed")
@@ -177,7 +178,6 @@ class TestAgentWallet:
         assert response.status_code == 403, f"Expected 403, got {response.status_code}"
         print("Agent correctly denied refund access")
 
-
 class TestAdminWalletOperations:
     """Test admin wallet operations"""
     
@@ -185,8 +185,8 @@ class TestAdminWalletOperations:
     def admin_token(self):
         """Get admin auth token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code != 200:
             pytest.skip("Admin login failed")
@@ -327,7 +327,6 @@ class TestAdminWalletOperations:
         assert isinstance(data, list), "Transactions should be a list"
         print(f"Found {len(data)} transactions for user {agent_user_id}")
 
-
 class TestDebitWallet:
     """Test wallet debit operations"""
     
@@ -335,8 +334,8 @@ class TestDebitWallet:
     def admin_token(self):
         """Get admin auth token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code != 200:
             pytest.skip("Admin login failed")
@@ -346,8 +345,8 @@ class TestDebitWallet:
     def agent_token(self):
         """Get agent auth token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code != 200:
             pytest.skip("Agent login failed")
@@ -419,7 +418,6 @@ class TestDebitWallet:
         assert response.status_code == 400, f"Expected 400, got {response.status_code}"
         print("Negative amount validation working correctly")
 
-
 class TestPaymentProofWorkflow:
     """Test payment proof upload and review workflow"""
     
@@ -427,8 +425,8 @@ class TestPaymentProofWorkflow:
     def agent_token(self):
         """Get agent auth token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code != 200:
             pytest.skip("Agent login failed")
@@ -438,8 +436,8 @@ class TestPaymentProofWorkflow:
     def admin_token(self):
         """Get admin auth token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code != 200:
             pytest.skip("Admin login failed")
@@ -580,7 +578,6 @@ class TestPaymentProofWorkflow:
         assert response.status_code == 400, f"Expected 400, got {response.status_code}"
         print("Invalid action validation working correctly")
 
-
 class TestStatements:
     """Test statement upload (admin only)"""
     
@@ -588,8 +585,8 @@ class TestStatements:
     def admin_token(self):
         """Get admin auth token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": ADMIN_EMAIL,
-            "password": ADMIN_PASSWORD
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code != 200:
             pytest.skip("Admin login failed")
@@ -599,8 +596,8 @@ class TestStatements:
     def agent_token(self):
         """Get agent auth token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": AGENT_EMAIL,
-            "password": AGENT_PASSWORD
+            "email": TEST_AGENT_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if response.status_code != 200:
             pytest.skip("Agent login failed")
@@ -660,7 +657,6 @@ class TestStatements:
         )
         assert response.status_code == 403, f"Expected 403, got {response.status_code}"
         print("Agent correctly denied statements access")
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

@@ -9,6 +9,13 @@ Tests for:
 import pytest
 import requests
 import os
+from tests.test_helpers import (
+    TEST_ADMIN_EMAIL,
+    TEST_AGENT_EMAIL,
+    TEST_STAFF_EMAIL,
+    TEST_SUPPLIER_EMAIL,
+    DEFAULT_PASSWORD,
+)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
@@ -16,8 +23,8 @@ class TestTravelInsuranceBackend:
     """Tests for Travel Insurance backend functionality"""
     
     # Credentials for authentication
-    TEST_EMAIL = "testadmin@example.com"
-    TEST_PASSWORD = "password123"
+    TEST_EMAIL = TEST_ADMIN_EMAIL
+    TEST_PASSWORD = DEFAULT_PASSWORD
     
     @pytest.fixture(autouse=True)
     def setup(self):
@@ -261,7 +268,6 @@ class TestTravelInsuranceBackend:
         
         # Cleanup
         self.session.delete(f"{BASE_URL}/api/proposals/{proposal_id}")
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

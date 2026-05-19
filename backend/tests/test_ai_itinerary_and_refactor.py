@@ -13,19 +13,24 @@ import pytest
 import requests
 import os
 import time
+from tests.test_helpers import (
+    TEST_ADMIN_EMAIL,
+    TEST_AGENT_EMAIL,
+    TEST_STAFF_EMAIL,
+    TEST_SUPPLIER_EMAIL,
+    DEFAULT_PASSWORD,
+)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://agent-payment.preview.emergentagent.com').rstrip('/')
 
 # Test credentials from main agent
-TEST_EMAIL = "testadmin@example.com"
-TEST_PASSWORD = "password123"
 
 @pytest.fixture(scope="module")
 def auth_token():
     """Get authentication token"""
     response = requests.post(f"{BASE_URL}/api/auth/login", json={
-        "email": TEST_EMAIL,
-        "password": TEST_PASSWORD
+        "email": TEST_ADMIN_EMAIL,
+        "password": DEFAULT_PASSWORD
     })
     if response.status_code == 200:
         return response.json().get("access_token")
@@ -44,7 +49,6 @@ def authenticated_client(api_client, auth_token):
     api_client.headers.update({"Authorization": f"Bearer {auth_token}"})
     return api_client
 
-
 # ===================== AUTH REGRESSION TESTS =====================
 
 class TestAuthEndpointsRegression:
@@ -53,15 +57,15 @@ class TestAuthEndpointsRegression:
     def test_login_success(self, api_client):
         """POST /api/auth/login - login with valid credentials"""
         response = api_client.post(f"{BASE_URL}/api/auth/login", json={
-            "email": TEST_EMAIL,
-            "password": TEST_PASSWORD
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         assert response.status_code == 200, f"Login failed: {response.text}"
         data = response.json()
         assert "access_token" in data, "access_token not in response"
         assert "user" in data, "user not in response"
-        assert data["user"]["email"] == TEST_EMAIL
-        print(f"Login successful for {TEST_EMAIL}")
+        assert data["user"]["email"] == TEST_ADMIN_EMAIL
+        print(f"Login successful for {TEST_ADMIN_EMAIL}")
     
     def test_login_invalid_credentials(self, api_client):
         """POST /api/auth/login - should return 401 for invalid credentials"""
@@ -75,7 +79,7 @@ class TestAuthEndpointsRegression:
     def test_signup_duplicate_email(self, api_client):
         """POST /api/auth/signup - should return 400 for duplicate email"""
         response = api_client.post(f"{BASE_URL}/api/auth/signup", json={
-            "email": TEST_EMAIL,
+            "email": TEST_ADMIN_EMAIL,
             "password": "testpass",
             "full_name": "Test User",
             "company_name": "Test Company"
@@ -89,9 +93,8 @@ class TestAuthEndpointsRegression:
         assert response.status_code == 200
         data = response.json()
         assert "email" in data
-        assert data["email"] == TEST_EMAIL
+        assert data["email"] == TEST_ADMIN_EMAIL
         print(f"GET /api/auth/me returned user: {data['email']}")
-
 
 # ===================== AI ITINERARY TESTS =====================
 
@@ -174,7 +177,6 @@ class TestAIItineraryGenerator:
                     print(f"Day {day['day']} structure verified")
         print("AI itinerary response structure valid")
 
-
 # ===================== HOTELS CRUD REGRESSION =====================
 
 class TestHotelsCRUDRegression:
@@ -249,7 +251,6 @@ class TestHotelsCRUDRegression:
             assert hotel.get("id") == hotel_id or hotel.get("name")
             print(f"GET /api/hotels/{hotel_id} returned hotel data")
 
-
 # ===================== INSURANCE SETTINGS REGRESSION =====================
 
 class TestInsuranceSettingsRegression:
@@ -298,7 +299,6 @@ class TestInsuranceSettingsRegression:
             assert del_response.status_code == 200
             print("Test insurance entry cleaned up")
 
-
 # ===================== PROPOSALS CRUD REGRESSION =====================
 
 class TestProposalsCRUDRegression:
@@ -336,7 +336,6 @@ class TestProposalsCRUDRegression:
         assert del_response.status_code == 200
         print("Test proposal cleaned up")
 
-
 # ===================== ACTIVITIES CRUD REGRESSION =====================
 
 class TestActivitiesCRUDRegression:
@@ -358,7 +357,6 @@ class TestActivitiesCRUDRegression:
         data = response.json()
         assert "activities" in data
         print(f"Activities in Tbilisi: {len(data['activities'])}")
-
 
 # ===================== TRANSFERS CRUD REGRESSION =====================
 
@@ -382,7 +380,6 @@ class TestTransfersCRUDRegression:
         assert "transfers" in data
         print(f"Transfers in Tbilisi: {len(data['transfers'])}")
 
-
 # ===================== CITIES CRUD REGRESSION =====================
 
 class TestCitiesCRUDRegression:
@@ -404,7 +401,6 @@ class TestCitiesCRUDRegression:
         data = response.json()
         assert "cities" in data
         print(f"Cities search 'Georgia': {len(data['cities'])} results")
-
 
 # ===================== AIRPORTS CRUD REGRESSION =====================
 
@@ -428,7 +424,6 @@ class TestAirportsCRUDRegression:
         assert "airports" in data
         assert "pagination" in data
         print(f"Airports pagination: page {data['pagination']['page']}, total {data['pagination']['total']}")
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

@@ -39,6 +39,9 @@ API = f"{BACKEND_URL}/api"
 # ---------------------------------------------------------------------------
 _DEFAULT_PWD = os.environ.get("TEST_DEFAULT_PASSWORD", "password123")
 
+# Re-exported for legacy tests that use a single shared password literal.
+DEFAULT_PASSWORD = _DEFAULT_PWD
+
 TEST_ADMIN_EMAIL = os.environ.get("TEST_ADMIN_EMAIL", "testadmin@example.com")
 TEST_ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD", _DEFAULT_PWD)
 

@@ -5,9 +5,15 @@ Tests the /api/transfers/inter-city/search endpoint for multi-city trips
 import pytest
 import requests
 import os
+from tests.test_helpers import (
+    TEST_ADMIN_EMAIL,
+    TEST_AGENT_EMAIL,
+    TEST_STAFF_EMAIL,
+    TEST_SUPPLIER_EMAIL,
+    DEFAULT_PASSWORD,
+)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://agent-payment.preview.emergentagent.com')
-
 
 class TestInterCityTransferSearch:
     """Tests for inter-city transfer search endpoint"""
@@ -123,7 +129,6 @@ class TestInterCityTransferSearch:
         # transfers can be empty or contain fallback results
         assert isinstance(data["transfers"], list)
 
-
 class TestTransfersEndpoint:
     """Tests for general transfers endpoint"""
     
@@ -151,7 +156,6 @@ class TestTransfersEndpoint:
         assert "transfers" in data
         assert isinstance(data["transfers"], list)
 
-
 class TestAuthEndpoint:
     """Tests for authentication endpoint"""
     
@@ -160,8 +164,8 @@ class TestAuthEndpoint:
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
             json={
-                "email": "testadmin@example.com",
-                "password": "password123"
+                "email": TEST_ADMIN_EMAIL,
+                "password": DEFAULT_PASSWORD
             }
         )
         
@@ -170,7 +174,7 @@ class TestAuthEndpoint:
         
         assert "access_token" in data
         assert "user" in data
-        assert data["user"]["email"] == "testadmin@example.com"
+        assert data["user"]["email"] == TEST_ADMIN_EMAIL
         
     def test_login_invalid_credentials(self):
         """Test login with invalid credentials"""
@@ -183,7 +187,6 @@ class TestAuthEndpoint:
         )
         
         assert response.status_code == 401
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

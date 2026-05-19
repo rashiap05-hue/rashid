@@ -5,25 +5,28 @@ Tests POST /api/bookings and GET /api/bookings endpoints
 import pytest
 import requests
 import os
+from tests.test_helpers import (
+    TEST_ADMIN_EMAIL,
+    TEST_AGENT_EMAIL,
+    TEST_STAFF_EMAIL,
+    TEST_SUPPLIER_EMAIL,
+    DEFAULT_PASSWORD,
+)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
-AGENT_EMAIL = "rashid@travotours.ae"
-AGENT_PASSWORD = "password123"
-
 
 @pytest.fixture(scope="module")
 def auth_token():
     """Get authentication token for agent user"""
     response = requests.post(f"{BASE_URL}/api/auth/login", json={
-        "email": AGENT_EMAIL,
-        "password": AGENT_PASSWORD
+        "email": TEST_AGENT_EMAIL,
+        "password": DEFAULT_PASSWORD
     })
     if response.status_code != 200:
         pytest.skip(f"Authentication failed: {response.status_code} - {response.text}")
     return response.json().get("access_token")
-
 
 @pytest.fixture(scope="module")
 def auth_headers(auth_token):
@@ -32,7 +35,6 @@ def auth_headers(auth_token):
         "Authorization": f"Bearer {auth_token}",
         "Content-Type": "application/json"
     }
-
 
 @pytest.fixture(scope="module")
 def test_proposal_id(auth_headers):
@@ -45,7 +47,6 @@ def test_proposal_id(auth_headers):
         pytest.skip("No proposals available for testing")
     # Return first proposal ID
     return proposals[0].get("id")
-
 
 class TestBookingsAPI:
     """Test Bookings API endpoints"""
@@ -230,7 +231,6 @@ class TestBookingsAPI:
         assert response.status_code == 404, f"Expected 404, got {response.status_code}"
         print("PASSED: Non-existent booking returns 404")
 
-
 class TestBookingDataValidation:
     """Test booking data validation and structure"""
 
@@ -407,7 +407,6 @@ class TestBookingDataValidation:
             assert response.status_code == 200, f"Failed for payment option '{payment_option}': {response.text}"
         
         print("PASSED: Both payment options work correctly")
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

@@ -9,6 +9,13 @@ import pytest
 import requests
 import os
 import uuid
+from tests.test_helpers import (
+    TEST_ADMIN_EMAIL,
+    TEST_AGENT_EMAIL,
+    TEST_STAFF_EMAIL,
+    TEST_SUPPLIER_EMAIL,
+    DEFAULT_PASSWORD,
+)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
@@ -23,8 +30,8 @@ class TestProposalExtrasAndInterCityTransfers:
         
         # Login to get auth token
         login_response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "testadmin@example.com",
-            "password": "password123"
+            "email": TEST_ADMIN_EMAIL,
+            "password": DEFAULT_PASSWORD
         })
         if login_response.status_code == 200:
             self.auth_token = login_response.json().get("access_token")
@@ -337,7 +344,6 @@ class TestProposalExtrasAndInterCityTransfers:
         
         print(f"✓ Full proposal with all fields created and retrieved successfully")
 
-
 class TestExistingProposalRetrieval:
     """Test retrieving the existing test proposal mentioned in the bug report"""
     
@@ -362,7 +368,6 @@ class TestExistingProposalRetrieval:
             pytest.skip("Test proposal not found")
         else:
             pytest.fail(f"Unexpected response: {response.status_code} - {response.text}")
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
