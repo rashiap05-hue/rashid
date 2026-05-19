@@ -33,8 +33,13 @@ async def search_inter_city_transfers(from_city: str, to_city: str):
 
     City names are matched permissively to tolerate common transliteration
     variants (e.g. "Tsaghkadzor" / "Tsakhkadzor" / "Tsagkhadzor" all match).
-    Both `from_location` / `to_location` and the canonical `city` field on
-    the transfer record are considered.
+    The transfer's `from_location`, `city`, `from_city`, `to_location`,
+    `to_city`, `destination`, and `title` fields are all considered so the
+    catalog admin can fill in whichever fields they prefer.
+
+    `transfer_direction` is also matched permissively — `inter-hotel`,
+    `inter-city`, `intercity`, `city-to-city`, blank/unset, or anything that
+    is **not** the arrival/departure shuttle directions all qualify.
     """
     import re
 
@@ -48,15 +53,30 @@ async def search_inter_city_transfers(from_city: str, to_city: str):
     from_core = core(from_city)
     to_core = core(to_city)
 
-    candidates = await db.transfers.find(
-        {"transfer_direction": "inter-hotel"},
-        {"_id": 0},
-    ).to_list(500)
+    # Accept either the canonical "inter-hotel" direction OR any direction
+    # value that clearly isn't airport arrival/departure. Also accept
+    # missing/blank direction so older catalog entries still surface.
+    def _is_inter_direction(d: str) -> bool:
+        dl = (d or "").strip().lower()
+        if not dl:
+            return True  # blank → assume inter-city
+        if dl in ("arrival", "departure", "airport-pickup", "airport-drop", "airport-arrival", "airport-departure"):
+            return False
+        return True  # inter-hotel, inter-city, intercity, city-to-city, transfer, etc.
+
+    candidates = await db.transfers.find({}, {"_id": 0}).to_list(500)
 
     matches = []
     for t in candidates:
-        from_hay = " ".join(filter(None, [t.get("from_location"), t.get("city")]))
-        to_hay = " ".join(filter(None, [t.get("to_location"), t.get("destination")]))
+        if not _is_inter_direction(t.get("transfer_direction")):
+            continue
+        # Wider haystack — pull every field that might name a city
+        from_hay = " ".join(filter(None, [
+            t.get("from_location"), t.get("from_city"), t.get("city"), t.get("title"),
+        ]))
+        to_hay = " ".join(filter(None, [
+            t.get("to_location"), t.get("to_city"), t.get("destination"), t.get("title"),
+        ]))
         # Per-haystack core comparison: a candidate matches if its from-side
         # contains the from_core AND its to-side contains the to_core.
         if from_core and from_core in core(from_hay) and to_core and to_core in core(to_hay):

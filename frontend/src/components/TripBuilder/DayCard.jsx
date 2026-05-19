@@ -460,19 +460,17 @@ function DayCard({
                 </div>
               )}
 
-              {/* Add Activity Button — hidden on inter-hotel transfer days
-                  (the day the customer arrives at a new city by road),
-                  since the day is already filled with the transfer. */}
-              {!(isCheckInDay && incomingFromCity) && (
-                <button
-                  onClick={onAddActivity}
-                  className="w-full py-3 border-2 border-dashed border-pink-200 rounded-xl text-pink-500 font-medium hover:border-pink-500 hover:bg-pink-50 transition-all flex items-center justify-center gap-2"
-                  data-testid={`add-activity-day-${day}`}
-                >
-                  <Plus size={18} />
-                  Add Activity in {city}
-                </button>
-              )}
+              {/* Add Activity Button — visible on every day, including the
+                  inter-hotel transfer day (so the agent can slot in light
+                  sightseeing for the arrival day too). */}
+              <button
+                onClick={onAddActivity}
+                className="w-full py-3 border-2 border-dashed border-pink-200 rounded-xl text-pink-500 font-medium hover:border-pink-500 hover:bg-pink-50 transition-all flex items-center justify-center gap-2"
+                data-testid={`add-activity-day-${day}`}
+              >
+                <Plus size={18} />
+                Add Activity in {city}
+              </button>
 
               {/* Incoming Inter-City Transfer (Check-in day) */}
               {isCheckInDay && incomingFromCity && (
