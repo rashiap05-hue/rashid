@@ -332,7 +332,7 @@ const ActivityBlock = ({ activity, confirmation }) => {
               <div className="flex items-start gap-3">
                 <Info size={16} className="text-emerald-700 mt-0.5 flex-shrink-0" />
                 <ul className="flex-1 list-disc pl-4 space-y-2 text-[13px] text-emerald-900 leading-relaxed">
-                  {useful.slice(0, 8).map((u, i) => <li key={i}>{u}</li>)}
+                  {useful.slice(0, 8).map((u, i) => <li key={`${activity?.id || activity?.name || 'act'}-useful-${i}`}>{u}</li>)}
                 </ul>
               </div>
             </div>
@@ -359,7 +359,7 @@ const ActivityBlock = ({ activity, confirmation }) => {
               <div>
                 <div className="text-[10px] uppercase font-semibold text-gray-500 tracking-wider mb-1">Inclusions</div>
                 <ul className="text-[12.5px] text-gray-700 list-disc pl-5 space-y-0.5">
-                  {inc.slice(0, 8).map((i, j) => <li key={j}>{i}</li>)}
+                  {inc.slice(0, 8).map((item, j) => <li key={`${activity?.id || activity?.name || 'act'}-inc-${j}`}>{item}</li>)}
                 </ul>
               </div>
             ) : null}
@@ -603,7 +603,7 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
           <div className="max-w-7xl mx-auto px-6 py-2 flex items-center gap-2 overflow-x-auto" data-testid="itinerary-day-nav">
             {days.map((d, i) => (
               <button
-                key={i}
+                key={`day-tab-${i + 1}-${d.city || ''}`}
                 onClick={() => scrollToDay(i + 1)}
                 className={`px-3 py-1 rounded text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors ${
                   activeDay === i + 1 ? 'bg-emerald-500 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'
@@ -620,9 +620,9 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
       <div className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6">
         {/* Left rail — one card per city; sticks below the itinerary nav (which sticks below the app header) */}
         <aside className="space-y-4 lg:sticky lg:top-[220px] lg:self-start lg:max-h-[calc(100vh-240px)] lg:overflow-y-auto pb-6">
-          {cityStays.map((cs, i) => (
+          {cityStays.map((cs) => (
             <CityCard
-              key={i}
+              key={`city-stay-${cs.cityIdx}-${cs.city}`}
               city={cs.city}
               nights={cs.nights}
               hotel={cs.hotel}
@@ -671,7 +671,7 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
 
             return (
               <section
-                key={i}
+                key={`day-section-${dayNum}-${d.city || ''}`}
                 ref={(el) => { dayRefs.current[i + 1] = el; }}
                 data-testid={`itinerary-day-section-${i + 1}`}
                 className="space-y-4"
@@ -704,7 +704,7 @@ export default function TripItineraryView({ proposalId, bookingId, bookingRef, c
                   {/* Activities (skip for departure) */}
                   {!d.isDeparture && actList.length > 0 ? actList.map((a, j) => (
                     <ActivityBlock
-                      key={j}
+                      key={`${activityKey}-${a?.id || a?._id || a?.name || 'act'}-${j}`}
                       activity={a}
                       confirmation={conf(`activity:${activityKey}#${j}`) || conf(`activity:${activityKey}`) || conf(`activity:${cityKey}#${j}`) || conf(`activity:${cityKey}`)}
                     />

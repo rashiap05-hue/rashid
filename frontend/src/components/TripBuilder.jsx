@@ -1539,7 +1539,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                         <div className="w-4 h-4 bg-red-600 rotate-45 absolute -top-2 right-4" />
                         <div className="bg-[#FFF5F0] border-t-4 border-red-600 rounded-b-xl shadow-xl w-80 p-5 space-y-0" data-testid="time-warnings-popup">
                           {timeViolations.map((v, i) => (
-                            <div key={i}>
+                            <div key={`violation-${v.day}-${v.name || v.id || i}`}>
                               {i > 0 && <div className="border-b-2 border-dashed border-red-300 my-4" />}
                               <p className="font-bold text-red-900 text-sm">Day {v.day}: {v.name}</p>
                               <p className="text-red-800 text-xs mt-1 italic">Not possible to do because of other inclusions on this day</p>
@@ -1675,7 +1675,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
               cityEndDate.setDate(cityEndDate.getDate() + (city.nights || 1));
               
               return (
-                <div key={cityIndex} className="mb-6">
+                <div key={`stay-${cityIndex}-${city.name}`} className="mb-6">
                   {/* Stay Header */}
                   <div className="bg-[#E8F4F8] px-6 py-3 rounded-t-xl">
                     <h3 className="text-lg font-bold text-[#002B5B]">
@@ -1923,7 +1923,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
             <h2 className="text-xl font-bold text-gray-800 mb-4 mt-8">Daily Itinerary</h2>
             {itinerary.map((day, index) => (
               <DayCard
-                key={index}
+                key={`day-${day.day}-${day.city || ''}-${index}`}
                 {...day}
                 activities={getActivitiesForDay(day.city, day.day)}
                 onAddActivity={() => handleAddActivity(day.city, day.day)}

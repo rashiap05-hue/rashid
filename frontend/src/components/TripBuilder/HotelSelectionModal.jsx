@@ -401,7 +401,7 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
                         </div>
                         <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
                           {hotel.amenities?.slice(0, 4).map((amenity, i) => (
-                            <span key={i} className="flex items-center gap-1">
+                            <span key={`${amenity}-${i}`} className="flex items-center gap-1">
                               {amenity === 'Free WiFi' && <Wifi size={12} />}
                               {amenity === 'Pool' && <span>🏊</span>}
                               {amenity === 'Spa' && <span>💆</span>}

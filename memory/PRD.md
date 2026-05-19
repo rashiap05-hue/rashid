@@ -531,3 +531,19 @@ Migrate and enhance a B2B Travel Platform (Travo DMC) from an old TypeScript/Exp
   - **Frontend `PaymentSuccess.jsx` rewrite**: Implements the playbook-recommended polling pattern — 2s interval × max 8 attempts (~16s total), graceful "still processing" fallback after timeout. On `paid`, renders the booking reference inline and routes to Dashboard → My Bookings tab via sessionStorage hints. Cleanup on unmount.
   - **Verified backend regression**: Testing agent ran 13/13 pytest cases (auth gating, server-side amount calc, tampered amount ignored, partial-with-custom-amount, partial-default-25%, unpaid-status-creates-no-booking, idempotent re-polling, webhook route registered, legacy `/api/bookings` flow with idempotency, coupon-not-redeemed-on-unpaid). All passing. Manual curl regression confirmed real Stripe checkout sessions are created (`cs_test_*` URLs returned).
   - **Security follow-ups applied**: Locked `/api/payments/stripe/status/{session_id}` behind `get_current_user` so session IDs can't be enumerated. PayPal endpoint remains an explicit stub returning instructions message (requires user-provided PAYPAL_CLIENT_ID + PAYPAL_SECRET) — not in scope.
+
+
+- **Stable React Keys — Array-Index Replaced with Composite Keys (Feb 2026)**: Addressed the "Array Index as Key in React" finding from the Code Quality Report across 3 high-traffic components. Decorative star-rating arrays (`Array.from({length:N}).map`) were intentionally LEFT with `key={i}` per React docs (static, fixed-length, non-reorderable lists with no state). All real list keys were upgraded:
+  - **`TripBuilder/HotelSelectionModal.jsx`**: Amenity chips → `key={`${amenity}-${i}`}`.
+  - **`TripItineraryView.jsx`** (5 fixes):
+    - Useful-info bullets → `key={`${activity?.id || activity?.name}-useful-${i}`}`.
+    - Inclusion bullets → `key={`${activity?.id || activity?.name}-inc-${j}`}` (also renamed shadowing `i` variable to `item` for clarity).
+    - Day-nav tabs → `key={`day-tab-${i + 1}-${d.city}`}`.
+    - City-stay cards → `key={`city-stay-${cs.cityIdx}-${cs.city}`}`.
+    - Day sections → `key={`day-section-${dayNum}-${d.city}`}`.
+    - Activity blocks inside each day → `key={`${activityKey}-${a?.id || a?.name}-${j}`}`.
+  - **`TripBuilder.jsx`** (3 fixes):
+    - Time-violation popover entries → `key={`violation-${v.day}-${v.name || v.id || i}`}`.
+    - Hotel-stay city cards → `key={`stay-${cityIndex}-${city.name}`}`.
+    - Day-card itinerary list → `key={`day-${day.day}-${day.city}-${index}`}`.
+  - **Verified**: ESLint passes on all 3 files. Smoke-tested My Bookings → 3 rows render correctly, no new console errors introduced (existing Dashboard hydration warnings are pre-existing and unrelated).
