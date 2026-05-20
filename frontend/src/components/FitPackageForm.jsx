@@ -37,6 +37,17 @@ function TravelerPicker({ rooms, onUpdate }) {
   const totalAdults = rooms.reduce((acc, r) => acc + r.adults, 0);
   const totalChildren = rooms.reduce((acc, r) => acc + r.children.length, 0);
 
+  // Display string: "1 room, 2 adults, 1 child" (drops the children clause
+  // when zero — matches the reference UI mockup from the user).
+  const summaryParts = [
+    `${rooms.length} room${rooms.length > 1 ? 's' : ''}`,
+    `${totalAdults} adult${totalAdults > 1 ? 's' : ''}`,
+  ];
+  if (totalChildren > 0) {
+    summaryParts.push(`${totalChildren} child${totalChildren > 1 ? 'ren' : ''}`);
+  }
+  const summaryText = summaryParts.join(', ');
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
@@ -73,7 +84,7 @@ function TravelerPicker({ rooms, onUpdate }) {
         data-testid="traveler-picker"
         className="w-full px-3 py-2 border border-gray-200 rounded text-left text-sm bg-white flex justify-between items-center"
       >
-        <span>{rooms.length} room{rooms.length > 1 ? 's' : ''}, {totalAdults} adult{totalAdults > 1 ? 's' : ''}</span>
+        <span data-testid="traveler-summary-text">{summaryText}</span>
         <ChevronDown className={cn("text-gray-400 transition-transform", isOpen && "rotate-180")} size={14} />
       </button>
 
@@ -598,6 +609,16 @@ export default function FitPackageForm({ onClose, onCreateSuccess, initialData }
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">Number of Travelers*</label>
                   <TravelerPicker rooms={roomData} onUpdate={(newRooms) => setRoomData(newRooms)} />
+                  <p className="text-[11px] text-gray-500 pt-0.5" data-testid="more-than-5-rooms-hint">
+                    For more than 5 rooms{' '}
+                    <a
+                      href="mailto:groups@travotours.ae?subject=Group%20Booking%20Inquiry"
+                      className="text-[#0066CC] hover:underline font-medium"
+                      data-testid="more-than-5-rooms-link"
+                    >
+                      click here
+                    </a>
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">Star rating</label>

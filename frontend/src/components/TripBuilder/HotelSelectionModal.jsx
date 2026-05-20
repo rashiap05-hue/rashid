@@ -203,7 +203,19 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
         <div className="bg-[#002B5B] text-white px-6 py-4 flex justify-between items-center">
           <div>
             <h2 className="text-xl font-bold">Select Hotel - {nights} Nights {city}</h2>
-            <p className="text-sm text-blue-200">{checkIn} - {checkOut}</p>
+            <p className="text-sm text-blue-200">
+              {(() => {
+                // checkIn/checkOut are ISO YYYY-MM-DD (used by blackout
+                // overlap math). Pretty-print them for the header only.
+                const fmt = (iso) => {
+                  if (!iso) return '';
+                  try {
+                    return new Date(iso).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+                  } catch { return iso; }
+                };
+                return `${fmt(checkIn)} - ${fmt(checkOut)}`;
+              })()}
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <button 

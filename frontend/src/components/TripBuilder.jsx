@@ -1440,30 +1440,47 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         }}
         city={cities[activeHotelCity]?.name || ''}
         checkIn={(() => {
-          // City-specific check-in = trip start + sum of nights for prior cities
+          // City-specific check-in = trip start + sum of nights for prior cities.
+          // MUST be ISO "YYYY-MM-DD" so the room blackout-overlap check inside
+          // HotelDetailsView can do lexicographic string compare correctly.
           const offset = cities.slice(0, activeHotelCity || 0).reduce((a, c) => a + (c.nights || 1), 0);
           const d = new Date(startDate);
           d.setDate(startDate.getDate() + offset);
-          return formatDate(d);
+          return d.toISOString().slice(0, 10);
         })()}
         checkOut={(() => {
           const offset = cities.slice(0, activeHotelCity || 0).reduce((a, c) => a + (c.nights || 1), 0)
                        + (cities[activeHotelCity]?.nights || 1);
           const d = new Date(startDate);
           d.setDate(startDate.getDate() + offset);
-          return formatDate(d);
+          return d.toISOString().slice(0, 10);
         })()}
         nights={cities[activeHotelCity]?.nights || 1}
         onSelect={handleHotelSelect}
         searchQuery={hotelSearchQuery}
         initialHotel={changeRoomHotel}
         totalGuests={totalPax}
-        // Per-room occupancy from the Create Trip Package form so the room
-        // list can hide types that can't fit the party (e.g. hide Single &
-        // Double when the agent picked 2A+1C). Falls back gracefully if
-        // room_data isn't populated.
-        adults={data?.room_data?.[0]?.adults || 1}
-        children={data?.room_data?.[0]?.children?.length || 0}
+        // Age-aware per-room occupancy from Create Trip Package form. Per
+        // user spec: children above 5 yrs count as ADULTS for occupancy (so
+        // 2A+1C-aged-6 → effectively 3 pax, hiding Twin/Queen/King). Children
+        // ≤5 yrs are free-in-bed and don't occupy a slot, so we drop them
+        // from both counts. `child.age` values from the picker look like
+        // "<2 yrs", "3 yrs", "11 yrs".
+        adults={(() => {
+          const firstRoom = data?.room_data?.[0];
+          if (!firstRoom) return 1;
+          const baseAdults = firstRoom.adults || 1;
+          const childrenAboveFive = (firstRoom.children || []).filter((c) => {
+            const n = parseInt(String(c.age || '').replace(/[^0-9]/g, ''), 10);
+            return Number.isFinite(n) && n > 5;
+          }).length;
+          return baseAdults + childrenAboveFive;
+        })()}
+        children={(() => {
+          // Only kids ≤5 still occupy a "child" slot (free-in-bed) — kids >5
+          // were already promoted into the adult count above.
+          return 0;
+        })()}
       />
 
       {/* Hotel Options Modal (Change Hotel choices) */}
