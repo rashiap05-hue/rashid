@@ -392,6 +392,82 @@ function RatePlanEditor({ ratePlans = [], onChange }) {
   );
 }
 
+// Blackout / Unavailable Dates Editor — used inside each Room Type card.
+// Each range is `{ from: 'YYYY-MM-DD', to: 'YYYY-MM-DD', reason: '...' }`.
+function BlackoutDatesEditor({ ranges = [], onChange }) {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const addRange = () => {
+    onChange([...ranges, { from: today, to: today, reason: '' }]);
+  };
+  const updateRange = (i, field, value) => {
+    onChange(ranges.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
+  };
+  const removeRange = (i) => onChange(ranges.filter((_, idx) => idx !== i));
+
+  return (
+    <div className="border border-amber-200 rounded-xl p-4 bg-amber-50/50" data-testid="blackout-dates-editor">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h4 className="text-sm font-bold text-amber-900">Blackout / Unavailable Dates</h4>
+          <p className="text-xs text-amber-800 mt-0.5">Trip Builder hides this room when the trip nights overlap any range here.</p>
+        </div>
+        <button
+          type="button"
+          onClick={addRange}
+          className="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg font-semibold"
+          data-testid="blackout-add-range-btn"
+        >
+          + Add Range
+        </button>
+      </div>
+
+      {ranges.length === 0 ? (
+        <p className="text-xs text-amber-700/70 italic">No blackouts — room is available on every requested date.</p>
+      ) : (
+        <div className="space-y-2">
+          {ranges.map((r, i) => (
+            <div key={`blackout-${i}-${r.from}`} className="grid grid-cols-[1fr_1fr_2fr_auto] gap-2 items-center">
+              <input
+                type="date"
+                value={r.from || ''}
+                onChange={(e) => updateRange(i, 'from', e.target.value)}
+                className="px-2 py-1.5 text-xs border border-amber-300 rounded-lg bg-white focus:ring-2 focus:ring-amber-500"
+                data-testid={`blackout-from-${i}`}
+              />
+              <input
+                type="date"
+                value={r.to || ''}
+                onChange={(e) => updateRange(i, 'to', e.target.value)}
+                min={r.from || undefined}
+                className="px-2 py-1.5 text-xs border border-amber-300 rounded-lg bg-white focus:ring-2 focus:ring-amber-500"
+                data-testid={`blackout-to-${i}`}
+              />
+              <input
+                type="text"
+                value={r.reason || ''}
+                onChange={(e) => updateRange(i, 'reason', e.target.value)}
+                placeholder="Reason (Renovation / Sold out / ...)"
+                className="px-2 py-1.5 text-xs border border-amber-300 rounded-lg bg-white focus:ring-2 focus:ring-amber-500"
+                data-testid={`blackout-reason-${i}`}
+              />
+              <button
+                type="button"
+                onClick={() => removeRange(i)}
+                className="text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg"
+                aria-label="Remove blackout range"
+                data-testid={`blackout-remove-${i}`}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Room Type Editor Component
 function RoomTypeEditor({ roomTypes = [], onChange, hotelId = '' }) {
   const [expandedRoom, setExpandedRoom] = useState(null);
@@ -413,7 +489,8 @@ function RoomTypeEditor({ roomTypes = [], onChange, hotelId = '' }) {
       description: '',
       rate_plans: [],
       available: true,
-      total_inventory: 10
+      total_inventory: 10,
+      unavailable_dates: []
     };
     onChange([...roomTypes, newRoom]);
     setExpandedRoom(roomTypes.length);
@@ -730,6 +807,12 @@ function RoomTypeEditor({ roomTypes = [], onChange, hotelId = '' }) {
                         onImagesChange={(images) => updateRoomType(idx, 'images', images)}
                         uploadType="room"
                         entityId={room.id}
+                      />
+
+                      {/* Blackout / Unavailable Dates */}
+                      <BlackoutDatesEditor
+                        ranges={room.unavailable_dates || []}
+                        onChange={(ranges) => updateRoomType(idx, 'unavailable_dates', ranges)}
                       />
 
                       {/* Rate Plans */}

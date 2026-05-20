@@ -395,7 +395,7 @@ function RoomCategory({ category, rooms, onSelectRoom, nights, totalGuests }) {
 }
 
 // Main Hotel Details View Component
-export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn, checkOut, nights = 4, totalGuests = 2 }) {
+export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn, checkOut, nights = 4, totalGuests = 2, adults = 1, childrenCount = 0 }) {
   const [activeTab, setActiveTab] = useState('available');
   const [searchQuery, setSearchQuery] = useState('');
   const [mealFilter, setMealFilter] = useState('all');
@@ -409,12 +409,38 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
     );
   }
 
+  // Helper: does a blackout range overlap with the requested stay nights?
+  // Intervals overlap iff (stay_in < blackout_to) AND (stay_out > blackout_from).
+  const overlapsStay = (range) => {
+    if (!range?.from || !range?.to || !checkIn || !checkOut) return false;
+    return checkIn < range.to && checkOut > range.from;
+  };
+
+  // Occupancy filter: per user spec, when there are children we strictly
+  // require `max_children >= childrenCount`. Likewise `max_adults >= adults`.
+  // 1A/0C → every room qualifies. 2A+1C → Single (1A/0C) hidden, Family
+  // (2A/2C) shown, Double (2A/0C) hidden, Triple-strict (3A/0C) hidden,
+  // Triple-with-child (2A/1C) shown.
+  const isOccupancyMatch = (roomType) => {
+    const maxA = Number(roomType?.max_adults ?? 0);
+    const maxC = Number(roomType?.max_children ?? 0);
+    if (maxA < adults) return false;
+    if (childrenCount > 0 && maxC < childrenCount) return false;
+    return true;
+  };
+
   // Get rooms from either room_types (new format) or rooms (legacy format)
   const getAllRooms = () => {
     // First check for room_types with rate_plans (new format)
     if (hotel.room_types && hotel.room_types.length > 0) {
-      // Convert room_types to display format
-      return hotel.room_types.flatMap(roomType => {
+      // Convert room_types to display format. Apply BOTH the occupancy
+      // filter AND the per-room blackout filter before expanding rate plans.
+      const eligibleRoomTypes = hotel.room_types.filter((rt) => {
+        if (!isOccupancyMatch(rt)) return false;
+        if (Array.isArray(rt.unavailable_dates) && rt.unavailable_dates.some(overlapsStay)) return false;
+        return true;
+      });
+      return eligibleRoomTypes.flatMap(roomType => {
         // If room type has rate plans, create a room entry for each rate plan
         if (roomType.rate_plans && roomType.rate_plans.length > 0) {
           return roomType.rate_plans.map((ratePlan, idx) => ({
@@ -470,9 +496,9 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
     return acc;
   }, {});
 
-  // Filter rooms. Capacity intentionally NOT filtered — agents commonly
-  // combine room types (e.g. 2× Double for 4 pax, or 1× Double + 2× Single)
-  // so all room types must remain visible regardless of group size.
+  // Filter rooms — search/meal/refund only. Occupancy + blackout filters
+  // are applied earlier in getAllRooms() (per user request: only show room
+  // types that match the selected occupancy and respect per-room blackouts).
   const filterRooms = (rooms) => {
     return rooms.filter(room => {
       const matchesSearch = !searchQuery ||
@@ -669,11 +695,28 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
                 </div>
               )}
 
-              {/* If no rooms at all */}
+              {/* If no rooms at all — distinguish "no rooms in catalog" vs
+                  "all filtered out by occupancy / blackout" so the agent
+                  knows why nothing is showing. */}
               {Object.keys(roomsByCategory).length === 0 && (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-gray-500" data-testid="no-rooms-available">
                   <Building2 size={48} className="mx-auto mb-4 text-gray-300" />
-                  <p>No room options available</p>
+                  {(hotel.room_types?.length || hotel.rooms?.length) ? (
+                    <>
+                      <p className="font-medium text-gray-700">No rooms available for this selection</p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        {(() => {
+                          const hints = [];
+                          if (childrenCount > 0) hints.push(`${adults} adult${adults > 1 ? 's' : ''} + ${childrenCount} child${childrenCount > 1 ? 'ren' : ''}`);
+                          else hints.push(`${adults} adult${adults > 1 ? 's' : ''}`);
+                          if (checkIn && checkOut) hints.push(`${checkIn} → ${checkOut}`);
+                          return `Occupancy: ${hints.join(' • ')}. All room types are either too small or unavailable for these dates.`;
+                        })()}
+                      </p>
+                    </>
+                  ) : (
+                    <p>No room options available</p>
+                  )}
                 </div>
               )}
             </>

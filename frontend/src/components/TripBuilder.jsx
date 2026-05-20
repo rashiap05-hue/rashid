@@ -1439,13 +1439,31 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           setChangeRoomHotel(null); // Clear change room hotel on close
         }}
         city={cities[activeHotelCity]?.name || ''}
-        checkIn={formatDate(startDate)}
-        checkOut={formatDate(new Date(startDate.getTime() + totalNights * 24 * 60 * 60 * 1000))}
+        checkIn={(() => {
+          // City-specific check-in = trip start + sum of nights for prior cities
+          const offset = cities.slice(0, activeHotelCity || 0).reduce((a, c) => a + (c.nights || 1), 0);
+          const d = new Date(startDate);
+          d.setDate(startDate.getDate() + offset);
+          return formatDate(d);
+        })()}
+        checkOut={(() => {
+          const offset = cities.slice(0, activeHotelCity || 0).reduce((a, c) => a + (c.nights || 1), 0)
+                       + (cities[activeHotelCity]?.nights || 1);
+          const d = new Date(startDate);
+          d.setDate(startDate.getDate() + offset);
+          return formatDate(d);
+        })()}
         nights={cities[activeHotelCity]?.nights || 1}
         onSelect={handleHotelSelect}
         searchQuery={hotelSearchQuery}
         initialHotel={changeRoomHotel}
         totalGuests={totalPax}
+        // Per-room occupancy from the Create Trip Package form so the room
+        // list can hide types that can't fit the party (e.g. hide Single &
+        // Double when the agent picked 2A+1C). Falls back gracefully if
+        // room_data isn't populated.
+        adults={data?.room_data?.[0]?.adults || 1}
+        children={data?.room_data?.[0]?.children?.length || 0}
       />
 
       {/* Hotel Options Modal (Change Hotel choices) */}

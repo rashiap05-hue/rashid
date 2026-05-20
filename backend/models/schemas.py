@@ -201,6 +201,11 @@ class RoomType(BaseModel):
     rate_plans: List[Dict] = []
     available: bool = True
     total_inventory: int = 10
+    # Blackout date ranges marking this room as unavailable (e.g. renovation,
+    # sold-out blocks, owner-occupancy windows). Each entry is
+    # `{from: "YYYY-MM-DD", to: "YYYY-MM-DD", reason: "..."}`. Trip Builder
+    # hides any room whose blackouts overlap the requested stay nights.
+    unavailable_dates: List[Dict] = []
 
 class HotelRoom(BaseModel):
     id: str
