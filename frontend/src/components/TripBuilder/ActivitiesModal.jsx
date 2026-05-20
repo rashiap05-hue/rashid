@@ -4,7 +4,7 @@ import { X, Search, Loader2, Check, Compass } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/App';
 
-function ActivitiesModal({ isOpen, onClose, city, dayNumber, startDate, onSelectActivity, selectedActivities = [], otherDayActivityMap = {} }) {
+function ActivitiesModal({ isOpen, onClose, city, dayNumber, startDate, onSelectActivity, selectedActivities = [], otherDayActivityMap = {}, transferDayMode = false }) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,6 +58,10 @@ function ActivitiesModal({ isOpen, onClose, city, dayNumber, startDate, onSelect
 
   // Filter activities
   const filteredActivities = activities.filter(a => {
+    // Internal-Transfer-Day gate: when adding on an inter-city transfer day
+    // we only surface activities admins have explicitly flagged as suitable
+    // for a transfer day (per-activity opt-in from the admin form).
+    if (transferDayMode && !a.internal_transfer_day_eligible) return false;
     // Category filter
     if (categoryFilter !== 'All Options' && (a.category || 'City Tours') !== categoryFilter) return false;
     // Search filter
@@ -113,6 +117,11 @@ function ActivitiesModal({ isOpen, onClose, city, dayNumber, startDate, onSelect
             {dayDate && (
               <span className="text-gray-500 font-normal text-sm ml-2">
                 (Day {dayNumber}: {dayDate})
+              </span>
+            )}
+            {transferDayMode && (
+              <span className="ml-2 inline-flex items-center gap-1 text-[11px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wide" data-testid="transfer-day-mode-badge">
+                Internal Transfer Day
               </span>
             )}
           </h3>
@@ -185,8 +194,14 @@ function ActivitiesModal({ isOpen, onClose, city, dayNumber, startDate, onSelect
               ) : filteredActivities.length === 0 ? (
                 <div className="text-center py-12">
                   <Compass size={40} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-gray-500 font-medium">No activities found</p>
-                  <p className="text-gray-400 text-sm mt-1">Try adjusting your filters</p>
+                  <p className="text-gray-500 font-medium">
+                    {transferDayMode ? 'No Internal-Transfer-Day activities found' : 'No activities found'}
+                  </p>
+                  <p className="text-gray-400 text-sm mt-1">
+                    {transferDayMode
+                      ? `Tag activities as "Available on Internal Transfer Days" in Admin → Activities to surface them here.`
+                      : 'Try adjusting your filters'}
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">

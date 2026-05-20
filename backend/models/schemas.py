@@ -330,6 +330,11 @@ class ActivityCreate(BaseModel):
     vehicle_pricing: Optional[dict] = None
     extras: Optional[List[ActivityExtra]] = []
     meals_included: Optional[Dict[str, bool]] = None  # {breakfast: bool, lunch: bool, dinner: bool}
+    # When true, this activity is offered as an "Internal Transfer Day"
+    # add-on in the Trip Builder — i.e. it can be slotted into an inter-city
+    # transfer day alongside the actual Internal Hotel Transfer. Regular
+    # activities (false) are hidden from transfer-day add menus.
+    internal_transfer_day_eligible: bool = False
 
 class ChatMessage(BaseModel):
     message: str

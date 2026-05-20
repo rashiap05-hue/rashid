@@ -583,7 +583,10 @@ export default function ActivityEditForm({ activity, onSave, onClose, isNew = fa
     // Purchasable extras
     extras: activity?.extras || [],
     // Meal inclusions (Breakfast / Lunch / Dinner)
-    meals_included: activity?.meals_included || { breakfast: false, lunch: false, dinner: false }
+    meals_included: activity?.meals_included || { breakfast: false, lunch: false, dinner: false },
+    // Internal-Transfer-Day eligibility — when true, this activity is offered
+    // as an add-on on inter-city transfer days in the Trip Builder.
+    internal_transfer_day_eligible: activity?.internal_transfer_day_eligible || false
   });
 
   const handleFieldChange = useCallback((field, value) => {
@@ -730,6 +733,27 @@ export default function ActivityEditForm({ activity, onSave, onClose, isNew = fa
                       <option value="Luxury">Luxury</option>
                     </select>
                   </div>
+                </div>
+
+                {/* Internal Transfer Day eligibility — controls whether this
+                    activity appears in the Trip Builder's transfer-day add
+                    menu (alongside the Internal Hotel Transfer). */}
+                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!formData.internal_transfer_day_eligible}
+                      onChange={(e) => handleFieldChange('internal_transfer_day_eligible', e.target.checked)}
+                      className="mt-1 w-5 h-5 text-amber-600 rounded focus:ring-amber-500"
+                      data-testid="activity-internal-transfer-day-toggle"
+                    />
+                    <div className="flex-1">
+                      <span className="block text-sm font-bold text-amber-900">Available on Internal Transfer Days</span>
+                      <span className="block text-xs text-amber-800 mt-0.5">
+                        When enabled, this activity can be added on inter-city transfer days in the Trip Builder (e.g. a 1-2 hour stop between Tashkent &amp; Samarkand) alongside the Internal Hotel Transfer.
+                      </span>
+                    </div>
+                  </label>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

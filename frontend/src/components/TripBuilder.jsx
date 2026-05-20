@@ -2031,6 +2031,10 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
             selectedActivities={getActivitiesForDay(activeActivityCity, activeActivityDay)}
             otherDayActivityMap={getActivitiesOnOtherDaysInCity(activeActivityCity, activeActivityDay)}
             onSelectActivity={handleSelectActivity}
+            // On inter-city transfer days, restrict the picker to activities
+            // admins have explicitly opted-in via the "Available on Internal
+            // Transfer Days" toggle on the Edit Activity form.
+            transferDayMode={!!itinerary.find(d => d.day === activeActivityDay)?.isCheckInDay}
           />
         )}
       </AnimatePresence>
