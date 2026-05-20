@@ -37,7 +37,14 @@ function DayCard({
   onRemoveInterCityTransfer,
   selectedExtras,
   onToggleExtra,
-  overflowActivityIds
+  overflowActivityIds,
+  // For inter-city transfer days: activities + handlers for the FROM city
+  // (origin), shown alongside the destination city's activities so the agent
+  // can slot in morning sightseeing in Tashkent + evening in Samarkand on the
+  // same day.
+  fromCityActivities,
+  onAddActivityFromCity,
+  onRemoveFromCityActivity,
 }) {
   const [expanded, setExpanded] = useState(true);
 
@@ -458,6 +465,66 @@ function DayCard({
                     );
                   })}
                 </div>
+              )}
+
+              {/* FROM-city activities (only on inter-city transfer days).
+                  Renders the origin city's activities + an "Add Activity"
+                  button so an agent can slot in a morning Tashkent activity
+                  before the Tashkent→Samarkand transfer. */}
+              {isCheckInDay && incomingFromCity && (
+                <>
+                  {fromCityActivities?.length > 0 && (
+                    <div className="space-y-2" data-testid={`from-city-activities-day-${day}`}>
+                      {fromCityActivities.map((activity, i) => (
+                        <div key={activity.id || i} className="rounded-xl border border-amber-100 overflow-hidden group">
+                          <div className="flex items-center gap-4 p-4 bg-amber-50">
+                            <img
+                              src={activity.images?.[0] || 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=100'}
+                              alt={activity.name}
+                              className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-gray-800 line-clamp-1">{activity.name}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-bold">
+                                  In {incomingFromCity}
+                                </span>
+                                <span className="text-[10px] bg-pink-100 text-pink-600 px-2 py-0.5 rounded-full font-medium">
+                                  {activity.category || 'Activity'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {activity.start_times?.length > 0
+                                  ? `${activity.start_times[0]} • ${activity.duration}`
+                                  : activity.duration}
+                              </p>
+                            </div>
+                            {onRemoveFromCityActivity && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onRemoveFromCityActivity(activity.id);
+                                }}
+                                className="ml-2 p-1.5 text-red-500 hover:bg-red-100 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Remove activity"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    onClick={onAddActivityFromCity}
+                    className="w-full py-3 border-2 border-dashed border-amber-300 rounded-xl text-amber-600 font-medium hover:border-amber-500 hover:bg-amber-50 transition-all flex items-center justify-center gap-2"
+                    data-testid={`add-activity-from-city-day-${day}`}
+                  >
+                    <Plus size={18} />
+                    Add Activity in {incomingFromCity}
+                  </button>
+                </>
               )}
 
               {/* Add Activity Button — visible on every day, including the

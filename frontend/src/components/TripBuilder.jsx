@@ -1936,6 +1936,18 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                 activities={getActivitiesForDay(day.city, day.day)}
                 onAddActivity={() => handleAddActivity(day.city, day.day)}
                 onRemoveActivity={(activityId) => handleRemoveActivity(day.city, day.day, activityId)}
+                // Inter-city transfer day: also expose the FROM-city's
+                // activities so the agent can plan morning sightseeing in
+                // the origin city before the transfer.
+                fromCityActivities={day.isCheckInDay && day.incomingFromCity
+                  ? getActivitiesForDay(day.incomingFromCity, day.day)
+                  : undefined}
+                onAddActivityFromCity={day.isCheckInDay && day.incomingFromCity
+                  ? () => handleAddActivity(day.incomingFromCity, day.day)
+                  : undefined}
+                onRemoveFromCityActivity={day.isCheckInDay && day.incomingFromCity
+                  ? (activityId) => handleRemoveActivity(day.incomingFromCity, day.day, activityId)
+                  : undefined}
                 onChangeHotel={() => {
                   setActiveHotelCity(day.cityIndex);
                   setShowHotelModal(true);

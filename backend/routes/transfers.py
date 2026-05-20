@@ -70,13 +70,26 @@ async def search_inter_city_transfers(from_city: str, to_city: str):
     for t in candidates:
         if not _is_inter_direction(t.get("transfer_direction")):
             continue
-        # Wider haystack — pull every field that might name a city
-        from_hay = " ".join(filter(None, [
-            t.get("from_location"), t.get("from_city"), t.get("city"), t.get("title"),
-        ]))
-        to_hay = " ".join(filter(None, [
-            t.get("to_location"), t.get("to_city"), t.get("destination"), t.get("title"),
-        ]))
+
+        # Prefer structured from/to fields when available — the `title` is
+        # ambiguous because it usually contains BOTH city names (e.g.
+        # "Samarkand to Tashkent — Private Inter-City Transfer"), so using
+        # the title in both haystacks would cause every transfer to match
+        # both directions. We only fall back to the title when structured
+        # fields are missing.
+        has_structured_from = any(t.get(k) for k in ("from_location", "from_city"))
+        has_structured_to = any(t.get(k) for k in ("to_location", "to_city", "destination"))
+
+        from_parts = [t.get("from_location"), t.get("from_city")]
+        if not has_structured_from:
+            from_parts.extend([t.get("city"), t.get("title")])
+        to_parts = [t.get("to_location"), t.get("to_city"), t.get("destination")]
+        if not has_structured_to:
+            to_parts.append(t.get("title"))
+
+        from_hay = " ".join(filter(None, from_parts))
+        to_hay = " ".join(filter(None, to_parts))
+
         # Per-haystack core comparison: a candidate matches if its from-side
         # contains the from_core AND its to-side contains the to_core.
         if from_core and from_core in core(from_hay) and to_core and to_core in core(to_hay):
