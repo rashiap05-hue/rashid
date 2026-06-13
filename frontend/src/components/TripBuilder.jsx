@@ -38,6 +38,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [activeHotelCity, setActiveHotelCity] = useState(null);
   const [hotelSearchQuery, setHotelSearchQuery] = useState('');
   const [noStayCities, setNoStayCities] = useState({});
+  // Per-city hotel service enhancements (keyed by cityIndex). When enabled,
+  // an extra hotel night is booked (early = night before check-in, late =
+  // night after check-out) and priced, while the displayed itinerary dates
+  // stay unchanged.
+  const [earlyCheckIn, setEarlyCheckIn] = useState({});
+  const [lateCheckOut, setLateCheckOut] = useState({});
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [changeRoomHotel, setChangeRoomHotel] = useState(null); // Hotel to show room options for
@@ -160,6 +166,8 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     if (data.selected_hotels && typeof data.selected_hotels === 'object') {
       const hotels = {};
       const vehiclesMap = {};
+      const earlyMap = {};
+      const lateMap = {};
       Object.entries(data.selected_hotels).forEach(([key, hotel]) => {
         if (!hotel) return;
         // Handle both pure numeric keys ("0") and "CityName_idx" format
@@ -172,8 +180,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           }
         }
         hotels[cityIndex] = hotel;
+        if (hotel.early_check_in) earlyMap[cityIndex] = true;
+        if (hotel.late_check_out) lateMap[cityIndex] = true;
       });
       if (Object.keys(hotels).length > 0) setSelectedHotels(hotels);
+      if (Object.keys(earlyMap).length > 0) setEarlyCheckIn(earlyMap);
+      if (Object.keys(lateMap).length > 0) setLateCheckOut(lateMap);
     }
 
     // Restore selected activities and rebuild activityVehicles map
@@ -1072,9 +1084,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     // `roomsCount` times — pricing scales accordingly.
     const roomsCount = data?.room_data?.length || 1;
     let hotelTotal = 0;
-    Object.values(selectedHotels).forEach(hotel => {
+    Object.entries(selectedHotels).forEach(([cityIdx, hotel]) => {
       if (hotel?.selectedRoom?.price) {
-        hotelTotal += hotel.selectedRoom.price * (hotel.nights || 1) * roomsCount;
+        const baseNights = hotel.nights || 1;
+        // Early Check-In and Late Check-Out each add one extra booked night.
+        const extraNights = (earlyCheckIn[cityIdx] ? 1 : 0) + (lateCheckOut[cityIdx] ? 1 : 0);
+        hotelTotal += hotel.selectedRoom.price * (baseNights + extraNights) * roomsCount;
       }
     });
 
@@ -1191,6 +1206,15 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     setShowHotelModal(false);
   };
 
+  // Toggle Early Check-In / Late Check-Out for a given city's hotel. Each adds
+  // one extra booked night (priced) without changing the displayed itinerary.
+  const toggleEarlyCheckIn = (cityIndex) => {
+    setEarlyCheckIn(prev => ({ ...prev, [cityIndex]: !prev[cityIndex] }));
+  };
+  const toggleLateCheckOut = (cityIndex) => {
+    setLateCheckOut(prev => ({ ...prev, [cityIndex]: !prev[cityIndex] }));
+  };
+
   // Open save proposal modal
   const handleSaveProposal = () => {
     setShowSaveProposalModal(true);
@@ -1221,8 +1245,28 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       // Build hotels data with selected rooms (keyed by cityIndex)
       const hotelsWithRooms = {};
       Object.entries(selectedHotels).forEach(([cityIdx, hotel]) => {
-        const city = cities[parseInt(cityIdx)];
+        const idx = parseInt(cityIdx);
+        const city = cities[idx];
         const cityLabel = city ? `${city.name}_${cityIdx}` : cityIdx;
+
+        // Original (displayed) stay window derived from the itinerary.
+        const baseCheckIn = new Date(startDate);
+        for (let i = 0; i < idx; i++) {
+          baseCheckIn.setDate(baseCheckIn.getDate() + (cities[i]?.nights || 1));
+        }
+        const baseNights = hotel.nights || city?.nights || 1;
+        const baseCheckOut = new Date(baseCheckIn);
+        baseCheckOut.setDate(baseCheckOut.getDate() + baseNights);
+
+        // Early Check-In books the night before; Late Check-Out the night after.
+        const early = !!earlyCheckIn[cityIdx];
+        const late = !!lateCheckOut[cityIdx];
+        const bookingCheckIn = new Date(baseCheckIn);
+        if (early) bookingCheckIn.setDate(bookingCheckIn.getDate() - 1);
+        const bookingCheckOut = new Date(baseCheckOut);
+        if (late) bookingCheckOut.setDate(bookingCheckOut.getDate() + 1);
+        const toISO = (d) => d.toISOString().slice(0, 10);
+
         hotelsWithRooms[cityLabel] = {
           id: hotel.id,
           name: hotel.name,
@@ -1239,7 +1283,15 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           rating_score: hotel.rating_score,
           rating_text: hotel.rating_text,
           review_count: hotel.review_count,
-          address: hotel.address
+          address: hotel.address,
+          // Hotel service enhancements + the actual nights booked with the hotel.
+          early_check_in: early,
+          late_check_out: late,
+          display_check_in: toISO(baseCheckIn),
+          display_check_out: toISO(baseCheckOut),
+          booking_check_in: toISO(bookingCheckIn),
+          booking_check_out: toISO(bookingCheckOut),
+          booking_nights: baseNights + (early ? 1 : 0) + (late ? 1 : 0),
         };
       });
 
@@ -1887,21 +1939,71 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                           })()}
                         </div>
                         
+                        {/* Early Check-In / Late Check-Out included badges */}
+                        {(earlyCheckIn[cityIndex] || lateCheckOut[cityIndex]) && (
+                          <div className="flex flex-wrap gap-2 mt-4">
+                            {earlyCheckIn[cityIndex] && (
+                              <span
+                                className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full text-sm font-semibold"
+                                data-testid={`early-checkin-badge-${cityIndex}`}
+                              >
+                                <Check size={15} /> Early Check-In Included
+                              </span>
+                            )}
+                            {lateCheckOut[cityIndex] && (
+                              <span
+                                className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full text-sm font-semibold"
+                                data-testid={`late-checkout-badge-${cityIndex}`}
+                              >
+                                <Check size={15} /> Late Check-Out Included
+                              </span>
+                            )}
+                          </div>
+                        )}
+
                         {/* Action Buttons */}
-                        <div className="flex gap-3 mt-6">
+                        <div className="flex flex-wrap gap-3 mt-4">
                           <button 
                             onClick={() => handleChangeRoom(cityIndex)}
-                            className="bg-[#8B4513] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#723a0f] transition-all"
+                            className="bg-[#C46A2C] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#a85820] transition-all"
                             data-testid={`change-room-${cityIndex}`}
                           >
                             Change Room
                           </button>
                           <button 
                             onClick={() => handleChangeHotel(cityIndex)}
-                            className="bg-[#8B4513] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#723a0f] transition-all"
+                            className="bg-[#C46A2C] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#a85820] transition-all"
                             data-testid={`change-hotel-${cityIndex}`}
                           >
                             Change Hotel
+                          </button>
+                          <button
+                            onClick={() => toggleEarlyCheckIn(cityIndex)}
+                            aria-pressed={!!earlyCheckIn[cityIndex]}
+                            data-testid={`early-checkin-toggle-${cityIndex}`}
+                            className={cn(
+                              'inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm border-2 transition-all',
+                              earlyCheckIn[cityIndex]
+                                ? 'bg-[#0B4F9C] border-[#0B4F9C] text-white'
+                                : 'bg-white border-[#0B4F9C] text-[#0B4F9C] hover:bg-[#0B4F9C]/5'
+                            )}
+                          >
+                            {earlyCheckIn[cityIndex] ? <Check size={16} /> : <Plus size={16} />}
+                            Early Check-In
+                          </button>
+                          <button
+                            onClick={() => toggleLateCheckOut(cityIndex)}
+                            aria-pressed={!!lateCheckOut[cityIndex]}
+                            data-testid={`late-checkout-toggle-${cityIndex}`}
+                            className={cn(
+                              'inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm border-2 transition-all',
+                              lateCheckOut[cityIndex]
+                                ? 'bg-[#0B4F9C] border-[#0B4F9C] text-white'
+                                : 'bg-white border-[#0B4F9C] text-[#0B4F9C] hover:bg-[#0B4F9C]/5'
+                            )}
+                          >
+                            {lateCheckOut[cityIndex] ? <Check size={16} /> : <Plus size={16} />}
+                            Late Check-Out
                           </button>
                         </div>
                       </div>
@@ -2068,6 +2170,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           <TripSummary
             cities={cities} noStayCities={noStayCities} openStayDetailsModal={openStayDetailsModal}
             selectedFlight={selectedFlight} selectedHotels={selectedHotels}
+            earlyCheckIn={earlyCheckIn} lateCheckOut={lateCheckOut}
             selectedArrivalTransfer={selectedArrivalTransfer} selectedDepartureTransfer={selectedDepartureTransfer}
             getTransferVehicleLabel={getTransferVehicleLabel}
             interCityTransfers={interCityTransfers}

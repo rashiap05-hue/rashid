@@ -5,6 +5,7 @@ import VersionHistoryPanel from './VersionHistoryPanel';
 export default function TripSummary({
   cities, noStayCities, openStayDetailsModal,
   selectedFlight, selectedHotels,
+  earlyCheckIn = {}, lateCheckOut = {},
   selectedArrivalTransfer, selectedDepartureTransfer,
   getTransferVehicleLabel,
   interCityTransfers,
@@ -96,6 +97,16 @@ export default function TripSummary({
                     {hotel.selectedRoom?.rate_plan && (
                       <div className="mt-1 text-xs">
                         <span className="text-purple-600">{hotel.selectedRoom.rate_plan.meal_plan}</span>
+                      </div>
+                    )}
+                    {(earlyCheckIn[cityIdx] || lateCheckOut[cityIdx]) && (
+                      <div className="mt-1.5 space-y-0.5">
+                        {earlyCheckIn[cityIdx] && (
+                          <p className="text-xs text-emerald-600 font-medium">✓ Early Check-In Included</p>
+                        )}
+                        {lateCheckOut[cityIdx] && (
+                          <p className="text-xs text-emerald-600 font-medium">✓ Late Check-Out Included</p>
+                        )}
                       </div>
                     )}
                   </div>
