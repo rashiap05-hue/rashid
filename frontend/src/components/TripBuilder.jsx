@@ -1548,26 +1548,30 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       {/* Progress Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-3 opacity-50 cursor-pointer hover:opacity-70 transition-opacity" onClick={onBack}>
-                <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                  <Check size={16} />
-                </div>
-                <span className="font-bold text-gray-400">Trip Details</span>
-              </div>
-              <ChevronRight className="text-gray-300" />
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-[#002B5B] rounded-lg flex items-center justify-center text-white font-bold text-sm">2</div>
-                <span className="font-bold text-[#002B5B]">Customize Your Trip</span>
+          {/* Top row: title, meta, total price + Save & Proceed */}
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-lg md:text-xl font-extrabold text-[#0B4F9C] tracking-tight">Customize Your Trip</h1>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs md:text-sm text-gray-500">
+                <span className="inline-flex items-center gap-1">
+                  <Calendar size={14} />
+                  {formatShortDate(startDate)} – {formatShortDate(returnDate)}
+                </span>
+                <span className="text-gray-300">•</span>
+                <span>{totalNights} night{totalNights > 1 ? 's' : ''} / {totalDays} days</span>
+                <span className="text-gray-300">•</span>
+                <span className="inline-flex items-center gap-1">
+                  <Users size={14} />
+                  {data.travelersSummary || data.travelers}
+                </span>
               </div>
             </div>
-            <div className="text-right relative">
+            <div className="flex items-center gap-3 md:gap-4">
               {timeViolations.length > 0 && (
                 <div className="inline-block relative">
                   <button
                     onClick={() => setShowTimeWarnings(!showTimeWarnings)}
-                    className="relative w-10 h-10 bg-[#002B5B] text-white rounded-full flex items-center justify-center hover:bg-[#003d82] transition-colors"
+                    className="relative w-10 h-10 bg-[#0B4F9C] text-white rounded-full flex items-center justify-center hover:bg-[#0a4488] transition-colors"
                     data-testid="time-warning-btn"
                   >
                     <AlertCircle size={20} />
@@ -1594,20 +1598,58 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                   )}
                 </div>
               )}
+              <div className="text-right">
+                <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-gray-400">Total Package</p>
+                <p className="text-xl md:text-2xl font-extrabold text-[#0B4F9C] leading-none" data-testid="total-price">AED {pricing.total.toLocaleString()}</p>
+              </div>
+              <button
+                onClick={handleSaveProposal}
+                disabled={isSaving}
+                data-testid="header-save-proceed"
+                className="hidden sm:inline-flex items-center gap-2 bg-[#0B4F9C] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-[#0B4F9C]/20 hover:bg-[#0a4488] transition-all disabled:opacity-60"
+              >
+                {isSaving ? <Loader2 className="animate-spin" size={16} /> : <ArrowRight size={16} />}
+                Save &amp; Proceed
+              </button>
             </div>
           </div>
-          <div className="mt-2 flex items-center gap-4 text-sm text-gray-600">
-            <span className="flex items-center gap-1">
-              <Calendar size={14} />
-              {formatShortDate(startDate)} - {formatShortDate(returnDate)}
-            </span>
-            <span>•</span>
-            <span>{totalNights} night{totalNights > 1 ? 's' : ''} / {totalDays} days</span>
-            <span>•</span>
-            <span className="flex items-center gap-1">
-              <Users size={14} />
-              {data.travelersSummary || data.travelers}
-            </span>
+
+          {/* Step indicator */}
+          <div className="mt-4 flex items-center">
+            {[
+              { label: 'Trip Details', n: 1, state: 'done', onClick: onBack },
+              { label: 'Flights', n: 2, state: 'current' },
+              { label: 'Hotels', n: 3, state: 'current' },
+              { label: 'Activities', n: 4, state: 'current' },
+              { label: 'Review & Payment', n: 5, state: 'upcoming' },
+            ].map((s, i, arr) => (
+              <React.Fragment key={s.label}>
+                <button
+                  type="button"
+                  onClick={s.onClick}
+                  disabled={!s.onClick}
+                  className={cn('flex items-center gap-2 shrink-0', s.onClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : 'cursor-default')}
+                >
+                  <span className={cn(
+                    'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors',
+                    s.state === 'done' && 'bg-emerald-500 border-emerald-500 text-white',
+                    s.state === 'current' && 'bg-[#0B4F9C] border-[#0B4F9C] text-white shadow-md shadow-[#0B4F9C]/30',
+                    s.state === 'upcoming' && 'bg-white border-gray-300 text-gray-400'
+                  )}>
+                    {s.state === 'done' ? <Check size={16} /> : s.n}
+                  </span>
+                  <span className={cn(
+                    'hidden md:inline text-sm font-bold whitespace-nowrap',
+                    s.state === 'done' && 'text-gray-500',
+                    s.state === 'current' && 'text-[#0B4F9C]',
+                    s.state === 'upcoming' && 'text-gray-400'
+                  )}>{s.label}</span>
+                </button>
+                {i < arr.length - 1 && (
+                  <div className={cn('flex-1 h-0.5 mx-2 md:mx-3 rounded-full', arr[i + 1].state === 'upcoming' ? 'bg-gray-200' : 'bg-[#0B4F9C]/40')} />
+                )}
+              </React.Fragment>
+            ))}
           </div>
         </div>
       </div>
