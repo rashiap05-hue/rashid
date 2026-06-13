@@ -1748,7 +1748,9 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
               </button>
             </div>
             
-            {/* Hotel Stay Sections for each city */}
+            {/* Timeline: each city's stay card is followed inline by that city's
+                day cards, so hotels are embedded within the day-wise itinerary
+                (per city + nights) instead of a separate hotel section. */}
             {cities.map((city, cityIndex) => {
               const cityHotel = selectedHotels[cityIndex];
               const cityStartDate = new Date(startDate);
@@ -1758,9 +1760,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
               }
               const cityEndDate = new Date(cityStartDate);
               cityEndDate.setDate(cityEndDate.getDate() + (city.nights || 1));
+              // Day cards belonging to this city segment, in chronological order.
+              const cityDays = itinerary.filter((d) => d.cityIndex === cityIndex);
               
               return (
-                <div key={`stay-${cityIndex}-${city.name}`} className="mb-6">
+                <React.Fragment key={`city-${cityIndex}-${city.name}`}>
+                <div className="mb-6">
                   {/* Stay Header */}
                   <div className="bg-[#E8F4F8] px-6 py-3 rounded-t-xl">
                     <h3 className="text-lg font-bold text-[#002B5B]">
@@ -2001,12 +2006,9 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                     </div>
                   )}
                 </div>
-              );
-            })}
 
-            {/* Day-by-Day Details */}
-            <h2 className="text-xl font-bold text-gray-800 mb-4 mt-8">Daily Itinerary</h2>
-            {itinerary.map((day, index) => (
+                {/* This city's day-by-day cards, embedded right after its stay */}
+                {cityDays.map((day, index) => (
               <DayCard
                 key={`day-${day.day}-${day.city || ''}-${index}`}
                 {...day}
@@ -2056,7 +2058,10 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                 onToggleExtra={handleToggleExtra}
                 overflowActivityIds={overflowByDay[`${day.city}_${day.day}`] || []}
               />
-            ))}
+                ))}
+                </React.Fragment>
+              );
+            })}
           </div>
 
           {/* Right Column - Trip Summary */}
