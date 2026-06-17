@@ -22,6 +22,7 @@ from routes.supplier import supplier_router
 from routes.uploads import uploads_router
 from routes.settings import settings_router
 from routes.flight_api import flight_api_router
+from routes.hotel_api import hotel_api_router
 from routes.bookings import router as bookings_router
 from routes.passport_scan import router as passport_scan_router
 from routes.experts import experts_router
@@ -77,6 +78,7 @@ api_router.include_router(supplier_router)
 api_router.include_router(uploads_router)
 api_router.include_router(settings_router)
 api_router.include_router(flight_api_router)
+api_router.include_router(hotel_api_router)
 api_router.include_router(bookings_router)
 api_router.include_router(passport_scan_router)
 api_router.include_router(experts_router)

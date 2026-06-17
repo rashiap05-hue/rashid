@@ -5,6 +5,7 @@ import VersionHistoryPanel from './VersionHistoryPanel';
 export default function TripSummary({
   cities, noStayCities, openStayDetailsModal,
   selectedFlight, selectedHotels,
+  earlyCheckIn = {}, lateCheckOut = {},
   selectedArrivalTransfer, selectedDepartureTransfer,
   getTransferVehicleLabel,
   interCityTransfers,
@@ -12,10 +13,11 @@ export default function TripSummary({
   pricing, isSaving, handleSaveProposal,
   data, onConfirm,
 }) {
+  const taxesAndFees = (pricing?.insuranceTotal || 0) + (pricing?.visaTotal || 0) + (pricing?.simCardTotal || 0);
   return (
     <div className="w-96 flex-shrink-0">
-      <div className="bg-white rounded-xl border border-gray-200 sticky top-32 max-h-[calc(100vh-10rem)] flex flex-col">
-        <div className="bg-[#002B5B] text-white px-6 py-4 rounded-t-xl flex-shrink-0">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm sticky top-32 max-h-[calc(100vh-10rem)] flex flex-col overflow-hidden">
+        <div className="bg-[#0B4F9C] text-white px-6 py-4 flex-shrink-0">
           <h3 className="text-lg font-bold">Trip Summary</h3>
         </div>
         
@@ -95,6 +97,16 @@ export default function TripSummary({
                     {hotel.selectedRoom?.rate_plan && (
                       <div className="mt-1 text-xs">
                         <span className="text-purple-600">{hotel.selectedRoom.rate_plan.meal_plan}</span>
+                      </div>
+                    )}
+                    {(earlyCheckIn[cityIdx] || lateCheckOut[cityIdx]) && (
+                      <div className="mt-1.5 space-y-0.5">
+                        {earlyCheckIn[cityIdx] && (
+                          <p className="text-xs text-emerald-600 font-medium">✓ Early Check-In Included</p>
+                        )}
+                        {lateCheckOut[cityIdx] && (
+                          <p className="text-xs text-emerald-600 font-medium">✓ Late Check-Out Included</p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -187,27 +199,47 @@ export default function TripSummary({
           )}
 
           {/* Price Summary */}
-          <div className="border-t pt-4">
-            <h4 className="font-bold text-[#006B5B] mb-4 bg-[#006B5B]/10 px-3 py-1.5 rounded inline-block text-sm">Price Summary</h4>
-            <p className="text-xs text-gray-500 underline mb-4">Trip Summary</p>
-            
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-sm text-gray-700">Price per adult</span>
-              <span className="text-sm font-bold text-gray-900">AED {pricing.pricePerAdult.toLocaleString()}</span>
-            </div>
-            
-            <div className="border-t border-gray-200 pt-4 mb-4">
+          <div className="border-t border-gray-200 pt-5">
+            <h4 className="font-extrabold text-[#0B4F9C] text-sm uppercase tracking-wide mb-4">Price Summary</h4>
+
+            <div className="space-y-2.5 text-sm">
+              {pricing.flightPrice > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-2 text-gray-600"><Plane size={14} className="text-[#0B4F9C]" />Flights</span>
+                  <span className="font-semibold text-gray-900">AED {pricing.flightPrice.toLocaleString()}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-700">Total Discount</span>
-                <span className="text-sm font-bold text-gray-700">AED -0</span>
+                <span className="flex items-center gap-2 text-gray-600"><Hotel size={14} className="text-[#0B4F9C]" />Hotels</span>
+                <span className="font-semibold text-gray-900">AED {(pricing.hotelTotal || 0).toLocaleString()}</span>
+              </div>
+              {pricing.transferTotal > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-2 text-gray-600"><Car size={14} className="text-[#0B4F9C]" />Transfers</span>
+                  <span className="font-semibold text-gray-900">AED {pricing.transferTotal.toLocaleString()}</span>
+                </div>
+              )}
+              {pricing.activitiesTotal > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-2 text-gray-600"><Compass size={14} className="text-[#0B4F9C]" />Activities</span>
+                  <span className="font-semibold text-gray-900">AED {pricing.activitiesTotal.toLocaleString()}</span>
+                </div>
+              )}
+              {taxesAndFees > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Taxes &amp; fees</span>
+                  <span className="font-semibold text-gray-900">AED {taxesAndFees.toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-1">
+                <span className="text-gray-500">Price per adult</span>
+                <span className="font-semibold text-gray-700">AED {pricing.pricePerAdult.toLocaleString()}</span>
               </div>
             </div>
 
-            <div className="border-t border-gray-200 pt-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Total Price</span>
-                <span className="text-xl font-bold text-[#002B5B]">AED {pricing.total.toLocaleString()}</span>
-              </div>
+            <div className="mt-4 rounded-xl bg-[#0B4F9C]/5 border border-[#0B4F9C]/10 px-4 py-3 flex justify-between items-center">
+              <span className="text-sm font-bold text-gray-700">Total Price</span>
+              <span className="text-2xl font-extrabold text-[#0B4F9C]">AED {pricing.total.toLocaleString()}</span>
             </div>
           </div>
 
@@ -216,11 +248,11 @@ export default function TripSummary({
             <button 
               onClick={handleSaveProposal}
               disabled={isSaving}
-              className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full bg-[#0B4F9C] text-white py-3.5 rounded-xl font-bold hover:bg-[#0a4488] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#0B4F9C]/20 disabled:opacity-50"
               data-testid="save-proposal-button"
             >
-              {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-              Save As Proposal
+              {isSaving ? <Loader2 className="animate-spin" size={18} /> : <ArrowRight size={18} />}
+              Save &amp; Proceed
             </button>
           </div>
 

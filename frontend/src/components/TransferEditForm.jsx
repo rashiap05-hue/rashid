@@ -331,6 +331,13 @@ export default function TransferEditForm({ transfer, onSave, onClose, isNew = fa
     { key: 'bus_55', label: '55 Seater Bus', pax: '46-55 pax' }
   ];
 
+  // For Inter-Hotel (Hotel to Hotel) transfers the From/To locations are cities,
+  // so they render as dropdowns filtered to the selected country's cities.
+  const isInterHotel = formData.transfer_direction === 'inter-hotel';
+  const countryCities = formData.country
+    ? cities.filter(c => c.country?.toLowerCase() === formData.country.toLowerCase())
+    : [];
+
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
@@ -391,18 +398,32 @@ export default function TransferEditForm({ transfer, onSave, onClose, isNew = fa
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">From Location</label>
-                    <input type="text" value={formData.from_location} onChange={(e) => handleFieldChange('from_location', e.target.value)} placeholder="Airport or hotel" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent" data-testid="edit-transfer-from" />
+                    <label className="block text-sm font-bold text-gray-600 mb-1">From Location{isInterHotel ? ' (City)' : ''}</label>
+                    {isInterHotel ? (
+                      <select value={formData.from_location} onChange={(e) => handleFieldChange('from_location', e.target.value)} disabled={!formData.country} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent bg-white disabled:bg-gray-50 disabled:text-gray-400" data-testid="edit-transfer-from">
+                        <option value="">{formData.country ? 'Select departure city...' : 'Select a country first'}</option>
+                        {countryCities.map(c => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}
+                      </select>
+                    ) : (
+                      <input type="text" value={formData.from_location} onChange={(e) => handleFieldChange('from_location', e.target.value)} placeholder="Airport or hotel" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent" data-testid="edit-transfer-from" />
+                    )}
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-gray-600 mb-1">To Location</label>
-                    <input type="text" value={formData.to_location} onChange={(e) => handleFieldChange('to_location', e.target.value)} placeholder="Hotel or destination" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent" data-testid="edit-transfer-to" />
+                    <label className="block text-sm font-bold text-gray-600 mb-1">To Location{isInterHotel ? ' (City)' : ''}</label>
+                    {isInterHotel ? (
+                      <select value={formData.to_location} onChange={(e) => handleFieldChange('to_location', e.target.value)} disabled={!formData.country} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent bg-white disabled:bg-gray-50 disabled:text-gray-400" data-testid="edit-transfer-to">
+                        <option value="">{formData.country ? 'Select arrival city...' : 'Select a country first'}</option>
+                        {countryCities.map(c => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}
+                      </select>
+                    ) : (
+                      <input type="text" value={formData.to_location} onChange={(e) => handleFieldChange('to_location', e.target.value)} placeholder="Hotel or destination" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent" data-testid="edit-transfer-to" />
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-bold text-gray-600 mb-1">Country</label>
-                    <select value={formData.country} onChange={(e) => { handleFieldChange('country', e.target.value); handleFieldChange('city', ''); }} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent bg-white" data-testid="edit-transfer-country">
+                    <select value={formData.country} onChange={(e) => { handleFieldChange('country', e.target.value); handleFieldChange('city', ''); if (isInterHotel) { handleFieldChange('from_location', ''); handleFieldChange('to_location', ''); } }} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#002B5B] focus:border-transparent bg-white" data-testid="edit-transfer-country">
                       <option value="">Select Country...</option>
                       {[...new Set(cities.map(c => c.country).filter(Boolean))].sort().map(c => <option key={c} value={c}>{c}</option>)}
                     </select>

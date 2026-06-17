@@ -38,6 +38,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   const [activeHotelCity, setActiveHotelCity] = useState(null);
   const [hotelSearchQuery, setHotelSearchQuery] = useState('');
   const [noStayCities, setNoStayCities] = useState({});
+  // Per-city hotel service enhancements (keyed by cityIndex). When enabled,
+  // an extra hotel night is booked (early = night before check-in, late =
+  // night after check-out) and priced, while the displayed itinerary dates
+  // stay unchanged.
+  const [earlyCheckIn, setEarlyCheckIn] = useState({});
+  const [lateCheckOut, setLateCheckOut] = useState({});
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [changeRoomHotel, setChangeRoomHotel] = useState(null); // Hotel to show room options for
@@ -160,6 +166,8 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     if (data.selected_hotels && typeof data.selected_hotels === 'object') {
       const hotels = {};
       const vehiclesMap = {};
+      const earlyMap = {};
+      const lateMap = {};
       Object.entries(data.selected_hotels).forEach(([key, hotel]) => {
         if (!hotel) return;
         // Handle both pure numeric keys ("0") and "CityName_idx" format
@@ -172,8 +180,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           }
         }
         hotels[cityIndex] = hotel;
+        if (hotel.early_check_in) earlyMap[cityIndex] = true;
+        if (hotel.late_check_out) lateMap[cityIndex] = true;
       });
       if (Object.keys(hotels).length > 0) setSelectedHotels(hotels);
+      if (Object.keys(earlyMap).length > 0) setEarlyCheckIn(earlyMap);
+      if (Object.keys(lateMap).length > 0) setLateCheckOut(lateMap);
     }
 
     // Restore selected activities and rebuild activityVehicles map
@@ -1072,9 +1084,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     // `roomsCount` times — pricing scales accordingly.
     const roomsCount = data?.room_data?.length || 1;
     let hotelTotal = 0;
-    Object.values(selectedHotels).forEach(hotel => {
+    Object.entries(selectedHotels).forEach(([cityIdx, hotel]) => {
       if (hotel?.selectedRoom?.price) {
-        hotelTotal += hotel.selectedRoom.price * (hotel.nights || 1) * roomsCount;
+        const baseNights = hotel.nights || 1;
+        // Early Check-In and Late Check-Out each add one extra booked night.
+        const extraNights = (earlyCheckIn[cityIdx] ? 1 : 0) + (lateCheckOut[cityIdx] ? 1 : 0);
+        hotelTotal += hotel.selectedRoom.price * (baseNights + extraNights) * roomsCount;
       }
     });
 
@@ -1191,6 +1206,15 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     setShowHotelModal(false);
   };
 
+  // Toggle Early Check-In / Late Check-Out for a given city's hotel. Each adds
+  // one extra booked night (priced) without changing the displayed itinerary.
+  const toggleEarlyCheckIn = (cityIndex) => {
+    setEarlyCheckIn(prev => ({ ...prev, [cityIndex]: !prev[cityIndex] }));
+  };
+  const toggleLateCheckOut = (cityIndex) => {
+    setLateCheckOut(prev => ({ ...prev, [cityIndex]: !prev[cityIndex] }));
+  };
+
   // Open save proposal modal
   const handleSaveProposal = () => {
     setShowSaveProposalModal(true);
@@ -1221,8 +1245,28 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       // Build hotels data with selected rooms (keyed by cityIndex)
       const hotelsWithRooms = {};
       Object.entries(selectedHotels).forEach(([cityIdx, hotel]) => {
-        const city = cities[parseInt(cityIdx)];
+        const idx = parseInt(cityIdx);
+        const city = cities[idx];
         const cityLabel = city ? `${city.name}_${cityIdx}` : cityIdx;
+
+        // Original (displayed) stay window derived from the itinerary.
+        const baseCheckIn = new Date(startDate);
+        for (let i = 0; i < idx; i++) {
+          baseCheckIn.setDate(baseCheckIn.getDate() + (cities[i]?.nights || 1));
+        }
+        const baseNights = hotel.nights || city?.nights || 1;
+        const baseCheckOut = new Date(baseCheckIn);
+        baseCheckOut.setDate(baseCheckOut.getDate() + baseNights);
+
+        // Early Check-In books the night before; Late Check-Out the night after.
+        const early = !!earlyCheckIn[cityIdx];
+        const late = !!lateCheckOut[cityIdx];
+        const bookingCheckIn = new Date(baseCheckIn);
+        if (early) bookingCheckIn.setDate(bookingCheckIn.getDate() - 1);
+        const bookingCheckOut = new Date(baseCheckOut);
+        if (late) bookingCheckOut.setDate(bookingCheckOut.getDate() + 1);
+        const toISO = (d) => d.toISOString().slice(0, 10);
+
         hotelsWithRooms[cityLabel] = {
           id: hotel.id,
           name: hotel.name,
@@ -1239,7 +1283,15 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           rating_score: hotel.rating_score,
           rating_text: hotel.rating_text,
           review_count: hotel.review_count,
-          address: hotel.address
+          address: hotel.address,
+          // Hotel service enhancements + the actual nights booked with the hotel.
+          early_check_in: early,
+          late_check_out: late,
+          display_check_in: toISO(baseCheckIn),
+          display_check_out: toISO(baseCheckOut),
+          booking_check_in: toISO(bookingCheckIn),
+          booking_check_out: toISO(bookingCheckOut),
+          booking_nights: baseNights + (early ? 1 : 0) + (late ? 1 : 0),
         };
       });
 
@@ -1548,26 +1600,30 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
       {/* Progress Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-3 opacity-50 cursor-pointer hover:opacity-70 transition-opacity" onClick={onBack}>
-                <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                  <Check size={16} />
-                </div>
-                <span className="font-bold text-gray-400">Trip Details</span>
-              </div>
-              <ChevronRight className="text-gray-300" />
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-[#002B5B] rounded-lg flex items-center justify-center text-white font-bold text-sm">2</div>
-                <span className="font-bold text-[#002B5B]">Customize Your Trip</span>
+          {/* Top row: title, meta, total price + Save & Proceed */}
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-lg md:text-xl font-extrabold text-[#0B4F9C] tracking-tight">Customize Your Trip</h1>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs md:text-sm text-gray-500">
+                <span className="inline-flex items-center gap-1">
+                  <Calendar size={14} />
+                  {formatShortDate(startDate)} – {formatShortDate(returnDate)}
+                </span>
+                <span className="text-gray-300">•</span>
+                <span>{totalNights} night{totalNights > 1 ? 's' : ''} / {totalDays} days</span>
+                <span className="text-gray-300">•</span>
+                <span className="inline-flex items-center gap-1">
+                  <Users size={14} />
+                  {data.travelersSummary || data.travelers}
+                </span>
               </div>
             </div>
-            <div className="text-right relative">
+            <div className="flex items-center gap-3 md:gap-4">
               {timeViolations.length > 0 && (
                 <div className="inline-block relative">
                   <button
                     onClick={() => setShowTimeWarnings(!showTimeWarnings)}
-                    className="relative w-10 h-10 bg-[#002B5B] text-white rounded-full flex items-center justify-center hover:bg-[#003d82] transition-colors"
+                    className="relative w-10 h-10 bg-[#0B4F9C] text-white rounded-full flex items-center justify-center hover:bg-[#0a4488] transition-colors"
                     data-testid="time-warning-btn"
                   >
                     <AlertCircle size={20} />
@@ -1594,20 +1650,58 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                   )}
                 </div>
               )}
+              <div className="text-right">
+                <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider text-gray-400">Total Package</p>
+                <p className="text-xl md:text-2xl font-extrabold text-[#0B4F9C] leading-none" data-testid="total-price">AED {pricing.total.toLocaleString()}</p>
+              </div>
+              <button
+                onClick={handleSaveProposal}
+                disabled={isSaving}
+                data-testid="header-save-proceed"
+                className="hidden sm:inline-flex items-center gap-2 bg-[#0B4F9C] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-[#0B4F9C]/20 hover:bg-[#0a4488] transition-all disabled:opacity-60"
+              >
+                {isSaving ? <Loader2 className="animate-spin" size={16} /> : <ArrowRight size={16} />}
+                Save &amp; Proceed
+              </button>
             </div>
           </div>
-          <div className="mt-2 flex items-center gap-4 text-sm text-gray-600">
-            <span className="flex items-center gap-1">
-              <Calendar size={14} />
-              {formatShortDate(startDate)} - {formatShortDate(returnDate)}
-            </span>
-            <span>•</span>
-            <span>{totalNights} night{totalNights > 1 ? 's' : ''} / {totalDays} days</span>
-            <span>•</span>
-            <span className="flex items-center gap-1">
-              <Users size={14} />
-              {data.travelersSummary || data.travelers}
-            </span>
+
+          {/* Step indicator */}
+          <div className="mt-4 flex items-center">
+            {[
+              { label: 'Trip Details', n: 1, state: 'done', onClick: onBack },
+              { label: 'Flights', n: 2, state: 'current' },
+              { label: 'Hotels', n: 3, state: 'current' },
+              { label: 'Activities', n: 4, state: 'current' },
+              { label: 'Review & Payment', n: 5, state: 'upcoming' },
+            ].map((s, i, arr) => (
+              <React.Fragment key={s.label}>
+                <button
+                  type="button"
+                  onClick={s.onClick}
+                  disabled={!s.onClick}
+                  className={cn('flex items-center gap-2 shrink-0', s.onClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : 'cursor-default')}
+                >
+                  <span className={cn(
+                    'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors',
+                    s.state === 'done' && 'bg-emerald-500 border-emerald-500 text-white',
+                    s.state === 'current' && 'bg-[#0B4F9C] border-[#0B4F9C] text-white shadow-md shadow-[#0B4F9C]/30',
+                    s.state === 'upcoming' && 'bg-white border-gray-300 text-gray-400'
+                  )}>
+                    {s.state === 'done' ? <Check size={16} /> : s.n}
+                  </span>
+                  <span className={cn(
+                    'hidden md:inline text-sm font-bold whitespace-nowrap',
+                    s.state === 'done' && 'text-gray-500',
+                    s.state === 'current' && 'text-[#0B4F9C]',
+                    s.state === 'upcoming' && 'text-gray-400'
+                  )}>{s.label}</span>
+                </button>
+                {i < arr.length - 1 && (
+                  <div className={cn('flex-1 h-0.5 mx-2 md:mx-3 rounded-full', arr[i + 1].state === 'upcoming' ? 'bg-gray-200' : 'bg-[#0B4F9C]/40')} />
+                )}
+              </React.Fragment>
+            ))}
           </div>
         </div>
       </div>
@@ -1706,7 +1800,9 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
               </button>
             </div>
             
-            {/* Hotel Stay Sections for each city */}
+            {/* Timeline: each city's stay card is followed inline by that city's
+                day cards, so hotels are embedded within the day-wise itinerary
+                (per city + nights) instead of a separate hotel section. */}
             {cities.map((city, cityIndex) => {
               const cityHotel = selectedHotels[cityIndex];
               const cityStartDate = new Date(startDate);
@@ -1716,9 +1812,12 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
               }
               const cityEndDate = new Date(cityStartDate);
               cityEndDate.setDate(cityEndDate.getDate() + (city.nights || 1));
+              // Day cards belonging to this city segment, in chronological order.
+              const cityDays = itinerary.filter((d) => d.cityIndex === cityIndex);
               
               return (
-                <div key={`stay-${cityIndex}-${city.name}`} className="mb-6">
+                <React.Fragment key={`city-${cityIndex}-${city.name}`}>
+                <div className="mb-6">
                   {/* Stay Header */}
                   <div className="bg-[#E8F4F8] px-6 py-3 rounded-t-xl">
                     <h3 className="text-lg font-bold text-[#002B5B]">
@@ -1840,21 +1939,71 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                           })()}
                         </div>
                         
+                        {/* Early Check-In / Late Check-Out included badges */}
+                        {(earlyCheckIn[cityIndex] || lateCheckOut[cityIndex]) && (
+                          <div className="flex flex-wrap gap-2 mt-4">
+                            {earlyCheckIn[cityIndex] && (
+                              <span
+                                className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full text-sm font-semibold"
+                                data-testid={`early-checkin-badge-${cityIndex}`}
+                              >
+                                <Check size={15} /> Early Check-In Included
+                              </span>
+                            )}
+                            {lateCheckOut[cityIndex] && (
+                              <span
+                                className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full text-sm font-semibold"
+                                data-testid={`late-checkout-badge-${cityIndex}`}
+                              >
+                                <Check size={15} /> Late Check-Out Included
+                              </span>
+                            )}
+                          </div>
+                        )}
+
                         {/* Action Buttons */}
-                        <div className="flex gap-3 mt-6">
+                        <div className="flex flex-wrap gap-3 mt-4">
                           <button 
                             onClick={() => handleChangeRoom(cityIndex)}
-                            className="bg-[#8B4513] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#723a0f] transition-all"
+                            className="bg-[#C46A2C] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#a85820] transition-all"
                             data-testid={`change-room-${cityIndex}`}
                           >
                             Change Room
                           </button>
                           <button 
                             onClick={() => handleChangeHotel(cityIndex)}
-                            className="bg-[#8B4513] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#723a0f] transition-all"
+                            className="bg-[#C46A2C] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#a85820] transition-all"
                             data-testid={`change-hotel-${cityIndex}`}
                           >
                             Change Hotel
+                          </button>
+                          <button
+                            onClick={() => toggleEarlyCheckIn(cityIndex)}
+                            aria-pressed={!!earlyCheckIn[cityIndex]}
+                            data-testid={`early-checkin-toggle-${cityIndex}`}
+                            className={cn(
+                              'inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm border-2 transition-all',
+                              earlyCheckIn[cityIndex]
+                                ? 'bg-[#0B4F9C] border-[#0B4F9C] text-white'
+                                : 'bg-white border-[#0B4F9C] text-[#0B4F9C] hover:bg-[#0B4F9C]/5'
+                            )}
+                          >
+                            {earlyCheckIn[cityIndex] ? <Check size={16} /> : <Plus size={16} />}
+                            Early Check-In
+                          </button>
+                          <button
+                            onClick={() => toggleLateCheckOut(cityIndex)}
+                            aria-pressed={!!lateCheckOut[cityIndex]}
+                            data-testid={`late-checkout-toggle-${cityIndex}`}
+                            className={cn(
+                              'inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm border-2 transition-all',
+                              lateCheckOut[cityIndex]
+                                ? 'bg-[#0B4F9C] border-[#0B4F9C] text-white'
+                                : 'bg-white border-[#0B4F9C] text-[#0B4F9C] hover:bg-[#0B4F9C]/5'
+                            )}
+                          >
+                            {lateCheckOut[cityIndex] ? <Check size={16} /> : <Plus size={16} />}
+                            Late Check-Out
                           </button>
                         </div>
                       </div>
@@ -1959,12 +2108,9 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                     </div>
                   )}
                 </div>
-              );
-            })}
 
-            {/* Day-by-Day Details */}
-            <h2 className="text-xl font-bold text-gray-800 mb-4 mt-8">Daily Itinerary</h2>
-            {itinerary.map((day, index) => (
+                {/* This city's day-by-day cards, embedded right after its stay */}
+                {cityDays.map((day, index) => (
               <DayCard
                 key={`day-${day.day}-${day.city || ''}-${index}`}
                 {...day}
@@ -2014,13 +2160,17 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                 onToggleExtra={handleToggleExtra}
                 overflowActivityIds={overflowByDay[`${day.city}_${day.day}`] || []}
               />
-            ))}
+                ))}
+                </React.Fragment>
+              );
+            })}
           </div>
 
           {/* Right Column - Trip Summary */}
           <TripSummary
             cities={cities} noStayCities={noStayCities} openStayDetailsModal={openStayDetailsModal}
             selectedFlight={selectedFlight} selectedHotels={selectedHotels}
+            earlyCheckIn={earlyCheckIn} lateCheckOut={lateCheckOut}
             selectedArrivalTransfer={selectedArrivalTransfer} selectedDepartureTransfer={selectedDepartureTransfer}
             getTransferVehicleLabel={getTransferVehicleLabel}
             interCityTransfers={interCityTransfers}

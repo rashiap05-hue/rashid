@@ -25,6 +25,37 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _effective_stay(hotel, base_check_in, base_nights):
+    """Effective booked hotel stay, honoring Early Check-In / Late Check-Out.
+
+    Early Check-In books the night *before* the original check-in; Late
+    Check-Out books the night *after* the original check-out. The itinerary's
+    displayed dates stay the same — only the hotel booking window/nights grow.
+    Prefers the values persisted by the frontend, falling back to a computation
+    from the original window.
+
+    Returns: (check_in, check_out, nights, early, late) with date strings.
+    """
+    hotel = hotel or {}
+    early = bool(hotel.get("early_check_in"))
+    late = bool(hotel.get("late_check_out"))
+    base_check_out = add_days(base_check_in, base_nights)
+    check_in = hotel.get("booking_check_in") or (add_days(base_check_in, -1) if early else base_check_in)
+    check_out = hotel.get("booking_check_out") or (add_days(base_check_out, 1) if late else base_check_out)
+    nights = hotel.get("booking_nights") or (base_nights + (1 if early else 0) + (1 if late else 0))
+    return check_in, check_out, nights, early, late
+
+
+def _stay_enhancement_lines(early, late, css_class="svc-detail"):
+    """HTML lines noting the Early Check-In / Late Check-Out enhancements."""
+    out = ""
+    if early:
+        out += f'<div class="{css_class}">&#10003; Early Check-In Included (extra night before check-in)</div>'
+    if late:
+        out += f'<div class="{css_class}">&#10003; Late Check-Out Included (extra night after check-out)</div>'
+    return out
+
+
 def _short_ref(booking_or_pid):
     """Returns the booking display ref. Accepts either a booking dict or a raw id (legacy)."""
     if isinstance(booking_or_pid, dict):
@@ -151,10 +182,10 @@ def build_invoice_html(booking, proposal, user, branding=None):
     for ci, c in enumerate(cities):
         cname = c.get("name") if isinstance(c, dict) else c
         nights = c.get("nights", 1) if isinstance(c, dict) else 1
-        check_in = add_days(journey_date, day_cursor)
-        check_out = add_days(check_in, nights)
+        base_check_in = add_days(journey_date, day_cursor)
         h = selected_hotels.get(f"{cname}_{ci}") or {}
         if h:
+            check_in, check_out, booked_nights, _early, _late = _effective_stay(h, base_check_in, nights)
             sel_room = h.get("selected_room") or h.get("selectedRoom") or {}
             room_name = sel_room.get("name") or "Standard Room"
             _rp = sel_room.get("rate_plan") or sel_room.get("ratePlan") or {}
@@ -166,10 +197,11 @@ def build_invoice_html(booking, proposal, user, branding=None):
             desc_blocks += f"""
             <div class="svc-block">
                 <div class="svc-title">Stay in {cname}</div>
-                <div class="svc-detail">Check-in Date: {fmt_date(check_in)}, Check-out Date: {fmt_date(check_out)}</div>
+                <div class="svc-detail">Check-in Date: {fmt_date(check_in)}, Check-out Date: {fmt_date(check_out)} ({booked_nights} night{'s' if booked_nights != 1 else ''})</div>
                 <div class="svc-detail">{h.get('name','')}</div>
                 <div class="svc-detail">{rooms_total} x {room_name}</div>
                 <div class="svc-detail">Meals Included - {meal}</div>
+                {_stay_enhancement_lines(_early, _late)}
             </div>
             """
         day_cursor += nights
@@ -365,10 +397,10 @@ def build_voucher_html(booking, proposal, user, terms, branding=None):
     for ci, c in enumerate(cities):
         cname = c.get("name") if isinstance(c, dict) else c
         nights = c.get("nights", 1) if isinstance(c, dict) else 1
-        check_in = add_days(journey_date, day_cursor)
-        check_out = add_days(check_in, nights)
+        base_check_in = add_days(journey_date, day_cursor)
         h = selected_hotels.get(f"{cname}_{ci}") or {}
         if h:
+            check_in, check_out, booked_nights, _early, _late = _effective_stay(h, base_check_in, nights)
             sel_room = h.get("selected_room") or h.get("selectedRoom") or {}
             room_name = sel_room.get("name") or "Standard Room"
             _rp = sel_room.get("rate_plan") or sel_room.get("ratePlan") or {}
@@ -389,12 +421,16 @@ def build_voucher_html(booking, proposal, user, terms, branding=None):
                 or h.get("confirmation_code")
                 or "Pending"
             )
+            enhancement_row = (
+                f'<div class="grid-row">{_stay_enhancement_lines(_early, _late, "kv")}</div>'
+                if (_early or _late) else ''
+            )
 
             hotel_html += f"""
             <div class="hotel-block">
                 <div class="trip-row">
-                    <div class="trip-label">{nights} nights in {cname}</div>
-                    <div class="trip-value">{nights} NIGHT{'S' if nights > 1 else ''}</div>
+                    <div class="trip-label">{booked_nights} nights in {cname}</div>
+                    <div class="trip-value">{booked_nights} NIGHT{'S' if booked_nights != 1 else ''}</div>
                 </div>
                 <div class="kv"><span class="k">Hotel:</span> <span class="v">{h.get('name', '')} <span class="stars">{stars}</span></span></div>
                 <div class="kv"><span class="k">Address:</span> <span class="v">{address}</span></div>
@@ -406,7 +442,7 @@ def build_voucher_html(booking, proposal, user, terms, branding=None):
                     </div>
                     <div class="grid-row">
                         <div><span class="k">Room:</span> <span class="v">{num_rooms} x {room_name}</span></div>
-                        <div><span class="k">Nights:</span> <span class="v">{nights} nights</span></div>
+                        <div><span class="k">Nights:</span> <span class="v">{booked_nights} nights</span></div>
                     </div>
                     <div class="grid-row">
                         <div><span class="k">Check-in:</span> <span class="v">{fmt_date(check_in)}, 02:00 PM</span></div>
@@ -415,6 +451,7 @@ def build_voucher_html(booking, proposal, user, terms, branding=None):
                     <div class="grid-row">
                         <div><span class="k">Meal Plan:</span> <span class="v">{meal}</span></div>
                     </div>
+                    {enhancement_row}
                 </div>
             </div>
             """
@@ -1134,11 +1171,11 @@ def _build_hotel_voucher_html(booking, proposal, user, terms, hotel_key, fresh_r
     matched_city = cities[city_idx] if city_idx < len(cities) else None
     nights = int((matched_city or {}).get("nights") if isinstance(matched_city, dict) else 0) or int(hotel.get("nights") or 1)
 
-    # Check-in / check-out
+    # Check-in / check-out (honoring Early Check-In / Late Check-Out)
     leaving_on = (proposal or {}).get("leaving_on") or (proposal or {}).get("start_date")
     prior_nights = sum(int((c or {}).get("nights", 0) if isinstance(c, dict) else 0) for c in cities[:city_idx])
-    check_in_date = hotel.get("check_in") or (add_days(leaving_on, prior_nights) if leaving_on else "")
-    check_out_date = hotel.get("check_out") or (add_days(leaving_on, prior_nights + nights) if leaving_on else "")
+    base_check_in = hotel.get("check_in") or (add_days(leaving_on, prior_nights) if leaving_on else "")
+    check_in_date, check_out_date, booked_nights, _early, _late = _effective_stay(hotel, base_check_in, nights)
 
     # Rooms / room data
     sel_room = hotel.get("selected_room") or hotel.get("selectedRoom") or {}
@@ -1375,8 +1412,8 @@ def _build_hotel_voucher_html(booking, proposal, user, terms, hotel_key, fresh_r
     </div>
 
     <div class="nights-badge">
-      <span>{nights} night{'s' if nights != 1 else ''} in {city_name}</span>
-      <span class="right">{nights} NIGHT{'S' if nights != 1 else ''}</span>
+      <span>{booked_nights} night{'s' if booked_nights != 1 else ''} in {city_name}</span>
+      <span class="right">{booked_nights} NIGHT{'S' if booked_nights != 1 else ''}</span>
     </div>
 
     <div class="hotel-row">
@@ -1407,6 +1444,7 @@ def _build_hotel_voucher_html(booking, proposal, user, terms, hotel_key, fresh_r
         <div class="val">{fmt_date(check_out_date)}, 12:00 PM</div>
       </div>
     </div>
+    {('<div class="note-box">' + _stay_enhancement_lines(_early, _late, "val") + '</div>') if (_early or _late) else ''}
 
     {room_breakdown_html}
 
