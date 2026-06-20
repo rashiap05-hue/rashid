@@ -395,7 +395,80 @@ function RoomCategory({ category, rooms, onSelectRoom, nights, totalGuests, sele
 }
 
 // Main Hotel Details View Component
-export default function HotelDetailsView({ hotel, onBack, onSelectRoom, onSelectRooms, checkIn, checkOut, nights = 4, totalGuests = 2, adults = 1, childrenCount = 0, bookingRooms = [] }) {
+// Editable guest/room configuration (rooms, adults, children, child ages).
+const CHILD_AGE_OPTIONS = ['<2 yrs', '2 yrs', '3 yrs', '4 yrs', '5 yrs', '6 yrs', '7 yrs', '8 yrs', '9 yrs', '10 yrs', '11 yrs', '12 yrs', '13 yrs', '14 yrs', '15 yrs', '16 yrs', '17 yrs'];
+
+function Stepper({ value, onDec, onInc, min = 0 }) {
+  return (
+    <div className="flex items-center gap-2">
+      <button type="button" onClick={onDec} disabled={value <= min} className="w-7 h-7 rounded-md border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">−</button>
+      <span className="w-5 text-center text-sm font-bold text-gray-800">{value}</span>
+      <button type="button" onClick={onInc} className="w-7 h-7 rounded-md border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50">+</button>
+    </div>
+  );
+}
+
+function GuestDetailsEditor({ rooms, onChange }) {
+  const commit = (next) => onChange?.(next);
+  const setRoom = (i, patch) => commit(rooms.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  const addRoom = () => commit([...rooms, { adults: 2, children: [] }]);
+  const removeRoom = (i) => { if (rooms.length > 1) commit(rooms.filter((_, idx) => idx !== i)); };
+  const stepAdults = (i, d) => setRoom(i, { adults: Math.max(1, Math.min(9, (rooms[i].adults || 1) + d)) });
+  const stepChildren = (i, d) => {
+    const cur = rooms[i].children || [];
+    const next = d > 0 ? [...cur, { age: '2 yrs' }] : cur.slice(0, Math.max(0, cur.length - 1));
+    setRoom(i, { children: next });
+  };
+  const setChildAge = (i, ci, age) => setRoom(i, { children: (rooms[i].children || []).map((c, idx) => (idx === ci ? { ...c, age } : c)) });
+
+  return (
+    <div className="mb-5 rounded-xl border border-gray-200 bg-white p-4" data-testid="guest-details-editor">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Guest Details · {rooms.length} Room{rooms.length > 1 ? 's' : ''}</p>
+        <button type="button" onClick={addRoom} className="text-sm font-bold text-[#002B5B] hover:underline" data-testid="add-room-btn">+ Add Room</button>
+      </div>
+      <div className="flex gap-3 overflow-x-auto pb-1">
+        {rooms.map((r, i) => (
+          <div key={i} className="min-w-[190px] flex-1 border border-gray-200 rounded-lg p-3 bg-gray-50/50" data-testid={`guest-room-card-${i}`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-bold text-gray-800">Room {i + 1}</span>
+              {rooms.length > 1 && (
+                <button type="button" onClick={() => removeRoom(i)} className="text-red-400 hover:text-red-600" data-testid={`remove-room-${i}`}><X size={14} /></button>
+              )}
+            </div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-gray-500">Adults</span>
+              <Stepper value={r.adults || 1} min={1} onDec={() => stepAdults(i, -1)} onInc={() => stepAdults(i, 1)} />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500">Children</span>
+              <Stepper value={(r.children || []).length} min={0} onDec={() => stepChildren(i, -1)} onInc={() => stepChildren(i, 1)} />
+            </div>
+            {(r.children || []).length > 0 && (
+              <div className="mt-2 space-y-1">
+                {(r.children || []).map((c, ci) => (
+                  <div key={ci} className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-gray-400">Child {ci + 1} age</span>
+                    <select
+                      value={c.age || '2 yrs'}
+                      onChange={(e) => setChildAge(i, ci, e.target.value)}
+                      className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+                      data-testid={`child-age-${i}-${ci}`}
+                    >
+                      {CHILD_AGE_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function HotelDetailsView({ hotel, onBack, onSelectRoom, onSelectRooms, checkIn, checkOut, nights = 4, totalGuests = 2, adults = 1, childrenCount = 0, bookingRooms = [], roomConfig = [], onRoomsChange }) {
   const [activeTab, setActiveTab] = useState('available');
   const [searchQuery, setSearchQuery] = useState('');
   const [mealFilter, setMealFilter] = useState('all');
@@ -667,6 +740,11 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, onSelect
           {/* Filters */}
           {activeTab === 'available' && (
             <>
+              {/* Editable guest/room details (refreshes room options + pricing) */}
+              {onRoomsChange && (roomConfig?.length > 0) && (
+                <GuestDetailsEditor rooms={roomConfig} onChange={onRoomsChange} />
+              )}
+
               {/* Per-room selector (multi-room occupancy) */}
               {isMultiRoom && (
                 <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50/40 p-3" data-testid="per-room-selector">
