@@ -195,7 +195,7 @@ function WhatToKnow({ highlights, hotel }) {
 }
 
 // Room Option Card
-function RoomOption({ room, onSelect, nights = 4, totalGuests = 2 }) {
+function RoomOption({ room, onSelect, nights = 4, totalGuests = 2, selectLabel = 'select' }) {
   const [expanded, setExpanded] = useState(false);
   
   // Use rate plan price if available, otherwise use room price
@@ -330,10 +330,10 @@ function RoomOption({ room, onSelect, nights = 4, totalGuests = 2 }) {
               </div>
               <button
                 onClick={handleSelect}
-                className="px-4 py-2 border border-gray-300 rounded text-sm font-medium hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 border border-gray-300 rounded text-sm font-medium hover:bg-gray-50 transition-colors whitespace-nowrap"
                 data-testid={`select-room-${room.id}`}
               >
-                select
+                {selectLabel}
               </button>
             </div>
           </div>
@@ -344,7 +344,7 @@ function RoomOption({ room, onSelect, nights = 4, totalGuests = 2 }) {
 }
 
 // Room Category Section
-function RoomCategory({ category, rooms, onSelectRoom, nights, totalGuests }) {
+function RoomCategory({ category, rooms, onSelectRoom, nights, totalGuests, selectLabel = 'select' }) {
   const [expanded, setExpanded] = useState(true);
   const [showAll, setShowAll] = useState(false);
   
@@ -373,7 +373,7 @@ function RoomCategory({ category, rooms, onSelectRoom, nights, totalGuests }) {
           >
             {displayRooms.map((room, idx) => (
               <div key={room.id || idx} className="p-4">
-                <RoomOption room={room} onSelect={onSelectRoom} nights={nights} totalGuests={totalGuests} />
+                <RoomOption room={room} onSelect={onSelectRoom} nights={nights} totalGuests={totalGuests} selectLabel={selectLabel} />
               </div>
             ))}
             
@@ -395,11 +395,43 @@ function RoomCategory({ category, rooms, onSelectRoom, nights, totalGuests }) {
 }
 
 // Main Hotel Details View Component
-export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn, checkOut, nights = 4, totalGuests = 2, adults = 1, childrenCount = 0 }) {
+export default function HotelDetailsView({ hotel, onBack, onSelectRoom, onSelectRooms, checkIn, checkOut, nights = 4, totalGuests = 2, adults = 1, childrenCount = 0, bookingRooms = [] }) {
   const [activeTab, setActiveTab] = useState('available');
   const [searchQuery, setSearchQuery] = useState('');
   const [mealFilter, setMealFilter] = useState('all');
   const [refundableOnly, setRefundableOnly] = useState(false);
+
+  // Multi-room mode: when more than one room was booked, the agent picks a
+  // room type per booked room (each filtered by that room's occupancy).
+  const isMultiRoom = (bookingRooms?.length || 0) > 1;
+  const [activeRoomIdx, setActiveRoomIdx] = useState(0);
+  const [selectedPerRoom, setSelectedPerRoom] = useState(() => (bookingRooms || []).map(() => null));
+
+  // Reset per-room selections when the hotel or the room set changes.
+  useEffect(() => {
+    setSelectedPerRoom((bookingRooms || []).map(() => null));
+    setActiveRoomIdx(0);
+  }, [hotel?.id, bookingRooms?.length]);
+
+  // Occupancy used for filtering: the active booked room in multi-room mode,
+  // otherwise the single aggregate occupancy passed in.
+  const effAdults = isMultiRoom ? (bookingRooms[activeRoomIdx]?.adults ?? 1) : adults;
+  const effChildren = isMultiRoom ? (bookingRooms[activeRoomIdx]?.childrenCount ?? 0) : childrenCount;
+
+  // Assign a chosen room type to the active booked room (multi-room) or just
+  // select it (single-room). Auto-advances to the next unselected room.
+  const handleRoomChosen = (room) => {
+    if (!isMultiRoom) { onSelectRoom?.(room); return; }
+    setSelectedPerRoom((prev) => {
+      const next = [...prev];
+      next[activeRoomIdx] = room;
+      const nextIdx = next.findIndex((r, i) => i > activeRoomIdx && !r);
+      const anyIdx = next.findIndex((r) => !r);
+      const target = nextIdx !== -1 ? nextIdx : anyIdx;
+      if (target !== -1) setActiveRoomIdx(target);
+      return next;
+    });
+  };
 
   if (!hotel) {
     return (
@@ -424,8 +456,8 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
   const isOccupancyMatch = (roomType) => {
     const maxA = Number(roomType?.max_adults ?? 0);
     const maxC = Number(roomType?.max_children ?? 0);
-    if (maxA < adults) return false;
-    if (childrenCount > 0 && maxC < childrenCount) return false;
+    if (maxA < effAdults) return false;
+    if (effChildren > 0 && maxC < effChildren) return false;
     return true;
   };
 
@@ -635,6 +667,54 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
           {/* Filters */}
           {activeTab === 'available' && (
             <>
+              {/* Per-room selector (multi-room occupancy) */}
+              {isMultiRoom && (
+                <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50/40 p-3" data-testid="per-room-selector">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Choose a room type for each booked room</p>
+                  <div className="flex flex-wrap gap-2">
+                    {bookingRooms.map((br, i) => {
+                      const sel = selectedPerRoom[i];
+                      const active = i === activeRoomIdx;
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setActiveRoomIdx(i)}
+                          className={cn(
+                            'text-left px-3 py-2 rounded-lg border-2 transition-all min-w-[170px]',
+                            active ? 'border-[#002B5B] bg-white shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300'
+                          )}
+                          data-testid={`booking-room-tab-${i}`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm font-bold text-gray-800">{br.label || `Room ${i + 1}`}</span>
+                            {sel ? <Check size={15} className="text-green-600" /> : (active ? <span className="text-[10px] font-bold text-[#002B5B] uppercase">Selecting</span> : null)}
+                          </div>
+                          <div className="text-xs text-gray-500">{br.adults} adult{br.adults > 1 ? 's' : ''}{br.childrenCount > 0 ? ` + ${br.childrenCount} child` : ''}</div>
+                          <div className={cn('text-xs mt-0.5 truncate', sel ? 'text-green-700' : 'text-gray-400')}>{sel ? `${sel.name} · ${sel.meals || 'Room Only'}` : 'No room selected'}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selectedPerRoom.every(Boolean) && (
+                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-blue-100 pt-3">
+                      <div className="text-sm text-gray-600">
+                        Total: <span className="font-bold text-[#002B5B]">AED {selectedPerRoom.reduce((s, r) => s + ((r?.price || 0) * nights), 0).toLocaleString()}</span>{' '}
+                        <span className="text-xs text-gray-400">({nights} night{nights > 1 ? 's' : ''})</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onSelectRooms?.(selectedPerRoom)}
+                        className="px-5 py-2.5 bg-[#002B5B] text-white font-bold rounded-lg hover:bg-[#003d82] transition-colors"
+                        data-testid="confirm-rooms-btn"
+                      >
+                        Confirm {selectedPerRoom.length} Rooms
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex items-center gap-4 mb-6">
                 <div className="relative flex-1 max-w-xs">
                   <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -679,9 +759,10 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
                     key={category}
                     category={`${category} Room`}
                     rooms={filteredRooms}
-                    onSelectRoom={onSelectRoom}
+                    onSelectRoom={handleRoomChosen}
                     nights={nights}
                     totalGuests={totalGuests}
+                    selectLabel={isMultiRoom ? `Select for ${bookingRooms[activeRoomIdx]?.label || `Room ${activeRoomIdx + 1}`}` : 'select'}
                   />
                 );
               })}
@@ -707,8 +788,8 @@ export default function HotelDetailsView({ hotel, onBack, onSelectRoom, checkIn,
                       <p className="text-sm text-gray-500 mt-2">
                         {(() => {
                           const hints = [];
-                          if (childrenCount > 0) hints.push(`${adults} adult${adults > 1 ? 's' : ''} + ${childrenCount} child${childrenCount > 1 ? 'ren' : ''}`);
-                          else hints.push(`${adults} adult${adults > 1 ? 's' : ''}`);
+                          if (effChildren > 0) hints.push(`${effAdults} adult${effAdults > 1 ? 's' : ''} + ${effChildren} child${effChildren > 1 ? 'ren' : ''}`);
+                          else hints.push(`${effAdults} adult${effAdults > 1 ? 's' : ''}`);
                           if (checkIn && checkOut) hints.push(`${checkIn} → ${checkOut}`);
                           return `Occupancy: ${hints.join(' • ')}. All room types are either too small or unavailable for these dates.`;
                         })()}

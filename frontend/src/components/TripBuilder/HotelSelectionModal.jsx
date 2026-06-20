@@ -4,7 +4,7 @@ import { X, Search, Loader2, Star, Hotel, Filter, Wifi } from 'lucide-react';
 import { api } from '@/App';
 import HotelDetailsView from '../HotelDetailsView';
 
-function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights, onSelect, searchQuery = '', initialHotel = null, totalGuests = 2, adults = 1, children = 0 }) {
+function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights, onSelect, searchQuery = '', initialHotel = null, totalGuests = 2, adults = 1, children = 0, bookingRooms = [] }) {
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedHotel, setSelectedHotel] = useState(null);
@@ -171,10 +171,14 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
     setSortBy('recommended');
   };
 
-  const handleSelectHotel = (hotel, room) => {
+  const handleSelectHotel = (hotel, roomOrRooms) => {
+    // `roomOrRooms` is an array when the user picked a room type per booked
+    // room (multi-room occupancy), otherwise a single room object.
+    const selectedRooms = Array.isArray(roomOrRooms) ? roomOrRooms : [roomOrRooms];
     onSelect({
       ...hotel,
-      selectedRoom: room,
+      selectedRoom: selectedRooms[0],
+      selectedRooms,
       checkIn,
       checkOut,
       nights
@@ -455,12 +459,14 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
               hotel={selectedHotel}
               onBack={() => setViewMode('list')}
               onSelectRoom={(room) => handleSelectHotel(selectedHotel, room)}
+              onSelectRooms={(rooms) => handleSelectHotel(selectedHotel, rooms)}
               checkIn={checkIn}
               checkOut={checkOut}
               nights={nights}
               totalGuests={totalGuests}
               adults={adults}
               childrenCount={children}
+              bookingRooms={bookingRooms}
             />
           )}
         </div>

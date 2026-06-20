@@ -1085,11 +1085,16 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     const roomsCount = data?.room_data?.length || 1;
     let hotelTotal = 0;
     Object.entries(selectedHotels).forEach(([cityIdx, hotel]) => {
-      if (hotel?.selectedRoom?.price) {
-        const baseNights = hotel.nights || 1;
-        // Early Check-In and Late Check-Out each add one extra booked night.
-        const extraNights = (earlyCheckIn[cityIdx] ? 1 : 0) + (lateCheckOut[cityIdx] ? 1 : 0);
-        hotelTotal += hotel.selectedRoom.price * (baseNights + extraNights) * roomsCount;
+      const baseNights = hotel?.nights || 1;
+      // Early Check-In and Late Check-Out each add one extra booked night.
+      const extraNights = (earlyCheckIn[cityIdx] ? 1 : 0) + (lateCheckOut[cityIdx] ? 1 : 0);
+      const totalNights = baseNights + extraNights;
+      if (Array.isArray(hotel?.selectedRooms) && hotel.selectedRooms.length > 0) {
+        // Per-room selection: each booked room can be a different room type.
+        const perNight = hotel.selectedRooms.reduce((s, r) => s + (r?.price || 0), 0);
+        hotelTotal += perNight * totalNights;
+      } else if (hotel?.selectedRoom?.price) {
+        hotelTotal += hotel.selectedRoom.price * totalNights * roomsCount;
       }
     });
 
@@ -1277,6 +1282,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           images: hotel.images || [],
           amenities: hotel.amenities,
           selectedRoom: hotel.selectedRoom,
+          selectedRooms: hotel.selectedRooms || null,
           checkIn: hotel.checkIn,
           checkOut: hotel.checkOut,
           nights: hotel.nights,
@@ -1533,6 +1539,16 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           // were already promoted into the adult count above.
           return 0;
         })()}
+        // Per-room occupancy so the hotel page can offer an independent room
+        // type per booked room (e.g. Room 1 = 2 adults, Room 2 = 1 adult).
+        bookingRooms={(data?.room_data || []).map((room, i) => {
+          const baseAdults = room.adults || 1;
+          const childrenAboveFive = (room.children || []).filter((c) => {
+            const n = parseInt(String(c.age || '').replace(/[^0-9]/g, ''), 10);
+            return Number.isFinite(n) && n > 5;
+          }).length;
+          return { adults: baseAdults + childrenAboveFive, childrenCount: 0, label: `Room ${i + 1}` };
+        })}
       />
 
       {/* Hotel Options Modal (Change Hotel choices) */}
@@ -1885,10 +1901,26 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                         
                         {/* Selected Room Info */}
                         <div className="mt-4 space-y-2">
-                          <div className="flex items-center gap-2 text-sm">
-                            <Check className="w-5 h-5 text-green-500" />
-                            <span className="text-gray-700">Selected Room: <strong>{(data?.room_data?.length || 1)} x {cityHotel.selectedRoom?.name || 'Standard Room'}, {cityHotel.selectedRoom?.bed_type || 'Twin Beds'}</strong></span>
-                          </div>
+                          {Array.isArray(cityHotel.selectedRooms) && cityHotel.selectedRooms.length > 1 ? (
+                            <div className="flex items-start gap-2 text-sm">
+                              <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
+                              <div className="text-gray-700">
+                                <span className="font-bold">Selected Rooms:</span>
+                                <ul className="mt-1 space-y-0.5">
+                                  {cityHotel.selectedRooms.map((r, ri) => (
+                                    <li key={ri}>
+                                      <strong>Room {ri + 1}:</strong> {r?.name || 'Standard Room'}{r?.bed_type ? `, ${r.bed_type}` : ''} — {r?.meals || 'Room Only'}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Check className="w-5 h-5 text-green-500" />
+                              <span className="text-gray-700">Selected Room: <strong>{(data?.room_data?.length || 1)} x {cityHotel.selectedRoom?.name || 'Standard Room'}, {cityHotel.selectedRoom?.bed_type || 'Twin Beds'}</strong></span>
+                            </div>
+                          )}
                           {(() => {
                             const mealPlan = cityHotel.selectedRoom?.rate_plan?.meal_plan
                               || cityHotel.selectedRoom?.meal_plan
