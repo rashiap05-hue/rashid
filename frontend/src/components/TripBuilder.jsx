@@ -47,9 +47,16 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
   // Editable room/guest configuration. Starts from the Create Trip Package
   // form's room_data; the agent can edit it from the hotel "Change Room" popup,
   // which refreshes the per-room hotel options and pricing.
-  const [roomDataOverride, setRoomDataOverride] = useState(null);
-  const effectiveRoomData = roomDataOverride || data?.room_data || [];
-  const handleRoomsChange = (newRoomData) => setRoomDataOverride(newRoomData);
+  // Per-CITY room arrangement overrides (keyed by cityIndex), so editing one
+  // hotel's room split never affects another city's hotel card.
+  const [roomDataOverrides, setRoomDataOverrides] = useState({});
+  // Trip-level travelers come from the Create Trip Package form and are fixed —
+  // editing a hotel only re-distributes these guests into rooms, it can't add
+  // passengers beyond the original selection.
+  const originalRoomData = data?.room_data || [];
+  const maxTripPax = originalRoomData.reduce((acc, r) => acc + (r.adults || 0) + ((r.children || []).length || 0), 0) || 1;
+  const getRoomConfig = (cityIdx) => roomDataOverrides[cityIdx] || originalRoomData;
+  const handleRoomsChange = (newRoomData) => setRoomDataOverrides(prev => ({ ...prev, [activeHotelCity]: newRoomData }));
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [changeRoomHotel, setChangeRoomHotel] = useState(null); // Hotel to show room options for
@@ -926,8 +933,8 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
 
   // Calculate total passengers
   const getTotalPassengers = () => {
-    const adultsCount = effectiveRoomData?.reduce((acc, r) => acc + r.adults, 0) || 2;
-    const childrenCount = effectiveRoomData?.reduce((acc, r) => acc + r.children?.length, 0) || 0;
+    const adultsCount = originalRoomData?.reduce((acc, r) => acc + r.adults, 0) || 2;
+    const childrenCount = originalRoomData?.reduce((acc, r) => acc + r.children?.length, 0) || 0;
     return adultsCount + childrenCount;
   };
 
@@ -1085,16 +1092,14 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
 
   // Calculate pricing
   const calculatePricing = () => {
-    // Number of physical rooms the customer is booking (e.g. 2 rooms for
-    // 4 adults split as 2A + 2A). Each selected room type gets booked
-    // `roomsCount` times — pricing scales accordingly.
-    const roomsCount = effectiveRoomData?.length || 1;
     let hotelTotal = 0;
     Object.entries(selectedHotels).forEach(([cityIdx, hotel]) => {
       const baseNights = hotel?.nights || 1;
       // Early Check-In and Late Check-Out each add one extra booked night.
       const extraNights = (earlyCheckIn[cityIdx] ? 1 : 0) + (lateCheckOut[cityIdx] ? 1 : 0);
       const totalNights = baseNights + extraNights;
+      // Rooms booked for THIS city (its own arrangement, independent of others).
+      const roomsCount = getRoomConfig(cityIdx).length || 1;
       if (Array.isArray(hotel?.selectedRooms) && hotel.selectedRooms.length > 0) {
         // Per-room selection: each booked room can be a different room type.
         const perNight = hotel.selectedRooms.reduce((s, r) => s + (r?.price || 0), 0);
@@ -1128,7 +1133,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     
     // Eligible pax for extras = adults + children excluding infants (<2 yrs).
     // Per business rule, infants are not charged for extras.
-    const eligiblePax = (effectiveRoomData || []).reduce((acc, r) => {
+    const eligiblePax = (originalRoomData || []).reduce((acc, r) => {
       const adultCount = Number(r.adults || 0);
       const nonInfantChildren = (r.children || []).filter(ch => {
         const age = (ch?.age || '').toString().toLowerCase();
@@ -1168,8 +1173,8 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
     });
     activitiesTotal += extrasTotal;
     
-    const adultsCount = effectiveRoomData?.reduce((acc, r) => acc + r.adults, 0) || 2;
-    const childrenCount = effectiveRoomData?.reduce((acc, r) => acc + r.children?.length, 0) || 0;
+    const adultsCount = originalRoomData?.reduce((acc, r) => acc + r.adults, 0) || 2;
+    const childrenCount = originalRoomData?.reduce((acc, r) => acc + r.children?.length, 0) || 0;
     
     const subtotal = hotelTotal + flightPrice + transferTotal + activitiesTotal;
     
@@ -1315,7 +1320,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         leaving_on: data.leaving_on,
         star_rating: data.star_rating,
         add_transfers: data.add_transfers,
-        room_data: effectiveRoomData,
+        room_data: originalRoomData,
         cities: data.cities,
         
         // Flight info
@@ -1461,7 +1466,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         leaving_on: data.leaving_on,
         star_rating: data.star_rating,
         add_transfers: data.add_transfers,
-        room_data: effectiveRoomData,
+        room_data: originalRoomData,
         cities: data.cities,
         selected_flight: selectedFlight,
         selected_hotels: selectedHotels,
@@ -1531,7 +1536,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         // from both counts. `child.age` values from the picker look like
         // "<2 yrs", "3 yrs", "11 yrs".
         adults={(() => {
-          const firstRoom = effectiveRoomData?.[0];
+          const firstRoom = getRoomConfig(activeHotelCity)?.[0];
           if (!firstRoom) return 1;
           const baseAdults = firstRoom.adults || 1;
           const childrenAboveFive = (firstRoom.children || []).filter((c) => {
@@ -1547,7 +1552,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
         })()}
         // Per-room occupancy so the hotel page can offer an independent room
         // type per booked room (e.g. Room 1 = 2 adults, Room 2 = 1 adult).
-        bookingRooms={(effectiveRoomData || []).map((room, i) => {
+        bookingRooms={(getRoomConfig(activeHotelCity) || []).map((room, i) => {
           const baseAdults = room.adults || 1;
           const childrenAboveFive = (room.children || []).filter((c) => {
             const n = parseInt(String(c.age || '').replace(/[^0-9]/g, ''), 10);
@@ -1555,8 +1560,9 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
           }).length;
           return { adults: baseAdults + childrenAboveFive, childrenCount: 0, label: `Room ${i + 1}` };
         })}
-        roomConfig={effectiveRoomData}
+        roomConfig={getRoomConfig(activeHotelCity)}
         onRoomsChange={handleRoomsChange}
+        maxPax={maxTripPax}
       />
 
       {/* Hotel Options Modal (Change Hotel choices) */}
@@ -1926,7 +1932,7 @@ export default function TripBuilder({ data, user, onBack, onConfirm }) {
                           ) : (
                             <div className="flex items-center gap-2 text-sm">
                               <Check className="w-5 h-5 text-green-500" />
-                              <span className="text-gray-700">Selected Room: <strong>{(effectiveRoomData?.length || 1)} x {cityHotel.selectedRoom?.name || 'Standard Room'}, {cityHotel.selectedRoom?.bed_type || 'Twin Beds'}</strong></span>
+                              <span className="text-gray-700">Selected Room: <strong>{(getRoomConfig(cityIndex)?.length || 1)} x {cityHotel.selectedRoom?.name || 'Standard Room'}, {cityHotel.selectedRoom?.bed_type || 'Twin Beds'}</strong></span>
                             </div>
                           )}
                           {(() => {

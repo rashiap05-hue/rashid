@@ -4,7 +4,7 @@ import { X, Search, Loader2, Star, Hotel, Filter, Wifi } from 'lucide-react';
 import { api } from '@/App';
 import HotelDetailsView from '../HotelDetailsView';
 
-function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights, onSelect, searchQuery = '', initialHotel = null, totalGuests = 2, adults = 1, children = 0, bookingRooms = [], roomConfig = [], onRoomsChange }) {
+function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights, onSelect, searchQuery = '', initialHotel = null, totalGuests = 2, adults = 1, children = 0, bookingRooms = [], roomConfig = [], onRoomsChange, maxPax = 0 }) {
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedHotel, setSelectedHotel] = useState(null);
@@ -469,6 +469,7 @@ function HotelSelectionModal({ isOpen, onClose, city, checkIn, checkOut, nights,
               bookingRooms={bookingRooms}
               roomConfig={roomConfig}
               onRoomsChange={onRoomsChange}
+              maxPax={maxPax}
             />
           )}
         </div>
