@@ -28,12 +28,23 @@ function VehicleSelectionModal({ isOpen, onClose, activity, onSelectVehicle, tot
 
   const defaultVehicleKey = getDefaultVehicle();
 
-  const availableVehicles = vehicleOptions.filter(v => {
-    if (v.key === defaultVehicleKey) return true;
-    if (v.optional && totalPax >= v.minPax - 2 && totalPax <= v.maxPax) return true;
-    if (v.maxPax > totalPax && v.minPax <= totalPax) return true;
-    return false;
-  });
+  const defaultKeys = new Set(vehicleOptions.map(v => v.key));
+  // Custom vehicle types added in the Transfer/Activity admin forms live in
+  // vehicle_pricing under non-default keys. They have free-text pax, so they're
+  // always offered (no numeric range to filter on).
+  const customVehicles = Object.entries(activity?.vehicle_pricing || {})
+    .filter(([key]) => !defaultKeys.has(key))
+    .map(([key, v]) => ({ key, label: v?.label || 'Custom Vehicle', icon: '🚖', pax: v?.pax || '', custom: true, minPax: 1, maxPax: 9999 }));
+
+  const availableVehicles = [
+    ...vehicleOptions.filter(v => {
+      if (v.key === defaultVehicleKey) return true;
+      if (v.optional && totalPax >= v.minPax - 2 && totalPax <= v.maxPax) return true;
+      if (v.maxPax > totalPax && v.minPax <= totalPax) return true;
+      return false;
+    }),
+    ...customVehicles,
+  ];
 
   const getVehiclePrice = (vehicleKey) => {
     if (activity.vehicle_pricing && activity.vehicle_pricing[vehicleKey]) {

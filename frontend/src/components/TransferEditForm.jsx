@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Check, Clock, Info, Image, Car, CheckCircle, Building2, DollarSign, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { api, resolveImageUrl } from '../App';
+import VehiclePricingEditor from './VehiclePricingEditor';
 
 // Image Uploader for transfers
 function TransferImageUploader({ images = [], onImagesChange, transferId = '' }) {
@@ -319,16 +320,6 @@ export default function TransferEditForm({ transfer, onSave, onClose, isNew = fa
     { id: 'extras', label: 'Extras', icon: Plus },
     { id: 'pricing', label: 'Vehicle Pricing', icon: Car },
     { id: 'supplier', label: 'Supplier', icon: Building2 }
-  ];
-
-  const vehicles = [
-    { key: 'sedan_4', label: '4 Seater Sedan', pax: '1-4 pax' },
-    { key: 'car_7', label: '7 Seater Minivan', pax: '3-7 pax', optional: true },
-    { key: 'van_8', label: '8 Seater Van', pax: '5-8 pax', optional: true },
-    { key: 'van_17', label: '17 Seater Van', pax: '9-17 pax' },
-    { key: 'bus_29', label: '29 Seater Bus', pax: '18-29 pax' },
-    { key: 'bus_45', label: '45 Seater Bus', pax: '30-45 pax' },
-    { key: 'bus_55', label: '55 Seater Bus', pax: '46-55 pax' }
   ];
 
   // For Inter-Hotel (Hotel to Hotel) transfers the From/To locations are cities,
@@ -662,87 +653,11 @@ export default function TransferEditForm({ transfer, onSave, onClose, isNew = fa
             {/* Vehicle Pricing Tab */}
             {activeTab === 'pricing' && (
               <motion.div key="pricing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 px-4 py-3 rounded-xl border border-blue-100">
-                  <h4 className="font-bold text-gray-700 flex items-center gap-2"><Car size={18} className="text-blue-600" /> Vehicle-Based Pricing (AED)</h4>
-                  <p className="text-xs text-gray-500 mt-1">Set selling price and supplier cost for each vehicle type</p>
-                </div>
-                <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100">
-                  {vehicles.map(vehicle => {
-                    const vp = formData.vehicle_pricing || {};
-                    const pricing = vp[vehicle.key] || { selling_price: 0, supplier_cost: 0, max_bags: 0 };
-                    const margin = (pricing.selling_price || 0) - (pricing.supplier_cost || 0);
-                    const marginPercent = pricing.selling_price > 0 ? (margin / pricing.selling_price * 100) : 0;
-                    return (
-                      <div key={vehicle.key} className="px-4 py-3 hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center gap-4">
-                          <div className="w-48 flex items-center gap-2 flex-shrink-0">
-                            <Car size={16} className="text-gray-400 flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="text"
-                                  value={pricing.label ?? vehicle.label}
-                                  onChange={(e) => {
-                                    const newPricing = { ...formData.vehicle_pricing };
-                                    newPricing[vehicle.key] = { ...newPricing[vehicle.key], label: e.target.value };
-                                    handleFieldChange('vehicle_pricing', newPricing);
-                                  }}
-                                  className="w-full text-sm font-medium text-gray-700 border border-transparent hover:border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 focus:outline-none"
-                                  data-testid={`vehicle-name-${vehicle.key}`}
-                                />
-                                {vehicle.optional && <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-medium flex-shrink-0">Optional</span>}
-                              </div>
-                              <input
-                                type="text"
-                                value={pricing.pax ?? vehicle.pax}
-                                onChange={(e) => {
-                                  const newPricing = { ...formData.vehicle_pricing };
-                                  newPricing[vehicle.key] = { ...newPricing[vehicle.key], pax: e.target.value };
-                                  handleFieldChange('vehicle_pricing', newPricing);
-                                }}
-                                placeholder="e.g. 1-4 pax"
-                                className="w-full mt-0.5 text-xs text-gray-400 border border-transparent hover:border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 focus:outline-none"
-                                data-testid={`vehicle-pax-${vehicle.key}`}
-                              />
-                            </div>
-                          </div>
-                          <div className="flex-1 grid grid-cols-4 gap-4">
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">Selling Price</label>
-                              <input type="number" min="0" value={pricing.selling_price || ''} onChange={(e) => {
-                                const newPricing = { ...formData.vehicle_pricing };
-                                newPricing[vehicle.key] = { ...newPricing[vehicle.key], selling_price: parseFloat(e.target.value) || 0 };
-                                handleFieldChange('vehicle_pricing', newPricing);
-                              }} placeholder="0" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-                            </div>
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">Supplier Cost</label>
-                              <input type="number" min="0" value={pricing.supplier_cost || ''} onChange={(e) => {
-                                const newPricing = { ...formData.vehicle_pricing };
-                                newPricing[vehicle.key] = { ...newPricing[vehicle.key], supplier_cost: parseFloat(e.target.value) || 0 };
-                                handleFieldChange('vehicle_pricing', newPricing);
-                              }} placeholder="0" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-                            </div>
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">Max Bags</label>
-                              <input type="number" min="0" value={pricing.max_bags || ''} onChange={(e) => {
-                                const newPricing = { ...formData.vehicle_pricing };
-                                newPricing[vehicle.key] = { ...newPricing[vehicle.key], max_bags: parseInt(e.target.value) || 0 };
-                                handleFieldChange('vehicle_pricing', newPricing);
-                              }} placeholder="0" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-                            </div>
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">Margin</label>
-                              <div className={`px-3 py-2 rounded-lg text-sm font-medium ${margin > 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-400'}`}>
-                                {margin > 0 ? <>{margin.toFixed(0)}<span className="text-xs ml-1">({marginPercent.toFixed(0)}%)</span></> : '-'}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <VehiclePricingEditor
+                  value={formData.vehicle_pricing}
+                  onChange={(v) => handleFieldChange('vehicle_pricing', v)}
+                  currency="AED"
+                />
               </motion.div>
             )}
 
