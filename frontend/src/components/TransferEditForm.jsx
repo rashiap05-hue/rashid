@@ -675,14 +675,35 @@ export default function TransferEditForm({ transfer, onSave, onClose, isNew = fa
                     return (
                       <div key={vehicle.key} className="px-4 py-3 hover:bg-gray-50 transition-colors">
                         <div className="flex items-center gap-4">
-                          <div className="w-44 flex items-center gap-2 flex-shrink-0">
-                            <Car size={16} className="text-gray-400" />
-                            <div>
+                          <div className="w-48 flex items-center gap-2 flex-shrink-0">
+                            <Car size={16} className="text-gray-400 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1">
-                                <span className="text-sm font-medium text-gray-700">{vehicle.label}</span>
-                                {vehicle.optional && <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-medium">Optional</span>}
+                                <input
+                                  type="text"
+                                  value={pricing.label ?? vehicle.label}
+                                  onChange={(e) => {
+                                    const newPricing = { ...formData.vehicle_pricing };
+                                    newPricing[vehicle.key] = { ...newPricing[vehicle.key], label: e.target.value };
+                                    handleFieldChange('vehicle_pricing', newPricing);
+                                  }}
+                                  className="w-full text-sm font-medium text-gray-700 border border-transparent hover:border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 focus:outline-none"
+                                  data-testid={`vehicle-name-${vehicle.key}`}
+                                />
+                                {vehicle.optional && <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-medium flex-shrink-0">Optional</span>}
                               </div>
-                              <span className="text-xs text-gray-400">{vehicle.pax}</span>
+                              <input
+                                type="text"
+                                value={pricing.pax ?? vehicle.pax}
+                                onChange={(e) => {
+                                  const newPricing = { ...formData.vehicle_pricing };
+                                  newPricing[vehicle.key] = { ...newPricing[vehicle.key], pax: e.target.value };
+                                  handleFieldChange('vehicle_pricing', newPricing);
+                                }}
+                                placeholder="e.g. 1-4 pax"
+                                className="w-full mt-0.5 text-xs text-gray-400 border border-transparent hover:border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 focus:outline-none"
+                                data-testid={`vehicle-pax-${vehicle.key}`}
+                              />
                             </div>
                           </div>
                           <div className="flex-1 grid grid-cols-4 gap-4">

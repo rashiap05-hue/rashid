@@ -110,7 +110,7 @@ function VehicleSelectionModal({ isOpen, onClose, activity, onSelectVehicle, tot
                       <span className="text-2xl">{vehicle.icon}</span>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-gray-800">{vehicle.label}</span>
+                          <span className="font-bold text-gray-800">{activity?.vehicle_pricing?.[vehicle.key]?.label || vehicle.label}</span>
                           {isDefault && (
                             <span className="text-[10px] px-2 py-0.5 bg-green-500 text-white rounded-full font-bold">
                               Recommended
@@ -123,7 +123,7 @@ function VehicleSelectionModal({ isOpen, onClose, activity, onSelectVehicle, tot
                           )}
                         </div>
                         <span className="text-xs text-gray-500">
-                          {vehicle.minPax}-{vehicle.maxPax} passengers • Extra comfort & space
+                          {activity?.vehicle_pricing?.[vehicle.key]?.pax || `${vehicle.minPax}-${vehicle.maxPax} passengers`} • Extra comfort & space
                         </span>
                       </div>
                     </div>
