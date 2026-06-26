@@ -1050,8 +1050,28 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                     const dayCity = dayCityInfo.cityName;
                     const dayCityIdx = dayCityInfo.cityIndex;
                     
-                    // Get activities for this day
-                    const dayActivities = proposal.selected_activities?.[`${dayCity}_${dayNum}`] || [];
+                    // Get activities for this day. On inter-city transfer
+                    // (check-in) days, ALSO include the FROM city's same-day
+                    // activities — matching Customize Your Trip, which shows the
+                    // origin city's morning sightseeing before the transfer.
+                    // Without this, activities keyed under the origin city
+                    // (e.g. "Kutaisi_5" on a Kutaisi→Batumi day 5) were silently
+                    // dropped from the proposal page and PDF.
+                    const _prevDayInfo = dayNum > 1 ? getDayCityInfo(dayNum - 1) : null;
+                    const _fromCityName = (_prevDayInfo && _prevDayInfo.cityIndex !== dayCityIdx) ? _prevDayInfo.cityName : null;
+                    const dayActivities = (() => {
+                      const own = proposal.selected_activities?.[`${dayCity}_${dayNum}`] || [];
+                      const fromActs = _fromCityName ? (proposal.selected_activities?.[`${_fromCityName}_${dayNum}`] || []) : [];
+                      const merged = [...fromActs, ...own];
+                      const seen = new Set();
+                      return merged.filter((a) => {
+                        const k = a?.id || a?.name;
+                        if (!k) return true;
+                        if (seen.has(k)) return false;
+                        seen.add(k);
+                        return true;
+                      });
+                    })();
                     const hotel = getHotelForCity(dayCity, dayCityIdx);
 
                     // For group-tour proposals, when Day 1 / last day already carries activities,
@@ -1651,16 +1671,6 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                   const entityIds = Object.keys(selectedExtras).filter(k => Array.isArray(selectedExtras[k]) && selectedExtras[k].length);
                   if (!entityIds.length) return null;
 
-                  // Eligible pax = adults + non-infant children
-                  const eligiblePax = (proposal.room_data || []).reduce((acc, r) => {
-                    const adultCount = Number(r.adults || 0);
-                    const nonInfantChildren = (r.children || []).filter(ch => {
-                      const age = (ch?.age || '').toString().toLowerCase();
-                      return !(age.includes('<2') || age.includes('infant') || age.includes('0-2'));
-                    }).length;
-                    return acc + adultCount + nonInfantChildren;
-                  }, 0) || 1;
-
                   // Build entity-id → {name, vehicle, type} map for friendly labels
                   const entityMap = {};
                   Object.entries(proposal.selected_activities || {}).forEach(([k, v]) => {
@@ -1675,23 +1685,19 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                   if (proposal.arrival_transfer?.id) entityMap[proposal.arrival_transfer.id] = { name: proposal.arrival_transfer.title, type: 'Transfer', vehicle: proposal.arrival_transfer.selectedVehicle };
                   if (proposal.departure_transfer?.id) entityMap[proposal.departure_transfer.id] = { name: proposal.departure_transfer.title, type: 'Transfer', vehicle: proposal.departure_transfer.selectedVehicle };
 
-                  let grandTotal = 0;
+                  // Add-on rows show image + name + description only. Per spec,
+                  // individual add-on prices are NOT shown here — the cost is
+                  // reflected only in the Price Breakdown.
                   const rows = [];
                   entityIds.forEach(entityId => {
                     const ent = entityMap[entityId] || { name: 'Service', type: '' };
                     selectedExtras[entityId].forEach((ex, idx) => {
-                      const perPax = (ex.vehicle_pricing && ent.vehicle && ex.vehicle_pricing[ent.vehicle])
-                        ? ex.vehicle_pricing[ent.vehicle]
-                        : (ex.price || 0);
-                      const sub = perPax * eligiblePax;
-                      grandTotal += sub;
                       rows.push({
                         key: `${entityId}_${idx}`,
                         name: ex.name,
                         description: ex.description,
+                        image: ex.image || ex.images?.[0] || null,
                         forLabel: ent.type ? `${ent.type}: ${ent.name}` : ent.name,
-                        perPax,
-                        subtotal: sub,
                       });
                     });
                   });
@@ -1706,22 +1712,17 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                       </div>
                       <div className="px-6 py-4 space-y-2">
                         {rows.map((r) => (
-                          <div key={r.key} className="flex items-start justify-between gap-4 py-3 border-b border-gray-100 last:border-b-0">
+                          <div key={r.key} className="flex items-start gap-4 py-3 border-b border-gray-100 last:border-b-0">
+                            {r.image && (
+                              <img src={resolveImageUrl(r.image)} alt={r.name} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" onError={(e) => { e.target.style.display = 'none'; }} />
+                            )}
                             <div className="flex-1 min-w-0">
                               <p className="font-semibold text-gray-800">{r.name}</p>
                               {r.description && <p className="text-xs text-gray-500 mt-0.5">{r.description}</p>}
                               <p className="text-[11px] text-gray-400 mt-1 italic">For {r.forLabel}</p>
                             </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-xs text-gray-500">AED {r.perPax.toLocaleString()} × {eligiblePax} pax</p>
-                              <p className="text-base font-bold text-amber-700 mt-0.5">AED {r.subtotal.toLocaleString()}</p>
-                            </div>
                           </div>
                         ))}
-                      </div>
-                      <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-t border-gray-100">
-                        <span className="text-sm font-semibold text-gray-700">Extras Subtotal ({eligiblePax} eligible pax, infants excluded)</span>
-                        <span className="text-lg font-bold text-amber-700">AED {grandTotal.toLocaleString()}</span>
                       </div>
                     </div>
                   );

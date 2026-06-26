@@ -210,6 +210,26 @@ def build_day_plan(proposal):
             acts = selected_activities.get(f"{city_name}_{day_num}", [])
             if not isinstance(acts, list):
                 acts = [acts] if acts else []
+            # On inter-city check-in days, ALSO include the FROM city's same-day
+            # activities (keyed under the origin city) — matching Customize Your
+            # Trip. Without this, e.g. a "Kutaisi_5" activity on a Kutaisi→Batumi
+            # day 5 was dropped from the PDF.
+            if night == 0 and ci > 0:
+                prev_city = cities[ci - 1]
+                from_city = prev_city.get("name") if isinstance(prev_city, dict) else prev_city
+                from_acts = selected_activities.get(f"{from_city}_{day_num}", [])
+                if not isinstance(from_acts, list):
+                    from_acts = [from_acts] if from_acts else []
+                seen, merged = set(), []
+                for a in list(from_acts) + list(acts):
+                    if not a:
+                        continue
+                    key = (a.get("id") or a.get("name")) if isinstance(a, dict) else str(a)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    merged.append(a)
+                acts = merged
             for a in acts:
                 if a:
                     items.append({"type": "activity", "data": a})
@@ -835,8 +855,9 @@ def section_selected_extras(proposal):
                 "vehicle": t.get("selectedVehicle"),
             }
 
+    # Per spec, add-ons show image + name + description only — no individual
+    # prices here. The cost is reflected only in the Price Breakdown.
     rows_html = ""
-    grand_total = 0.0
     has_any = False
     for entity_id, extras in selected_extras.items():
         if not isinstance(extras, list) or not extras:
@@ -846,27 +867,24 @@ def section_selected_extras(proposal):
             if not isinstance(ex, dict):
                 continue
             has_any = True
-            vp = ex.get("vehicle_pricing")
-            if isinstance(vp, dict) and ent.get("vehicle") and vp.get(ent["vehicle"]):
-                per_pax = float(vp[ent["vehicle"]])
-            else:
-                per_pax = float(ex.get("price") or 0)
-            subtotal = per_pax * eligible_pax
-            grand_total += subtotal
             for_label = (
                 f"{ent['type']}: {ent['name']}" if ent.get("type") else ent.get("name", "")
             )
             desc = ex.get("description") or ""
+            img = ex.get("image") or (ex.get("images") or [None])[0]
+            img_html = (
+                f'<img src="{resolve_image(img)}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0;" />'
+                if img else ''
+            )
             rows_html += f"""
-            <tr>
-                <td class="extra-cell">
+            <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #eee;">
+                {img_html}
+                <div>
                     <div class="extra-name">{ex.get("name","")}</div>
                     {f'<div class="extra-desc">{desc}</div>' if desc else ''}
                     <div class="extra-for">For {for_label}</div>
-                </td>
-                <td class="extra-pax">AED {per_pax:,.0f} × {eligible_pax}</td>
-                <td class="extra-sub">AED {subtotal:,.0f}</td>
-            </tr>
+                </div>
+            </div>
             """
 
     if not has_any:
@@ -875,21 +893,7 @@ def section_selected_extras(proposal):
     return f"""
     <section class="extras-section">
         <h2 class="section-title">Extras Available for Purchase</h2>
-        <table class="extras-table">
-            <thead>
-                <tr><th>Item</th><th class="right">Per Pax</th><th class="right">Subtotal</th></tr>
-            </thead>
-            <tbody>
-                {rows_html}
-            </tbody>
-            <tfoot>
-                <tr class="extras-total">
-                    <td>Extras Subtotal <span class="extras-note">({eligible_pax} eligible pax, infants excluded)</span></td>
-                    <td></td>
-                    <td class="right">AED {grand_total:,.0f}</td>
-                </tr>
-            </tfoot>
-        </table>
+        <div class="extras-list">{rows_html}</div>
     </section>
     """
 
