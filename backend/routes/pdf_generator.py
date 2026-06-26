@@ -562,13 +562,26 @@ def render_item(it):
             or sel_room.get("meal_plan") or sel_room.get("mealPlan")
             or sel_room.get("meals") or "Room Only"
         )
+        city = it.get("city", "")
+        nights = it.get("nights", 1)
+        checkin = it.get("checkin")
+        checkout = it.get("checkout")
+        img = hotel_image(data)
+        img_html = f'<img src="{img}" alt="{name}" class="act-thumb" />' if img else '<div class="day-icon hotel-icon">🏨</div>'
+        badges = '<span class="tag tag-blue">Stay</span>'
+        if data.get("early_check_in"):
+            badges += '<span class="tag tag-green">✓ Early Check-In</span>'
+        if data.get("late_check_out"):
+            badges += '<span class="tag tag-green">✓ Late Check-Out</span>'
         return f"""
-        <div class="day-item">
-            <div class="day-icon hotel-icon">🏨</div>
+        <div class="day-item activity-row">
+            {img_html}
             <div class="day-content">
-                <div class="day-item-title">{name} <span class="stars">{stars}</span></div>
-                <div class="day-item-meta">{room} • {meal}</div>
-                <div class="day-tags"><span class="tag tag-blue">Stay</span></div>
+                <div class="day-item-title">Stay in {city} — {nights} night{'s' if nights > 1 else ''}</div>
+                <div class="day-item-meta"><strong>{name}</strong> <span class="stars">{stars}</span></div>
+                <div class="day-item-meta">Room: {room} • Meal: {meal}</div>
+                <div class="day-item-meta">Check-in: {fmt_date(checkin)} • Check-out: {fmt_date(checkout)}</div>
+                <div class="day-tags">{badges}</div>
             </div>
         </div>
         """
@@ -1004,6 +1017,8 @@ def section_inclusions_exclusions(proposal):
                     <div class="inc-title">Stay for {nights} night{'s' if nights>1 else ''} at <strong>{hotel.get('name','')}</strong></div>
                     <div class="inc-meta">1 x {room_name}</div>
                     <div class="inc-meta">{bk_text}</div>
+                    {'<div class="inc-meta">&#10003; Early Check-In Included</div>' if hotel.get('early_check_in') else ''}
+                    {'<div class="inc-meta">&#10003; Late Check-Out Included</div>' if hotel.get('late_check_out') else ''}
                 </div>
                 <div class="inc-day">
                     <div class="inc-day-num">Day {day_cursor + 1}</div>
@@ -1035,6 +1050,25 @@ def section_inclusions_exclusions(proposal):
             acts = selected_activities.get(f"{city_name}_{day_num}", [])
             if not isinstance(acts, list):
                 acts = [acts] if acts else []
+            # On the first day of a non-first city (inter-city transfer day),
+            # also include the FROM city's same-day activities so the Inclusions
+            # list matches Customize Your Trip (no dropped items).
+            if night == 0 and ci > 0:
+                prev_city = cities[ci - 1]
+                from_city = prev_city.get("name") if isinstance(prev_city, dict) else prev_city
+                from_acts = selected_activities.get(f"{from_city}_{day_num}", [])
+                if not isinstance(from_acts, list):
+                    from_acts = [from_acts] if from_acts else []
+                seen_k, merged = set(), []
+                for a in list(from_acts) + list(acts):
+                    if not a:
+                        continue
+                    kk = (a.get("id") or a.get("name")) if isinstance(a, dict) else str(a)
+                    if kk in seen_k:
+                        continue
+                    seen_k.add(kk)
+                    merged.append(a)
+                acts = merged
             for a in acts:
                 if not a:
                     continue
@@ -1453,21 +1487,9 @@ def build_pdf_html(proposal, terms, expert, user):
     terms_html = section_terms(terms)
     flights_html = section_flights(proposal)
 
-    # Hotel detail sections (one per city) — prefer admin-configured
-    # check_in_date / check_out_date set on the hotel.
+    # Hotels render day-wise inside the itinerary (see render_item / section_day_wise),
+    # so there is no separate Hotels section — matching the Customize Your Trip layout.
     hotels_html = ""
-    arr_flight = proposal.get("arrival_flight_info") or {}
-    trip_start = (arr_flight.get("arrivalDate") or arr_flight.get("flightDate") or leaving_on)
-    day_cursor = 0
-    for ci, c in enumerate(cities):
-        cname = c.get("name") if isinstance(c, dict) else c
-        nights = c.get("nights", 1) if isinstance(c, dict) else 1
-        hotel = get_hotel(proposal, cname, ci)
-        if hotel:
-            checkin = hotel.get("check_in_date") or add_days(trip_start, day_cursor)
-            checkout = hotel.get("check_out_date") or add_days(checkin, nights)
-            hotels_html += section_hotel_card(hotel, cname, checkin, checkout, nights)
-        day_cursor += nights
 
     # "Specially prepared for / by" page (page 2)
     advisor_phone = (user or {}).get("phone") or (expert or {}).get("phone") or ""

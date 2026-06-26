@@ -1123,8 +1123,12 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                       }
                     }
 
+                    // First day of this city's stay → render the hotel stay
+                    // card right after this day (matches Customize Your Trip).
+                    const _isCityFirstDay = dayNum === 1 || (_prevDayInfo && _prevDayInfo.cityIndex !== dayCityIdx);
                     return (
-                      <div key={dayNum} className="bg-white border border-gray-200 rounded-xl mb-4 overflow-hidden shadow-sm" data-testid={`day-card-${dayNum}`}>
+                      <React.Fragment key={dayNum}>
+                      <div className="bg-white border border-gray-200 rounded-xl mb-4 overflow-hidden shadow-sm" data-testid={`day-card-${dayNum}`}>
                         {/* Day Header - Clickable to expand/collapse */}
                         <button
                           onClick={() => toggleDay(dayNum)}
@@ -1574,6 +1578,43 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                           )}
                         </AnimatePresence>
                       </div>
+
+                      {/* Day-wise hotel stay card (after the city's first day) */}
+                      {_isCityFirstDay && hotel && (() => {
+                        const nights = proposal.cities?.[dayCityIdx]?.nights || 1;
+                        const coDate = new Date(dayDate);
+                        coDate.setDate(coDate.getDate() + nights);
+                        const starCount = Math.round(hotel.star_rating || 4);
+                        const roomName = hotel.selectedRoom?.name || 'Standard Room';
+                        const mealPlan = hotel.selectedRoom?.rate_plan?.meal_plan || hotel.selectedRoom?.meal_plan || hotel.selectedRoom?.meals || 'Room Only';
+                        const hImg = hotel.images?.[0] || hotel.image;
+                        return (
+                          <div className="mb-4 border border-gray-200 rounded-xl overflow-hidden shadow-sm" data-testid={`stay-card-${dayNum}`}>
+                            <div className="bg-[#E8F4F8] px-6 py-3">
+                              <h3 className="text-base font-bold text-[#002B5B]">Stay in {dayCity} — {nights} night{nights > 1 ? 's' : ''}</h3>
+                            </div>
+                            <div className="bg-white p-5 flex gap-5">
+                              {hImg && <img src={resolveImageUrl(hImg)} alt={hotel.name} className="w-40 h-28 object-cover rounded-lg flex-shrink-0" onError={(e) => { e.target.style.display = 'none'; }} />}
+                              <div className="flex-1">
+                                <div className="flex items-center gap-1 mb-1">{Array.from({ length: starCount }).map((_, i) => (<Star key={i} size={14} className="text-yellow-400 fill-yellow-400" />))}</div>
+                                <h4 className="text-lg font-bold text-[#002B5B]">{hotel.name}</h4>
+                                <p className="text-sm text-gray-600 mt-1">{roomName} · {mealPlan}</p>
+                                <div className="flex gap-8 mt-3 text-sm">
+                                  <div><p className="text-gray-500">Check-in</p><p className="font-semibold text-gray-800">{formatDate(dayDate, 'full')}</p></div>
+                                  <div><p className="text-gray-500">Check-out</p><p className="font-semibold text-gray-800">{formatDate(coDate, 'full')}</p></div>
+                                </div>
+                                {(hotel.early_check_in || hotel.late_check_out) && (
+                                  <div className="flex flex-wrap gap-2 mt-3">
+                                    {hotel.early_check_in && <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full text-xs font-semibold"><Check size={12} /> Early Check-In Included</span>}
+                                    {hotel.late_check_out && <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full text-xs font-semibold"><Check size={12} /> Late Check-Out Included</span>}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      </React.Fragment>
                     );
                   })}
                 </div>
@@ -1825,6 +1866,8 @@ export default function ProposalView({ proposal: initialProposal, onBack, onBook
                                 ) : (
                                   <p className="text-sm text-gray-400 mt-0.5">Breakfast: Not Included</p>
                                 )}
+                                {hotel.early_check_in && <p className="text-sm text-teal-600 mt-0.5">✓ Early Check-In Included</p>}
+                                {hotel.late_check_out && <p className="text-sm text-teal-600 mt-0.5">✓ Late Check-Out Included</p>}
                               </div>
                             </div>
                           )}
